@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>NexusGuard - 3D Interactive Biotech Prototype</title>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color: #06070a; color: #f1f5f9; font-family: system-ui, sans-serif; overflow-x: hidden; }
+    /* Beautiful scrollbars */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0b0f19; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    /* Animation helper */
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 0.8; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.05); }
+    }
+    .pulse-btn { animation: pulse-slow 3s infinite; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+  
+  <!-- Header Bar with Integrated Language Selector -->
+  <header class="border-b border-slate-900 bg-slate-950/90 py-3.5 px-6 sticky top-0 z-50 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-blue-500/20">N</div>
+      <div>
+        <h1 class="text-base font-extrabold text-white tracking-tight leading-none">NexusGuard Core 3D</h1>
+        <p class="text-[10px] text-slate-400 font-mono mt-1" id="sub-title">Prototipo 3D Autónomo e Interactivo Fuera de Línea</p>
+      </div>
+    </div>
+    
+    <!-- Multi-Language Switcher deck -->
+    <div class="flex items-center bg-slate-900/90 rounded-xl p-1.5 border border-slate-800 shadow-xl">
+      <span class="text-[10px] font-bold font-mono text-slate-500 uppercase px-2.5 mr-1 hidden sm:inline">Idioma / Lang:</span>
+      <button onclick="changeLanguage('es')" id="btn-lang-es" class="px-3 py-1.5 text-xs font-mono font-bold rounded-lg transition-all border border-blue-500/40 bg-blue-950/55 text-blue-400">ESPAÑOL</button>
+      <button onclick="changeLanguage('en')" id="btn-lang-en" class="px-3 py-1.5 text-xs font-mono font-bold rounded-lg transition-all text-slate-400 hover:text-white hover:bg-slate-800 ml-1">ENGLISH</button>
+      <button onclick="changeLanguage('zh')" id="btn-lang-zh" class="px-3 py-1.5 text-xs font-mono font-bold rounded-lg transition-all text-slate-400 hover:text-white hover:bg-slate-800 ml-1">中文 (ZH)</button>
+    </div>
+
+    <div class="text-[10px] uppercase font-mono bg-emerald-950/40 text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-900/60 shadow-sm flex items-center gap-1.5">
+      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+      <span id="status-tag">Descargado Offline</span>
+    </div>
+  </header>
+
+  <!-- Main Canvas split view -->
+  <main class="max-w-7xl mx-auto w-full p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
+    
+    <!-- Left Hand: Interactive 3D Canvas Box -->
+    <div class="lg:col-span-8 flex flex-col gap-3 relative">
+      <div id="canvas-container" class="w-full h-[540px] rounded-2xl overflow-hidden bg-slate-950 border border-slate-900 shadow-2xl relative">
+        <!-- Floating overlay with target hints -->
+        <div class="absolute top-4 left-4 pointer-events-none">
+          <span class="text-[10px] uppercase font-mono font-bold text-blue-400 bg-slate-950/90 border border-slate-800 px-2.5 py-1 rounded shadow">
+            Interactive CAD Viewport
+          </span>
+        </div>
+      </div>
+      <p class="text-center text-[11px] text-slate-500 font-mono" id="label-drag-prompt">Arrastra para rotar • Usa la rueda del ratón para hacer zoom</p>
+    </div>
+
+    <!-- Right Hand: Live controls and dynamic specs inside downloaded app -->
+    <div class="lg:col-span-4 p-5 rounded-2xl bg-slate-900/30 border border-slate-800/80 flex flex-col gap-6 backdrop-blur-sm justify-between">
+      
+      <!-- Panel Header & Descriptions -->
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+          <h3 class="text-sm font-extrabold uppercase font-mono tracking-wider text-slate-200" id="controls-title">Controles Prototipo</h3>
+        </div>
+        <p class="text-xs text-slate-400 mt-2 font-sans" id="controls-desc">Interactúa con las piezas físicas del bio-sensador directamente fuera de línea.</p>
+      </div>
+
+      <!-- Separator slider (Explode Mode) -->
+      <div class="bg-slate-950/40 p-4 rounded-xl border border-slate-900/60">
+        <div class="flex justify-between text-xs font-semibold font-mono text-slate-400 mb-2">
+          <span id="panel-slider-explode">Vista de Despiece (Explode)</span>
+          <span id="label-explode" class="text-blue-400 font-extrabold">0%</span>
+        </div>
+        <input id="slider-explode" type="range" min="0" max="1" step="0.01" value="0" class="w-full h-1.5 accent-blue-500 bg-slate-800 rounded-lg cursor-pointer focus:outline-none" />
+      </div>
+
+      <!-- Speed rotation slider -->
+      <div class="bg-slate-950/40 p-4 rounded-xl border border-slate-900/60">
+        <div class="flex justify-between text-xs font-semibold font-mono text-slate-400 mb-2">
+          <span id="panel-slider-speed">Velocidad de Giro</span>
+          <span id="label-speed" class="text-indigo-400 font-extrabold">1.0x</span>
+        </div>
+        <input id="slider-speed" type="range" min="0" max="3" step="0.2" value="1.0" class="w-full h-1.5 accent-indigo-500 bg-slate-800 rounded-lg cursor-pointer focus:outline-none" />
+      </div>
+
+      <!-- Advanced Shader Mode / Wireframe Options -->
+      <div>
+        <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2.5 font-mono" id="label-viewmode">Modo de Visualización</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="setMode('realistic')" id="mode-btn-real" class="px-3 py-2 text-xs rounded-lg border border-blue-500/20 bg-blue-950/20 text-blue-300 font-mono">Físico Realista</button>
+          <button onclick="setMode('xray')" id="mode-btn-xray" class="px-3 py-2 text-xs rounded-lg border border-slate-800 hover:bg-slate-800 hover:text-white text-slate-400 font-mono">Rayos X</button>
+        </div>
+      </div>
+
+      <!-- Interactive Bio-stimulation console inside standalone -->
+      <div class="pt-4 border-t border-slate-800">
+        <h4 class="text-xs font-bold text-slate-300 uppercase tracking-widest font-mono mb-2.5" id="sim-title">Simular Canalización de Fluidos</h4>
+        <div class="flex gap-2">
+          <button onclick="simStatus('normal')" id="btn-sim-normal" class="flex-1 py-2 text-[10px] font-mono font-bold text-emerald-400 border border-emerald-900 rounded-lg bg-emerald-950/20 hover:bg-emerald-900/35 transition-colors">Lactobacillus normal</button>
+          <button onclick="simStatus('fever')" id="btn-sim-fever" class="flex-1 py-2 text-[10px] font-mono font-bold text-rose-400 border border-rose-900 rounded-lg bg-rose-950/20 hover:bg-rose-900/35 transition-colors">Fiebre / Alerta</button>
+        </div>
+        <div id="offline-summary-box" class="mt-3.5 p-3.5 text-xs font-mono leading-relaxed text-slate-400 bg-slate-950/90 rounded-xl border border-slate-900">
+          Consola offline armada preliminar. Selecciona simulación para comprobar reactancias electroquímicas.
+        </div>
+      </div>
+
+      <!-- Layer inspection card displaying detail on click/hover -->
+      <div class="mt-4 p-4 rounded-xl bg-slate-950/50 border border-slate-900/80">
+        <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider font-mono mb-2" id="label-panel-layers">Detalles de Capas de Bio-Sensado</h4>
+        <div id="layer-details-box" class="text-[11px] font-sans text-slate-400 leading-relaxed">
+          Haz clic en cualquier capa del modelo 3D o arrastra el deslizador de despiece para ver un análisis detallado de cada componente.
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="border-t border-slate-950 bg-slate-950/40 p-6 text-center text-[10px] text-slate-500 font-mono">
+    <p id="footer-text">© 2026 NexusGuard Core. Ingeniería médica certificada de autogestión femenina.</p>
+  </footer>
+
+  <script>
+    // Full Translations locales dictionary for dynamic offline update
+    const LOCALES = {
+      es: {
+        subtitle: 'Prototipo 3D Autónomo e Interactivo Fuera de Línea',
+        statusActive: 'Descargado Offline',
+        controlsTitle: 'Controles Prototipo 3D',
+        controlsDesc: 'Interactúa con las piezas físicas del bio-sensador directamente fuera de línea.',
+        sliderExplode: 'Vista de Despiece (Explode)',
+        sliderSpeed: 'Velocidad de Giro',
+        viewModeLabel: 'Modo de Visualización',
+        modeRealistic: 'Físico Realista',
+        modeXray: 'Rayos X',
+        simTitle: 'Simular Canalización de Fluidos',
+        simNormal: 'Lactobacillus normal',
+        simFever: 'Fiebre / Alerta',
+        summaryDefault: 'Consola offline armada y lista. Selecciona un estado de simulación para comprobar la conductividad electroquímica de los fluidos.',
+        normalAlert: '✓ BIENESTAR SANO: Lactobacillus balance óptimo. Canalización microfluídica en niveles fisiológicos normales.',
+        feverAlert: '⚠ INFECCIÓN DETECTADA: Curva de temperatura elevada (>38.3°C) y respuesta inmunitaria activa. Diodo LED emitiendo señal roja.',
+        footerText: '© 2026 NexusGuard Core. Ingeniería médica certificada de autogestión femenina.',
+        dragPrompt: 'Arrastra para rotar • Usa la rueda del ratón para Zoom',
+        panelLayers: 'Definición de Capas 3D de Bio-Sensado',
+        layerDefault: 'Haz clic en cualquier pieza del modelo 3D o usa el modo despiece para revelar la estructura biomecánica interior.',
+        layer_pad: '<strong>[Capa de Cobertura y Zona de Pre-tratamiento]</strong> Material de bio-algodón biocompatible combinado con reactivos estabilizadores térmicos que guían el fluido vaginal de forma uniforme.',
+        layer_cartridge: '<strong>[Cartucho Modular Deslizable Lateral Flow]</strong> Unidad intercambiable sellada molecularmente con bandas de inmunoensayo reactivas que capturan biomarcadores activos.',
+        layer_sensor: '<strong>[Trama Graphene Electrochemical Sensor]</strong> Red interna de circuitos de grafeno ultraflexible encargada de medir cambios de resistividad electroquímica iónica.',
+        layer_led: '<strong>[Diodo LED Multifuncional de Salida]</strong> Indicador luminoso encapsulado que parpadea y cambia de color (Verde/Azul/Rojo) de acuerdo a los resultados termicos.'
+      },
+      en: {
+        subtitle: 'Standalone 3D Interactive Offline Biotech Prototype',
+        statusActive: 'Offline Standalone Mode',
+        controlsTitle: 'Engineering 3D Controls',
+        controlsDesc: 'Interact with the biomechanical layers and fluidic structures directly offline.',
+        sliderExplode: 'Exploded View (Separation)',
+        sliderSpeed: 'Auto Rotation Speed',
+        viewModeLabel: 'Visualization Mode',
+        modeRealistic: 'Realistic Physical',
+        modeXray: 'X-Ray (Wireframe)',
+        simTitle: 'Simulate Fluid Path Detection',
+        simNormal: 'Normal Lactobacillus',
+        simFever: 'Fever / System Alert',
+        summaryDefault: 'Standalone offline console armed. Select a simulation state to test fluidic actions.',
+        normalAlert: '✓ HEALTHY BASELINE: Optimal Lactobacillus balance. Passive capillary liquid flows within healthy bio-parameters.',
+        feverAlert: '⚠ SYSTEM ALERT: Thermal elevation detected (>38.3°C) representing active immunologic response. Red LED triggered.',
+        footerText: '© 2026 NexusGuard Core. Certified medical hardware for integrated feminine autogesture.',
+        dragPrompt: 'Drag to rotate • Scroll wheel to Zoom',
+        panelLayers: 'Bio-Sensing Layer Details',
+        layerDefault: 'Click any component on the 3D model or slide the explode control to analyze its biochemical structure.',
+        layer_pad: '<strong>[Cover Layer and Pre-treatment Zone]</strong> Medically graded organic bio-cotton combined with integrated temperature stabilization matrices for smooth fluid guide.',
+        layer_cartridge: '<strong>[Modular Slide-out LFA Cartridge]</strong> Replaceable diagnostic cassette containing high affinity biomarker detection strips with chromatographic diagnostic lines.',
+        layer_sensor: '<strong>[Graphene Capillary Sensor Grid]</strong> Flexible microfluidic graphene network measuring direct ionic resistance variance and target pathogen interactions.',
+        layer_led: '<strong>[Diagnostic LED Indicator]</strong> Solid-state micro-LED capsule flashing and glowing in real-time to represent biochemical diagnostic outputs.'
+      },
+      zh: {
+        subtitle: '独立三维互动诊断原型控制面板',
+        statusActive: '便携式离线模式运行中',
+        controlsTitle: '生物工程交互原型控制器',
+        controlsDesc: '在没有网络的环境下直接操控超柔石墨烯传感器与医学检测试剂盒的几何空间组件。',
+        sliderExplode: '多层分解演示进度 (Explode)',
+        sliderSpeed: '自动自转速度',
+        viewModeLabel: '渲染结构渲染选项',
+        modeRealistic: '高保真彩色质感',
+        modeXray: 'X光电子结构 (半透)',
+        simTitle: '仿真体液通道和试剂盒检测',
+        simNormal: '乳酸杆菌正常菌群',
+        simFever: '热反应感染警报',
+        summaryDefault: '离线分析模块就绪。选择仿真诊断状态，检测微流管道中的电化学活性。',
+        normalAlert: '✓ 优良健康常态: 益生乳酸杆菌水平处于最优区间。体液及温度均在正常生理范围。',
+        feverAlert: '⚠ 系统红外警报警: 探测到高热反应(>38.3°C)以及高浓度炎性因子反应，红光指示灯激活高能频段闪烁。',
+        footerText: '© 2026 NexusGuard Core. 关爱女性生殖健康的生物工程自检设备与先进CAD数字原型。',
+        dragPrompt: '按住鼠标左键拖动以旋转 · 滚动滑轮进行远近轴缩放',
+        panelLayers: '微流体传感结构分层说明',
+        layerDefault: '点击三维模型中的任何层，或者调节分解进度滑块来查看详细的分子加工技术规范。',
+        layer_pad: '<strong>[表层亲水敷料和诊断预处理层]</strong> 采用纯天然有机生物棉，耦合了温度敏感缓释固形剂，用来引导并铺平分泌物流向传感器。',
+        layer_cartridge: '<strong>[模块化热插拔检测试剂盒插盒]</strong> 侧向层析模块化测试滑片，配备特异性抗体固化多谱显色比对显色谱层带。',
+        layer_sensor: '<strong>[柔性石墨烯电化学微滤网络]</strong> 附着在底层的高导电图形化石墨烯网络，实时感应微弱的电阻率、极化电位阻抗波动。',
+        layer_led: '<strong>[多谱段LED信号诊断提示灯]</strong> 紧凑的封装贴片LED颗粒，可通过闪烁机制和蓝绿红三色色光直接反应体液热波动状况。'
+      }
+    };
+
+    let currentLang = 'es';
+
+    function changeLanguage(lang) {
+      currentLang = lang;
+      
+      // Update languages layout selectors highlighting
+      document.getElementById('btn-lang-es').className = lang === 'es' 
+        ? "px-3 py-1.5 text-xs font-mono font-bold rounded-lg transition-all border border-blue-500/40 bg-blue-950/55 text-blue-400"
+        : "px-3 py-1.5 text-xs font-mono font-bold rounded-lg transition-all text-slate-400 hover:text-white hover:bg-slate-800 ml-1";
+      document.getElementById('btn-lang-en').className = lang === 'en' 
+        ? "px-3 py-1.5 text-xs font-mono font-bold rounded-lg transition-all border border-blue-500/40 bg-blue-950/55 text-blue-400"
+        : "px-3 py-1.5 text-xs font-mono font-bold rounded-lg transition-all text-slate-400 hover:text-white hover:bg-slate-800 ml-1";
+      document.getElementById('btn-lang-zh').className = lang === 'zh' 
+        ? "px-3 py-1.5 text-xs font-mono font-bold rounded-lg transition-all border border-blue-500/40 bg-blue-950/55 text-blue-400"
+        : "px-3 py-1.5 text-xs font-mono font-bold rounded-lg transition-all text-slate-400 hover:text-white hover:bg-slate-800 ml-1";
+
+      // Translate DOM
+      document.getElementById('sub-title').innerText = LOCALES[lang].subtitle;
+      document.getElementById('status-tag').innerText = LOCALES[lang].statusActive;
+      document.getElementById('controls-title').innerText = LOCALES[lang].controlsTitle;
+      document.getElementById('controls-desc').innerText = LOCALES[lang].controlsDesc;
+      document.getElementById('panel-slider-explode').innerText = LOCALES[lang].sliderExplode;
+      document.getElementById('panel-slider-speed').innerText = LOCALES[lang].sliderSpeed;
+      document.getElementById('label-viewmode').innerText = LOCALES[lang].viewModeLabel;
+      document.getElementById('mode-btn-real').innerText = LOCALES[lang].modeRealistic;
+      document.getElementById('mode-btn-xray').innerText = LOCALES[lang].modeXray;
+      document.getElementById('sim-title').innerText = LOCALES[lang].simTitle;
+      document.getElementById('btn-sim-normal').innerText = LOCALES[lang].simNormal;
+      document.getElementById('btn-sim-fever').innerText = LOCALES[lang].simFever;
+      document.getElementById('label-drag-prompt').innerText = LOCALES[lang].dragPrompt;
+      document.getElementById('label-panel-layers').innerText = LOCALES[lang].panelLayers;
+      document.getElementById('footer-text').innerText = LOCALES[lang].footerText;
+
+      // Adjust text container messages
+      const summaryBox = document.getElementById('offline-summary-box');
+      if (summaryBox.innerText.includes('SANO') || summaryBox.innerText.includes('HEALTHY') || summaryBox.innerText.includes('乳酸杆菌')) {
+        summaryBox.innerText = LOCALES[lang].normalAlert;
+      } else if (summaryBox.innerText.includes('INFECCIÓN') || summaryBox.innerText.includes('INFECTION') || summaryBox.innerText.includes('SYSTEM') || summaryBox.innerText.includes('红外警报警')) {
+        summaryBox.innerText = LOCALES[lang].feverAlert;
+      } else {
+        summaryBox.innerText = LOCALES[lang].summaryDefault;
+      }
+
+      // Layer box default state translation
+      document.getElementById('layer-details-box').innerHTML = LOCALES[lang].layerDefault;
+    }
+
+    // --- THREE JS SCRIPT STARTS ---
+    const container = document.getElementById("canvas-container");
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x06070a);
+
+    // Setup high-fidelity futuristic environment
+    scene.fog = new THREE.FogExp2(0x06070a, 0.08);
+
+    const camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 100);
+    camera.position.set(2.8, 3.8, 6.2);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2 + 0.1;
+    controls.minDistance = 3;
+    controls.maxDistance = 14;
+
+    // Advanced Realistic Lighting Design
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.55);
+    scene.add(ambientLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.4);
+    keyLight.position.set(6, 12, 6);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 1048;
+    keyLight.shadow.mapSize.height = 1048;
+    keyLight.shadow.bias = -0.0005;
+    scene.add(keyLight);
+
+    const futuristicRimLight = new THREE.DirectionalLight(0xa5b4fc, 0.85); // glowing lavender backdrop
+    futuristicRimLight.position.set(-6, 4, -6);
+    scene.add(futuristicRimLight);
+
+    const laserSpotlight = new THREE.SpotLight(0x38bdf8, 2.5, 10, Math.PI / 4, 0.5, 1);
+    laserSpotlight.position.set(0, 5, 0);
+    scene.add(laserSpotlight);
+
+    // Particle background (futuristic dust matrix)
+    const particleGeo = new THREE.BufferGeometry();
+    const particleCount = 180;
+    const posArray = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount * 3; i++) {
+      posArray[i] = (Math.random() - 0.5) * 12;
+    }
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const particleMat = new THREE.PointsMaterial({
+      size: 0.015,
+      color: 0x6366f1,
+      transparent: true,
+      opacity: 0.65
+    });
+    const starryParticles = new THREE.Points(particleGeo, particleMat);
+    scene.add(starryParticles);
+
+    // Master Group
+    const deviceGroup = new THREE.Group();
+    scene.add(deviceGroup);
+
+    // Helpers to draw surgical hourglass medical shape
+    function getHourglassPath() {
+      const shape = new THREE.Shape();
+      shape.moveTo(-0.5, -2.0);
+      shape.bezierCurveTo(-0.55, -0.9, -0.32, -0.3, -0.32, 0.0);
+      shape.bezierCurveTo(-1.15, 0.15, -1.15, 0.75, -0.32, 0.9);
+      shape.bezierCurveTo(-0.32, 1.4, -0.48, 1.95, 0.0, 2.1);
+      shape.bezierCurveTo(0.48, 1.95, 0.32, 1.4, 0.32, 0.9);
+      shape.bezierCurveTo(1.15, 0.75, 1.15, 0.15, 0.32, 0.0);
+      shape.bezierCurveTo(0.32, -0.3, 0.55, -0.9, 0.5, -2.0);
+      shape.bezierCurveTo(0.4, -2.4, -0.4, -2.4, -0.5, -2.0);
+      return shape;
+    }
+
+    // 1. Lower Pad Layer
+    const botGeo = new THREE.ExtrudeGeometry(getHourglassPath(), { steps: 1, depth: 0.12, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.04 });
+    botGeo.rotateX(-Math.PI/2); botGeo.center();
+    const botMat = new THREE.MeshStandardMaterial({ color: 0xeeedf4, roughness: 0.8, metalness: 0.05 });
+    const bottomMesh = new THREE.Mesh(botGeo, botMat);
+    bottomMesh.name = "pad";
+    bottomMesh.castShadow = true;
+    bottomMesh.receiveShadow = true;
+    deviceGroup.add(bottomMesh);
+
+    // Recessed Cavity Slot
+    const slotGeo = new THREE.BoxGeometry(0.48, 0.08, 1.42);
+    const slotMat = new THREE.MeshStandardMaterial({ color: 0x0a0c16, roughness: 0.7 });
+    const slotMesh = new THREE.Mesh(slotGeo, slotMat);
+    slotMesh.position.set(0, 0.04, 0.7);
+    deviceGroup.add(slotMesh);
+
+    // 2. Middle Graphene Electrochemical sensor line
+    const sensGeo = new THREE.BoxGeometry(0.18, 0.015, 3.2);
+    const sensMat = new THREE.MeshStandardMaterial({ 
+      color: 0xdf8416, 
+      metalness: 0.95, 
+      roughness: 0.15,
+      emissive: 0x3d1b02 
+    });
+    const sensorMesh = new THREE.Mesh(sensGeo, sensMat);
+    sensorMesh.position.set(0, 0.07, 0);
+    sensorMesh.name = "sensor";
+    deviceGroup.add(sensorMesh);
+
+    // Grid details on sensor for incredible high tech look
+    const gridFilaments = new THREE.GridHelper(3.8, 22, 0x6366f1, 0x1e1b4b);
+    gridFilaments.position.set(0, 0.075, 0);
+    gridFilaments.rotation.x = Math.PI / 2;
+    gridFilaments.scale.set(0.12, 1, 0.8);
+    deviceGroup.add(gridFilaments);
+
+    // 3. Cover layer with high tech material parameters
+    const topGeo = new THREE.ExtrudeGeometry(getHourglassPath(), { steps: 1, depth: 0.06, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.03 });
+    topGeo.rotateX(-Math.PI/2); topGeo.center();
+    const topMat = new THREE.MeshPhysicalMaterial({ 
+      color: 0xffffff, 
+      roughness: 0.9,
+      metalness: 0.05,
+      transmission: 0.1,
+      thickness: 0.05,
+      transparent: true
+    });
+    const topMesh = new THREE.Mesh(topGeo, topMat);
+    topMesh.name = "pad";
+    deviceGroup.add(topMesh);
+
+    // Pink Pre-treatment zone (blush oval)
+    const ptGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.01, 32);
+    const ptMat = new THREE.MeshStandardMaterial({ 
+      color: 0xec4899, 
+      transparent: true, 
+      opacity: 0.8,
+      roughness: 0.3
+    });
+    const ptz = new THREE.Mesh(ptGeo, ptMat);
+    ptz.position.set(0, 0.045, -0.6);
+    ptz.scale.set(1.1, 1, 1.8);
+    deviceGroup.add(ptz);
+
+    // 4. Slide out Diagnostic Card slide
+    const slideGroup = new THREE.Group();
+    deviceGroup.add(slideGroup);
+
+    const fGeo = new THREE.BoxGeometry(0.44, 0.06, 1.35);
+    const fMat = new THREE.MeshPhysicalMaterial({ 
+      color: 0x3366ff, 
+      roughness: 0.15, 
+      metalness: 0.85, 
+      transmission: 0.4,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.15
+    });
+    const frame = new THREE.Mesh(fGeo, fMat);
+    frame.name = "cartridge";
+    slideGroup.add(frame);
+
+    // Window with LFA lines
+    const wGeo = new THREE.BoxGeometry(0.26, 0.065, 0.75);
+    const wMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1 });
+    const win = new THREE.Mesh(wGeo, wMat);
+    win.position.set(0, 0.01, -0.1);
+    slideGroup.add(win);
+
+    const testBandGeo = new THREE.BoxGeometry(0.24, 0.068, 0.05);
+    const greenBand = new THREE.Mesh(testBandGeo, new THREE.MeshStandardMaterial({ color: 0x10b981 }));
+    greenBand.position.set(0, 0.01, -0.3);
+    slideGroup.add(greenBand);
+
+    const amberBand = new THREE.Mesh(testBandGeo, new THREE.MeshStandardMaterial({ color: 0xeab308 }));
+    amberBand.position.set(0, 0.01, -0.1);
+    slideGroup.add(amberBand);
+
+    const redBand = new THREE.Mesh(testBandGeo, new THREE.MeshStandardMaterial({ color: 0xef4444 }));
+    redBand.position.set(0, 0.01, 0.1);
+    slideGroup.add(redBand);
+
+    slideGroup.position.set(0, 0.08, 0.7);
+
+    // 5. LED
+    const ledGeo = new THREE.SphereGeometry(0.06, 32, 16);
+    const ledMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x14532d, emissiveIntensity: 2.0 });
+    const led = new THREE.Mesh(ledGeo, ledMat);
+    led.position.set(0, 0.11, -1.2);
+    led.name = "led";
+    deviceGroup.add(led);
+
+    // Grid environment helper
+    const groundGrid = new THREE.GridHelper(10, 32, 0x1e293b, 0x0f172a);
+    groundGrid.position.y = -0.55;
+    scene.add(groundGrid);
+
+    // Glowing subtle corona geometry under the LED indicator
+    const coronaGeo = new THREE.RingGeometry(0.075, 0.11, 32);
+    coronaGeo.rotateX(-Math.PI / 2);
+    const coronaMat = new THREE.MeshBasicMaterial({
+      color: 0x4ade80,
+      transparent: true,
+      opacity: 0.7,
+      side: THREE.DoubleSide,
+    });
+    const corona = new THREE.Mesh(coronaGeo, coronaMat);
+    corona.position.set(0, 0.112, -1.2);
+    deviceGroup.add(corona);
+
+    // High Tech Laser Scanner Plane
+    const scannerGeo = new THREE.BoxGeometry(3, 0.01, 0.01);
+    const scannerMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.35
+    });
+    const laserPlane = new THREE.Mesh(scannerGeo, scannerMat);
+    laserPlane.position.set(0, 0.15, 0);
+    scene.add(laserPlane);
+
+    // Interaction Parameters linked to UI inputs
+    let explodeVal = 0;
+    let turnSpeed = 1.0;
+
+    const sliderExplode = document.getElementById("slider-explode");
+    const sliderSpeed = document.getElementById("slider-speed");
+
+    sliderExplode.addEventListener("input", (e) => {
+      explodeVal = parseFloat(e.target.value);
+      document.getElementById("label-explode").innerText = Math.round(explodeVal * 100) + "%";
+    });
+
+    sliderSpeed.addEventListener("input", (e) => {
+      turnSpeed = parseFloat(e.target.value);
+      document.getElementById("label-speed").innerText = turnSpeed.toFixed(1) + "x";
+    });
+
+    // View state
+    window.setMode = function(mode) {
+      scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          const mat = obj.material;
+          if (!mat) return;
+          mat.wireframe = false;
+          mat.transparent = false;
+          mat.opacity = 1.0;
+          if (mode === "xray") {
+            if (obj.name === "pad") {
+              mat.transparent = true;
+              mat.opacity = 0.2;
+              mat.wireframe = true;
+              mat.color.setHex(0x6366f1);
+            } else if (obj.name === "cartridge") {
+              mat.transparent = true;
+              mat.opacity = 0.35;
+              mat.color.setHex(0x06b6d4);
+            }
+          } else {
+            if (obj.name === "pad") {
+              mat.color.setHex(0xffffff);
+            } else if (obj.name === "cartridge") {
+              mat.color.setHex(0x3366ff);
+            }
+          }
+        }
+      });
+      
+      // Update buttons indicators
+      document.getElementById('mode-btn-real').className = mode === 'realistic'
+        ? "px-3 py-2 text-xs rounded-lg border border-blue-500/20 bg-blue-950/20 text-blue-300 font-mono"
+        : "px-3 py-2 text-xs rounded-lg border border-slate-800 hover:bg-slate-800 hover:text-white text-slate-400 font-mono";
+      document.getElementById('mode-btn-xray').className = mode === 'xray'
+        ? "px-3 py-2 text-xs rounded-lg border border-blue-500/20 bg-blue-950/20 text-blue-300 font-mono"
+        : "px-3 py-2 text-xs rounded-lg border border-slate-800 hover:bg-slate-800 hover:text-white text-slate-400 font-mono";
+    };
+
+    window.simStatus = function(state) {
+      const summary = document.getElementById("offline-summary-box");
+      
+      if (state === "normal") {
+        ledMat.color.setHex(0x22c55e);
+        ledMat.emissive.setHex(0x14532d);
+        summary.innerText = LOCALES[currentLang].normalAlert;
+        summary.className = "mt-3.5 p-3.5 text-xs font-mono leading-relaxed text-emerald-400 bg-emerald-950/20 rounded-xl border border-emerald-900/60";
+        coronaMat.color.setHex(0x10b981);
+      } else {
+        ledMat.color.setHex(0xef4444);
+        ledMat.emissive.setHex(0x7f1d1d);
+        summary.innerText = LOCALES[currentLang].feverAlert;
+        summary.className = "mt-3.5 p-3.5 text-xs font-mono leading-relaxed text-rose-400 bg-rose-950/20 rounded-xl border border-rose-900/60";
+        coronaMat.color.setHex(0xef4444);
+      }
+    };
+
+    // Raycaster Mouse Selection for deep offline interaction
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    window.addEventListener('click', (event) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      // Only trace click if mouse was inside the Canvas container
+      if (
+        event.clientX >= rect.left && event.clientX <= rect.right &&
+        event.clientY >= rect.top && event.clientY <= rect.bottom
+      ) {
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects([bottomMesh, sensorMesh, frame, led]);
+
+        if (intersects.length > 0) {
+          const clickedObj = intersects[0].object;
+          const labelBox = document.getElementById('layer-details-box');
+          
+          if (clickedObj === bottomMesh || clickedObj.name === 'pad') {
+            labelBox.innerHTML = LOCALES[currentLang].layer_pad;
+          } else if (clickedObj === frame || clickedObj.name === 'cartridge') {
+            labelBox.innerHTML = LOCALES[currentLang].layer_cartridge;
+          } else if (clickedObj === sensorMesh || clickedObj.name === 'sensor') {
+            labelBox.innerHTML = LOCALES[currentLang].layer_sensor;
+          } else if (clickedObj === led || clickedObj.name === 'led') {
+            labelBox.innerHTML = LOCALES[currentLang].layer_led;
+          }
+        }
+      }
+    });
+
+    const clock = new THREE.Clock();
+    let time = 0;
+    
+    function animate() {
+      requestAnimationFrame(animate);
+      time += 0.01;
+
+      // Slowly rotate particle dust matrix
+      starryParticles.rotation.y = time * 0.015;
+
+      // Animate Laser Scanner Plane
+      laserPlane.position.z = Math.sin(time * 1.5) * 2.2;
+      laserPlane.position.y = 0.125 + Math.cos(time * 3.0) * 0.015;
+
+      // Master automatic spin rotation
+      deviceGroup.rotation.y += turnSpeed * 0.005;
+
+      // Explode Y & Z coordinates on slider progression
+      topMesh.position.y = explodeVal * 1.5;
+      topMat.opacity = 1.0 - explodeVal * 0.35;
+
+      sensorMesh.position.y = 0.07 + explodeVal * 0.8;
+      gridFilaments.position.y = 0.075 + explodeVal * 0.8;
+
+      const slideZ = 0.7 + explodeVal * 1.8;
+      const floatVal = Math.sin(time * 3) * 0.03 * explodeVal;
+      slideGroup.position.set(0, 0.08 + explodeVal * 0.4 + floatVal, slideZ);
+      slideGroup.rotation.z = Math.sin(time) * 0.04 * explodeVal;
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener("resize", () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    // Boot default layout language texts
+    changeLanguage('es');
+  </script>
+</body>
+</html>

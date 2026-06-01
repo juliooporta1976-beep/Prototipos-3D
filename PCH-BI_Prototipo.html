@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PCH-BI Prototipo 3D Industrial</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #070a13;
+      --panel-bg: rgba(13, 20, 38, 0.85);
+      --border-color: rgba(59, 130, 246, 0.25);
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: #e2e8f0;
+      font-family: var(--font-sans);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* 3D Canvas Background */
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    /* Floating Glassmorphic Header */
+    header {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      padding: 12px 24px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand h1 {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      color: #f8fafc;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand h1 span {
+      background: linear-gradient(135deg, #06b6d4, #3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-size: 11px;
+      border: 1px solid #1e40af;
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-left: 6px;
+    }
+
+    .brand p {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+
+    /* Lang Selector styled professionally */
+    .controls-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    select {
+      background: rgba(15, 23, 42, 0.9);
+      color: #38bdf8;
+      border: 1px solid #334155;
+      padding: 8px 12px;
+      border-radius: 6px;
+      outline: none;
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    select:hover {
+      border-color: #3b82f6;
+    }
+
+    /* Floating Side Controls Panel */
+    .sidebar {
+      position: absolute;
+      top: 96px;
+      left: 16px;
+      bottom: 16px;
+      width: 320px;
+      z-index: 10;
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+    }
+
+    /* Scrollbar */
+    .sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .sidebar::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 2px;
+    }
+
+    .panel-section {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 16px;
+    }
+
+    .panel-section:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .section-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #38bdf8;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Custom Sliders styling */
+    .control-group {
+      margin-bottom: 12px;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+
+    .control-val {
+      font-family: var(--font-mono);
+      color: #38bdf8;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      background: #1e293b;
+      height: 6px;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #3b82f6;
+      cursor: pointer;
+      box-shadow: 0 0 10px #3b82f6;
+    }
+
+    /* Live Telemetry SCADA Board */
+    .telemetry-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .telemetry-label {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .telemetry-val {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: #34d399;
+    }
+
+    /* Camera focused buttons */
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .btn {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      font-family: var(--font-sans);
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      border-color: #3b82f6;
+      color: white;
+    }
+
+    .btn.active {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: #3b82f6;
+      color: #38bdf8;
+    }
+
+    /* HUD overlay displaying model specifications */
+    .reactor-annotation {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      max-width: 320px;
+      z-index: 10;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .annotation-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #38bdf8;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .annotation-desc {
+      font-size: 11px;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background 3D Viewport -->
+  <div id="canvas-container"></div>
+
+  <!-- Header Section -->
+  <header>
+    <div class="brand">
+      <h1 id="app-title">PCH-BI Prototipo 3D</h1>
+      <p id="app-subtitle">Módulo interactivo de conversión termoquímica y biológica de residuos a combustible ecológico</p>
+    </div>
+    <div class="controls-top">
+      <select id="lang">
+        <option value="es">Español</option>
+        <option value="en">English (US)</option>
+        <option value="zh">中文简体</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- Left Sidebar Controls and SCADA -->
+  <div class="sidebar">
+    <!-- Camera Viewports Selection -->
+    <div class="panel-section">
+      <div class="section-title">
+        <span id="label-camera">Ángulos de Cámara</span>
+      </div>
+      <div class="btn-grid">
+        <button id="cam-general" class="btn active">Cámara General</button>
+        <button id="cam-plasma" class="btn">Reactor Plasma</button>
+        <button id="cam-bio" class="btn">Biorreactor</button>
+        <button id="cam-catalytic" class="btn">R. Catalítico</button>
+      </div>
+    </div>
+
+    <!-- Sliders for Reaction Parameters -->
+    <div class="panel-section">
+      <div class="section-title">
+        <span id="label-param">Variables de Reactor</span>
+      </div>
+      
+      <!-- Plasma power -->
+      <div class="control-group">
+        <div class="control-label">
+          <span id="label-power">Potencia Plasma</span>
+          <span class="control-val"><span id="val-plasma">75</span>%</span>
+        </div>
+        <input type="range" id="slide-plasma" min="10" max="100" value="75">
+      </div>
+
+      <!-- Agitator Speed -->
+      <div class="control-group">
+        <div class="control-label">
+          <span id="label-agitator">Giro de Agitador</span>
+          <span class="control-val"><span id="val-agitator">45</span>%</span>
+        </div>
+        <input type="range" id="slide-agitator" min="0" max="100" value="45">
+      </div>
+
+      <!-- Magnetic intensity -->
+      <div class="control-group">
+        <div class="control-label">
+          <span id="label-magnetic">Fuerza Magnética</span>
+          <span class="control-val"><span id="val-magnetic">60</span>%</span>
+        </div>
+        <input type="range" id="slide-magnetic" min="10" max="100" value="60">
+      </div>
+
+      <!-- Speed factor -->
+      <div class="control-group">
+        <div class="control-label">
+          <span id="label-speed">Velocidad Simulación</span>
+          <span class="control-val"><span id="val-speed">1.0</span>x</span>
+        </div>
+        <input type="range" id="slide-speed" min="0" max="3" step="0.2" value="1.0">
+      </div>
+    </div>
+
+    <!-- Live SCADA Metrics Panel -->
+    <div class="panel-section">
+      <div class="section-title">
+        <span id="label-scada">Monitoreo SCADA en Vivo</span>
+      </div>
+      
+      <div class="telemetry-row">
+        <span class="telemetry-label" id="scada-temp">Temp. Plasma (Arco)</span>
+        <span class="telemetry-val" id="val-temp-num">6420 °C</span>
+      </div>
+
+      <div class="telemetry-row">
+        <span class="telemetry-label" id="scada-power">Rendimiento Electra</span>
+        <span class="telemetry-val" id="val-eff-num">88.4 %</span>
+      </div>
+
+      <div class="telemetry-row">
+        <span class="telemetry-label" id="scada-ph">Nivel pH Bio</span>
+        <span class="telemetry-val" id="val-ph-num">6.8 pH</span>
+      </div>
+
+      <div class="telemetry-row">
+        <span class="telemetry-label" id="scada-gas">Pureza de Gas</span>
+        <span class="telemetry-val" id="val-gas-num">94.1 %</span>
+      </div>
+
+      <div class="telemetry-row">
+        <span class="telemetry-label" id="scada-prod">Producción Carburante</span>
+        <span class="telemetry-val" id="val-prod-num">145.2 L/h</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dynamic Active Reactor Inspector at bottom-right -->
+  <div class="reactor-annotation">
+    <div class="annotation-title">
+      <span id="active-reactor-title">Enfoque Proceso PCH-BI</span>
+    </div>
+    <p class="annotation-desc" id="active-reactor-desc">
+      Vista general de la arquitectura de la refinería energética de triple reactor. Use el selector de ángulos de cámara superior-izquierdo para enfocar reactores aislados.
+    </p>
+  </div>
+
+  <!-- ThreeJS Simulation Script -->
+  <script>
+    // TRANSLATION INDEX DICTIONARY
+    const translations = {
+      es: {
+        title: "PCH-BI Prototipo 3D",
+        subtitle: "Módulo interactivo de conversión termoquímica y biológica de residuos a combustible ecológico",
+        camera: "Ángulos de Cámara",
+        params: "Variables de Reactor",
+        scada: "Monitoreo SCADA en Vivo",
+        lblCameraGeneral: "Cámara General",
+        lblCameraPlasma: "Reactor Plasma",
+        lblCameraBio: "Biorreactor",
+        lblCameraCatalytic: "R. Catalítico",
+        lblPower: "Potencia Plasma",
+        lblAgitator: "Giro de Agitador",
+        lblMagnetic: "Fuerza Magnética",
+        lblSpeed: "Velocidad Simulación",
+        scadaTemp: "Temp. Plasma (Arco)",
+        scadaPower: "Rendimiento Electra",
+        scadaPh: "Nivel pH Bio",
+        scadaGas: "Pureza de Gas",
+        scadaProd: "Producción Carburante",
+        plasmaTitle: "Reactor de Plasma de Cuarzo",
+        plasmaDesc: "Cracking térmico de residuos por arco voltaico a 6000°C. Transforma polímeros complejos directos en gas de síntesis (Syngas) puro.",
+        bioTitle: "Reactor de Cultivo Anaeróbico",
+        bioDesc: "Dispensador microbiano con aspas giratorias estresadas que fermenta los líquidos y sedimentos densos remanentes en alcoholes.",
+        catTitle: "Reactor Catalítico Magnético",
+        catDesc: "Cama suspendida fluida protegida por electroimanes toroidales. Induce un alineamiento de cadenas carbonatadas resultando en eco-combustible puro.",
+        genTitle: "Enfoque Proceso PCH-BI",
+        genDesc: "Vista general de la arquitectura de la refinería energética de triple reactor. Use el selector de ángulos de cámara superior-izquierdo para enfocar reactores aislados."
+      },
+      en: {
+        title: "PCH-BI 3D Prototype",
+        subtitle: "Interactive thermochemical & biological waste-to-biofuel conversion simulator",
+        camera: "Camera Viewports",
+        params: "Reaction Variables",
+        scada: "SCADA Live Telemetry",
+        lblCameraGeneral: "Global View",
+        lblCameraPlasma: "Plasma Reactor",
+        lblCameraBio: "Bioreactor",
+        lblCameraCatalytic: "Catalytic Core",
+        lblPower: "Plasma Power",
+        lblAgitator: "Agitator Rotation",
+        lblMagnetic: "Magnetic Field",
+        lblSpeed: "Simulation Speed",
+        scadaTemp: "Plasma Arc Temp",
+        scadaPower: "Electricity Yield",
+        scadaPh: "Bio pH Balance",
+        scadaGas: "Syngas Purity",
+        scadaProd: "Fuel Flow Rate",
+        plasmaTitle: "Quartz Plasma Reactor",
+        plasmaDesc: "Flashes raw organic waste elements with electrical arc discharging over 6000°C, producing pure, synthesis syngas streams.",
+        bioTitle: "Anaerobic Fermentation Vessel",
+        bioDesc: "Agitated biochemical tank promoting rapid microbiological degradation of organic matter residue into high-energy fuels.",
+        catTitle: "Magnetic Catalytic Reactor",
+        catDesc: "Electromagnetically synchronized fluidization field aligning synthesized molecules to obtain final green combustible products.",
+        genTitle: "PCH-BI Refining Stream",
+        genDesc: "Full architecture blueprint overview. Pick specialized reactor options inside the Camera controls to inspect isolated reactions."
+      },
+      zh: {
+        title: "PCH-BI 3D 智能反应原型",
+        subtitle: "基于热化学与生物反应的垃圾到环保生物燃料转换互动模拟系统",
+        camera: "视场聚焦控制",
+        params: "反应条件精调",
+        scada: "实时工业 SCADA 数据",
+        lblCameraGeneral: "系统全景",
+        lblCameraPlasma: "等离子体反应器",
+        lblCameraBio: "生物反应器",
+        lblCameraCatalytic: "磁电催化床",
+        lblPower: "等离子放电功率",
+        lblAgitator: "机械叶轮转速",
+        lblMagnetic: "约束磁感强度",
+        lblSpeed: "时间流速倍增",
+        scadaTemp: "放电核心温度",
+        scadaPower: "放电能量回收率",
+        scadaPh: "发酵液酸碱 pH",
+        scadaGas: "反应气体纯度",
+        scadaProd: "环保燃料产出速率",
+        plasmaTitle: "石英真空等离子反应器",
+        plasmaDesc: "利用 6000°C 超高温大功率电弧裂解输入的固化高分子复合物，促生重组活性一氧化碳与氢气合成反应流。",
+        bioTitle: "厌氧机械发酵生物舱",
+        bioDesc: "密封大推力浆叶密闭混合系统，促生微生物对余留水溶化合物加速呼吸代谢，副产高洁净物料。",
+        catTitle: "环形束约束磁催化冷凝床",
+        catDesc: "高饱和铜线电磁线圈包围活性过渡金属多孔流化微粒。通过磁场取向控制产出高热值清洁重整柴油燃料。",
+        genTitle: "PCH-BI 绿色零碳全工艺链",
+        genDesc: "等离裂解、分子生化、磁约束流化多维重整。使用左上方遥控摄像机可进入独立机体进行深度工况监测。"
+      }
+    };
+
+    // ACTIVE INPUTS STATE
+    let activeLang = 'es';
+    let p_plasma = 75;
+    let p_agitator = 45;
+    let p_magnetic = 60;
+    let p_speed = 1.0;
+    let currentCam = 'general';
+
+    // TRANSLATION SWITCHER FUNCTION
+    function switchLanguage(lang) {
+      activeLang = lang;
+      const dict = translations[lang];
+      document.getElementById('app-title').innerText = dict.title;
+      document.getElementById('app-subtitle').innerText = dict.subtitle;
+      document.getElementById('label-camera').innerText = dict.camera;
+      document.getElementById('label-param').innerText = dict.params;
+      document.getElementById('label-scada').innerText = dict.scada;
+      
+      document.getElementById('cam-general').innerText = dict.lblCameraGeneral;
+      document.getElementById('cam-plasma').innerText = dict.lblCameraPlasma;
+      document.getElementById('cam-bio').innerText = dict.lblCameraBio;
+      document.getElementById('cam-catalytic').innerText = dict.lblCameraCatalytic;
+
+      document.getElementById('label-power').innerText = dict.lblPower;
+      document.getElementById('label-agitator').innerText = dict.lblAgitator;
+      document.getElementById('label-magnetic').innerText = dict.lblMagnetic;
+      document.getElementById('label-speed').innerText = dict.lblSpeed;
+
+      document.getElementById('scada-temp').innerText = dict.scadaTemp;
+      document.getElementById('scada-power').innerText = dict.scadaPower;
+      document.getElementById('scada-ph').innerText = dict.scadaPh;
+      document.getElementById('scada-gas').innerText = dict.scadaGas;
+      document.getElementById('scada-prod').innerText = dict.scadaProd;
+
+      updateAnnotation();
+    }
+
+    function updateAnnotation() {
+      const dict = translations[activeLang];
+      const titleEl = document.getElementById('active-reactor-title');
+      const descEl = document.getElementById('active-reactor-desc');
+
+      if (currentCam === 'general') {
+        titleEl.innerText = dict.genTitle;
+        descEl.innerText = dict.genDesc;
+      } else if (currentCam === 'plasma') {
+        titleEl.innerText = dict.plasmaTitle;
+        descEl.innerText = dict.plasmaDesc;
+      } else if (currentCam === 'bio') {
+        titleEl.innerText = dict.bioTitle;
+        descEl.innerText = dict.bioDesc;
+      } else if (currentCam === 'catalytic') {
+        titleEl.innerText = dict.catTitle;
+        descEl.innerText = dict.catDesc;
+      }
+    }
+
+    // LISTENER REGISTRATION
+    document.getElementById('lang').addEventListener('change', (e) => {
+      switchLanguage(e.target.value);
+    });
+
+    const sliders = [
+      { id: 'slide-plasma', valId: 'val-plasma', setter: (v) => p_plasma = v },
+      { id: 'slide-agitator', valId: 'val-agitator', setter: (v) => p_agitator = v },
+      { id: 'slide-magnetic', valId: 'val-magnetic', setter: (v) => p_magnetic = v },
+      { id: 'slide-speed', valId: 'val-speed', setter: (v) => p_speed = parseFloat(v) }
+    ];
+
+    sliders.forEach(slide => {
+      const el = document.getElementById(slide.id);
+      el.addEventListener('input', (e) => {
+        const val = e.target.value;
+        document.getElementById(slide.valId).innerText = val;
+        slide.setter(val);
+      });
+    });
+
+    // CAMERA SELECTORS
+    const cameraButtons = [
+      { id: 'cam-general', key: 'general' },
+      { id: 'cam-plasma', key: 'plasma' },
+      { id: 'cam-bio', key: 'bio' },
+      { id: 'cam-catalytic', key: 'catalytic' }
+    ];
+
+    cameraButtons.forEach(btn => {
+      document.getElementById(btn.id).addEventListener('click', () => {
+        cameraButtons.forEach(b => document.getElementById(b.id).classList.remove('active'));
+        document.getElementById(btn.id).classList.add('active');
+        currentCam = btn.key;
+        updateAnnotation();
+      });
+    });
+
+    // ==========================================
+    // THREE.JS SIMULATION RUNNER
+    // ==========================================
+    const container = document.getElementById('canvas-container');
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x070a13);
+
+    const grid = new THREE.GridHelper(24, 24, 0x1d4ed8, 0x111827);
+    grid.position.y = -3;
+    scene.add(grid);
+
+    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
+    camera.position.set(0, 3, 11);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    const ambient = new THREE.AmbientLight(0x0f172a, 1.5);
+    scene.add(ambient);
+
+    const dir1 = new THREE.DirectionalLight(0xffffff, 1.2);
+    dir1.position.set(5, 10, 7);
+    scene.add(dir1);
+
+    const dir2 = new THREE.DirectionalLight(0x3b82f6, 0.8);
+    dir2.position.set(-5, -5, -5);
+    scene.add(dir2);
+
+    // 1. REACTOR DE PLASMA (LEFT)
+    const plasmaGroup = new THREE.Group();
+    plasmaGroup.position.set(-4.5, 0, 0);
+    scene.add(plasmaGroup);
+
+    const quartzG = new THREE.CylinderGeometry(0.8, 0.8, 2.8, 32, 1, true);
+    const quartzM = new THREE.MeshPhysicalMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.18,
+      roughness: 0.1,
+      transmission: 0.7,
+      side: THREE.DoubleSide
+    });
+    const shellOff = new THREE.Mesh(quartzG, quartzM);
+    plasmaGroup.add(shellOff);
+
+    const cageG = new THREE.CylinderGeometry(0.81, 0.81, 2.8, 8, 4, true);
+    const cageM = new THREE.MeshBasicMaterial({ color: 0x0e7490, wireframe: true, transparent: true, opacity: 0.25 });
+    const cage = new THREE.Mesh(cageG, cageM);
+    plasmaGroup.add(cage);
+
+    const electroM = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.9 });
+    const capG = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16);
+    const capTop = new THREE.Mesh(capG, electroM);
+    capTop.position.y = 1.4;
+    const capBottom = capTop.clone();
+    capBottom.position.y = -1.4;
+    plasmaGroup.add(capTop); plasmaGroup.add(capBottom);
+
+    const pCoreG = new THREE.CylinderGeometry(0.12, 0.12, 2.4, 8);
+    const pCoreM = new THREE.MeshBasicMaterial({ color: 0xc084fc, transparent: true, opacity: 0.55 });
+    const pCore = new THREE.Mesh(pCoreG, pCoreM);
+    plasmaGroup.add(pCore);
+
+    const sparkMat = new THREE.LineBasicMaterial({ color: 0x22d3ee });
+    const sparks = [];
+    const ptsCount = 8;
+    for (let u = 0; u < 3; u++) {
+      const g = new THREE.BufferGeometry();
+      const pos = new Float32Array(ptsCount * 3);
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const line = new THREE.Line(g, sparkMat);
+      plasmaGroup.add(line);
+      sparks.push(line);
+    }
+
+    const plasmaLight = new THREE.PointLight(0xa855f7, 2, 6);
+    plasmaGroup.add(plasmaLight);
+
+    // 2. BIORREACTOR (CENTER)
+    const bioGroup = new THREE.Group();
+    scene.add(bioGroup);
+
+    const bioVatG = new THREE.CylinderGeometry(1.0, 1.0, 2.6, 24, 1, true);
+    const bioVatM = new THREE.MeshPhysicalMaterial({
+      color: 0x15803d,
+      transparent: true,
+      opacity: 0.3,
+      side: THREE.DoubleSide
+    });
+    const bioVat = new THREE.Mesh(bioVatG, bioVatM);
+    bioGroup.add(bioVat);
+
+    const metalRibG = new THREE.CylinderGeometry(1.02, 1.02, 0.08, 16);
+    const ribTop = new THREE.Mesh(metalRibG, electroM);
+    ribTop.position.y = 1.3;
+    const ribBottom = ribTop.clone();
+    ribBottom.position.y = -1.3;
+    bioGroup.add(ribTop); bioGroup.add(ribBottom);
+
+    const pColG = new THREE.CylinderGeometry(0.04, 0.04, 2.6, 8);
+    for (let j = 0; j < 4; j++) {
+      const a = (j * Math.PI) / 2;
+      const col = new THREE.Mesh(pColG, electroM);
+      col.position.set(Math.cos(a) * 1.01, 0, Math.sin(a) * 1.01);
+      bioGroup.add(col);
+    }
+
+    const shaftG = new THREE.CylinderGeometry(0.05, 0.05, 2.4, 8);
+    const shaft = new THREE.Mesh(shaftG, electroM);
+    bioGroup.add(shaft);
+
+    const paddleG = new THREE.BoxGeometry(0.7, 0.15, 0.02);
+    const pedHeights = [-0.6, 0.1, 0.8];
+    pedHeights.forEach((h, idx) => {
+      const p = new THREE.Mesh(paddleG, electroM);
+      p.position.y = h;
+      p.rotation.y = (idx * Math.PI) / 3;
+      shaft.add(p);
+    });
+
+    const bCount = 20;
+    const bubbles = [];
+    const bSpeeds = [];
+    const bubbleG = new THREE.SphereGeometry(0.05, 8, 8);
+    const bubbleM = new THREE.MeshBasicMaterial({ color: 0x86efac, transparent: true, opacity: 0.65 });
+    for (let t = 0; t < bCount; t++) {
+      const ms = new THREE.Mesh(bubbleG, bubbleM);
+      const theta = Math.random() * Math.PI * 2;
+      const radius = Math.random() * 0.75;
+      ms.position.set(Math.cos(theta) * radius, -1.2 + Math.random() * 2.4, Math.sin(theta) * radius);
+      bioGroup.add(ms);
+      bubbles.push(ms);
+      bSpeeds.push(0.01 + Math.random() * 0.015);
+    }
+
+    // 3. MAGNETIC CATALYTIC REACTOR (RIGHT)
+    const catGroup = new THREE.Group();
+    catGroup.position.set(4.5, 0, 0);
+    scene.add(catGroup);
+
+    const sphereG = new THREE.SphereGeometry(1.2, 32, 32);
+    const sphereM = new THREE.MeshPhysicalMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.12, transmission: 0.8 });
+    const outerCasing = new THREE.Mesh(sphereG, sphereM);
+    catGroup.add(outerCasing);
+
+    const electromagnetG = new THREE.TorusGeometry(1.3, 0.12, 8, 30);
+    const magnetM = new THREE.MeshStandardMaterial({ color: 0xd97706, metalness: 0.9 });
+    const magRing = new THREE.Mesh(electromagnetG, magnetM);
+    magRing.rotation.x = Math.PI / 2;
+    catGroup.add(magRing);
+
+    const ringFieldG = new THREE.RingGeometry(1.3, 1.34, 32);
+    const ringFieldM = new THREE.MeshBasicMaterial({ color: 0x60a5fa, transparent: true, side: THREE.DoubleSide });
+    const fluxLines = [];
+    for (let k = 0; k < 3; k++) {
+      const f = new THREE.Mesh(ringFieldG, ringFieldM);
+      f.rotation.x = Math.PI / 2;
+      f.scale.setScalar(1.0 + (k / 3) * 0.6);
+      catGroup.add(f);
+      fluxLines.push(f);
+    }
+
+    const cParts = [];
+    const cOrigs = [];
+    const prtG = new THREE.SphereGeometry(0.04, 8, 8);
+    const prtM = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.8 });
+    for (let v = 0; v < 40; v++) {
+      const pm = new THREE.Mesh(prtG, prtM);
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const dist = 0.8 * Math.cbrt(Math.random());
+      pm.position.set(
+        dist * Math.sin(phi) * Math.cos(theta),
+        dist * Math.sin(phi) * Math.sin(theta),
+        dist * Math.cos(phi)
+      );
+      catGroup.add(pm);
+      cParts.push(pm);
+      cOrigs.push(pm.position.clone());
+    }
+
+    // 4. PIPES & TRANSPORT FLUIDS
+    function createPipeSegment(start, end, radius = 0.1) {
+      const dist = start.distanceTo(end);
+      const pipeGeo = new THREE.CylinderGeometry(radius, radius, dist, 12);
+      const pipeMat = new THREE.MeshStandardMaterial({ color: 0x475569, transparent: true, opacity: 0.5 });
+      const pipe = new THREE.Mesh(pipeGeo, pipeMat);
+      const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+      pipe.position.copy(mid);
+      const dir = new THREE.Vector3().subVectors(end, start).normalize();
+      pipe.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+      scene.add(pipe);
+      return { start, end };
+    }
+
+    const p1 = createPipeSegment(new THREE.Vector3(-8, -2, 0), new THREE.Vector3(-4.5, -1, 0));
+    const p2 = createPipeSegment(new THREE.Vector3(-3.7, 0.5, 0), new THREE.Vector3(3.3, 0.5, 0), 0.07);
+    const p3 = createPipeSegment(new THREE.Vector3(-8, -2.5, 1.2), new THREE.Vector3(0, -1.2, 0));
+    const p4 = createPipeSegment(new THREE.Vector3(1.0, -0.6, 0), new THREE.Vector3(3.4, -0.6, 0), 0.07);
+    const p5 = createPipeSegment(new THREE.Vector3(5.7, -1, 0), new THREE.Vector3(8.5, -2, 0));
+
+    // Particle streams
+    const streamParticles = [];
+    const matYellow = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+    const matCyan = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
+    const matGreen = new THREE.MeshBasicMaterial({ color: 0x10b981 });
+    const matBlue = new THREE.MeshBasicMaterial({ color: 0x3b82f6 });
+
+    const pipeMappings = [
+      { p: p1, m: matYellow },
+      { p: p2, m: matCyan },
+      { p: p3, m: matYellow },
+      { p: p4, m: matGreen },
+      { p: p5, m: matBlue }
+    ];
+
+    pipeMappings.forEach(mapping => {
+      for (let s = 0; s < 5; s++) {
+        const smMesh = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), mapping.m);
+        scene.add(smMesh);
+        streamParticles.push({
+          mesh: smMesh,
+          start: mapping.p.start,
+          end: mapping.p.end,
+          progress: s / 5,
+          speed: 0.015 + Math.random() * 0.01
+        });
+      }
+    });
+
+    // Decorative static boxes as connectors
+    const b1 = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1, 0.7), electroM);
+    b1.position.set(-8.5, -2.2, 0);
+    scene.add(b1);
+
+    const b2 = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.0, 16), electroM);
+    b2.position.set(8.5, -2, 0);
+    scene.add(b2);
+
+    // ==========================================
+    // RENDER / SCADA UPDATES
+    // ==========================================
+    const clock = new THREE.Clock();
+    let targetCamera = new THREE.Vector3(0, 3, 11);
+    let targetLook = new THREE.Vector3(0, 0, 0);
+    const currentLook = new THREE.Vector3(0, 0, 0);
+
+    function telemetrySimulator() {
+      if (p_speed === 0) return;
+      // Real-time jittering
+      const t = 5800 + Math.floor((p_plasma / 100) * 800 + Math.random() * 40 - 20);
+      const eff = ((80 + (p_plasma + p_magnetic) / 10) + Math.sin(Date.now() / 2000) * 0.5).toFixed(1);
+      const ph = (6.4 + (p_agitator / 100) * 0.8 + Math.sin(Date.now() / 4000) * 0.08).toFixed(2);
+      const cap = (90 + (p_plasma / 200) + Math.cos(Date.now() / 3000) * 0.3).toFixed(1);
+      const flow = (100 + (p_plasma * 0.8) + (p_agitator * 0.4)).toFixed(1);
+
+      document.getElementById('val-temp-num').innerText = t + ' °C';
+      document.getElementById('val-eff-num').innerText = eff + ' %';
+      document.getElementById('val-ph-num').innerText = ph + ' pH';
+      document.getElementById('val-gas-num').innerText = cap + ' %';
+      document.getElementById('val-prod-num').innerText = flow + ' L/h';
+    }
+
+    setInterval(telemetrySimulator, 1000);
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.1);
+
+      // CAMERA POSITIONING INTERPOLATION
+      if (currentCam === 'general') {
+        targetCamera.set(0, 2.5, 11);
+        targetLook.set(0, 0, 0);
+      } else if (currentCam === 'plasma') {
+        targetCamera.set(-4.5, 1.2, 4.0);
+        targetLook.set(-4.5, 0.4, 0);
+      } else if (currentCam === 'bio') {
+        targetCamera.set(0, 1.2, 3.8);
+        targetLook.set(0, 0.2, 0);
+      } else if (currentCam === 'catalytic') {
+        targetCamera.set(4.5, 1.2, 4.0);
+        targetLook.set(4.5, 0, 0);
+      }
+
+      camera.position.lerp(targetCamera, 0.05);
+      currentLook.lerp(targetLook, 0.05);
+      camera.lookAt(currentLook);
+
+      if (p_speed > 0) {
+        const rate = dt * p_speed;
+
+        // 1. Plasma
+        cage.rotation.y += rate * 0.15;
+        const pNorm = p_plasma / 100;
+        pCore.scale.set(0.8 + Math.sin(Date.now() / 15) * 0.1 * pNorm, 1.0, 0.8 + Math.sin(Date.now() / 15) * 0.1 * pNorm);
+        plasmaLight.intensity = (1.5 + Math.sin(Date.now() / 10) * 0.4) * pNorm;
+
+        sparks.forEach(line => {
+          const arr = line.geometry.attributes.position.array;
+          arr[0] = 0; arr[1] = 1.2; arr[2] = 0;
+          for (let v = 1; v < ptsCount - 1; v++) {
+            const progress = v / (ptsCount - 1);
+            arr[v * 3] = (Math.random() - 0.5) * 0.22 * pNorm;
+            arr[v * 3 + 1] = 1.2 - progress * 2.4 + (Math.random() - 0.5) * 0.05;
+            arr[v * 3 + 2] = (Math.random() - 0.5) * 0.22 * pNorm;
+          }
+          arr[(ptsCount - 1) * 3] = 0; arr[(ptsCount - 1) * 3 + 1] = -1.2; arr[(ptsCount - 1) * 3 + 2] = 0;
+          line.geometry.attributes.position.needsUpdate = true;
+          line.material.opacity = 0.3 + Math.random() * 0.7 * pNorm;
+        });
+
+        // 2. Bioreactor
+        const agitNorm = p_agitator / 100;
+        shaft.rotation.y += rate * 3.5 * agitNorm;
+        bubbles.forEach((b, idx) => {
+          b.position.y += bSpeeds[idx] * p_speed * (0.6 + agitNorm * 0.8);
+          if (b.position.y > 1.2) {
+            b.position.y = -1.2;
+            const theta = Math.random() * Math.PI * 2;
+            const r = Math.random() * 0.75;
+            b.position.x = Math.cos(theta) * r;
+            b.position.z = Math.sin(theta) * r;
+          }
+        });
+
+        // 3. Catalytic
+        const magNorm = p_magnetic / 100;
+        magRing.rotation.z += rate * 0.25;
+        fluxLines.forEach((f, idx) => {
+          const expandRate = 0.3 * p_speed * (0.5 + magNorm * 1.5);
+          f.scale.addScalar(rate * expandRate);
+          if (f.scale.x > 2.2) f.scale.setScalar(1.0);
+          const life = (f.scale.x - 1.0) / 1.2;
+          f.material.opacity = (1.0 - life) * (0.15 + 0.65 * magNorm);
+        });
+
+        cParts.forEach((p, idx) => {
+          const orig = cOrigs[idx];
+          const time = Date.now() / 80 * (0.4 + magNorm * 1.6) + idx * 5;
+          const jitter = 0.08 * (0.2 + magNorm * 1.4);
+          p.position.set(
+            orig.x + Math.sin(time) * jitter,
+            orig.y + Math.cos(time * 0.8) * jitter,
+            orig.z + Math.sin(time * 1.25) * jitter
+          );
+        });
+
+        // 4. Pipelines Flow
+        streamParticles.forEach(part => {
+          part.progress += rate * 0.28 * (1.0 + (p_plasma + p_agitator) / 200);
+          if (part.progress > 1.0) part.progress = 0;
+          part.mesh.position.lerpVectors(part.start, part.end, part.progress);
+        });
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // WINDOW ADAPTIVE
+    window.addEventListener('resize', () => {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
+
+  </script>
+</body>
+</html>

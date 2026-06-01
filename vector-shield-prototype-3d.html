@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VECTOR-SHIELD • 3D Interactive Prototype</title>
+  
+  <!-- CDNs for Tailwind CSS, Google Fonts, and Three.js -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Styling overrides for premium biomechanical dark aesthetic */
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #020617;
+      color: #f8fafc;
+      overflow-x: hidden;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #020617;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+    .hud-glow {
+      box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.15);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-cyan-500/30 selection:text-cyan-200">
+
+  <!-- HEADER HEADER BAR -->
+  <header class="border-b border-slate-900 bg-slate-950/80 backdrop-blur sticky top-0 z-50 px-4 py-3 sm:px-6">
+    <div class="max-w-7xl mx-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      
+      <!-- Brand Logo & Tagline -->
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-cyan-500/10 border border-cyan-500/30 rounded-xl">
+          <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-bold tracking-tight text-slate-100 font-sans" id="header-brand">VECTOR-SHIELD</h1>
+            <span class="text-[9px] font-mono font-bold bg-cyan-900/40 text-cyan-400 border border-cyan-800 px-1.5 py-0.5 rounded">
+              PORTABLE 3D v1.2
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 font-mono" id="header-tagline">
+            Biofactory for Mitigation of Vector-Borne Diseases
+          </p>
+        </div>
+      </div>
+
+      <!-- Controls: Translation, Local Download Info -->
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- Language buttons -->
+        <div class="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5">
+          <button onclick="setLanguage('es')" id="lang-es-btn" class="px-2.5 py-1 text-xs font-mono font-bold rounded-md transition bg-cyan-500 shadow text-slate-950">ES</button>
+          <button onclick="setLanguage('en')" id="lang-en-btn" class="px-2.5 py-1 text-xs font-mono font-bold rounded-md transition text-slate-400 hover:text-slate-100">EN</button>
+          <button onclick="setLanguage('zh')" id="lang-zh-btn" class="px-2.5 py-1 text-xs font-mono font-bold rounded-md transition text-slate-400 hover:text-slate-100">ZH</button>
+        </div>
+
+        <div class="text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded-md flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>AUTOSUFICIENTE</span>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- CORE GRID WORKSPACE -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:px-6 lg:py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+    
+    <!-- LEFT: 3D INTERACTIVE CANVAS & OVERLAYS -->
+    <div class="lg:col-span-2 flex flex-col gap-4">
+      
+      <!-- 3D Canvas Box -->
+      <div class="relative w-full h-[460px] md:h-[520px] rounded-2xl overflow-hidden shadow-2xl border border-slate-900 bg-slate-950 flex flex-col">
+        
+        <!-- Three.js target element -->
+        <div id="three-stage" class="w-full h-full flex-1"></div>
+
+        <!-- Float HUD Overlays -->
+        <div class="absolute top-3 left-3 pointer-events-none p-3 rounded-xl bg-slate-950/80 backdrop-blur border border-slate-900/60 font-mono text-[10px] space-y-1 text-slate-400">
+          <p class="font-bold text-cyan-400 uppercase tracking-widest text-[11px]" id="hud-nav-title">Navegación Táctil</p>
+          <p id="hud-guide-rotate">🖱️ Clic izquierdo + arrastrar: Rotar</p>
+          <p id="hud-guide-zoom">🔍 Rueda scroll: Zoom</p>
+          <p id="hud-guide-pan">🤚 Clic derecho + arrastrar: Encuadrar</p>
+        </div>
+
+        <!-- Auto-rotate HUD indicators -->
+        <div class="absolute bottom-3 right-3 flex items-center gap-2">
+          <button onclick="resetCameraView()" class="px-2.5 py-1 bg-slate-950/90 hover:bg-slate-900 text-[10px] font-mono text-slate-400 hover:text-slate-100 rounded-md border border-slate-800 transition flex items-center gap-1 shadow-lg">
+            <svg class="w-3 h-3 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.5"/>
+            </svg>
+            <span id="control-reset-label">Restablecer</span>
+          </button>
+
+          <button id="auto-rotate-hud-btn" onclick="toggleAutoRotation()" class="px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/30 text-[10px] font-mono text-cyan-400 rounded-md transition shadow-lg">
+            ROTACIÓN: ON
+          </button>
+        </div>
+
+      </div>
+
+      <!-- QUICK TRIGGER BAR -->
+      <div class="p-4 bg-slate-900/40 border border-slate-900 rounded-2xl space-y-4 shadow-xl">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5" id="controls-panel-title">
+            MANDOS DE BIOFABRICACIÓN
+          </span>
+          <span class="text-[10px] font-mono text-slate-500 text-right" id="dock-instructions">
+            Selecciona un subsistema abajo para modular la cámara
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          
+          <!-- Module 1: Synthesis -->
+          <button onclick="selectCoreModule('synthesis')" id="dock-btn-synthesis" class="p-3.5 rounded-xl border text-left bg-emerald-500/10 border-emerald-500/50 text-emerald-300 transition flex flex-col justify-between">
+            <div class="flex items-center justify-between w-full">
+              <div class="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"/>
+                </svg>
+              </div>
+              <span class="text-[9px] font-mono uppercase bg-emerald-500/10 text-emerald-400 px-1 border border-emerald-500/20 rounded">
+                LAB
+              </span>
+            </div>
+            <div class="mt-3">
+              <h4 class="text-xs font-bold leading-tight text-emerald-300" id="card-syn-title">
+                1. Síntesis y Ensamblaje
+              </h4>
+              <p class="text-[10px] text-slate-400 mt-1 line-clamp-1" id="card-syn-desc">
+                Síntesis hermética y modelado génico...
+              </p>
+            </div>
+          </button>
+
+          <!-- Module 2: Encapsulation -->
+          <button onclick="selectCoreModule('encapsulation')" id="dock-btn-encapsulation" class="p-3.5 rounded-xl border text-left bg-slate-950/60 border-slate-900 hover:border-slate-800 text-slate-400 transition flex flex-col justify-between">
+            <div class="flex items-center justify-between w-full">
+              <div class="p-1.5 rounded-lg bg-slate-900 border border-slate-800">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+              </div>
+              <span class="text-[9px] font-mono uppercase bg-amber-500/10 text-amber-400 px-1 border border-amber-500/20 rounded">
+                CONTAINER
+              </span>
+            </div>
+            <div class="mt-3">
+              <h4 class="text-xs font-bold leading-tight text-slate-250 hover:text-slate-100" id="card-enc-title">
+                2. Encapsulado y Liberación
+              </h4>
+              <p class="text-[10px] text-slate-500 mt-1 line-clamp-1" id="card-enc-desc">
+                Envasado, trazabilidad e inteligencia en campo...
+              </p>
+            </div>
+          </button>
+
+          <!-- Module 3: Governance -->
+          <button onclick="selectCoreModule('governance')" id="dock-btn-governance" class="p-3.5 rounded-xl border text-left bg-slate-950/60 border-slate-900 hover:border-slate-800 text-slate-400 transition flex flex-col justify-between">
+            <div class="flex items-center justify-between w-full">
+              <div class="p-1.5 rounded-lg bg-slate-900 border border-slate-800">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+              </div>
+              <span class="text-[9px] font-mono uppercase bg-purple-500/10 text-purple-400 px-1 border border-purple-500/20 rounded">
+                ETHICS
+              </span>
+            </div>
+            <div class="mt-3">
+              <h4 class="text-xs font-bold leading-tight text-slate-250 hover:text-slate-100" id="card-gov-title">
+                3. Gobernanza Responsable
+              </h4>
+              <p class="text-[10px] text-slate-500 mt-1 line-clamp-1" id="card-gov-desc">
+                Decisiones democráticas comunitarias...
+              </p>
+            </div>
+          </button>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: INTERACTIVE CONTROL & MONITORE PANEL -->
+    <div class="flex flex-col h-full min-h-[400px]">
+      
+      <div class="bg-indigo-950/20 border border-slate-900 rounded-3xl p-5 md:p-6 flex flex-col h-full justify-between space-y-6 shadow-xl relative overflow-hidden" id="details-suite-panel">
+        
+        <!-- Technical Ambient Grid Deco -->
+        <div class="absolute inset-0 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:16px_16px] opacity-[0.03] pointer-events-none"></div>
+
+        <div>
+          <!-- Header details -->
+          <div class="flex items-center justify-between border-b border-slate-900 pb-3">
+            <span class="text-[10px] font-mono uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+              <span id="label-hud-details">Detalles del Módulo</span>
+            </span>
+            <span class="text-[9px] font-mono font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 px-1.5 py-0.5 rounded" id="panel-status-val">
+              OPERATIVO
+            </span>
+          </div>
+
+          <!-- Titles -->
+          <div class="mt-4">
+            <h2 class="text-xl font-bold tracking-tight text-slate-100 font-sans" id="panel-module-title">Síntesis y Ensamblaje</h2>
+            <p class="text-xs font-mono text-emerald-400 mt-1" id="panel-module-subtitle">Creación de Organismos con Modificaciones Beneficiosas</p>
+            <p class="text-xs text-slate-400 mt-3 leading-relaxed" id="panel-module-desc">
+              A partir de tecnologías innovadoras, se realizan procesos de síntesis y ensamblaje para la creación de organismos vivos con modificaciones beneficiosas. El laboratorio cuenta con engranajes de alta precisión y un sistema totalmente hermético que previene cualquier tipo de fuga accidental.
+            </p>
+          </div>
+
+          <!-- CONTEXT COMPONENT CONTROLS (CONDITIONAL DYNAMIC VIEWPORT) -->
+          <div class="mt-5 p-4 bg-slate-950 rounded-2xl border border-slate-900 space-y-4" id="module-reactive-control-box">
+            
+            <h4 class="text-[11px] font-mono text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+              </svg>
+              <span>Ajustes Dinámicos de Simulación</span>
+            </h4>
+
+            <!-- Synthesis slider control -->
+            <div id="ctrl-synthesis-box" class="space-y-2">
+              <div class="flex justify-between text-xs font-mono text-slate-400">
+                <span id="label-speed-caption">Velocidad del Lab:</span>
+                <span class="text-cyan-400 font-bold" id="speed-val-display">1.5x</span>
+              </div>
+              <input type="range" min="0" max="4" step="0.1" value="1.5" id="speed-slider" oninput="updateGearsSpeed(this.value)" class="w-full text-cyan-500 h-1.5 bg-slate-900 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+            </div>
+
+            <!-- Encapsulation capsule slider control -->
+            <div id="ctrl-encapsulation-box" class="hidden space-y-3">
+              <div class="flex items-center justify-between text-xs font-mono text-slate-400">
+                <span id="label-capsule-caption">Liberación Inteligente</span>
+                <span class="text-amber-400 font-bold uppercase transition" id="capsule-state-display">Cerrado</span>
+              </div>
+              <button onclick="toggleCapsuleState()" id="capsule-toggle-trigger" class="w-full py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-mono text-xs font-bold rounded-lg border border-amber-500/30 transition">
+                ABRIR COMPUERTAS DE LIBERACIÓN
+              </button>
+            </div>
+
+            <!-- Governance summary control -->
+            <div id="ctrl-governance-box" class="hidden py-1 text-slate-400 text-xs font-mono space-y-2">
+              <p class="text-purple-300 font-semibold" id="gov-box-title">Estatus Consensual:</p>
+              <div class="flex items-center gap-2 bg-purple-500/5 p-2 border border-purple-500/15 rounded-lg text-[11px]">
+                <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+                <span id="gov-box-msg">Mesa de decisión interconectada. Cambios requieren 100% de aprobación del quórum social.</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- CRITICAL METRICS VIEW -->
+          <div class="mt-5 space-y-2">
+            <h4 class="text-[11px] font-mono text-slate-500 uppercase tracking-widest-short" id="metrics-panel-title">
+              Métricas de Impacto
+            </h4>
+            
+            <div class="grid grid-cols-1 gap-2" id="metrics-container">
+              <!-- Metrics elements injection -->
+              <div class="flex justify-between items-center bg-slate-950 p-2.5 rounded-lg border border-slate-900/40 text-xs">
+                <span class="text-slate-400 font-mono" id="metric-l-0">Modificación Génica</span>
+                <span class="text-cyan-400 font-bold font-mono" id="metric-v-0">99.2 %</span>
+              </div>
+              <div class="flex justify-between items-center bg-slate-950 p-2.5 rounded-lg border border-slate-900/40 text-xs">
+                <span class="text-slate-400 font-mono" id="metric-l-1">Presión de Filtro</span>
+                <span class="text-cyan-400 font-bold font-mono" id="metric-v-1">-120 Pa</span>
+              </div>
+              <div class="flex justify-between items-center bg-slate-950 p-2.5 rounded-lg border border-slate-900/40 text-xs">
+                <span class="text-slate-400 font-mono" id="metric-l-2">Esterilidad Cabina</span>
+                <span class="text-cyan-400 font-bold font-mono" id="metric-v-2">100 %</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- TECHNICAL PROCEDURES VIEW -->
+          <div class="mt-5 space-y-2">
+            <h4 class="text-[11px] font-mono text-slate-500 uppercase tracking-widest-short" id="specs-panel-title">
+              Protocolos Técnicos
+            </h4>
+            <ul class="text-xs text-slate-400 space-y-2 list-disc pl-4" id="specs-container">
+              <li>Modelado de genomas para mitigación de transmisión de patógenos</li>
+              <li>Mecanizado robótico asistido por engranajes neumáticos</li>
+              <li>Tecnologías innovadoras integradas con flujos laminares continuos</li>
+            </ul>
+          </div>
+
+        </div>
+
+        <!-- TELEMETRY FEED -->
+        <div class="border-t border-slate-900/60 pt-4 mt-4">
+          <div class="flex justify-between items-center text-[10px] font-mono text-slate-500 uppercase">
+            <span id="label-telem-feed">Monitor Integrado de Bioseguridad</span>
+            <span class="text-emerald-400" id="live-telem-val">Eficacia: 100% SECURE</span>
+          </div>
+          <div class="mt-2 h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-900/60">
+            <div class="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 rounded-full animate-pulse" style="width: 100%"></div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- GENERAL OVERVIEW DESCRIPTION BLOCK -->
+  <section class="max-w-7xl w-full mx-auto px-4 sm:px-6 py-4">
+    <div class="p-5 bg-slate-900/20 border border-slate-900 rounded-2xl">
+      <h3 class="text-sm font-semibold text-slate-200 mb-2 font-mono" id="label-proj-impact">IMPACTO Y CARACTERÍSTICAS DEL PROYECTO</h3>
+      <p class="text-xs text-slate-400 leading-relaxed font-sans" id="label-overview">
+        Trasladando ciencia e innovación en soluciones informativas para descifrar formas vectoriales y mitigar el Dengue, Zika, Chikungunya y Malaria. Este gemelo digital demuestra los tres pilares de contención hermética, liberación inteligente y gobernanza ética y social.
+      </p>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="mt-auto border-t border-slate-900 py-5 bg-slate-950 text-center text-xs text-slate-500 font-mono">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <span id="footer-credits">VECTOR-SHIELD • Mitigación Avanzada de Vectores • www.vector-shield.org</span>
+      <span class="text-slate-600">PROTOCOLO DE SEGURIDAD INTERNA DE LA PLATAFORMA</span>
+    </div>
+  </footer>
+
+  <!-- STANDALONE SCRIPT logic -->
+  <script>
+    // Embed parsed translations from code environment directly
+    const translations = {
+  "es": {
+    "brand": "VECTOR-SHIELD",
+    "tagline": "Biofábrica para Mitigación de Enfermedades Transmitidas por Vectores",
+    "overview": "Trasladando ciencia e innovación en soluciones informativas para descifrar formas vectoriales y mitigar el Dengue, Zika, Chikungunya y Malaria. Este gemelo digital demuestra los tres pilares de contención hermética, liberación inteligente y gobernanza ética y social.",
+    "interactiveControls": "Mandos de Biofabricación",
+    "systemDashboard": "Impacto y Características del Proyecto",
+    "modulesTitle": "Subsistemas de Contención",
+    "autoRotate": "Rotación Automática",
+    "resetView": "Restablecer Cámara",
+    "speedLabel": "Velocidad de Ensamblaje",
+    "capsuleStateLabel": "Liberación Inteligente",
+    "capsuleOpen": "Abierto",
+    "capsuleClosed": "Cerrado",
+    "governanceMeeting": "Cuórum Directivo",
+    "safetyIndex": "Índice de Bioseguridad",
+    "integrityIndex": "Eficacia de Blindaje",
+    "activeLanguage": "Idioma",
+    "infoTitle": "Detalles del Módulo",
+    "metricsTitle": "Métricas de Impacto",
+    "specificationsTitle": "Protocolos Técnicos",
+    "exploreInstructions": "Haz clic y arrastra sobre el lienzo 3D para rotar. Haz scroll de zoom para acercar. Haz clic en un módulo o en las tarjetas inferiores de acceso rápido para interactuar directamente.",
+    "credits": "VECTOR-SHIELD • Mitigación Avanzada de Vectores • www.vector-shield.org",
+    "modules": {
+      "synthesis": {
+        "title": "Síntesis y Ensamblaje",
+        "subtitle": "Creación de Organismos con Modificaciones Beneficiosas",
+        "shortDesc": "Síntesis hermética orientada a la mitigación de vectores de transmisión como Dengue, Zika, Chikungunya y Malaria.",
+        "fullDesc": "A partir de tecnologías innovadoras, se realizan procesos de síntesis y ensamblaje para la creación de organismos vivos con modificaciones beneficiosas. El laboratorio cuenta con engranajes de alta precisión y un sistema totalmente hermético que previene cualquier tipo de fuga accidental.",
+        "status": "OPERATIVO - ENTOMOLOGÍA Y EPIDEMIOLOGÍA",
+        "criticalMetrics": [
+          {
+            "label": "Modificación Génica",
+            "value": "99.2 %"
+          },
+          {
+            "label": "Presión de Filtro",
+            "value": "-120 Pa"
+          },
+          {
+            "label": "Esterilidad Cabina",
+            "value": "100 %"
+          }
+        ],
+        "specifications": [
+          "Modelado de genomas para mitigación de transmisión de patógenos",
+          "Mecanizado robótico asistido por engranajes neumáticos",
+          "Tecnologías innovadoras integradas con flujos laminares continuos"
+        ]
+      },
+      "encapsulation": {
+        "title": "Encapsulado y Liberación",
+        "subtitle": "Sistema de Envasado e Inteligencia en Campo",
+        "shortDesc": "Los organismos modificados son encapsulados antes de ser liberados en entornos de riesgo.",
+        "fullDesc": "Los organismos vivos modificados son encapsulados antes de ser liberados en entornos de riesgo de forma ética, segura y minimizando el impacto ambiental. Un sistema de trazabilidad y datos en tiempo real permite monitorear y evaluar el progreso y el impacto acumulado de las liberaciones.",
+        "status": "SEGURO - SISTEMA DE LIBERACIÓN INTELIGENTE",
+        "criticalMetrics": [
+          {
+            "label": "Trazabilidad Gps",
+            "value": "Activa"
+          },
+          {
+            "label": "Mitigación Transmisión",
+            "value": "+65 %"
+          },
+          {
+            "label": "Seguridad de Entorno",
+            "value": "Garantizada"
+          }
+        ],
+        "specifications": [
+          "Pulsos magnéticos para control de apertura micrométrica",
+          "Monitoreo integral y trazabilidad de datos en tiempo real",
+          "Evaporación biodegradable con impacto ambiental mínimo"
+        ]
+      },
+      "governance": {
+        "title": "Gobernanza Responsable",
+        "subtitle": "Mesa Consensual y Participación Comunitaria",
+        "shortDesc": "Comunidades locales y actores clave participan en la toma de decisiones informadas.",
+        "fullDesc": "Comunidades locales y actores clave participan activamente en la toma de decisiones informadas, promoviendo transparencia, consentimiento mutuo y equidad. Este espacio simula el proceso donde cada paso operativo es validado democráticamente por los comités de bioseguridad y análisis de riesgo.",
+        "status": "CONSENSO ACTIVO - PARTICIPACIÓN CIUDADANA",
+        "criticalMetrics": [
+          {
+            "label": "Aceptación Social",
+            "value": "97.4 %"
+          },
+          {
+            "label": "Transparencia de Datos",
+            "value": "100 %"
+          },
+          {
+            "label": "Auditoría Comunal",
+            "value": "Aprobada"
+          }
+        ],
+        "specifications": [
+          "Garantía de consentimiento informado y equidad de las comunidades",
+          "Votación de representantes en el panel de decisión",
+          "Gestión responsable de riesgos y divulgación abierta de reportes"
+        ]
+      }
+    }
+  },
+  "en": {
+    "brand": "VECTOR-SHIELD",
+    "tagline": "Biofactory for Mitigation of Vector-Borne Diseases",
+    "overview": "Translating science and innovation into informative solutions to decipher vector forms and mitigate Dengue, Zika, Chikungunya, and Malaria. This digital twin highlights hermetic containment, intelligent release, and ethical & social governance.",
+    "interactiveControls": "Biofabrication Controls",
+    "systemDashboard": "Project Impact & Achievements",
+    "modulesTitle": "Containment Subsystems",
+    "autoRotate": "Auto-Rotation",
+    "resetView": "Reset Camera",
+    "speedLabel": "Assembly Speed",
+    "capsuleStateLabel": "Smart Release Hatch",
+    "capsuleOpen": "Open",
+    "capsuleClosed": "Closed",
+    "governanceMeeting": "Board Quorum",
+    "safetyIndex": "Biosecurity Index",
+    "integrityIndex": "Shielding Efficiency",
+    "activeLanguage": "Language",
+    "infoTitle": "Module Details",
+    "metricsTitle": "Impact Metrics",
+    "specificationsTitle": "Technical Protocols",
+    "exploreInstructions": "Click and drag over the 3D canvas to rotate. Scroll to zoom. Click any module directly on the 3D canvas or use the quick access cards below for focused inspection.",
+    "credits": "VECTOR-SHIELD • Advanced Vector Mitigation • www.vector-shield.org",
+    "modules": {
+      "synthesis": {
+        "title": "Synthesis & Assembly",
+        "subtitle": "Beneficial Modification Assembly Complex",
+        "shortDesc": "Hermetic biological vector synthesis aimed at mitigating diseases such as Dengue, Zika, Chikungunya, and Malaria.",
+        "fullDesc": "Based on innovative technologies, synthesis and assembly processes are carried out for the creation of living organisms with beneficial modifications. The bio-complex utilizes synchronized high-precision gears inside a negative pressure closed chamber.",
+        "status": "OPERATIONAL - ENTOMOLOGY & EPIDEMIOLOGY",
+        "criticalMetrics": [
+          {
+            "label": "Gene Modification",
+            "value": "99.2 %"
+          },
+          {
+            "label": "Filter Pressure",
+            "value": "-120 Pa"
+          },
+          {
+            "label": "Cabinet Sterility",
+            "value": "100 %"
+          }
+        ],
+        "specifications": [
+          "Genome modeling for mitigation of pathogen transmission",
+          "High-precision pneumatic gear-assisted machinery",
+          "Continuous laminar flow cleanrooms with zero aerosol drift"
+        ]
+      },
+      "encapsulation": {
+        "title": "Encapsulation & Release",
+        "subtitle": "Field Intelligence Packaging System",
+        "shortDesc": "Modified living organisms are encapsulated before being released in risk environments.",
+        "fullDesc": "Modified living organisms are encapsulated before being released in high-risk environments in an ethical, safe, and environmentally responsible manner. A real-time traceability and data tracking system continuously monitors the progress and local impact of the bio-release.",
+        "status": "SECURED - SMART CONTROLLED RELEASE",
+        "criticalMetrics": [
+          {
+            "label": "Gps Tracking",
+            "value": "Active"
+          },
+          {
+            "label": "Transmission Drop",
+            "value": "+65 %"
+          },
+          {
+            "label": "Risk Management",
+            "value": "Guaranteed"
+          }
+        ],
+        "specifications": [
+          "Magnetic pulses for precision micrometer capsule triggers",
+          "Real-time geographical tracking & telemetry tracking",
+          "Biodegradable shell composition preserving clean environment"
+        ]
+      },
+      "governance": {
+        "title": "Responsible Governance",
+        "subtitle": "Consensual Committee & Community Representation",
+        "shortDesc": "Local communities and key stakeholders participate in informed and transparent decision making.",
+        "fullDesc": "Local communities and key stakeholders participate actively in informed decision making, ensuring strict transparency, consent, and equity. This space models the consensus protocols where every operation is cross-verified by bioethics experts.",
+        "status": "CONSENSO ACTIVO - CITIZEN PARTICIPATION",
+        "criticalMetrics": [
+          {
+            "label": "Social Acceptance",
+            "value": "97.4 %"
+          },
+          {
+            "label": "Data Openness",
+            "value": "100 %"
+          },
+          {
+            "label": "Community Audit",
+            "value": "Approved"
+          }
+        ],
+        "specifications": [
+          "Sustains informed consent and proportional civic equity",
+          "Multi-member ledger consensus of ethical board members",
+          "Responsible hazard analysis and open scientific documentation"
+        ]
+      }
+    }
+  },
+  "zh": {
+    "brand": "VECTOR-SHIELD",
+    "tagline": "媒介传播疾病防控生物技术微缩模型",
+    "overview": "将科学研究和技术创新转化为多维度的生物安全保障策略，用于破译和阻断登革热、西卡病毒、基孔肯雅热和疟疾的传播。该数字孪生演示了高气密合组、智能定点释放与多方利益相关者共同参与的伦理保障机制。",
+    "interactiveControls": "生物芯片合成控制",
+    "systemDashboard": "项目技术效益与特征",
+    "modulesTitle": "防御控制子系统",
+    "autoRotate": "自动旋转相机",
+    "resetView": "重置相机视角",
+    "speedLabel": "生物合成装配速度",
+    "capsuleStateLabel": "安全舱盖状态",
+    "capsuleOpen": "开启",
+    "capsuleClosed": "密闭",
+    "governanceMeeting": "治理席位法定人数",
+    "safetyIndex": "生物安全指数",
+    "integrityIndex": "装甲隔离效率",
+    "activeLanguage": "语言选择",
+    "infoTitle": "模块技术详情",
+    "metricsTitle": "技术合规协议",
+    "specificationsTitle": "运行遥测数据",
+    "exploreInstructions": "在3D画布上拖拽以旋转视角，滚动鼠标滚轮进行缩放，点击左侧3D模型或下方控制大卡，可激活更深入的安全系统和遥测细节。",
+    "credits": "VECTOR-SHIELD 高能防护中心 • 媒介疾病减灾网 • www.vector-shield.org",
+    "modules": {
+      "synthesis": {
+        "title": "合成与组装",
+        "subtitle": "有益基因性状改良分子合成区",
+        "shortDesc": "致力于登革热、西卡病毒、基孔肯雅热和疟疾等媒介阻断生物体的密闭合成。",
+        "fullDesc": "利用突破性生物工程技术，进行良性改良生物向量的精确合成和组装。生化反应舱配备超高密级物理连环齿轮传动和自平衡负压，防范任何有害逸散。",
+        "status": "运行中 - 昆虫学及流行病学双重阻隔",
+        "criticalMetrics": [
+          {
+            "label": "有益改良良率",
+            "value": "99.2 %"
+          },
+          {
+            "label": "安全压差",
+            "value": "-120 Pa"
+          },
+          {
+            "label": "防尘灭菌率",
+            "value": "100 %"
+          }
+        ],
+        "specifications": [
+          "用于抑制病原体跨宿主传播的定向改良基因编辑技术",
+          "由高密封性能的气体动力机械轮构成的双向控制台架",
+          "洁净流动空气过滤、双阀连环防漏保护安全罩系统"
+        ]
+      },
+      "encapsulation": {
+        "title": "封装与释放",
+        "subtitle": "野外投送及气相温控密封舱",
+        "shortDesc": "改良活体经野外智能释放前，必须经过符合伦理及物理闭锁的胶囊装箱。",
+        "fullDesc": "改良后的生物体由防热防爆轻质外壳封装。通过严格限制、无损环境和道德审视的机制，智能定向释放。集成实时定位与状态捕捉系统，全流程跟踪地理坐标与微环境反馈数据。",
+        "status": "隔离中 - 智能定点释放程序已锁定",
+        "criticalMetrics": [
+          {
+            "label": "地理网络定位",
+            "value": "开启"
+          },
+          {
+            "label": "阻断疾病成效",
+            "value": "+65 %"
+          },
+          {
+            "label": "野外安全保护",
+            "value": "100%"
+          }
+        ],
+        "specifications": [
+          "精密电磁阀调节模块，微观级定量防漏投送控制",
+          "全天候卫星通讯回传及现场气相监测系统",
+          "可在释放后自然无害降解的仿生材质壳体"
+        ]
+      },
+      "governance": {
+        "title": "负责任的治理",
+        "subtitle": "社区深度包容与伦理主权联合验证庭",
+        "shortDesc": "社区公众代表、流行病专家共同参与高度透明化、知情和科学中和决策。",
+        "fullDesc": "受多方主权委托的社区及监管力量主动监督合成参数。系统展示了严格遵循科学透明、社会平等和知情同意原则的区块链共识机制，并提供有公众代表在席的主动风险评估通道。",
+        "status": "共识中 - 公众参与和信息完全公开",
+        "criticalMetrics": [
+          {
+            "label": "社区综合赞成",
+            "value": "97.4 %"
+          },
+          {
+            "label": "数据开放披露",
+            "value": "100 %"
+          },
+          {
+            "label": "伦理科学审核",
+            "value": "已通过"
+          }
+        ],
+        "specifications": [
+          "坚持遵循完全公开、平等和公众知情同意的法理底线",
+          "多方专家与常任社区观察家在决策控制台的现场联署",
+          "符合世界卫生组织和国际传染病协会规范的无死角风险分析"
+        ]
+      }
+    }
+  }
+};
+
+    // State managers
+    let currentLang = 'es';
+    let currentModule = 'synthesis';
+    let gearsSpeedMultiplier = 1.5;
+    let isCapsuleOpen = false;
+    let isAutoRotate = true;
+
+    // ThreeJS Globals
+    let scene, camera, renderer, controls;
+    let floorGrid, mainPlatform;
+
+    // Module meshes container
+    let synthesisGroup, encapsulationGroup, governanceGroup;
+    
+    // Animate references
+    let gear1, gear2, dnaGroup, testTubeLiquidMat;
+    let bioCoreGroup, mThrux, mAbdomen, mHead, mProboscis, mLeftWing, mRightWing, releaseParticles = [];
+    let boardShieldGroup;
+
+    // Initialize 3D Engine on load
+    window.addEventListener('DOMContentLoaded', () => {
+      initThreeJS();
+      selectCoreModule('synthesis');
+      updateUiTexts();
+    });
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      
+      // Toggle button selection styling
+      ['es', 'en', 'zh'].forEach(l => {
+        const btn = document.getElementById('lang-' + l + '-btn');
+        if (l === lang) {
+          btn.className = "px-2.5 py-1 text-xs font-mono font-bold rounded-md transition bg-cyan-500 shadow text-slate-950";
+        } else {
+          btn.className = "px-2.5 py-1 text-xs font-mono font-bold rounded-md transition text-slate-400 hover:text-slate-100";
+        }
+      });
+
+      updateUiTexts();
+    }
+
+    function updateUiTexts() {
+      const dict = translations[currentLang];
+      if (!dict) return;
+
+      // Update Header & General labels
+      document.getElementById('header-brand').innerText = dict.brand;
+      document.getElementById('header-tagline').innerText = dict.tagline;
+      document.getElementById('label-proj-impact').innerText = dict.systemDashboard;
+      document.getElementById('label-overview').innerText = dict.overview;
+      document.getElementById('footer-credits').innerText = dict.credits;
+      document.getElementById('hud-nav-title').innerText = currentLang === 'es' ? 'Navegación Táctil' : currentLang === 'zh' ? '交互控制方式' : 'Touch Controls';
+      document.getElementById('hud-guide-rotate').innerText = currentLang === 'es' ? '🖱️ Clic izquierdo + arrastrar: Rotar' : currentLang === 'zh' ? '🖱️ 鼠标左键拖拽: 旋转视角' : '🖱️ Left-click + drag: Rotate';
+      document.getElementById('hud-guide-zoom').innerText = currentLang === 'es' ? '🔍 Rueda de mouse: Zoom' : currentLang === 'zh' ? '🔍 鼠标中键滚轮: 缩放' : '🔍 Mouse-wheel scroll: Zoom';
+      document.getElementById('hud-guide-pan').innerText = currentLang === 'es' ? '🤚 Clic derecho + arrastrar: Mover' : currentLang === 'zh' ? '🤚 鼠标右键拖拽: 移动相机' : '🤚 Right-click + drag: Pan';
+      document.getElementById('control-reset-label').innerText = dict.resetView;
+      document.getElementById('controls-panel-title').innerText = dict.interactiveControls;
+      document.getElementById('label-hud-details').innerText = dict.infoTitle;
+      document.getElementById('dock-instructions').innerText = currentLang === 'es' ? 'Haz clic para seleccionar o navega directamente sobre el lienzo 3D' : currentLang === 'zh' ? '点击按键或在三维物体上双击可使相机定向聚焦' : 'Click to select or click directly on 3D elements';
+
+      // Update Quick cards
+      document.getElementById('card-syn-title').innerText = "1. " + dict.modules.synthesis.title;
+      document.getElementById('card-syn-desc').innerText = dict.modules.synthesis.shortDesc;
+      document.getElementById('card-enc-title').innerText = "2. " + dict.modules.encapsulation.title;
+      document.getElementById('card-enc-desc').innerText = dict.modules.encapsulation.shortDesc;
+      document.getElementById('card-gov-title').innerText = "3. " + dict.modules.governance.title;
+      document.getElementById('card-gov-desc').innerText = dict.modules.governance.shortDesc;
+
+      // Update module inputs
+      document.getElementById('label-speed-caption').innerText = dict.speedLabel + ':';
+      document.getElementById('label-capsule-caption').innerText = dict.capsuleStateLabel;
+      document.getElementById('capsule-toggle-trigger').innerText = isCapsuleOpen 
+        ? (currentLang === 'es' ? "CERRAR COMPUERTAS DE SEGURIDAD" : currentLang === 'zh' ? "紧急锁定安全防御罩" : "CLOSE SAFETY CANISTER DOORS")
+        : (currentLang === 'es' ? "ABRIR COMPUERTAS DE LIBERACIÓN" : currentLang === 'zh' ? "开启气态定向释放舱" : "OPEN RELEASE FIELD GATES");
+
+      document.getElementById('gov-box-title').innerText = currentLang === 'es' ? 'Estatus Consensual:' : currentLang === 'zh' ? '两会共识状态:' : 'Consensus Status:';
+      document.getElementById('gov-box-msg').innerText = dict.modules.governance.status;
+
+      // Active module side texts
+      const mDict = dict.modules[currentModule];
+      if (mDict) {
+        document.getElementById('panel-module-title').innerText = mDict.title;
+        document.getElementById('panel-module-subtitle').innerText = mDict.subtitle;
+        document.getElementById('panel-module-desc').innerText = mDict.fullDesc;
+        document.getElementById('panel-status-val').innerText = mDict.status;
+
+        // Metrics header
+        document.getElementById('metrics-panel-title').innerText = dict.metricsTitle;
+        document.getElementById('specs-panel-title').innerText = dict.specificationsTitle;
+
+        // Critical metrics list
+        mDict.criticalMetrics.forEach((m, idx) => {
+          const lbl = document.getElementById('metric-l-' + idx);
+          const val = document.getElementById('metric-v-' + idx);
+          if (lbl && val) {
+            lbl.innerText = m.label;
+            val.innerText = m.value;
+          }
+        });
+
+        // Technical specs bullet points
+        const specsBox = document.getElementById('specs-container');
+        specsBox.innerHTML = '';
+        mDict.specifications.forEach(s => {
+          const li = document.createElement('li');
+          li.className = "hover:text-slate-200 transition duration-150 py-0.5";
+          li.innerText = s;
+          specsBox.appendChild(li);
+        });
+      }
+
+      // Live bar
+      const safeLabel = currentLang === 'es' ? 'BIENESTAR VECTORIAL: 100% GARANTIZADO' : currentLang === 'zh' ? '综合生物安全性：全面合规' : 'VECTOR PROTOCOL: 100% ENFORCED';
+      document.getElementById('live-telem-val').innerText = safeLabel;
+    }
+
+    function selectCoreModule(mKey) {
+      currentModule = mKey;
+
+      // Highlight active dock button
+      ['synthesis', 'encapsulation', 'governance'].forEach(key => {
+        const btn = document.getElementById('dock-btn-' + key);
+        if (key === mKey) {
+          if (mKey === 'synthesis') btn.className = "p-3.5 rounded-xl border text-left bg-emerald-500/10 border-emerald-500/50 text-emerald-300 shadow-md shadow-emerald-500/5 flex flex-col justify-between";
+          if (mKey === 'encapsulation') btn.className = "p-3.5 rounded-xl border text-left bg-amber-500/10 border-amber-500/50 text-amber-300 shadow-md shadow-amber-500/5 flex flex-col justify-between";
+          if (mKey === 'governance') btn.className = "p-3.5 rounded-xl border text-left bg-purple-500/10 border-purple-500/50 text-purple-300 shadow-md shadow-purple-500/5 flex flex-col justify-between";
+        } else {
+          btn.className = "p-3.5 rounded-xl border text-left bg-slate-950/60 border-slate-900 hover:border-slate-800 text-slate-400 hover:text-slate-200 transition flex flex-col justify-between";
+        }
+      });
+
+      // Show/Hide target simulator controls
+      document.getElementById('ctrl-synthesis-box').style.display = (mKey === 'synthesis') ? 'block' : 'none';
+      document.getElementById('ctrl-encapsulation-box').style.display = (mKey === 'encapsulation') ? 'block' : 'none';
+      document.getElementById('ctrl-governance-box').style.display = (mKey === 'governance') ? 'block' : 'none';
+
+      // Update sidebar texts
+      updateUiTexts();
+
+      // Pan 3D Camera focus to target coordinate
+      if (controls) {
+        let tx = 0, ty = 1.0, tz = 0;
+        if (mKey === 'synthesis') { tx = -3.2; tz = -0.5; }
+        if (mKey === 'encapsulation') { tx = 3.2; tz = -0.5; }
+        if (mKey === 'governance') { tx = 0; tz = 3.0; ty = 0.8; }
+
+        new THREE.Vector3(tx, ty, tz);
+        
+        // Smoothly tween target controls
+        const startTarget = controls.target.clone();
+        const endTarget = new THREE.Vector3(tx, ty, tz);
+        
+        const duration = 24;
+        let cStep = 0;
+        function animateCamTween() {
+          if (cStep < duration) {
+            cStep++;
+            const ratio = cStep / duration;
+            controls.target.lerpVectors(startTarget, endTarget, ratio);
+            controls.update();
+            requestAnimationFrame(animateCamTween);
+          }
+        }
+        animateCamTween();
+      }
+    }
+
+    // Dynamic inputs bindings
+    function updateGearsSpeed(val) {
+      gearsSpeedMultiplier = parseFloat(val);
+      document.getElementById('speed-val-display').innerText = gearsSpeedMultiplier.toFixed(1) + 'x';
+    }
+
+    function toggleCapsuleState() {
+      isCapsuleOpen = !isCapsuleOpen;
+      
+      const txt = document.getElementById('capsule-state-display');
+      txt.innerText = isCapsuleOpen 
+        ? (currentLang === 'es' ? 'ABIERTO' : currentLang === 'zh' ? '释放运行' : 'OPEN')
+        : (currentLang === 'es' ? 'CERRADO' : currentLang === 'zh' ? '物理闭锁' : 'CLOSED');
+      
+      if (isCapsuleOpen) {
+        txt.className = "text-emerald-400 font-bold uppercase transition";
+      } else {
+        txt.className = "text-amber-500 font-semibold uppercase transition";
+      }
+
+      setLanguage(currentLang); // re-trigger text layouts easily
+    }
+
+    function toggleAutoRotation() {
+      isAutoRotate = !isAutoRotate;
+      const btn = document.getElementById('auto-rotate-hud-btn');
+      if (isAutoRotate) {
+        btn.className = "px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/30 text-[10px] font-mono text-cyan-400 rounded-md transition shadow-lg";
+        btn.innerText = currentLang === 'es' ? "ROTACIÓN: ON" : currentLang === 'zh' ? "自动旋转: ON" : "ROTATION: ON";
+      } else {
+        btn.className = "px-2.5 py-1 bg-slate-950/80 border border-slate-800 text-[10px] font-mono text-slate-500 rounded-md transition shadow-lg";
+        btn.innerText = currentLang === 'es' ? "ROTACIÓN: OFF" : currentLang === 'zh' ? "自动旋转: OFF" : "ROTATION: OFF";
+      }
+    }
+
+    function resetCameraView() {
+      if (camera && controls) {
+        camera.position.set(0, 5, 8.5);
+        controls.target.set(0, 1.0, 0);
+        controls.update();
+        isAutoRotate = true;
+        const btn = document.getElementById('auto-rotate-hud-btn');
+        btn.className = "px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/30 text-[10px] font-mono text-cyan-400 rounded-md transition shadow-lg";
+        btn.innerText = currentLang === 'es' ? "ROTACIÓN: ON" : "ROTATION: ON";
+      }
+    }
+
+
+    /* THREE.JS ENGINE CORE INTEGRATION */
+    function initThreeJS() {
+      const container = document.getElementById('three-stage');
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      // 1. Scene
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x020617);
+      scene.fog = new THREE.FogExp2(0x020617, 0.04);
+
+      // 2. Camera
+      camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+      camera.position.set(0, 5, 8.5);
+
+      // 3. Renderer
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(width, height);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      // 2. Scene Light Controls
+      const ambientLight = new THREE.HemisphereLight(0x0f172a, 0x010409, 0.61);
+      scene.add(ambientLight);
+
+      const mainDirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+      mainDirLight.position.set(2, 6, 4);
+      mainDirLight.castShadow = true;
+      scene.add(mainDirLight);
+
+      // Neon highlight emitters inside modules
+      const pointLightSynthesis = new THREE.PointLight(0x00ff99, 1.2, 8);
+      pointLightSynthesis.position.set(-3.2, 2.0, -0.5);
+      scene.add(pointLightSynthesis);
+
+      const pointLightEncapsulation = new THREE.PointLight(0x00f3ff, 1.2, 8);
+      pointLightEncapsulation.position.set(3.2, 2.0, -0.5);
+      scene.add(pointLightEncapsulation);
+
+      const pointLightGov = new THREE.PointLight(0x8b5cf6, 1.2, 8);
+      pointLightGov.position.set(0, 2.0, 3.0);
+      scene.add(pointLightGov);
+
+
+      // 5. Grid helper and modular platform bases
+      const gridHelper = new THREE.GridHelper(24, 24, 0x0891b2, 0x0f172a);
+      gridHelper.position.y = 0.01;
+      scene.add(gridHelper);
+
+      // Carbon matte bases materials
+      const baseMetalMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.25, metalness: 0.85 });
+      const glowingCyanHdrMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
+
+      // Core pedestal rings decoration
+      const coreGridFloor = new THREE.Mesh(
+        new THREE.RingGeometry(8.5, 9.0, 32),
+        glowingCyanHdrMat
+      );
+      coreGridFloor.rotation.x = -Math.PI / 2;
+      coreGridFloor.position.y = 0.08;
+      scene.add(coreGridFloor);
+
+
+      // ==========================================
+      // MODULE 1: GENETIC SYNTHESIS LAB (LEFT ZONE -3.2, y, -0.5)
+      // ==========================================
+      synthesisGroup = new THREE.Group();
+      synthesisGroup.position.set(-3.2, 0, -0.5);
+      scene.add(synthesisGroup);
+
+      // Raised carbon foundation
+      const sBase = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.3, 0.35, 12), baseMetalMat);
+      sBase.position.y = 0.175;
+      sSynthesisBasePedestal = sBase; // reference
+      synthesisGroup.add(sBase);
+
+      const sLightRing = new THREE.Mesh(new THREE.RingGeometry(1.15, 1.2, 16), new THREE.MeshBasicMaterial({ color: 0x10b981, side: THREE.DoubleSide }));
+      sLightRing.rotation.x = -Math.PI / 2;
+      sLightRing.position.y = 0.36;
+      synthesisGroup.add(sLightRing);
+
+      // Kinetic transmission gears (procedural synthesis representational mechanical engine)
+      const gearGeo1 = new THREE.CylinderGeometry(0.5, 0.5, 0.06, 12);
+      const gearMat1 = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.9, roughness: 0.1 });
+      gear1 = new THREE.Mesh(gearGeo1, gearMat1);
+      gear1.position.set(-0.35, 0.45, 0.2);
+      synthesisGroup.add(gear1);
+
+      const gearGeo2 = new THREE.CylinderGeometry(0.38, 0.38, 0.06, 8);
+      const gearMat2 = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.9, roughness: 0.1 });
+      gear2 = new THREE.Mesh(gearGeo2, gearMat2);
+      gear2.position.set(0.35, 0.45, -0.1);
+      synthesisGroup.add(gear2);
+
+      // Hermetic containment cylindrical tube
+      const vialFrameGeo = new THREE.CylinderGeometry(0.8, 0.8, 1.5, 16, 1, true);
+      const glassMat = new THREE.MeshPhysicalMaterial({
+        color: 0x34d399,
+        transparent: true,
+        opacity: 0.2,
+        roughness: 0.1,
+        transmission: 0.9,
+        thickness: 0.5
+      });
+      const vialFrame = new THREE.Mesh(vialFrameGeo, glassMat);
+      vialFrame.position.y = 1.3;
+      synthesisGroup.add(vialFrame);
+
+      // Inside floating glowing laboratory fluid block
+      const liquidGeo = new THREE.CylinderGeometry(0.75, 0.75, 1.35, 16);
+      testTubeLiquidMat = new THREE.MeshStandardMaterial({
+        color: 0x00ffcc,
+        transparent: true,
+        opacity: 0.18,
+        emissive: 0x005544,
+        emissiveIntensity: 0.3,
+        roughness: 0.05
+      });
+      const liquid = new THREE.Mesh(liquidGeo, testTubeLiquidMat);
+      liquid.position.y = 1.3;
+      synthesisGroup.add(liquid);
+
+      // Helix coordinates for custom DNA visualizer
+      dnaGroup = new THREE.Group();
+      dnaGroup.position.set(0, 1.3, 0);
+      synthesisGroup.add(dnaGroup);
+
+      const helixSphereGeo = new THREE.SphereGeometry(0.06, 8, 8);
+      const strandAMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff });
+      const strandBMat = new THREE.MeshBasicMaterial({ color: 0x10b981 });
+      const linkMat = new THREE.MeshBasicMaterial({ color: 0x4f46e5, transparent: true, opacity: 0.4 });
+      const linkWireGeo = new THREE.CylinderGeometry(0.015, 0.015, 1.0, 4);
+
+      for (let i = 0; i < 14; i++) {
+        const theta = (i / 14) * Math.PI * 3.5;
+        const y = (i / 14) * 1.15 - 0.575;
+
+        // Helix Node A
+        const xa = Math.sin(theta) * 0.38;
+        const za = Math.cos(theta) * 0.38;
+        const pA = new THREE.Mesh(helixSphereGeo, strandAMat);
+        pA.position.set(xa, y, za);
+        dnaGroup.add(pA);
+
+        // Helix Node B
+        const xb = Math.sin(theta + Math.PI) * 0.38;
+        const zb = Math.cos(theta + Math.PI) * 0.38;
+        const pB = new THREE.Mesh(helixSphereGeo, strandBMat);
+        pB.position.set(xb, y, zb);
+        dnaGroup.add(pB);
+
+        // Cross helix rungs
+        const link = new THREE.Mesh(linkWireGeo, linkMat);
+        link.position.set((xa + xb) / 2, y, (za + zb) / 2);
+        link.rotation.z = Math.PI / 2;
+        link.rotation.y = -theta;
+        link.scale.set(1, 0.72, 1);
+        dnaGroup.add(link);
+      }
+
+
+      // ==========================================
+      // MODULE 2: ENCAPSULATION & FIELDS CORES (RIGHT ZONE 3.2, y, -0.5)
+      // ==========================================
+      encapsulationGroup = new THREE.Group();
+      encapsulationGroup.position.set(3.2, 0, -0.5);
+      scene.add(encapsulationGroup);
+
+      // Raised carbon base
+      const eBase = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.3, 0.35, 12), baseMetalMat);
+      eBase.position.y = 0.175;
+      encapsulationGroup.add(eBase);
+
+      const eLightRing = new THREE.Mesh(new THREE.RingGeometry(1.15, 1.2, 16), new THREE.MeshBasicMaterial({ color: 0xf59e0b, side: THREE.DoubleSide }));
+      eLightRing.rotation.x = -Math.PI / 2;
+      eLightRing.position.y = 0.36;
+      encapsulationGroup.add(eLightRing);
+
+      // Central bioengineered vector structure (Stylized mechanical flying insect/mosquito details!)
+      bioCoreGroup = new THREE.Group();
+      bioCoreGroup.position.set(0, 1.4, 0);
+      encapsulationGroup.add(bioCoreGroup);
+
+      const mosquitoMeshGroup = new THREE.Group();
+      bioCoreGroup.add(mosquitoMeshGroup);
+
+      const thoraxGeo = new THREE.SphereGeometry(0.15, 12, 12);
+      thoraxGeo.scale(1, 0.6, 1);
+      const thoraxMat = new THREE.MeshStandardMaterial({ color: 0x00f3ff, roughness: 0.2, metalness: 0.9, emissive: 0x0891b2 });
+      mThrux = new THREE.Mesh(thoraxGeo, thoraxMat);
+      mosquitoMeshGroup.add(mThrux);
+
+      const abdomenGeo = new THREE.CylinderGeometry(0.06, 0.02, 0.44, 8);
+      const abdomenMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6 });
+      mAbdomen = new THREE.Mesh(abdomenGeo, abdomenMat);
+      mAbdomen.rotation.x = Math.PI / 3.5;
+      mAbdomen.position.set(0, -0.1, -0.16);
+      mosquitoMeshGroup.add(mAbdomen);
+
+      const vectorHeadGeo = new THREE.SphereGeometry(0.09, 8, 8);
+      const headMat = new THREE.MeshStandardMaterial({ color: 0x0ea5e9, roughness: 0.1 });
+      mHead = new THREE.Mesh(vectorHeadGeo, headMat);
+      mHead.position.set(0, 0.1, 0.14);
+      mosquitoMeshGroup.add(mHead);
+
+      const proboscisGeo = new THREE.CylinderGeometry(0.012, 0.003, 0.2, 4);
+      const proboscisMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+      mProboscis = new THREE.Mesh(proboscisGeo, proboscisMat);
+      mProboscis.position.set(0, 0.06, 0.24);
+      mProboscis.rotation.x = Math.PI / 4;
+      mosquitoMeshGroup.add(mProboscis);
+
+      // Glowing bio wings (highly responsive action flaps)
+      const wingGeo = new THREE.BoxGeometry(0.35, 0.008, 0.12);
+      const wingMat = new THREE.MeshPhysicalMaterial({ color: 0x00e1ff, transparent: true, opacity: 0.6, roughness: 0.1, transmission: 0.9 });
+      
+      mLeftWing = new THREE.Mesh(wingGeo, wingMat);
+      mLeftWing.position.set(-0.22, 0.08, -0.04);
+      mLeftWing.rotation.z = -Math.PI / 12;
+      mLeftWing.rotation.y = Math.PI / 6;
+      mosquitoMeshGroup.add(mLeftWing);
+
+      mRightWing = new THREE.Mesh(wingGeo, wingMat);
+      mRightWing.position.set(0.22, 0.08, -0.04);
+      mRightWing.rotation.z = Math.PI / 12;
+      mRightWing.rotation.y = -Math.PI / 6;
+      mosquitoMeshGroup.add(mRightWing);
+
+
+      // Floating bio-luciferin particles floating upwards when hatch is triggered open
+      const partGroup = new THREE.Group();
+      partGroup.position.set(0, 1.4, 0);
+      encapsulationGroup.add(partGroup);
+
+      const particleGeo = new THREE.BoxGeometry(0.06, 0.06, 0.06);
+      const particleBaseMat = new THREE.MeshBasicMaterial({ color: 0x00ffe1, transparent: true, opacity: 0.0 });
+
+      for (let p = 0; p < 18; p++) {
+        const pm = new THREE.Mesh(particleGeo, particleBaseMat.clone());
+        pm.position.set(
+          (Math.random() - 0.5) * 0.5,
+          Math.random() * 1.5,
+          (Math.random() - 0.5) * 0.5
+        );
+        pm.userData = {
+          speedY: 0.015 + Math.random() * 0.02,
+          speedX: (Math.random() - 0.5) * 0.01,
+          speedZ: (Math.random() - 0.5) * 0.01,
+          initialY: Math.random() * 1.5,
+        };
+        partGroup.add(pm);
+        releaseParticles.push(pm);
+      }
+
+
+      // Left/Right sliding shell capsules
+      const outerShellMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5, metalness: 0.8 });
+      const shellGeoLeft = new THREE.CylinderGeometry(0.9, 0.9, 1.6, 16, 1, false, 0, Math.PI);
+      const shellGeoRight = new THREE.CylinderGeometry(0.9, 0.9, 1.6, 16, 1, false, Math.PI, Math.PI);
+
+      sLeftHatchMesh = new THREE.Mesh(shellGeoLeft, outerShellMat);
+      sLeftHatchMesh.position.y = 1.35;
+      encapsulationGroup.add(sLeftHatchMesh);
+
+      sRightHatchMesh = new THREE.Mesh(shellGeoRight, outerShellMat);
+      sRightHatchMesh.position.y = 1.35;
+      encapsulationGroup.add(sRightHatchMesh);
+
+
+      // ==========================================
+      // MODULE 3: DEMOCRATIC GOVERNANCE CHAMBER (FRONT ZONE 0, y, 3.0)
+      // ==========================================
+      governanceGroup = new THREE.Group();
+      governanceGroup.position.set(0, 0, 3.0);
+      scene.add(governanceGroup);
+
+      // Raised carbon base
+      const gBase = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.3, 0.35, 12), baseMetalMat);
+      gBase.position.y = 0.175;
+      governanceGroup.add(gBase);
+
+      const gLightRing = new THREE.Mesh(new THREE.RingGeometry(1.15, 1.2, 16), new THREE.MeshBasicMaterial({ color: 0x8b5cf6, side: THREE.DoubleSide }));
+      gLightRing.rotation.x = -Math.PI / 2;
+      gLightRing.position.y = 0.36;
+      governanceGroup.add(gLightRing);
+
+      // Boardroom roundtable
+      const gTable = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.22, 16), baseMetalMat);
+      gTable.position.y = 0.8;
+      governanceGroup.add(gTable);
+
+      // Boardroom central consensus floating 3D shield
+      boardShieldGroup = new THREE.Group();
+      boardShieldGroup.position.set(0, 1.25, 0);
+      governanceGroup.add(boardShieldGroup);
+
+      const holoShieldGeo = new THREE.CylinderGeometry(0.35, 0.22, 0.44, 5);
+      const holoShieldMat = new THREE.MeshStandardMaterial({
+        color: 0x8b5cf6,
+        transparent: true,
+        opacity: 0.72,
+        roughness: 0.1,
+        metalness: 0.9,
+        emissive: 0x4c1d95,
+        emissiveIntensity: 0.7,
+        wireframe: true
+      });
+      const holoShieldMesh = new THREE.Mesh(holoShieldGeo, holoShieldMat);
+      holoShieldMesh.rotation.x = Math.PI / 2;
+      holoShieldMesh.rotation.y = Math.PI / 5;
+      boardShieldGroup.add(holoShieldMesh);
+
+      // Concentric orbiting consensus ring
+      const holoRingGeo = new THREE.RingGeometry(0.55, 0.58, 32);
+      const holoRing = new THREE.Mesh(holoRingGeo, new THREE.MeshBasicMaterial({ color: 0xd8b4fe, side: THREE.DoubleSide, transparent: true, opacity: 0.7 }));
+      holoRing.rotation.x = Math.PI / 2;
+      boardShieldGroup.add(holoRing);
+
+      // Corporate committee members seated around the table (Chess pawn style designs)
+      const pawnGeo = new THREE.CylinderGeometry(0.04, 0.08, 0.2, 8);
+      const pawnMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.1, metalness: 0.9 });
+      const pawnHeadGeo = new THREE.SphereGeometry(0.05, 8, 8);
+      const pawnHeadMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+
+      for (let i = 0; i < 8; i++) {
+        const u = (i / 8) * Math.PI * 2;
+        const px = Math.sin(u) * 0.75;
+        const pz = Math.cos(u) * 0.75;
+
+        const pGroup = new THREE.Group();
+        pGroup.position.set(px, 0.9, pz);
+
+        const body = new THREE.Mesh(pawnGeo, pawnMat);
+        pGroup.add(body);
+
+        const head = new THREE.Mesh(pawnHeadGeo, pawnHeadMat);
+        head.position.y = 0.14;
+        pGroup.add(head);
+
+        governanceGroup.add(pGroup);
+      }
+
+
+      // ==========================================
+      // AMBIENT FLAVOURS: FLOATING BEACONS IN VACUUM
+      // ==========================================
+      const floatBeaconGeo = new THREE.DodecahedronGeometry(0.12);
+      const glowingCyanBeaconMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
+      
+      meshBeaconA = new THREE.Mesh(floatBeaconGeo, glowingCyanBeaconMat);
+      meshBeaconA.position.set(-2.0, 2.5, -2.5);
+      scene.add(meshBeaconA);
+
+      meshBeaconB = new THREE.Mesh(floatBeaconGeo, glowingCyanBeaconMat);
+      meshBeaconB.position.set(2.0, 2.5, -2.5);
+      scene.add(meshBeaconB);
+
+
+      // 6. Camera Controls orbit loop
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.minDistance = 3;
+      controls.maxDistance = 16;
+      controls.maxPolarAngle = Math.PI / 2 - 0.05; // Lock camera from shifting under grid floor
+      controls.target.set(0, 1.0, 0);
+      controls.update();
+
+
+      // 7. Raycaster clicks interaction
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+
+      container.addEventListener('dblclick', (e) => {
+        const bounds = container.getBoundingClientRect();
+        mouse.x = ((e.clientX - bounds.left) / bounds.width) * 2 - 1;
+        mouse.y = -((e.clientY - bounds.top) / bounds.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        
+        // Match collision checking group
+        const intersects = raycaster.intersectObjects([
+          sSynthesisBasePedestal, 
+          mThrux, // thorax of mosquito
+          holoShieldMesh // shield in governance
+        ], true);
+
+        if (intersects.length > 0) {
+          const clickedObj = intersects[0].object;
+          
+          if (clickedObj === sSynthesisBasePedestal) {
+            selectCoreModule('synthesis');
+          } else if (clickedObj === mThrux) {
+            selectCoreModule('encapsulation');
+          } else if (clickedObj === holoShieldMesh) {
+            selectCoreModule('governance');
+          }
+        }
+      });
+
+      // Simple click detector
+      container.addEventListener('pointerdown', () => {
+        isAutoRotate = false;
+        const btn = document.getElementById('auto-rotate-hud-btn');
+        btn.className = "px-2.5 py-1 bg-slate-950/80 border border-slate-800 text-[10px] font-mono text-slate-500 rounded-md transition shadow-lg";
+        btn.innerText = currentLang === 'es' ? "ROTACIÓN: OFF" : "ROTATION: OFF";
+      });
+
+
+      // 8. Animation update tick loop
+      const clock = new THREE.Clock();
+      
+      function renderUpdateLoop() {
+        requestAnimationFrame(renderUpdateLoop);
+
+        const elapsedTime = clock.getElapsedTime();
+        const delta = clock.getDelta();
+
+        // Spin procedural gears
+        const gearSpeed = 0.015 * gearsSpeedMultiplier;
+        if (gear1) gear1.rotation.y += gearSpeed;
+        if (gear2) gear2.rotation.y -= gearSpeed * 1.3;
+
+        // Spin synthesis DNA helix
+        if (dnaGroup) {
+          dnaGroup.rotation.y += 0.012 * gearsSpeedMultiplier;
+        }
+
+        // Pulse the test tube liquid ambient luminescence intensity
+        if (testTubeLiquidMat) {
+          testTubeLiquidMat.emissiveIntensity = 0.35 + Math.sin(elapsedTime * 3) * 0.2;
+        }
+
+        // Float and rotate biological mosquito vector payload
+        if (bioCoreGroup) {
+          bioCoreGroup.rotation.y -= 0.006;
+          bioCoreGroup.position.y = 1.4 + Math.sin(elapsedTime * 1.8) * 0.06;
+          
+          // Animate wing flapping kinetic vectors of the bio-insect
+          const flapFreq = isCapsuleOpen ? 45 : 12;
+          const wingOffset = Math.sin(elapsedTime * flapFreq) * (isCapsuleOpen ? 0.35 : 0.08);
+          if (mLeftWing && mRightWing) {
+            mLeftWing.rotation.z = -Math.PI / 12 + wingOffset;
+            mRightWing.rotation.z = Math.PI / 12 - wingOffset;
+          }
+        }
+
+        // Handle Capsule sliding open caps
+        if (sLeftHatchMesh && sRightHatchMesh) {
+          const targetOffset = isCapsuleOpen ? -1.05 : 0.0;
+          sLeftHatchMesh.position.x = THREE.MathUtils.lerp(sLeftHatchMesh.position.x, targetOffset, 0.1);
+          sRightHatchMesh.position.x = THREE.MathUtils.lerp(sRightHatchMesh.position.x, -targetOffset, 0.1);
+        }
+
+        // Bio-luciferin floating particle kinetics
+        releaseParticles.forEach(pm => {
+          const u = pm.userData;
+          if (isCapsuleOpen) {
+            pm.position.y += u.speedY;
+            pm.position.x += u.speedX;
+            pm.position.z += u.speedZ;
+
+            const progress = pm.position.y / 2.0;
+            pm.material.opacity = Math.max(0, 1.0 - progress) * 0.8;
+
+            if (pm.position.y > 2.0) {
+              pm.position.y = 0;
+              pm.position.x = (Math.random() - 0.5) * 0.2;
+              pm.position.z = (Math.random() - 0.5) * 0.2;
+            }
+          } else {
+            pm.material.opacity = THREE.MathUtils.lerp(pm.material.opacity, 0.0, 0.15);
+            pm.position.y = THREE.MathUtils.lerp(pm.position.y, u.initialY, 0.05);
+          }
+        });
+
+        // Rotate central corporate 3D shield
+        if (boardShieldGroup) {
+          boardShieldGroup.rotation.y += 0.012;
+          boardShieldGroup.rotation.x = Math.sin(elapsedTime * 1.5) * 0.06;
+          boardShieldGroup.position.y = 1.25 + Math.sin(elapsedTime * 2.0) * 0.04;
+        }
+
+        // Beacons gentle floating offsets
+        const floatY = Math.sin(elapsedTime * 2.2) * 0.08;
+        if (meshBeaconA) meshBeaconA.position.y = 2.5 + floatY;
+        if (meshBeaconB) meshBeaconB.position.y = 2.5 + floatY;
+
+        // Auto rotating global camera setup
+        if (isAutoRotate && controls) {
+          controls.autoRotate = true;
+          controls.autoRotateSpeed = 1.0;
+        } else if (controls) {
+          controls.autoRotate = false;
+        }
+
+        if (controls) controls.update();
+        renderer.render(scene, camera);
+      }
+
+      renderUpdateLoop();
+
+      // Window resize listener
+      window.addEventListener('resize', () => {
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      });
+    }
+
+    // References to keep tracks of global meshes easily
+    let sSynthesisBasePedestal, sLeftHatchMesh, sRightHatchMesh;
+    let meshBeaconA, meshBeaconB;
+
+  </script>
+</body>
+</html>
