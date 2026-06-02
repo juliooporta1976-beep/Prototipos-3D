@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bio-Shield Ultra 3D Interactive Prototype</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fcfcfc;
+            color: #17181c;
+        }
+        .layer-btn.active {
+            border-color: #16a34a;
+            background-color: #f0fdf4;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-6xl mx-auto bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+        
+        <!-- Header -->
+        <div class="bg-slate-900 text-white p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <div class="flex items-center gap-3">
+                    <span class="bg-green-500 text-slate-900 font-bold px-3 py-1 rounded-full text-xs">STANDARD BLUEPRINT</span>
+                    <h1 class="text-2xl md:text-3xl font-bold tracking-tight" id="main-title">Bio-Shield Ultra</h1>
+                </div>
+                <p class="text-gray-400 mt-2 text-sm md:text-base max-w-2xl" id="main-subtitle">
+                    Pulsera biodegradable con protección antimosquitos y monitoreo UV pasivo
+                </p>
+                <div class="flex items-center gap-4 mt-3 text-xs text-gray-500">
+                    <span id="author-label">Autor: Dr. Julio César Oporta Barrera</span>
+                    <span>•</span>
+                    <span>Noviembre 2025</span>
+                </div>
+            </div>
+            
+            <!-- Language Picker -->
+            <div class="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
+                <button onclick="setLang('es')" id="btn-es" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500 text-slate-900 transition-all">ES</button>
+                <button onclick="setLang('en')" id="btn-en" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white transition-all">EN</button>
+                <button onclick="setLang('zh')" id="btn-zh" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white transition-all">ZH</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 border-t border-gray-100">
+            
+            <!-- Left Panel: 3D Canvas / Rotator -->
+            <div class="lg:col-span-7 bg-slate-50 p-6 flex flex-col items-center justify-between border-r border-gray-100 min-h-[500px]">
+                <div class="w-full flex justify-between items-center z-10">
+                    <span class="text-xs font-semibold text-gray-500 font-mono" id="engine-status">● STATIC 3D SYSTEM READY</span>
+                    <button onclick="resetCam()" class="text-xs bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-lg shadow-sm transition-all" id="btn-reset">
+                        Restablecer Cámara
+                    </button>
+                </div>
+
+                <!-- 3D Canvas -->
+                <div class="relative w-full h-[320px] flex items-center justify-center my-4 cursor-grab active:cursor-grabbing">
+                    <canvas id="canvas3d" width="500" height="320" class="max-w-full drop-shadow-lg"></canvas>
+                    
+                    <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-white/95 backdrop-blur px-4 py-2 rounded-full border border-gray-200/50 shadow-sm">
+                        <label class="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer">
+                            <input type="checkbox" id="auto-rotate" checked class="rounded border-gray-300 text-green-600 focus:ring-green-500">
+                            <span id="rotate-label">Giro Automático</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Explode Slider -->
+                <div class="w-full bg-white p-4 rounded-2xl border border-gray-200/50 shadow-sm">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold text-gray-700" id="explode-label">Vista Explosionada de Capas</span>
+                        <span class="text-xs font-mono font-bold text-green-600" id="explode-val">0%</span>
+                    </div>
+                    <input type="range" id="explode-slider" min="0" max="100" value="0" class="w-full accent-green-600 h-2 bg-gray-100 rounded-lg cursor-pointer">
+                </div>
+            </div>
+
+            <!-- Right Panel: Info & Interactive Simulators -->
+            <div class="lg:col-span-5 p-6 flex flex-col justify-between space-y-6">
+                
+                <!-- Layer List Selector -->
+                <div>
+                    <h3 class="text-sm font-bold text-indigo-950 uppercase tracking-wider mb-3" id="layers-title">CAPAS DEL MODELO 3D</h3>
+                    <div class="grid grid-cols-1 gap-2">
+                        <button onclick="selectLayer(1)" id="l1" class="layer-btn w-full text-left p-3 rounded-xl border border-gray-150 bg-white hover:border-gray-300 transition-all font-medium text-xs text-gray-800">
+                            1. Capa Fotocrómica (Exterior)
+                        </button>
+                        <button onclick="selectLayer(2)" id="l2" class="layer-btn w-full text-left p-3 rounded-xl border border-gray-150 bg-white hover:border-gray-300 transition-all font-medium text-xs text-gray-800">
+                            2. Capa de Protección QR (Barniz)
+                        </button>
+                        <button onclick="selectLayer(3)" id="l3" class="layer-btn w-full text-left p-3 rounded-xl border border-gray-150 bg-white hover:border-gray-300 transition-all font-medium text-xs text-gray-800">
+                            3. Matriz de Microcápsulas en Gel
+                        </button>
+                        <button onclick="selectLayer(4)" id="l4" class="layer-btn w-full text-left p-3 rounded-xl border border-gray-150 bg-white hover:border-gray-300 transition-all font-medium text-xs text-gray-800">
+                            4. Ventanas de Gel Hidrocrómico (Indicador)
+                        </button>
+                        <button onclick="selectLayer(5)" id="l5" class="layer-btn w-full text-left p-3 rounded-xl border border-gray-150 bg-white hover:border-gray-300 transition-all font-medium text-xs text-gray-800">
+                            5. Sustrato de Nanocelulosa (Estructura)
+                        </button>
+                        <button onclick="selectLayer(6)" id="l6" class="layer-btn w-full text-left p-3 rounded-xl border border-gray-150 bg-white hover:border-gray-300 transition-all font-medium text-xs text-gray-800">
+                            6. Adhesivo Hipoalergénico (Intermedio/Interior)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Layer Specs Info Card -->
+                <div class="bg-gray-50 rounded-2xl p-4 border border-gray-150">
+                    <h4 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2" id="spec-header">ESPECIFICACIONES DE CAPA</h4>
+                    <div id="layer-details" class="space-y-3">
+                        <p class="text-xs text-gray-500 leading-relaxed italic" id="choose-hint">
+                            Selecciona una capa o desplaza el deslizador de explosión para revelar los detalles de la arquitectura molecular.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Simulators Section (Simulación Física) -->
+        <div class="bg-slate-50 border-t border-gray-100 p-6 md:p-8">
+            <h3 class="text-md font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <span class="w-2.5 h-2.5 bg-green-500 rounded-full animate-ping"></span>
+                <span id="field-sim">Simulación Interactiva de Rendimiento Operativo</span>
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- UV Slider -->
+                <div class="bg-white p-5 rounded-2xl border border-gray-200/60 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-bold text-gray-600 uppercase" id="sim-uv-title">REACCIÓN SOLAR (FOTOCROMISMO)</span>
+                            <span class="text-xs font-bold px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 font-mono" id="uv-badge">Index 0</span>
+                        </div>
+                        <p class="text-xs text-gray-400 mb-4" id="sim-uv-desc">Simula el nivel de índice UV. La capa fotocrómica cambia de color.</p>
+                    </div>
+                    <div>
+                        <input type="range" id="uv-slider" min="0" max="11" value="0" class="w-full accent-yellow-500 h-2 bg-gray-150 rounded-lg cursor-pointer">
+                        <div class="flex justify-between text-[10px] text-gray-400 mt-2 font-mono">
+                            <span id="uv-lbl-min">Indoor</span>
+                            <span id="uv-lbl-mod">Modrate</span>
+                            <span id="uv-lbl-max">Extreme</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Wear Slider -->
+                <div class="bg-white p-5 rounded-2xl border border-gray-200/60 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-bold text-gray-600 uppercase" id="sim-wear-title">EFICACIA AMBIENTAL DE LA ICARIDINA</span>
+                            <span class="text-xs font-bold px-2 py-0.5 rounded bg-green-100 text-green-800 font-mono" id="wear-badge">8 Hrs</span>
+                        </div>
+                        <p class="text-xs text-gray-400 mb-4" id="sim-wear-desc">Erosión del repelente y estado colorimétrico del gel hidrocrómico.</p>
+                    </div>
+                    <div>
+                        <input type="range" id="wear-slider" min="0" max="8" value="0" class="w-full accent-green-600 h-2 bg-gray-150 rounded-lg cursor-pointer">
+                        <div class="flex justify-between text-[10px] text-gray-400 mt-2 font-mono">
+                            <span id="wear-lbl-min">Full Protection</span>
+                            <span id="wear-lbl-max">Depleted (Re-apply)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Compost Slider -->
+                <div class="bg-white p-5 rounded-2xl border border-gray-200/60 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-bold text-gray-600 uppercase" id="sim-compost-title">DEGRADACIÓN DE NANOCELULOSA</span>
+                            <span class="text-xs font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-mono" id="compost-badge">Intact</span>
+                        </div>
+                        <p class="text-xs text-gray-400 mb-4" id="sim-compost-desc">Curva de degradación orgánica en suelo fértil en menos de 36 h.</p>
+                    </div>
+                    <div>
+                        <input type="range" id="compost-slider" min="0" max="36" value="0" class="w-full accent-amber-700 h-2 bg-gray-150 rounded-lg cursor-pointer">
+                        <div class="flex justify-between text-[10px] text-gray-400 mt-2 font-mono">
+                            <span id="compost-lbl-min">0 Hrs (Wearable)</span>
+                            <span id="compost-lbl-max">36 Hrs (Soil Food)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dynamic Simulator Output Alerts -->
+            <div id="sim-alert-box" class="mt-6 p-4 rounded-xl border border-green-200 bg-green-50/50 text-xs text-green-800 flex items-start gap-3 transition-all">
+                <span class="text-base">🛡️</span>
+                <span id="sim-alert-text">Sustrato e ingredientes activos operando de manera biológica.</span>
+            </div>
+        </div>
+
+        <!-- Technical Appendix Snapshot -->
+        <div class="p-6 md:p-8 bg-white border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+                <h4 class="text-sm font-semibold text-indigo-950 uppercase tracking-widest mb-3" id="bom-sh-title">Especificaciones Físicas de Diseño</h4>
+                <ul class="text-xs text-gray-500 space-y-2 leading-relaxed list-disc pl-4" id="bom-sh-list">
+                    <li>Grosor Total Laminado: 1.20 mm (Tolerancia ±0.10 mm)</li>
+                    <li>Diámetro Interno Estándar: 60 mm (Tolerancia ±1.0 mm)</li>
+                    <li>Ancho de Banda Nominal: 18.0 mm (Tolerancia ±0.5 mm)</li>
+                    <li>Bordes con chaflán de 0.3 mm para comodidad cutánea prolongada</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-sm font-semibold text-indigo-950 uppercase tracking-widest mb-3" id="val-sh-title">Acreditaciones Técnicas Previstas</h4>
+                <p class="text-xs text-gray-500 leading-relaxed mb-1" id="val-sh-desc">
+                    El diseño conceptual de Dr. Oporta está formulado de conformidad con los estándares:
+                </p>
+                <div class="flex flex-wrap gap-2 mt-2">
+                    <span class="bg-gray-100 text-gray-700 text-[10px] uppercase font-bold px-2 py-1 rounded">ISO 10993-10 (Skin)</span>
+                    <span class="bg-gray-100 text-gray-700 text-[10px] uppercase font-bold px-2 py-1 rounded">REACH Compliance</span>
+                    <span class="bg-gray-100 text-gray-700 text-[10px] uppercase font-bold px-2 py-1 rounded">EN 13432 compost</span>
+                    <span class="bg-gray-100 text-gray-700 text-[10px] uppercase font-bold px-2 py-1 rounded">EPA Active</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script dict and logical operations -->
+    <script>
+        const dict = {
+            es: {
+                title: "Bio-Shield Ultra",
+                subtitle: "Pulsera biodegradable con protección antimosquitos y monitoreo UV pasivo",
+                author: "Autor: Dr. Julio César Oporta Barrera",
+                reset: "Restablecer Cámara",
+                autoRotate: "Giro Automático",
+                explode: "Vista Explosionada de Capas",
+                layers: "CAPAS DEL MODELO 3D",
+                specHeader: "ESPECIFICACIONES DE CAPA",
+                chooseHint: "Selecciona una capa o desplaza el deslizador de explosión para revelar los detalles de la arquitectura molecular.",
+                simField: "Simulación Interactiva de Rendimiento Operativo",
+                uvTitle: "REACCIÓN SOLAR (FOTOCROMISMO)",
+                uvDesc: "Simula el nivel de índice UV. La capa fotocrómica cambia de color.",
+                uvMin: "Interior",
+                uvMod: "Moderado / Alto",
+                uvMax: "Extremo (Alerta UV)",
+                wearTitle: "EFICACIA AMBIENTAL DE LA ICARIDINA",
+                wearDesc: "Erosión del repelente y estado colorimétrico del gel hidrocrómico.",
+                wearMin: "Protección 100%",
+                wearMax: "Agotado (Reemplazar)",
+                compostTitle: "DEGRADACIÓN DE NANOCELULOSA",
+                compostDesc: "Curva de degradación orgánica en suelo fértil en menos de 36 h.",
+                compostMin: "0 Horas (Estable)",
+                compostMax: "36 Horas (Total)",
+                alerts: {
+                    mosquito: "Protección activa liberando Icaridina y Eucalipto Limón.",
+                    safe: "El indicador de eficacia se muestra verde. Estás protegido contra mosquitos.",
+                    uvWarning: "Atención: La capa fotocrómica cambió a naranja brillante. Busca sombra o aplica protector solar para cuidar tu piel.",
+                    biodegraded: "Estructura descompuesta de forma segura en un plazo de 36 horas en compostaje, sin dejar residuos tóxicos."
+                },
+                layersData: [
+                    {
+                        name: "1. Capa Fotocrómica (Externa)",
+                        thickness: "0.06 mm",
+                        comp: "Tinta funcional enriquecida con nano-pigmentos fotocromáticos TiO₂ y ZnO.",
+                        fun: "Sensor pasivo de radiación solar. Cambia de color de forma reversible de beige neutro a naranja.",
+                        eco: "Componentes minerales biodegradables neutros para la naturaleza."
+                    },
+                    {
+                        name: "2. Capa de Protección QR (Barniz)",
+                        thickness: "0.02 - 0.03 mm",
+                        comp: "Tintas orgánicas en base agua protegidas con barniz de alta resistencia.",
+                        fun: "QR único para telemetría de alertas de salud pública local sin datos personales.",
+                        eco: "Totalmente soluble en compost, libre de metales pesados."
+                    },
+                    {
+                        name: "3. Matriz de Microcápsulas en Gel",
+                        thickness: "0.16 mm (Franjas laterales)",
+                        comp: "Microcápsulas de sílice/polímero rellenas de Icaridina pura al 95%.",
+                        fun: "Se activa por el calor corporal y el movimiento del usuario para liberar repelente.",
+                        eco: "Ingredientes botánicos y microcápsulas libres de microplásticos."
+                    },
+                    {
+                        name: "4. Indicador de Eficacia Hidrocrómico",
+                        thickness: "0.08 mm (Dos ventanas circulares)",
+                        comp: "Gel polimérico colorimétrico sensible a la humedad residual.",
+                        fun: "Indica visiblemente cuando el flujo de repelente cae por debajo de la dosis mínima útil.",
+                        eco: "Base biológica inocua, compostable de forma orgánica."
+                    },
+                    {
+                        name: "5. Sustrato de Nanocelulosa (Soporte)",
+                        thickness: "0.80 mm",
+                        comp: "Nanocelulosa de alta densidad de bagazo de caña de azúcar.",
+                        fun: "Soporte ergonómico con alta resistencia a tracción de hasta 25 MPa.",
+                        eco: "Reutiliza residuos del azúcar. Compostable en menos de 36 horas."
+                    },
+                    {
+                        name: "6. Adhesivo Hipoalergénico (Interior)",
+                        thickness: "0.10 mm",
+                        comp: "Emulsión acrílica base agua certificada bajo ISO 10993-10.",
+                        fun: "Asegura la adherencia cómoda a la piel, removible sin dolor.",
+                        eco: "Formulación soluble no tóxica, libre de solventes volátiles."
+                    }
+                ]
+            },
+            en: {
+                title: "Bio-Shield Ultra Model Preview",
+                subtitle: "Biodegradable wristband with active anti-mosquito protection & passive UV track",
+                author: "Author: Dr. Julio César Oporta Barrera",
+                reset: "Reset Camera Placement",
+                autoRotate: "Auto-Rotation Track",
+                explode: "Layers Explosion Depth",
+                layers: "3D MODEL ACTIVE LAYERS",
+                specHeader: "LAMINATED LAYER ENGINEERING SPECS",
+                chooseHint: "Select a layer or adjust the explosion slider above to check full chemical structural designs.",
+                simField: "Physical Simulation Logs",
+                uvTitle: "SOLAR EMISSION RESPONSE (PHOTOCHROMOM)",
+                uvDesc: "Toggles live UV Index. The outer photochromic paint shifts automatically.",
+                uvMin: "Closed Indoor / Shadow",
+                uvMod: "Moderate / UV High",
+                uvMax: "Extreme Hazard UV Alert",
+                wearTitle: "REPELLENT EMISSION STRENGTH",
+                wearDesc: "Evaluates microcapsules release degradation rates after wearing.",
+                wearMin: "Full Guard Active",
+                wearMax: "Exhausted (Replace)",
+                compostTitle: "ORGANIC BASE COMPOSTING",
+                compostDesc: "Simulates actual home composting timeline degradation (36 Hrs limit).",
+                compostMin: "0 Hrs (Wearable)",
+                compostMax: "36 Hrs (Dismantled)",
+                alerts: {
+                    mosquito: "Active state: Diffusing Icaridin and Eucaliptus molecules to deter vector pests.",
+                    safe: "Safety seal glows deep green. Your skin area is protected.",
+                    uvWarning: "Warning: High UV index. Photochromic layer is orange. Apply sunscreen or seek shade immediately.",
+                    biodegraded: "Product has fully decomposed in 36 hours. Safe organic soil nutrients returned to environment."
+                },
+                layersData: [
+                    {
+                        name: "1. Active Photochromic Layer",
+                        thickness: "0.06 mm",
+                        comp: "Functional printable ink fortified with TiO₂ and ZnO nano-crystals.",
+                        fun: "Passive UV solar detector. Undergoes fully reversible transition to bright orange.",
+                        eco: "Non-toxic earth minerals, completely friendly to environmental composting."
+                    },
+                    {
+                        name: "2. Sealed QR & Serialized Shield",
+                        thickness: "0.02 - 0.03 mm",
+                        comp: "Water-based high-adhesion inks under premium friction clear glazing.",
+                        fun: "Scannable QR linking to anonymous disease outbreak alerts.",
+                        eco: "Zero persistent toxic chemical residue. Rapid soil bio-assimilation."
+                    },
+                    {
+                        name: "3. Slow-Release Repellent Pillows",
+                        thickness: "0.16 mm",
+                        comp: "Porus silica-gel microspheres filled with 95% pure Picaridin active.",
+                        fun: "Slowly emits scent barrier activated by mechanical motion & skin temperature.",
+                        eco: "Renewable biological formula with zero synthetic bioaccumulation potential."
+                    },
+                    {
+                        name: "4. Status Indicator Windows",
+                        thickness: "0.08 mm",
+                        comp: "Colorimetric hydrogel matrix reactive to continuous emission vapor.",
+                        fun: "Inspectable status ports. Swaps color if active output drops below 0.10 mg/h.",
+                        eco: "Biodegradable polymer, dissolves harmlessly without forming microplastics."
+                    },
+                    {
+                        name: "5. Nanocellulose Biodegradable Core",
+                        thickness: "0.80 mm",
+                        comp: "Sugar bagasse crystalline fibers with 2% hydrophobic silane sealant.",
+                        fun: "Baseline structural core with extreme tensile limits of up to 25 MPa.",
+                        eco: "Recycled farm biomass byproduct. Completely decomposes in 36 hours."
+                    },
+                    {
+                        name: "6. Hypoallergenic Contact Adhesive",
+                        thickness: "0.10 mm",
+                        comp: "Dermal-certified medical pressure polymer under ISO 10993-10.",
+                        fun: "Offers water-resistant comfortable adhesion. Pain-free peel away.",
+                        eco: "Non-volatile water synthesis, free of harmful synthetic plasticizers."
+                    }
+                ]
+            },
+            zh: {
+                title: "Bio-Shield Ultra 3D三维数字模型",
+                subtitle: "具有天然驱蚊屏障与无源紫外线光变色监测的革新手环",
+                author: "作者：胡里奥·塞萨尔·奥波塔·巴雷拉 博士",
+                reset: "复位三维相机",
+                autoRotate: "自动轨道旋转",
+                explode: "分层物理爆炸深度",
+                layers: "3D手环模型激活分层",
+                specHeader: "工艺设计与可降解指标卡",
+                chooseHint: "在右边旋转轴承上点击任意结构或移动拉条，查看手环微米级制造工艺及防蚊数据。",
+                simField: "自然环境适应性运行数值仿真",
+                uvTitle: "无源紫外线感应反应 (光致变色)",
+                uvDesc: "拖动模拟真实阳光强度，观察中部 TiO₂/ZnO 感应层的橙黄色深浅变色过程。",
+                uvMin: "室内阴暗 / 遮阳伞下",
+                uvMod: "阳光充足 / 建议防晒",
+                uvMax: "强紫外线 (激活极高橙色警报)",
+                wearTitle: "释放驱蚊效能耗损模拟",
+                wearDesc: "模拟持续佩戴下派卡瑞丁超微胶囊的内部载药泄压及边缘显色变化。",
+                wearMin: "强效防护 (100% 绿色)",
+                wearMax: "浓度降解 (提示红色换新)",
+                compostTitle: "土壤天然堆肥腐化消纳",
+                compostDesc: "模拟手环废弃置于标准湿润土壤泥浆中36小时完全分解变化。",
+                compostMin: "完好无损 (日常佩戴)",
+                compostMax: "完全同化 (无毒无塑转化为腐殖质)",
+                alerts: {
+                    mosquito: "微泵开启：二氧化硅壁孔正连续稳定挥发派卡瑞丁及柠檬桉活性阻隔物。",
+                    safe: "末端效能指示器保持饱满的深绿色，周围3米内形成气味安全隔离区。",
+                    uvWarning: "防晒预警：外部光反应色晶达到橙红色饱和点。请涂抹防晒或尽快转移到庇阴处。",
+                    biodegraded: "堆肥降解测试显示：手环骨架半纤维素在36小时完全化为肥沃土壤有机基质，零微塑料危害。"
+                },
+                layersData: [
+                    {
+                        name: "1. 纳米TiO₂/ZnO光敏变色层",
+                        thickness: "0.06 毫米",
+                        comp: "印制功能性多孔墨层，均匀承载纳米晶变色体微粒。",
+                        fun: "实时指示日光曝晒危害，无级变化颜色至亮黄色。",
+                        eco: "全环保无毒矿物，对海洋、动植物生态呈绝对物理惰性。"
+                    },
+                    {
+                        name: "2. QR二维码追踪与清漆涂层",
+                        thickness: "0.02 - 0.03 毫米",
+                        comp: "食品级高纯有机印墨，表面附高拉伸强度防水防护光油膜。",
+                        fun: "手控扫码可了解当地病毒蚊害热力图、提供溯源校验码服务。",
+                        eco: "水解反应迅速，符合无塑低害的绿色排放标准。"
+                    },
+                    {
+                        name: "3. 派卡瑞丁微胶囊载药层",
+                        thickness: "0.16 毫米",
+                        comp: "95%派卡瑞丁晶体 + 桉叶素，包裹于环保壳聚糖网膜中。",
+                        fun: "受体温传导使基质软化发生缓释扩散反应，长效趋避蚊虫。",
+                        eco: "植物衍生油墨载体，可实现100%微生物降解消纳。"
+                    },
+                    {
+                        name: "4. 红色活性失效检测窗",
+                        thickness: "0.08 毫米",
+                        comp: "高度透水聚电解质，内置安全级变色彩色自敏颜料。",
+                        fun: "双侧双空眼。驱蚊活性降至每小时0.10毫克低值时变红色示警。",
+                        eco: "全植物树脂载体，在自然泥土堆肥温湿度下极易水解释能。"
+                    },
+                    {
+                        name: "5. 甘蔗渣结晶纳米纤维素硬板",
+                        thickness: "0.80 毫米",
+                        comp: "制糖工业甘蔗废渣制高强微纤板，覆盖2%有机防水有机硅氧烷。",
+                        fun: "手环承载抗拉主架，抗变形能力佳，抗张模量达 25 兆帕。",
+                        eco: "100%废物再利用纤维。24-36小时常温泥土埋入自然降解成糖。"
+                    },
+                    {
+                        name: "6. ISO亲肤低吸附内侧胶膜",
+                        thickness: "0.10 毫米",
+                        comp: "由环保活性乳化制得的丙烯酸高强粘合分子，无挥发物质气味。",
+                        fun: "黏贴强度高达 1.2 N/cm，透气顺滑，运动不掉不卡不闷皮。",
+                        eco: "无溶剂无增塑剂配比。直接随纸质废料一同堆肥自然脱氢反应。"
+                    }
+                ]
+            }
+        };
+
+        let currentLang = 'es';
+        let explodeValue = 0;
+        let selectedLayerId = null;
+
+        // Simulator State variables
+        let uvValue = 0;
+        let wearValue = 0;
+        let compostValue = 0;
+
+        // Simple 3D Canvas Rendering logic on plain Javascript Canvas
+        const canvas = document.getElementById('canvas3d');
+        const ctx = canvas.getContext('2d');
+        
+        let yaw = 0.5; // Rotate angle around Y
+        let pitch = 0.3; // Rotate angle around X
+        let isDragging = false;
+        let prevMouseX = 0;
+        let prevMouseY = 0;
+
+        function setLang(lang) {
+            currentLang = lang;
+            
+            // Switch styles
+            ['es', 'en', 'zh'].forEach(l => {
+                const btn = document.getElementById('btn-' + l);
+                if(l === lang) {
+                     btn.className = "px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500 text-slate-900 transition-all";
+                } else {
+                     btn.className = "px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white transition-all";
+                }
+            });
+
+            // Translate Static Elements
+            document.getElementById('main-title').innerText = dict[lang].title;
+            document.getElementById('main-subtitle').innerText = dict[lang].subtitle;
+            document.getElementById('author-label').innerText = dict[lang].author;
+            document.getElementById('btn-reset').innerText = dict[lang].reset;
+            document.getElementById('rotate-label').innerText = dict[lang].autoRotate;
+            document.getElementById('explode-label').innerText = dict[lang].explode;
+            document.getElementById('layers-title').innerText = dict[lang].layers;
+            document.getElementById('spec-header').innerText = dict[lang].specHeader;
+            document.getElementById('field-sim').innerText = dict[lang].simField;
+            document.getElementById('sim-uv-title').innerText = dict[lang].uvTitle;
+            document.getElementById('sim-uv-desc').innerText = dict[lang].uvDesc;
+            document.getElementById('sim-wear-title').innerText = dict[lang].wearTitle;
+            document.getElementById('sim-wear-desc').innerText = dict[lang].wearDesc;
+            document.getElementById('sim-compost-title').innerText = dict[lang].compostTitle;
+            document.getElementById('sim-compost-desc').innerText = dict[lang].compostDesc;
+
+            // Update sliders label ranges
+            document.getElementById('uv-lbl-min').innerText = dict[lang].uvMin;
+            document.getElementById('uv-lbl-mod').innerText = dict[lang].uvMod;
+            document.getElementById('uv-lbl-max').innerText = dict[lang].uvMax;
+            
+            document.getElementById('wear-lbl-min').innerText = dict[lang].wearMin;
+            document.getElementById('wear-lbl-max').innerText = dict[lang].wearMax;
+
+            document.getElementById('compost-lbl-min').innerText = dict[lang].compostMin;
+            document.getElementById('compost-lbl-max').innerText = dict[lang].compostMax;
+
+            // Retranslate active dynamic viewports
+            updateActiveLayerHTML();
+            updateSimulationOutput();
+        }
+
+        // Project 3D points
+        function project(x, y, z, explodeFactor) {
+            // Apply explode depth outwards
+            const finalR = 120 + explodeFactor;
+            
+            // Normalize inputs
+            // Rotate Y (yaw)
+            let x1 = x * Math.cos(yaw) - z * Math.sin(yaw);
+            let z1 = x * Math.sin(yaw) + z * Math.cos(yaw);
+            
+            // Rotate X (pitch)
+            let y2 = y * Math.cos(pitch) - z1 * Math.sin(pitch);
+            let z2 = y * Math.sin(pitch) + z1 * Math.cos(pitch);
+            
+            // Flat orthographic projection scale
+            const zoom = 1.1;
+            const screenX = canvas.width / 2 + x1 * zoom;
+            const screenY = canvas.height / 2 - y2 * zoom;
+            
+            return {
+                x: screenX,
+                y: screenY,
+                depth: z2 // Higher depth means closer to viewer
+            };
+        }
+
+        // Draw dynamic rotating 3D wristband core segments
+        function draw3D() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // If composting slider is at maximum, draw disintegrated scattered particles
+            if (compostValue > 30) {
+                ctx.fillStyle = '#78350f';
+                ctx.font = '10px monospace';
+                ctx.fillText("BIODEGRADED - SOIL FERTILIZER", 100, 160);
+                
+                for(let i=0; i<80; i++) {
+                    const px = canvas.width/2 + Math.sin(i * 4.3) * (150 + Math.random() * 20);
+                    const py = canvas.height/2 + Math.cos(i * 1.7) * (60 + Math.random() * 30);
+                    ctx.beginPath();
+                    ctx.arc(px, py, 1.5 + Math.random()*2, 0, Math.PI*2);
+                    ctx.fillStyle = i % 2 === 0 ? '#78350f' : '#15803d';
+                    ctx.fill();
+                }
+                return;
+            }
+
+            const step = Math.PI / 24;
+            const segments = [];
+            
+            // Radii multipliers for explosion spacing based on layers
+            const layerOffsetFactors = [
+                0,    // 5. Sustrato (core): factor 0
+                -0.35, // 6. Adhesivo (inside): factor -1
+                0.3,  // 3. Microcapsulas (sides): factor 1
+                0.5,  // 1. Fotocromico (front): factor 1.8
+                0.55, // 2. Barniz/QR : factor 2.2
+                0.45  // 4. Gel indicador (clasp): factor 1.5
+            ];
+
+            const activeExplode = explodeValue * 0.9; // Scale spacing
+
+            // Loop to structure layer geometries
+            for (let c = 0; c < 2 * Math.PI; c += step) {
+                const angle = c;
+                const nextAngle = c + step;
+
+                // 2D cylinder coordinates
+                const x0 = Math.cos(angle);
+                const z0 = Math.sin(angle);
+                const x1 = Math.cos(nextAngle);
+                const z1 = Math.sin(nextAngle);
+
+                // Width bounds of the bracelet band
+                const bandYTop = 30; // Half width
+                const bandYBottom = -30;
+
+                // Build layers
+                // Layer 5: Biodegradable core (Full ring)
+                segments.push({
+                    layerId: 5,
+                    color: compostValue > 15 ? '#b45309' : '#e6f4ea',
+                    border: '#a3e635',
+                    points: [
+                        {x: x0 * 120, y: bandYTop, z: z0 * 120, f: layerOffsetFactors[0] * activeExplode},
+                        {x: x1 * 120, y: bandYTop, z: z1 * 120, f: layerOffsetFactors[0] * activeExplode},
+                        {x: x1 * 120, y: bandYBottom, z: z1 * 120, f: layerOffsetFactors[0] * activeExplode},
+                        {x: x0 * 120, y: bandYBottom, z: z0 * 120, f: layerOffsetFactors[0] * activeExplode}
+                    ]
+                });
+
+                // Layer 6: Inner adhesive (Inside full ring, offset < 0)
+                segments.push({
+                    layerId: 6,
+                    color: 'rgba(219, 234, 254, 0.6)',
+                    border: 'rgba(147, 197, 253, 0.8)',
+                    points: [
+                        {x: x0 * 115, y: bandYTop - 2, z: z0 * 115, f: layerOffsetFactors[1] * activeExplode},
+                        {x: x1 * 115, y: bandYTop - 2, z: z1 * 115, f: layerOffsetFactors[1] * activeExplode},
+                        {x: x1 * 115, y: bandYBottom + 2, z: z1 * 115, f: layerOffsetFactors[1] * activeExplode},
+                        {x: x0 * 115, y: bandYBottom + 2, z: z0 * 115, f: layerOffsetFactors[1] * activeExplode}
+                    ]
+                });
+
+                // Specific angular ranges for outer functional patches
+                // Layer 1: Front photochromic sensor (from angle 4.0 to 5.4 radians - facing active front viewport)
+                if (angle > 4.1 && angle < 5.3) {
+                    // Responsive color transition for UV Index
+                    let cPaint = '#d1cbd4'; // Gray under zero UV
+                    if(uvValue > 0) {
+                        const sat = Math.min(uvValue * 22, 255);
+                        cPaint = 'rgb(245, ' + (158 - sat/4) + ', ' + (11 + sat/6) + ')'; // Vibrant glowing orange
+                    }
+                    
+                    segments.push({
+                        layerId: 1,
+                        color: cPaint,
+                        border: '#f59e0b',
+                        points: [
+                            {x: x0 * 123, y: 15, z: z0 * 123, f: layerOffsetFactors[3] * activeExplode},
+                            {x: x1 * 123, y: 15, z: z1 * 123, f: layerOffsetFactors[3] * activeExplode},
+                            {x: x1 * 123, y: -15, z: z1 * 123, f: layerOffsetFactors[3] * activeExplode},
+                            {x: x0 * 123, y: -15, z: z0 * 123, f: layerOffsetFactors[3] * activeExplode}
+                        ]
+                    });
+                }
+
+                // Layer 3: Lateral microcapsules (Left and right flank ranges)
+                if ((angle > 0.4 && angle < 1.8) || (angle > 2.8 && angle < 3.8)) {
+                    segments.push({
+                        layerId: 3,
+                        color: wearValue > 6 ? '#9ca3af' : 'rgba(79, 70, 229, 0.75)',
+                        border: '#6366f1',
+                        points: [
+                            {x: x0 * 122, y: 10, z: z0 * 122, f: layerOffsetFactors[2] * activeExplode},
+                            {x: x1 * 122, y: 10, z: z1 * 122, f: layerOffsetFactors[2] * activeExplode},
+                            {x: x1 * 122, y: -10, z: z1 * 122, f: layerOffsetFactors[2] * activeExplode},
+                            {x: x0 * 122, y: -10, z: z0 * 122, f: layerOffsetFactors[2] * activeExplode}
+                        ]
+                    });
+                }
+
+                // Layer 4: Hydrochromic Indicator Circles (near rear locking joint - angle 2.2 vicinity)
+                if (angle > 2.0 && angle < 2.5) {
+                    let cInd = '#22c55e'; // Safe green
+                    if(wearValue >= 4 && wearValue < 7) cInd = '#eab308'; // Warning orange
+                    if(wearValue >= 7) cInd = '#ef4444'; // Spent red
+                    
+                    segments.push({
+                        layerId: 4,
+                        color: cInd,
+                        border: '#15803d',
+                        points: [
+                            {x: x0 * 124, y: 12, z: z0 * 124, f: layerOffsetFactors[5] * activeExplode},
+                            {x: x1 * 124, y: 12, z: z1 * 124, f: layerOffsetFactors[5] * activeExplode},
+                            {x: x1 * 124, y: -12, z: z1 * 124, f: layerOffsetFactors[5] * activeExplode},
+                            {x: x0 * 124, y: -12, z: z0 * 124, f: layerOffsetFactors[5] * activeExplode}
+                        ]
+                    });
+                }
+
+                // Layer 2: QR Laser stamp near clasp (angle 1.2 range)
+                if (angle > 0.8 && angle < 1.3) {
+                    segments.push({
+                        layerId: 2,
+                        color: '#1e293b',
+                        border: '#0f172a',
+                        points: [
+                            {x: x0 * 125, y: 8, z: z0 * 125, f: layerOffsetFactors[4] * activeExplode},
+                            {x: x1 * 125, y: 8, z: z1 * 125, f: layerOffsetFactors[4] * activeExplode},
+                            {x: x1 * 125, y: -8, z: z1 * 125, f: layerOffsetFactors[4] * activeExplode},
+                            {x: x0 * 125, y: -8, z: z0 * 125, f: layerOffsetFactors[4] * activeExplode}
+                        ]
+                    });
+                }
+            }
+
+            // Project all geometries
+            const projectedSegments = [];
+            segments.forEach(seg => {
+                const projectedPoints = seg.points.map(pt => {
+                    // Compute translation outwards based on angle and explode depth
+                    const normalX = pt.x / 120;
+                    const normalZ = pt.z / 120;
+                    
+                    const finalX = pt.x + normalX * pt.f;
+                    const finalZ = pt.z + normalZ * pt.f;
+                    
+                    return project(finalX, pt.y, finalZ, 0);
+                });
+
+                // Compute depth average
+                const avgDepth = (projectedPoints[0].depth + projectedPoints[1].depth + projectedPoints[2].depth + projectedPoints[3].depth) / 4;
+                
+                projectedSegments.push({
+                    layerId: seg.layerId,
+                    color: seg.color,
+                    border: seg.border,
+                    points: projectedPoints,
+                    depth: avgDepth
+                });
+            });
+
+            // Sort depth using standard back-to-front projection
+            projectedSegments.sort((a, b) => a.depth - b.depth);
+
+            // Draw projected polygons
+            projectedSegments.forEach(seg => {
+                ctx.beginPath();
+                ctx.moveTo(seg.points[0].x, seg.points[0].y);
+                ctx.lineTo(seg.points[1].x, seg.points[1].y);
+                ctx.lineTo(seg.points[2].x, seg.points[2].y);
+                ctx.lineTo(seg.points[3].x, seg.points[3].y);
+                ctx.closePath();
+
+                const isFocused = selectedLayerId === seg.layerId;
+                
+                ctx.fillStyle = isFocused ? '#fde047' : seg.color; // Highlight if focused
+                ctx.fill();
+                
+                ctx.strokeStyle = isFocused ? '#ca8a04' : seg.border;
+                ctx.lineWidth = isFocused ? 2.5 : 0.8;
+                ctx.stroke();
+
+                // Draw alignment guidelines if exploded state is active
+                if(explodeValue > 15 && isFocused && seg.points.length > 0) {
+                    ctx.beginPath();
+                    ctx.setLineDash([3, 3]);
+                    ctx.moveTo(seg.points[0].x, seg.points[0].y);
+                    ctx.lineTo(canvas.width/2, canvas.height/2);
+                    ctx.strokeStyle = '#ea580c';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            });
+        }
+
+        // Layer selection callbacks
+        function selectLayer(id) {
+            selectedLayerId = id;
+            
+            // Styling buttons
+            for (let i = 1; i <= 6; i++) {
+                const el = document.getElementById('l' + i);
+                if (i === id) {
+                    el.className = "layer-btn w-full text-left p-3 rounded-xl border border-green-500 bg-green-50 text-xs font-semibold text-green-900 shadow-sm transition-all";
+                } else {
+                    el.className = "layer-btn w-full text-left p-3 rounded-xl border border-gray-150 bg-white hover:border-gray-300 text-xs text-gray-800 transition-all";
+                }
+            }
+
+            // Explode a bit to show structure
+            if(explodeValue < 20) {
+                explodeValue = 50;
+                document.getElementById('explode-slider').value = 50;
+                document.getElementById('explode-val').innerText = "50%";
+            }
+
+            updateActiveLayerHTML();
+            draw3D();
+        }
+
+        function updateActiveLayerHTML() {
+            const container = document.getElementById('layer-details');
+            if (!selectedLayerId) {
+                container.innerHTML = `<p class="text-xs text-gray-500 leading-relaxed italic" id="choose-hint">${dict[currentLang].chooseHint}</p>`;
+                return;
+            }
+
+            const activeData = dict[currentLang].layersData[selectedLayerId - 1];
+            
+            // Build rich technical matrix HTML inside downloadable
+            container.innerHTML = `
+                <div class="space-y-3 animation-fade">
+                    <div class="flex justify-between items-center bg-white p-2.5 rounded-lg border border-gray-150">
+                        <span class="text-xs font-bold text-gray-800">${activeData.name}</span>
+                        <span class="text-[10px] font-bold bg-green-100 text-green-800 px-2 py-0.5 rounded font-mono">NOMINAL</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-white p-2 rounded-lg border border-gray-150">
+                            <h5 class="text-[9px] font-bold text-gray-400">ESP.</h5>
+                            <p class="text-xs font-medium text-slate-800 font-mono">${activeData.thickness}</p>
+                        </div>
+                        <div class="bg-white p-2 rounded-lg border border-gray-150">
+                            <h5 class="text-[9px] font-bold text-gray-400">COMP.</h5>
+                            <p class="text-[10px] font-medium leading-tight text-slate-800">${activeData.comp}</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-lg border border-gray-150 text-[11px] leading-relaxed text-gray-600">
+                        <h5 class="text-[9px] font-bold text-gray-400 mb-1">FUNCIÓN</h5>
+                        ${activeData.fun}
+                    </div>
+                    <div class="bg-green-50/50 p-2.5 rounded-lg border border-green-200/50 text-[11px] leading-relaxed text-green-800">
+                        <h5 class="text-[9px] font-bold text-green-600 mb-1">IMPACTO ECOLÓGICO</h5>
+                        ${activeData.eco}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Live physics simulator events
+        document.getElementById('uv-slider').addEventListener('input', function(e) {
+            uvValue = parseInt(e.target.value);
+            document.getElementById('uv-badge').innerText = "UV index " + uvValue;
+            
+            // Change badge appearance
+            if(uvValue > 7) {
+                document.getElementById('uv-badge').className = "text-xs font-bold px-2 py-0.5 rounded bg-red-100 text-red-800 font-mono animate-pulse";
+            } else if (uvValue > 3) {
+                document.getElementById('uv-badge').className = "text-xs font-bold px-2 py-0.5 rounded bg-yellow-105 text-yellow-800 font-mono";
+            } else {
+                document.getElementById('uv-badge').className = "text-xs font-bold px-2 py-0.5 rounded bg-green-100 text-green-800 font-mono";
+            }
+            
+            updateSimulationOutput();
+            draw3D();
+        });
+
+        document.getElementById('wear-slider').addEventListener('input', function(e) {
+            wearValue = parseInt(e.target.value);
+            document.getElementById('wear-badge').innerText = wearValue + " Hrs worn";
+            
+            if(wearValue > 6) {
+                document.getElementById('wear-badge').className = "text-xs font-bold px-2 py-0.5 rounded bg-red-100 text-red-800 font-mono";
+            } else if (wearValue > 3) {
+                document.getElementById('wear-badge').className = "text-xs font-bold px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 font-mono";
+            } else {
+                document.getElementById('wear-badge').className = "text-xs font-bold px-2 py-0.5 rounded bg-green-100 text-green-800 font-mono";
+            }
+
+            updateSimulationOutput();
+            draw3D();
+        });
+
+        document.getElementById('compost-slider').addEventListener('input', function(e) {
+            compostValue = parseInt(e.target.value);
+            document.getElementById('compost-badge').innerText = compostValue + " Hrs soil";
+            
+            if(compostValue > 30) {
+                document.getElementById('compost-badge').className = "text-xs font-bold px-2 py-0.5 rounded bg-earth bg-amber-200 text-amber-900 font-mono";
+            } else if (compostValue > 10) {
+                document.getElementById('compost-badge').className = "text-xs font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-mono";
+            } else {
+                document.getElementById('compost-badge').className = "text-xs font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-mono";
+            }
+
+            updateSimulationOutput();
+            draw3D();
+        });
+
+        function updateSimulationOutput() {
+            const alertText = document.getElementById('sim-alert-text');
+            const alertBox = document.getElementById('sim-alert-box');
+            
+            if (compostValue > 15) {
+                alertText.innerText = dict[currentLang].alerts.biodegraded;
+                alertBox.className = "mt-6 p-4 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-800 flex items-start gap-3 transition-all";
+            } else if (uvValue >= 8) {
+                alertText.innerText = dict[currentLang].alerts.uvWarning;
+                alertBox.className = "mt-6 p-4 rounded-xl border border-red-200 bg-red-50 text-xs text-red-800 flex items-start gap-3 transition-all animate-bounce";
+            } else if (wearValue >= 7) {
+                alertText.innerText = dict[currentLang].alerts.depleted || "Repelente desvanecido por debajo del límite de seguridad. Cambiar pulsera.";
+                alertBox.className = "mt-6 p-4 rounded-xl border border-yellow-300 bg-yellow-50 text-xs text-yellow-850 flex items-start gap-3 transition-all";
+            } else {
+                alertText.innerText = dict[currentLang].alerts.safe;
+                alertBox.className = "mt-6 p-4 rounded-xl border border-green-200 bg-green-50/50 text-xs text-green-800 flex items-start gap-3 transition-all";
+            }
+        }
+
+        // Explode depth input
+        document.getElementById('explode-slider').addEventListener('input', function(e) {
+            explodeValue = parseInt(e.target.value);
+            document.getElementById('explode-val').innerText = explodeValue + "%";
+            draw3D();
+        });
+
+        // Mouse Drag Interaction for orbiting camera
+        canvas.addEventListener('mousedown', function(e) {
+            isDragging = true;
+            prevMouseX = e.clientX;
+            prevMouseY = e.clientY;
+        });
+
+        canvas.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            const deltaX = e.clientX - prevMouseX;
+            const deltaY = e.clientY - prevMouseY;
+            
+            yaw += deltaX * 0.008;
+            pitch += deltaY * 0.008;
+            
+            prevMouseX = e.clientX;
+            prevMouseY = e.clientY;
+            
+            // Constrain pitch to avoid gymnast flips
+            pitch = Math.max(-Math.PI/3, Math.min(Math.PI/3, pitch));
+            
+            draw3D();
+        });
+
+        window.addEventListener('mouseup', function() {
+            isDragging = false;
+        });
+
+        // Mobile touch orbits
+        canvas.addEventListener('touchstart', function(e) {
+            if(e.touches.length === 1) {
+                isDragging = true;
+                prevMouseX = e.touches[0].clientX;
+                prevMouseY = e.touches[0].clientY;
+            }
+        });
+
+        canvas.addEventListener('touchmove', function(e) {
+            if (!isDragging || e.touches.length !== 1) return;
+            const deltaX = e.touches[0].clientX - prevMouseX;
+            const deltaY = e.touches[0].clientY - prevMouseY;
+            
+            yaw += deltaX * 0.008;
+            pitch += deltaY * 0.008;
+            
+            prevMouseX = e.touches[0].clientX;
+            prevMouseY = e.touches[0].clientY;
+            
+            pitch = Math.max(-Math.PI/3, Math.min(Math.PI/3, pitch));
+            draw3D();
+            e.preventDefault();
+        });
+
+        canvas.addEventListener('touchend', function() {
+            isDragging = false;
+        });
+
+        function resetCam() {
+            yaw = 0.5;
+            pitch = 0.3;
+            draw3D();
+        }
+
+        // Smooth continuous rendering cycle
+        let lastTime = 0;
+        function renderLoop(time) {
+            const dt = time - lastTime;
+            lastTime = time;
+
+            const autoRotateCheck = document.getElementById('auto-rotate').checked;
+            if (autoRotateCheck && !isDragging) {
+                yaw += 0.0003 * dt;
+                draw3D();
+            }
+            requestAnimationFrame(renderLoop);
+        }
+
+        // Main initial kick-off
+        setLang('es');
+        requestAnimationFrame(renderLoop);
+    </script>
+</body>
+</html>
