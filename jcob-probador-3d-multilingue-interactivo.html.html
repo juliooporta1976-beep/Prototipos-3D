@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jcob Probador Virtual 3D - Standalone</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;950&family=JetBrains+Mono:wght@400;700&display=swap');
+    body { background-color: #060a12; font-family: 'Inter', sans-serif; }
+    .neon-text { text-shadow: 0 0 10px rgba(0, 243, 255, 0.4); }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+  <!-- Main Corporate Status Bar -->
+  <div class="bg-[#0b0f19] border-b border-[#1e293b]/70 py-2.5 px-6 flex items-center justify-between gap-4 text-xs font-mono select-none">
+    <span id="lbl-status-title" class="text-blue-400 font-bold uppercase tracking-wider text-[10px]">• PROBADOR PORTÁTIL MULTILINGÜE 3D •</span>
+    <span id="lbl-status-sub" class="text-slate-500 text-[10px]">VERSIÓN STANDALONE MULTI-SEXO E INTERACTIVA</span>
+  </div>
+
+  <header class="p-6 bg-[#090d16] border-b border-slate-900 flex items-center justify-between flex-wrap gap-4">
+    <div>
+      <h1 id="lbl-head-title" class="text-xl font-black text-white tracking-tight">Jcob <span class="font-light text-slate-400">Probador Virtual 3D</span></h1>
+      <p id="lbl-head-desc" class="text-xs text-slate-500">Modelo tridimensional de alta costura interactivo ejecutable sin conexión a internet.</p>
+    </div>
+    
+    <div class="flex items-center gap-3">
+      <!-- Language Buttons Selector -->
+      <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 font-mono text-[11px] select-none shadow-md">
+        <button onclick="setLanguage('es')" id="btn-lang-es" class="px-2.5 py-1 rounded-lg transition-all font-black cursor-pointer bg-blue-600 text-white">ES</button>
+        <button onclick="setLanguage('en')" id="btn-lang-en" class="px-2.5 py-1 rounded-lg transition-all font-black cursor-pointer text-slate-400 hover:text-white">EN</button>
+        <button onclick="setLanguage('zh')" id="btn-lang-zh" class="px-2.5 py-1 rounded-lg transition-all font-black cursor-pointer text-slate-400 hover:text-white">ZH</button>
+      </div>
+      
+      <div id="badge-tech" class="text-[10px] font-mono bg-blue-500/10 text-blue-400 px-3 py-2 rounded-xl border border-blue-500/20 uppercase font-black">
+        TECNOLOGÍA THREE.JS
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 max-w-7xl mx-auto w-full">
+    <!-- 3D Canvas Area (Left) -->
+    <div class="lg:col-span-7 h-[500px] bg-[#080c14] border border-[#1e293b] rounded-2xl relative shadow-2xl flex flex-col items-center justify-center">
+      <div id="threejs-canvas" class="w-full h-full cursor-grab active:cursor-grabbing rounded-2xl"></div>
+      
+      <!-- Overlays -->
+      <div class="absolute top-4 left-4 pointer-events-none bg-slate-900/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-700/60 flex items-center gap-2">
+        <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+        <span id="lbl-interactive-ready" class="text-[9px] font-mono text-slate-300">SISTEMA DE MAPEO PREPARADO</span>
+      </div>
+
+      <div id="lbl-drag-hint" class="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none text-[9px] font-mono text-slate-400 bg-slate-950/80 px-4 py-1.5 rounded-full border border-slate-800">
+        🖱️ Arrastra con el ratón para rotar 360° en cualquier plano
+      </div>
+    </div>
+
+    <!-- Parameter Sidebar (Right) -->
+    <div class="lg:col-span-5 bg-[#0d1321] border border-[#1e293b] rounded-2xl p-6 flex flex-col justify-between shadow-2xl space-y-5">
+      <div class="space-y-4">
+        <div class="border-b border-slate-800 pb-2">
+          <h2 id="lbl-settings-title" class="text-sm font-bold text-white uppercase tracking-wider font-mono text-blue-400">CONFIGURACIÓN DEL AVATAR</h2>
+        </div>
+
+        <!-- Gender / Sex Body Mapping Switcher -->
+        <div class="space-y-1.5 bg-slate-900/40 p-3 rounded-xl border border-slate-800">
+          <label id="lbl-gender-lbl" class="block text-xs text-slate-400 font-medium">Género del Avatar / Mapeo de Proporciones:</label>
+          <select id="select-gender" class="w-full bg-slate-950 border border-slate-700/60 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none cursor-pointer hover:border-blue-500 transition-colors">
+            <option value="masculine">Masculino (Silueta Ensanchada)</option>
+            <option value="feminine">Femenino (Curvatura Entallada)</option>
+          </select>
+        </div>
+
+        <!-- Movement Control Switcher -->
+        <div class="space-y-1.5 bg-slate-900/40 p-3 rounded-xl border border-slate-800">
+          <label id="lbl-motion-lbl" class="block text-xs text-slate-400 font-medium font-mono text-blue-400">EFECTOS Y MOVIMIENTO 3D:</label>
+          <select id="select-motion" class="w-full bg-slate-950 border border-slate-700/60 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none cursor-pointer hover:border-blue-500 transition-colors">
+            <option value="rotate">Giro Automático de Exhibición (360°)</option>
+            <option value="none">Detener Movimiento (Control Manual)</option>
+          </select>
+        </div>
+
+        <!-- Height Slider -->
+        <div class="space-y-1.5">
+          <div class="flex justify-between text-xs">
+            <span id="lbl-height-lbl" class="text-slate-400 font-medium">Estatura Corporal:</span>
+            <span id="txt-height" class="font-mono text-blue-400 font-bold">180 cm</span>
+          </div>
+          <input id="slider-height" type="range" min="0.8" max="1.4" step="0.01" value="1.0" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500">
+        </div>
+
+        <!-- Shoulder Width Slider -->
+        <div class="space-y-1.5">
+          <div class="flex justify-between text-xs">
+            <span id="lbl-shoulders-lbl" class="text-slate-400 font-medium">Ancho de Hombros:</span>
+            <span id="txt-shoulders" class="font-mono text-pink-400 font-bold">48 cm</span>
+          </div>
+          <input id="slider-shoulders" type="range" min="0.8" max="1.4" step="0.01" value="1.0" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-pink-500">
+        </div>
+
+        <!-- Waist Size Slider -->
+        <div class="space-y-1.5">
+          <div class="flex justify-between text-xs">
+            <span id="lbl-waist-lbl" class="text-slate-400 font-medium">Contorno de Cintura:</span>
+            <span id="txt-waist" class="font-mono text-indigo-400 font-bold">84 cm</span>
+          </div>
+          <input id="slider-waist" type="range" min="0.8" max="1.4" step="0.01" value="1.0" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+        </div>
+
+        <!-- Skin Preset -->
+        <div class="space-y-1.5 pt-1">
+          <label id="lbl-skin-lbl" class="block text-xs text-slate-400 font-medium">Materiales y Ajuste de Piel:</label>
+          <select id="select-skin" class="w-full bg-slate-900 border border-slate-700/60 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 outline-none cursor-pointer">
+            <option value="glass">Cristal Holográfico</option>
+            <option value="gold">Oro Pulido</option>
+            <option value="slate">Silicio / Pizarra</option>
+            <option value="marble">Mármol Realista</option>
+            <option value="wood">Madera Tallada</option>
+          </select>
+        </div>
+
+        <!-- UPPER CLOTHES STYLE -->
+        <div class="grid grid-cols-2 gap-3 pt-1">
+          <div class="space-y-1.5">
+            <label id="lbl-upper-lbl" class="block text-xs text-slate-400 font-medium">Prenda Superior:</label>
+            <select id="select-upper" class="w-full bg-slate-900 border border-slate-700/60 rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-200 outline-none cursor-pointer">
+              <option value="tshirt">Camiseta Deportiva</option>
+              <option value="hoodie">Sudadera con Capucha</option>
+              <option value="polo">Camisa Polo Clásica</option>
+              <option value="jacket">Chaqueta / Abrigo</option>
+            </select>
+          </div>
+          <div class="space-y-1.5">
+            <label id="lbl-lower-lbl" class="block text-xs text-slate-400 font-medium">Prenda Inferior:</label>
+            <select id="select-lower" class="w-full bg-slate-900 border border-slate-700/60 rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-200 outline-none cursor-pointer">
+              <option value="jeans">Pantalón de Mezclilla</option>
+              <option value="cargo">Pantalón Cargo</option>
+              <option value="shorts">Pantalón Corto / Shorts</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- ACCESSORY AND SHOES STYLE -->
+        <div class="grid grid-cols-2 gap-3 pt-1">
+          <div class="space-y-1.5">
+            <label id="lbl-shoes-lbl" class="block text-xs text-slate-400 font-medium">Estilo de Calzado:</label>
+            <select id="select-shoes" class="w-full bg-slate-900 border border-slate-700/60 rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-200 outline-none cursor-pointer">
+              <option value="sneakers">Tenis / Sneakers</option>
+              <option value="boots">Botas de Combate</option>
+              <option value="futuristic">Zapatos Futuristas</option>
+            </select>
+          </div>
+          <div class="space-y-1.5">
+            <label id="lbl-accessory-lbl" class="block text-xs text-slate-400 font-medium">Accesorio para la Cabeza:</label>
+            <select id="select-accessory" class="w-full bg-slate-900 border border-slate-700/60 rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-200 outline-none cursor-pointer">
+              <option value="none">Sin Accesorio</option>
+              <option value="sunglasses">Lentes de Sol</option>
+              <option value="techVisor">Visores Holográficos</option>
+              <option value="beanie">Gorro Térmico / Beanie</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- PATTERNS AND SCENE LIGHTING DESIGN -->
+        <div class="grid grid-cols-6 gap-3 pt-1">
+          <div class="col-span-3 space-y-1.5">
+            <label id="lbl-pattern-lbl" class="block text-xs text-slate-400 font-medium">Estampado de Prenda:</label>
+            <select id="select-pattern" class="w-full bg-slate-900 border border-slate-700/60 rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-250 outline-none cursor-pointer">
+              <option value="solid">Liso / Sólido</option>
+              <option value="stripes">Líneas / Rayas</option>
+              <option value="grid">Cuadrícula / Grid</option>
+              <option value="dots">Puntos / Lunares</option>
+              <option value="cyber">Circuitos Cibernéticos</option>
+            </select>
+          </div>
+          <div class="col-span-3 space-y-1.5">
+            <label id="lbl-lighting-lbl" class="block text-xs text-slate-400 font-medium">Luz / Ambiente 3D:</label>
+            <select id="select-lighting" class="w-full bg-slate-900 border border-slate-700/60 rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-250 outline-none cursor-pointer">
+              <option value="studio">Estudio</option>
+              <option value="cyber">Cyberpunk</option>
+              <option value="sunset">Sunset</option>
+              <option value="neon">Neon</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- COLOR SELECTORS -->
+        <div class="grid grid-cols-5 gap-1.5 pt-1">
+          <div class="space-y-1 text-center">
+            <span id="lbl-sup-short" class="text-[9px] text-slate-500 font-mono uppercase font-bold block">Sup:</span>
+            <input id="input-upper-color" type="color" class="w-full h-8 bg-transparent cursor-pointer rounded-lg border-none p-0">
+          </div>
+          <div class="space-y-1 text-center">
+            <span id="lbl-patt-short" class="text-[9px] text-slate-500 font-mono uppercase font-bold block">Estamp:</span>
+            <input id="input-upper-pattern-color" type="color" class="w-full h-8 bg-transparent cursor-pointer rounded-lg border-none p-0">
+          </div>
+          <div class="space-y-1 text-center">
+            <span id="lbl-inf-short" class="text-[9px] text-slate-500 font-mono uppercase font-bold block">Inf:</span>
+            <input id="input-lower-color" type="color" class="w-full h-8 bg-transparent cursor-pointer rounded-lg border-none p-0">
+          </div>
+          <div class="space-y-1 text-center">
+            <span id="lbl-zaps-short" class="text-[9px] text-slate-500 font-mono uppercase font-bold block">Zaps:</span>
+            <input id="input-shoes-color" type="color" class="w-full h-8 bg-transparent cursor-pointer rounded-lg border-none p-0">
+          </div>
+          <div class="space-y-1 text-center">
+            <span id="lbl-acc-short" class="text-[9px] text-slate-500 font-mono uppercase font-bold block">Acc:</span>
+            <input id="input-accessory-color" type="color" class="w-full h-8 bg-transparent cursor-pointer rounded-lg border-none p-0">
+          </div>
+        </div>
+      </div>
+
+      <!-- Size recommendation box with dynamic calculations -->
+      <div id="lbl-ai-rec-box" class="p-4 bg-slate-950/50 rounded-xl border border-blue-500/20 text-[11px] font-mono text-slate-300 leading-relaxed shadow-inner">
+        <span id="lbl-ai-title" class="text-blue-400 font-bold uppercase block pb-1 border-b border-slate-900 mb-1">🤖 RECOMENDACIÓN TALLA IA OFFLINE</span>
+        Cargando recomendación inteligente corporativa...
+      </div>
+    </div>
+  </main>
+
+  <!-- Clean Footer Info -->
+  <footer class="py-5 px-12 border-t border-slate-900 bg-slate-950/40 text-center text-[10px] font-mono text-slate-600 flex justify-between">
+    <span id="lbl-footer-rights">© 2026 Jcob. Reservados todos los derechos.</span>
+    <span id="lbl-footer-acc">Aceleración Gráfica Activada (WebGL)</span>
+  </footer>
+
+  <script>
+    let gender = "cyber";
+    let currentLang = "es";
+
+    // 3-WAY MULTILINGUAL LOCALE MAPS
+    const translations = {
+      es: {
+        status: "• PROBADOR PORTÁTIL MULTILINGÜE 3D •",
+        statusSubtitle: "VERSIÓN STANDALONE MULTI-SEXO E INTERACTIVA",
+        title: "Jcob",
+        subtitle: "Probador Virtual 3D",
+        desc: "Modelo tridimensional premium interactivo ejecutable sin conexión a internet.",
+        tech: "TECNOLOGÍA THREE.JS GRÁFICOS 3D",
+        scanningReady: "SISTEMA DE MAPEO PREPARADO",
+        dragHint: "🖱️ Arrastra con el ratón para rotar 360° en cualquier plano",
+        settingsTitle: "CONFIGURACIÓN DEL AVATAR",
+        genderLabel: "Género del Avatar / Mapeo de Proporciones:",
+        genderMasculine: "Masculino (Silueta Ensanchada)",
+        genderFeminine: "Femenino (Curvatura Entallada)",
+        heightLabel: "Estatura Corporal:",
+        shouldersLabel: "Ancho de Hombros:",
+        waistLabel: "Contorno de Cintura:",
+        skinLabel: "Materiales y Ajuste de Piel:",
+        upperLabel: "Prenda Superior:",
+        lowerLabel: "Prenda Inferior:",
+        shoesLabel: "Estilo de Calzado:",
+        accessoryLabel: "Accesorio para la Cabeza:",
+        supShort: "Sup:",
+        infShort: "Inf:",
+        zapsShort: "Zaps:",
+        accShort: "Acc:",
+        aiTitle: "🤖 RECOMENDACIÓN TALLA IA OFFLINE",
+        aiRecommendationTextStart: "Basado en tus proporciones corporales seleccionadas, tu talla ideal calculada recomendada es",
+        aiRecommendationTextEnd: "Ajuste perfecto garantizado.",
+        footerRights: "© 2026 Jcob. Reservados todos los derechos.",
+        footerAcceleration: "Aceleración Gráfica Activada (WebGL)",
+        skinGlass: "Cristal Holográfico",
+        skinGold: "Oro Pulido",
+        skinSlate: "Silicio / Pizarra",
+        skinMarble: "Mármol Realista",
+        skinWood: "Madera Tallada",
+        upperTshirt: "Camiseta Deportiva",
+        upperHoodie: "Sudadera con Capucha",
+        upperPolo: "Camisa Polo Clásica",
+        upperJacket: "Chaqueta / Abrigo",
+        lowerJeans: "Pantalón de Mezclilla",
+        lowerCargo: "Pantalón Cargo",
+        lowerShorts: "Pantalón Corto / Shorts",
+        shoesSneakers: "Tenis / Sneakers",
+        shoesBoots: "Botas de Combate",
+        shoesFuturistic: "Zapatos Futuristas",
+        accessoryNone: "Sin Accesorio",
+        accessorySunglasses: "Lentes de Sol",
+        accessoryVisor: "Visores Holográficos",
+        accessoryBeanie: "Gorro Térmico / Beanie",
+        aiXS: "XS - Ajuste Ultra Ceñido (Perfil Atlético)",
+        aiS: "S - Corte Entallado (Silueta Perfilada)",
+        aiM: "M - Proporción Estándar (Ajuste Perfecto)",
+        aiL: "L - Estilo Relajado / Casual (Caída Suave)",
+        aiXL: "XL / XXL - Corte Imperial / Oversize (Ajuste Holgado)",
+        motionLabel: "EFECTOS Y MOVIMIENTO 3D:",
+        motionRotate: "Giro Automático de Exhibición (360°)",
+        motionNone: "Detener Movimiento (Control Manual)",
+        lightingPresetLabel: "Ambiente / Iluminación 3D:",
+        lightStudio: "Estudio Fotográfico Realista",
+        lightCyber: "Cyberpunk Neón Eléctrico",
+        lightSunset: "Atardecer Cálido / Sunset",
+        lightNeon: "Verde Ácido & Violeta Neón",
+        upperPatternLabel: "Estampado de Prenda:",
+        patternSolid: "Liso / Sólido",
+        patternStripes: "Líneas / Rayas",
+        patternGrid: "Cuadrícula / Grid",
+        patternDots: "Puntos / Lunares",
+        patternCyber: "Circuitos Cibernéticos",
+        patternColorLabel: "Estamp:"
+      },
+      en: {
+        status: "• MULTILINGUAL PORTABLE 3D FITTING ROOM •",
+        statusSubtitle: "STANDALONE MULTI-GENDER & INTERACTIVE VERSION",
+        title: "Jcob",
+        subtitle: "3D Virtual Fitting Room",
+        desc: "Premium three-dimensional interactive model runnable fully offline without internet.",
+        tech: "THREE.JS 3D GRAPHICS TECHNOLOGY",
+        scanningReady: "PROPORTION MAPPING SYSTEM READY",
+        dragHint: "🖱️ Drag with mouse to rotate 360° on any axis",
+        settingsTitle: "AVATAR CONFIGURATION",
+        genderLabel: "Avatar Gender / Proportion Mapping:",
+        genderMasculine: "Masculine (Broadened Silhouette)",
+        genderFeminine: "Feminine (Tailored Hourglass Curve)",
+        heightLabel: "Body Height:",
+        shouldersLabel: "Shoulder Width:",
+        waistLabel: "Waist Circumference:",
+        skinLabel: "Materials & Skin Preset:",
+        upperLabel: "Upper Clothing:",
+        lowerLabel: "Lower Clothing:",
+        shoesLabel: "Footwear Style:",
+        accessoryLabel: "Head Accessory:",
+        supShort: "Top:",
+        infShort: "Bottom:",
+        zapsShort: "Shoes:",
+        accShort: "Acc:",
+        aiTitle: "🤖 OFFLINE IA SIZE RECOMMENDATION",
+        aiRecommendationTextStart: "Based on your selected body proportions, your recommended ideal calculated size is",
+        aiRecommendationTextEnd: "Perfect fit guaranteed.",
+        footerRights: "© 2026 Jcob. All rights reserved.",
+        footerAcceleration: "Graphics Hardware Acceleration Active (WebGL)",
+        skinGlass: "Holographic Glass",
+        skinGold: "Polished Gold",
+        skinSlate: "Silicon / Slate",
+        skinMarble: "Realistic Marble",
+        skinWood: "Carved Wood",
+        upperTshirt: "Sport T-Shirt",
+        upperHoodie: "Hoodie Sweatshirt",
+        upperPolo: "Classic Polo Shirt",
+        upperJacket: "Jacket / Coat",
+        lowerJeans: "Denim Jeans",
+        lowerCargo: "Cargo Pants",
+        lowerShorts: "Short Pants / Shorts",
+        shoesSneakers: "Sneakers / Trainers",
+        shoesBoots: "Combat Boots",
+        shoesFuturistic: "Futuristic Shoes",
+        accessoryNone: "No Accessory",
+        accessorySunglasses: "Sunglasses",
+        accessoryVisor: "Holographic Visor",
+        accessoryBeanie: "Thermal Beanie",
+        aiXS: "XS - Hyper Slim Fit (Athletic Close)",
+        aiS: "S - Slim Tailor (Standard Trim)",
+        aiM: "M - Golden Proportions (Perfect Hug)",
+        aiL: "L - Relaxed Silhouette (Comfort Casual)",
+        aiXL: "XL / XXL - Bespoke Oversized (Grand Executive)",
+        motionLabel: "3D MOTION & CONTROLS:",
+        motionRotate: "Auto-Rotation Showcase (Full 360°)",
+        motionNone: "Stop Movement (Manual)",
+        lightingPresetLabel: "Aesthetic Core Lighting Preset:",
+        lightStudio: "High Key Photography Studio",
+        lightCyber: "Futuristic Cyberpunk Neons",
+        lightSunset: "Soft Golden Hour Sunset",
+        lightNeon: "Acidic Green & Violet Glows",
+        upperPatternLabel: "Fabric Texture / Pattern Style:",
+        patternSolid: "Plain Solid Base Color",
+        patternStripes: "Linear Stripes Overlay",
+        patternGrid: "Precision Matrix Grid",
+        patternDots: "Retro Polka Dots Layout",
+        patternCyber: "Glow Tech Circuits",
+        patternColorLabel: "Patt:"
+      },
+      zh: {
+        status: "• 3D多语言便携试衣间 •",
+        statusSubtitle: "独立单文件/多性别人像交互式体验版",
+        title: "Jcob",
+        subtitle: "3D虚拟试衣间",
+        desc: "离线级高级三维交互式系统，无需互联网即可完美启动运行。",
+        tech: "THREE.JS 3D图形引擎渲染加速",
+        scanningReady: "三维骨骼身形映射系统就位",
+        dragHint: "🖱️ 按住并拖拽鼠标可在三维空间内360°旋转视图",
+        settingsTitle: "阿凡达人像配置",
+        genderLabel: "人像性别 / 身形比例映射:",
+        genderMasculine: "男性身形 (宽阔阳刚轮廓)",
+        genderFeminine: "女性身形 (精致优雅曲线)",
+        heightLabel: "身高尺寸:",
+        shouldersLabel: "肩宽尺寸:",
+        waistLabel: "腰围尺寸:",
+        skinLabel: "皮肤材质与预设风格:",
+        upperLabel: "上身服装类型:",
+        lowerLabel: "下身裤装裤型:",
+        shoesLabel: "鞋子款式选择:",
+        accessoryLabel: "头部潮流配饰:",
+        supShort: "上衣:",
+        infShort: "下装:",
+        zapsShort: "鞋子:",
+        accShort: "配饰:",
+        aiTitle: "🤖 离线智能 AI 尺码推荐系统",
+        aiRecommendationTextStart: "基于您所配置的身体特征数据，智能核算出最完美合身的尺码为",
+        aiRecommendationTextEnd: "完美剪裁，舒适度高。",
+        footerRights: "© 2026 Jcob。保留所有海外与本土之设计版权。",
+        footerAcceleration: "图形硬件底层加速已开启 (WebGL)",
+        skinGlass: "激光全息水晶玻璃",
+        skinGold: "皇家抛光镜面黄金",
+        skinSlate: "深色哑光硅石岩板",
+        skinMarble: "天然奢华抛光大理石",
+        skinWood: "古典手工研磨雕刻木纹",
+        upperTshirt: "运动排汗透气圆领短袖",
+        upperHoodie: "套头街头工装保暖卫衣",
+        upperPolo: "经典意式翻领网眼Polo衫",
+        upperJacket: "高端防撕裂多功能夹克风衣",
+        lowerJeans: "直筒原色重磅耐磨牛仔裤",
+        lowerCargo: "多口袋战术通勤户外工装裤",
+        lowerShorts: "轻量弹力抽绳运动休闲短裤",
+        shoesSneakers: "高性能低帮复古街头运动鞋",
+        shoesBoots: "高帮特战全牛皮多功能战术靴",
+        shoesFuturistic: "概念流线型未来赛博机能鞋",
+        accessoryNone: "无任何配饰",
+        accessorySunglasses: "暗黑赛博潮流偏光太阳眼镜",
+        accessoryVisor: "炫彩高亮度全息流光护目镜",
+        accessoryBeanie: "纯色极简街头保暖针织冷帽",
+        aiXS: "XS号 - 极度贴身修身 (运动硬朗紧绷感)",
+        aiS: "S号 - 修身剪裁质感 (修长挺拔干练感)",
+        aiM: "M号 - 黄金对称身材 (高容错率平衡感)",
+        aiL: "L号 - 宽松落肩休闲 (高透气落差垂坠感)",
+        aiXL: "XL / XXL号 - 大气磅礴加肥 (顶级包容阔绰感)",
+        motionLabel: "3D 动态与特写镜头:",
+        motionRotate: "360°全景动态自动旋转 Showcase",
+        motionNone: "静止人型 (仅手动拖拽旋转)",
+        lightingPresetLabel: "3D 环境与灯光预设:",
+        lightStudio: "极简多向摄影棚光源",
+        lightCyber: "赛博霓虹双向补光灯",
+        lightSunset: "温暖晚霞金色夕阳色",
+        lightNeon: "荧光毒绿与暗紫科技灯",
+        upperPatternLabel: "上装布料印花与纹理:",
+        patternSolid: "纯色纯享简约基础版",
+        patternStripes: "经典动感纵向条纹印花",
+        patternGrid: "矩阵网格极客数码纹理",
+        patternDots: "复古波点简约圆点矩阵",
+        patternCyber: "未来主义集成电路板线条",
+        patternColorLabel: "印花:"
+      }
+    };
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      const t = translations[lang] || translations.es;
+
+      // Update static texts
+      document.getElementById('lbl-status-title').innerText = t.status;
+      document.getElementById('lbl-status-sub').innerText = t.statusSubtitle;
+      document.getElementById('lbl-head-title').innerHTML = t.title + ' <span class="font-light text-slate-400">' + t.subtitle + '</span>';
+      document.getElementById('lbl-head-desc').innerText = t.desc;
+      document.getElementById('badge-tech').innerText = t.tech;
+      document.getElementById('lbl-interactive-ready').innerText = t.scanningReady;
+      document.getElementById('lbl-drag-hint').innerText = t.dragHint;
+      document.getElementById('lbl-settings-title').innerText = t.settingsTitle;
+      document.getElementById('lbl-gender-lbl').innerText = t.genderLabel;
+      document.getElementById('lbl-height-lbl').innerText = t.heightLabel;
+      document.getElementById('lbl-shoulders-lbl').innerText = t.shouldersLabel;
+      document.getElementById('lbl-waist-lbl').innerText = t.waistLabel;
+      document.getElementById('lbl-skin-lbl').innerText = t.skinLabel;
+      document.getElementById('lbl-upper-lbl').innerText = t.upperLabel;
+      document.getElementById('lbl-lower-lbl').innerText = t.lowerLabel;
+      document.getElementById('lbl-shoes-lbl').innerText = t.shoesLabel;
+      document.getElementById('lbl-accessory-lbl').innerText = t.accessoryLabel;
+      document.getElementById('lbl-motion-lbl').innerText = t.motionLabel;
+      document.getElementById('lbl-pattern-lbl').innerText = t.upperPatternLabel || "Estampado de Prenda:";
+      document.getElementById('lbl-lighting-lbl').innerText = t.lightingPresetLabel || "Ambiente de Luz:";
+
+      document.getElementById('lbl-sup-short').innerText = t.supShort;
+      document.getElementById('lbl-patt-short').innerText = t.patternColorLabel || "Estamp:";
+      document.getElementById('lbl-inf-short').innerText = t.infShort;
+      document.getElementById('lbl-zaps-short').innerText = t.zapsShort;
+      document.getElementById('lbl-acc-short').innerText = t.accShort;
+      document.getElementById('lbl-footer-rights').innerText = t.footerRights;
+      document.getElementById('lbl-footer-acc').innerText = t.footerAcceleration;
+
+      // Update interactive select dropdowns options text
+      const optGender = document.getElementById('select-gender').options;
+      optGender[0].text = t.genderMasculine;
+      optGender[1].text = t.genderFeminine;
+
+      const optSkin = document.getElementById('select-skin').options;
+      optSkin[0].text = t.skinGlass;
+      optSkin[1].text = t.skinGold;
+      optSkin[2].text = t.skinSlate;
+      optSkin[3].text = t.skinMarble;
+      optSkin[4].text = t.skinWood;
+
+      const optUpper = document.getElementById('select-upper').options;
+      optUpper[0].text = t.upperTshirt;
+      optUpper[1].text = t.upperHoodie;
+      optUpper[2].text = t.upperPolo;
+      optUpper[3].text = t.upperJacket;
+
+      const optLower = document.getElementById('select-lower').options;
+      optLower[0].text = t.lowerJeans;
+      optLower[1].text = t.lowerCargo;
+      optLower[2].text = t.lowerShorts;
+
+      const optShoes = document.getElementById('select-shoes').options;
+      optShoes[0].text = t.shoesSneakers;
+      optShoes[1].text = t.shoesBoots;
+      optShoes[2].text = t.shoesFuturistic;
+
+      const optPattern = document.getElementById('select-pattern').options;
+      optPattern[0].text = t.patternSolid || "Liso / Sólido";
+      optPattern[1].text = t.patternStripes || "Líneas / Rayas";
+      optPattern[2].text = t.patternGrid || "Cuadrícula / Grid";
+      optPattern[3].text = t.patternDots || "Puntos / Lunares";
+      optPattern[4].text = t.patternCyber || "Circuitos";
+
+      const optLighting = document.getElementById('select-lighting').options;
+      optLighting[0].text = t.lightStudio || "Estudio";
+      optLighting[1].text = t.lightCyber || "Cyberpunk";
+      optLighting[2].text = t.lightSunset || "Atardecer";
+      optLighting[3].text = t.lightNeon || "Verde Ácido";
+
+      const optAccessory = document.getElementById('select-accessory').options;
+      optAccessory[0].text = t.accessoryNone;
+      optAccessory[1].text = t.accessorySunglasses;
+      optAccessory[2].text = t.accessoryVisor;
+      optAccessory[3].text = t.accessoryBeanie;
+
+      const optMotion = document.getElementById('select-motion').options;
+      optMotion[0].text = t.motionRotate;
+      optMotion[1].text = t.motionNone;
+
+      // Accent button colors
+      ['es', 'en', 'zh'].forEach(l => {
+        const btn = document.getElementById('btn-lang-' + l);
+        if (btn) {
+          if (l === lang) {
+            btn.className = "px-2.5 py-1 rounded-lg transition-all font-black cursor-pointer bg-blue-600 text-white";
+          } else {
+            btn.className = "px-2.5 py-1 rounded-lg transition-all font-black cursor-pointer text-slate-400 hover:text-white";
+          }
+        }
+      });
+
+      // Recalculate physical sizes
+      applySliders();
+    }
+
+    // CORE STANDALONE THREE.JS EMBED
+    const container = document.getElementById('threejs-canvas');
+    const width = container.clientWidth;
+    const height = container.clientHeight || 500;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b0f19);
+
+    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+    camera.position.set(0, 1.4, 4.2);
+    camera.lookAt(0, 1.05, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    // Procedural Pattern Texture Generator (Canvas)
+    function createPatternTexture(pattern, primaryColor, patternColor) {
+      if (!pattern || pattern === 'solid') return null;
+      const canvas = document.createElement('canvas');
+      canvas.width = 256; canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+
+      ctx.fillStyle = primaryColor;
+      ctx.fillRect(0, 0, 256, 256);
+      ctx.strokeStyle = patternColor;
+      ctx.fillStyle = patternColor;
+
+      if (pattern === 'stripes') {
+        ctx.lineWidth = 12;
+        for (let i = 0; i < 256; i += 32) {
+          ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 256); ctx.stroke();
+        }
+      } else if (pattern === 'grid') {
+        ctx.lineWidth = 4;
+        for (let i = 0; i <= 256; i += 32) {
+          ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 256); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(256, i); ctx.stroke();
+        }
+      } else if (pattern === 'dots') {
+        for (let x = 16; x < 256; x += 32) {
+          for (let y = 16; y < 256; y += 32) {
+            ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill();
+          }
+        }
+      } else if (pattern === 'cyber') {
+        ctx.lineWidth = 3;
+        for (let i = -256; i < 256; i += 40) {
+          ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + 256, 256); ctx.stroke();
+        }
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < 256; i += 80) {
+          ctx.beginPath(); ctx.arc(i + 40, i + 40, 12, 0, Math.PI * 2); ctx.stroke();
+          ctx.beginPath(); ctx.arc(i + 40, i + 40, 4, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(2, 2);
+      return texture;
+    }
+
+    // Dynamic High-Fidelity Lights Setup
+    let lightsGroup = null;
+    function updateLighting(preset) {
+      if (lightsGroup) scene.remove(lightsGroup);
+      lightsGroup = new THREE.Group();
+      scene.add(lightsGroup);
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+      lightsGroup.add(ambientLight);
+
+      if (preset === 'studio') {
+        const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+        sun.position.set(5, 8, 5);
+        lightsGroup.add(sun);
+        const fill = new THREE.DirectionalLight(0xe0f2fe, 0.6);
+        fill.position.set(-5, 3, -2);
+        lightsGroup.add(fill);
+        const rim = new THREE.DirectionalLight(0xffffff, 0.8);
+        rim.position.set(0, 4, -8);
+        lightsGroup.add(rim);
+      } else if (preset === 'cyber') {
+        const violet = new THREE.PointLight(0xff00ff, 2.5, 20);
+        violet.position.set(3, 2, 2);
+        lightsGroup.add(violet);
+        const cyan = new THREE.PointLight(0x00ffff, 2.5, 20);
+        cyan.position.set(-3, 1, -2);
+        lightsGroup.add(cyan);
+        const topOrange = new THREE.DirectionalLight(0xf43f5e, 0.8);
+        topOrange.position.set(0, 7, 0);
+        lightsGroup.add(topOrange);
+      } else if (preset === 'sunset') {
+        const sun = new THREE.DirectionalLight(0xfb923c, 1.8);
+        sun.position.set(6, 4, 3);
+        lightsGroup.add(sun);
+        const warmAmbient = new THREE.AmbientLight(0x7c2d12, 0.5);
+        lightsGroup.add(warmAmbient);
+        const purpleFill = new THREE.DirectionalLight(0xc084fc, 0.4);
+        purpleFill.position.set(-4, -1, -3);
+        lightsGroup.add(purpleFill);
+      } else if (preset === 'neon') {
+        const electricGreen = new THREE.DirectionalLight(0x22c55e, 1.2);
+        electricGreen.position.set(-4, 2, 3);
+        lightsGroup.add(electricGreen);
+        const purpleNeon = new THREE.DirectionalLight(0xa855f7, 1.5);
+        purpleNeon.position.set(4, 3, -1);
+        lightsGroup.add(purpleNeon);
+        const secondaryAqua = new THREE.PointLight(0x06b6d4, 1.5, 15);
+        secondaryAqua.position.set(0, -2, 2);
+        lightsGroup.add(secondaryAqua);
+      }
+    }
+
+    // Portal platform
+    const platformGeo = new THREE.CylinderGeometry(1.2, 1.24, 0.12, 32);
+    const platformMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.2, metalness: 0.8 });
+    const platform = new THREE.Mesh(platformGeo, platformMat);
+    platform.position.y = -0.06;
+    platform.receiveShadow = true;
+    scene.add(platform);
+
+    const ringGeo = new THREE.RingGeometry(1.18, 1.2, 32);
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.061;
+    scene.add(ring);
+
+    // Four high-tech scanning laser pillars
+    const pillarGeo = new THREE.CylinderGeometry(0.008, 0.008, 2.2, 8);
+    const pillarMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff, transparent: true, opacity: 0.35 });
+    const pillarPos = [[-1.1, 1, -1.1], [1.1, 1, -1.1], [-1.1, 1, 1.1], [1.1, 1, 1.1]];
+    pillarPos.forEach(([px, py, pz]) => {
+      const p = new THREE.Mesh(pillarGeo, pillarMat);
+      p.position.set(px, py, pz);
+      scene.add(p);
+    });
+
+    // Holographic animated scanning ring
+    const scanRingGeo = new THREE.TorusGeometry(0.38, 0.006, 8, 48);
+    const scanRingMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff, transparent: true, opacity: 0.8 });
+    const scanRing = new THREE.Mesh(scanRingGeo, scanRingMat);
+    scanRing.rotation.x = Math.PI / 2;
+    scene.add(scanRing);
+
+    // Mannequin Group
+    const mannequinGroup = new THREE.Group();
+    scene.add(mannequinGroup);
+
+    // Skin Materials Mapping
+    const skinMaterials = {
+      glass: new THREE.MeshPhysicalMaterial({ color: 0xe0e6ed, transparent: true, opacity: 0.5, roughness: 0.1, metalness: 0.1, transmission: 0.9, thickness: 1.2 }),
+      gold: new THREE.MeshStandardMaterial({ color: 0xdfb724, metalness: 0.95, roughness: 0.1 }),
+      slate: new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.6, roughness: 0.7 }),
+      marble: new THREE.MeshStandardMaterial({ color: 0xfdfdfd, roughness: 0.2, metalness: 0.05 }),
+      wood: new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.6, metalness: 0.1 })
+    };
+
+    let activeMat = skinMaterials.glass;
+
+    // Mannequin building parts
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 24, 24), activeMat);
+    head.position.set(0, 1.85, 0);
+    mannequinGroup.add(head);
+
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.075, 0.12, 16), activeMat);
+    neck.position.set(0, 1.69, 0);
+    mannequinGroup.add(neck);
+
+    const chest = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.18, 0.55, 16), activeMat);
+    chest.position.set(0, 1.35, 0);
+    mannequinGroup.add(chest);
+
+    // Dynamic glowing reactor
+    const reactor = new THREE.Mesh(new THREE.SphereGeometry(0.045, 16, 16), new THREE.MeshBasicMaterial({ color: 0x00f3ff, transparent: true, opacity: 0.95 }));
+    reactor.position.set(0, 1.45, 0.17);
+    mannequinGroup.add(reactor);
+
+    const waist = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.35, 16), activeMat);
+    waist.position.set(0, 0.95, 0);
+    mannequinGroup.add(waist);
+
+    const leftArmGroup = new THREE.Group();
+    leftArmGroup.position.set(-0.35, 1.55, 0);
+    const leftArmMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.055, 0.6, 16), activeMat);
+    leftArmMesh.position.set(0, -0.3, 0);
+    leftArmGroup.add(leftArmMesh);
+    mannequinGroup.add(leftArmGroup);
+
+    const rightArmGroup = new THREE.Group();
+    rightArmGroup.position.set(0.35, 1.55, 0);
+    const rightArmMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.055, 0.6, 16), activeMat);
+    rightArmMesh.position.set(0, -0.3, 0);
+    rightArmGroup.add(rightArmMesh);
+    mannequinGroup.add(rightArmGroup);
+
+    const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.07, 0.85, 16), activeMat);
+    leftLeg.position.set(-0.13, 0.425, 0);
+    mannequinGroup.add(leftLeg);
+
+    const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.07, 0.85, 16), activeMat);
+    rightLeg.position.set(0.13, 0.425, 0);
+    mannequinGroup.add(rightLeg);
+
+    // Bionic Joints
+    const jointGeo = new THREE.SphereGeometry(0.06, 12, 12);
+    const jointMat = new THREE.MeshStandardMaterial({ color: 0x00f3ff, metalness: 0.95, roughness: 0.1, emissive: 0x005577, emissiveIntensity: 0.8 });
+    const lSh = new THREE.Mesh(jointGeo, jointMat); leftArmGroup.add(lSh);
+    const rSh = new THREE.Mesh(jointGeo, jointMat); rightArmGroup.add(rSh);
+
+    // Clothing Mesh Dynamic Containers
+    const upperClothGroup = new THREE.Group();
+    mannequinGroup.add(upperClothGroup);
+
+    const lowerClothGroup = new THREE.Group();
+    mannequinGroup.add(lowerClothGroup);
+
+    const shoesGroup = new THREE.Group();
+    mannequinGroup.add(shoesGroup);
+
+    const accessoryGroup = new THREE.Group();
+    mannequinGroup.add(accessoryGroup);
+
+    function updateClothing(upperType, lowerType, shoesType, accessoryType, uColor, lColor, sColor, accColor) {
+      // Clear
+      while (upperClothGroup.children.length > 0) upperClothGroup.remove(upperClothGroup.children[0]);
+      while (lowerClothGroup.children.length > 0) lowerClothGroup.remove(lowerClothGroup.children[0]);
+      while (shoesGroup.children.length > 0) shoesGroup.remove(shoesGroup.children[0]);
+      while (accessoryGroup.children.length > 0) accessoryGroup.remove(accessoryGroup.children[0]);
+
+      const hVal = parseFloat(sliderHeight.value);
+      const sVal = parseFloat(sliderShoulders.value);
+      const wVal = parseFloat(sliderWaist.value);
+
+      const uPattern = selectPattern.value;
+      const uPatternColor = colorUpperPattern.value;
+      const topPatternTex = createPatternTexture(uPattern, uColor, uPatternColor);
+
+      // Shirt / Upper
+      if (upperType) {
+        const sMat = new THREE.MeshStandardMaterial({ 
+          map: topPatternTex,
+          color: (!topPatternTex) ? new THREE.Color(uColor) : 0xffffff,
+          roughness: 0.5 
+        });
+        const shWidth = sVal * (gender === 'masculine' ? 1.15 : 0.95);
+        if (upperType === 'tshirt' || upperType === 'polo') {
+          const shellGeo = new THREE.CylinderGeometry(0.26, 0.2, 0.58, 16);
+          const topShell = new THREE.Mesh(shellGeo, sMat);
+          topShell.position.set(0, 1.35, 0);
+          topShell.scale.set(shWidth, 1.0, wVal);
+          upperClothGroup.add(topShell);
+
+          const sleeveGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.22, 16);
+          
+          const leftSleeve = new THREE.Mesh(sleeveGeo, sMat);
+          leftSleeve.position.set(-0.35 * shWidth, 1.48, 0);
+          leftSleeve.rotation.z = -0.3;
+          upperClothGroup.add(leftSleeve);
+
+          const rightSleeve = new THREE.Mesh(sleeveGeo, sMat);
+          rightSleeve.position.set(0.35 * shWidth, 1.48, 0);
+          rightSleeve.rotation.z = 0.3;
+          upperClothGroup.add(rightSleeve);
+
+          if (upperType === 'polo') {
+            const collarGeo = new THREE.CylinderGeometry(0.12, 0.15, 0.06, 16);
+            const collarMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7 });
+            const collar = new THREE.Mesh(collarGeo, collarMat);
+            collar.position.set(0, 1.63, 0);
+            upperClothGroup.add(collar);
+          }
+        } else if (upperType === 'hoodie' || upperType === 'jacket') {
+          const shWidth2 = sVal * (gender === 'masculine' ? 1.18 : 1.0);
+          const shellGeo = new THREE.CylinderGeometry(0.29, 0.24, 0.65, 16);
+          const topShell = new THREE.Mesh(shellGeo, sMat);
+          topShell.position.set(0, 1.32, 0);
+          topShell.scale.set(shWidth2 * 1.05, 1.03, wVal * 1.08);
+          upperClothGroup.add(topShell);
+
+          const lSleeveGeo = new THREE.CylinderGeometry(0.085, 0.07, 0.52, 16);
+          const leftSleeve = new THREE.Mesh(lSleeveGeo, sMat);
+          leftSleeve.position.set(-0.37 * shWidth2 - 0.1, 1.35, 0);
+          leftSleeve.rotation.z = -0.22;
+          upperClothGroup.add(leftSleeve);
+
+          const rightSleeve = new THREE.Mesh(lSleeveGeo, sMat);
+          rightSleeve.position.set(0.37 * shWidth2 + 0.1, 1.35, 0);
+          rightSleeve.rotation.z = 0.22;
+          upperClothGroup.add(rightSleeve);
+
+          if (upperType === 'hoodie') {
+            const hoodGeo = new THREE.SphereGeometry(0.22, 16, 16, 0, Math.PI * 2, 0, Math.PI * 0.7);
+            const hood = new THREE.Mesh(hoodGeo, sMat);
+            hood.position.set(0, 1.7, -0.05);
+            hood.rotation.x = 0.15;
+            upperClothGroup.add(hood);
+          }
+        }
+      }
+
+      // Pants / Lower
+      if (lowerType) {
+        const pMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(lColor), roughness: 0.6 });
+        const waistScale = wVal;
+
+        if (lowerType === 'jeans' || lowerType === 'cargo') {
+          const hipGeo = new THREE.CylinderGeometry(0.2, 0.23, 0.35, 16);
+          const hipPants = new THREE.Mesh(hipGeo, pMat);
+          hipPants.position.set(0, 0.95, 0);
+          hipPants.scale.set(waistScale * 1.05, 1.02, waistScale * 1.05);
+          lowerClothGroup.add(hipPants);
+
+          const legTubeGeo = new THREE.CylinderGeometry(0.105, 0.08, 0.84, 16);
+          const leftLeg = new THREE.Mesh(legTubeGeo, pMat);
+          leftLeg.position.set(-0.13, 0.43, 0);
+          lowerClothGroup.add(leftLeg);
+
+          const rightLeg = new THREE.Mesh(legTubeGeo, pMat);
+          rightLeg.position.set(0.13, 0.43, 0);
+          lowerClothGroup.add(rightLeg);
+
+          if (lowerType === 'cargo') {
+            const pocketGeo = new THREE.BoxGeometry(0.04, 0.15, 0.12);
+            const leftPocket = new THREE.Mesh(pocketGeo, pMat);
+            leftPocket.position.set(-0.24, 0.48, 0);
+            lowerClothGroup.add(leftPocket);
+
+            const rightPocket = new THREE.Mesh(pocketGeo, pMat);
+            rightPocket.position.set(0.24, 0.48, 0);
+            lowerClothGroup.add(rightPocket);
+          }
+        } else if (lowerType === 'shorts') {
+          const hipGeo = new THREE.CylinderGeometry(0.205, 0.235, 0.34, 16);
+          const hipShorts = new THREE.Mesh(hipGeo, pMat);
+          hipShorts.position.set(0, 0.96, 0);
+          hipShorts.scale.set(waistScale * 1.05, 1.0, waistScale * 1.05);
+          lowerClothGroup.add(hipShorts);
+
+          const miniLeg = new THREE.CylinderGeometry(0.11, 0.1, 0.28, 16);
+          const leftShortLeg = new THREE.Mesh(miniLeg, pMat);
+          leftShortLeg.position.set(-0.13, 0.72, 0);
+          lowerClothGroup.add(leftShortLeg);
+
+          const rightShortLeg = new THREE.Mesh(miniLeg, pMat);
+          rightShortLeg.position.set(0.13, 0.72, 0);
+          lowerClothGroup.add(rightShortLeg);
+        }
+      }
+
+      // Shoes
+      if (shoesType) {
+        const shoeMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(sColor), roughness: 0.4, metalness: 0.1 });
+        const footGeo = new THREE.BoxGeometry(0.12, 0.1, 0.24);
+        
+        const leftShoe = new THREE.Mesh(footGeo, shoeMat);
+        leftShoe.position.set(-0.13, 0.05, 0.05);
+        shoesGroup.add(leftShoe);
+
+        const rightShoe = new THREE.Mesh(footGeo, shoeMat);
+        rightShoe.position.set(0.13, 0.05, 0.05);
+        shoesGroup.add(rightShoe);
+
+        if (shoesType === 'boots') {
+          const combatUpperGeo = new THREE.CylinderGeometry(0.08, 0.085, 0.25, 12);
+          const leftCuff = new THREE.Mesh(combatUpperGeo, shoeMat);
+          leftCuff.position.set(-0.13, 0.15, 0);
+          shoesGroup.add(leftCuff);
+
+          const rightCuff = new THREE.Mesh(combatUpperGeo, shoeMat);
+          rightCuff.position.set(0.13, 0.15, 0);
+          shoesGroup.add(rightCuff);
+        } else {
+          const soleGeo = new THREE.BoxGeometry(0.13, 0.02, 0.25);
+          const soleMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
+          const leftSole = new THREE.Mesh(soleGeo, soleMat);
+          leftSole.position.set(-0.13, 0.01, 0.05);
+          shoesGroup.add(leftSole);
+
+          const rightSole = new THREE.Mesh(soleGeo, soleMat);
+          rightSole.position.set(0.13, 0.01, 0.05);
+          shoesGroup.add(rightSole);
+        }
+      }
+
+      // Accessory
+      if (accessoryType && accessoryType !== 'none') {
+        const accMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(accColor), metalness: 0.8, roughness: 0.1 });
+        if (accessoryType === 'sunglasses') {
+          const frameGeo = new THREE.BoxGeometry(0.32, 0.04, 0.03);
+          const frame = new THREE.Mesh(frameGeo, accMat);
+          frame.position.set(0, 1.86, 0.16);
+          accessoryGroup.add(frame);
+
+          const lensGeo = new THREE.BoxGeometry(0.11, 0.06, 0.01);
+          const darkLensMat = new THREE.MeshPhysicalMaterial({ color: 0x111111, roughness: 0.0, transparent: true, opacity: 0.85 });
+          const leftLens = new THREE.Mesh(lensGeo, darkLensMat);
+          leftLens.position.set(-0.07, 1.85, 0.176);
+          accessoryGroup.add(leftLens);
+
+          const rightLens = new THREE.Mesh(lensGeo, darkLensMat);
+          rightLens.position.set(0.07, 1.85, 0.176);
+          accessoryGroup.add(rightLens);
+        } else if (accessoryType === 'techVisor') {
+          const visorGeo = new THREE.CylinderGeometry(0.182, 0.182, 0.09, 20, 1, true, -Math.PI/2, Math.PI);
+          const glowVisorMat = new THREE.MeshBasicMaterial({ color: accColor, side: THREE.DoubleSide });
+          const visor = new THREE.Mesh(visorGeo, glowVisorMat);
+          visor.position.set(0, 1.86, 0.02);
+          accessoryGroup.add(visor);
+        } else if (accessoryType === 'beanie') {
+          const capGeo = new THREE.SphereGeometry(0.20, 16, 16, 0, Math.PI*2, 0, Math.PI/2);
+          const cap = new THREE.Mesh(capGeo, accMat);
+          cap.position.set(0, 1.90, 0);
+          cap.scale.set(1.0, 0.8, 1.0);
+          accessoryGroup.add(cap);
+        }
+      }
+    }
+
+    // Connect Sliders to ThreeJS meshes
+    const sliderHeight = document.getElementById('slider-height');
+    const sliderShoulders = document.getElementById('slider-shoulders');
+    const sliderWaist = document.getElementById('slider-waist');
+    const selectSkin = document.getElementById('select-skin');
+    const selectGender = document.getElementById('select-gender');
+    const selectMotion = document.getElementById('select-motion');
+    
+    const selectUpper = document.getElementById('select-upper');
+    const selectLower = document.getElementById('select-lower');
+    const selectShoes = document.getElementById('select-shoes');
+    const selectAccessory = document.getElementById('select-accessory');
+    const selectPattern = document.getElementById('select-pattern');
+    const selectLighting = document.getElementById('select-lighting');
+
+    const colorUpper = document.getElementById('input-upper-color');
+    const colorUpperPattern = document.getElementById('input-upper-pattern-color');
+    const colorLower = document.getElementById('input-lower-color');
+    const colorShoes = document.getElementById('input-shoes-color');
+    const colorAccessory = document.getElementById('input-accessory-color');
+
+    function applySliders() {
+      const hVal = parseFloat(sliderHeight.value);
+      const sVal = parseFloat(sliderShoulders.value);
+      const wVal = parseFloat(sliderWaist.value);
+
+      document.getElementById('txt-height').innerText = Math.round(hVal * 180) + ' cm';
+      document.getElementById('txt-shoulders').innerText = Math.round(sVal * 48) + ' cm';
+      document.getElementById('txt-waist').innerText = Math.round(wVal * 84) + ' cm';
+
+      mannequinGroup.scale.set(1.1, hVal * 1.1, 1.1);
+      
+      const genderMultiplier = (gender === 'masculine' ? 1.15 : 0.95);
+      head.position.y = 1.85;
+      neck.position.y = 1.69;
+      chest.position.y = 1.35;
+      chest.scale.x = sVal * genderMultiplier;
+      chest.scale.z = wVal;
+      
+      waist.position.y = 0.95;
+      waist.scale.x = wVal * (gender === 'feminine' ? 1.15 : 1.0);
+      waist.scale.z = wVal * (gender === 'feminine' ? 1.1 : 1.0);
+
+      leftArmGroup.position.x = -0.18 - (0.17 * sVal * genderMultiplier);
+      rightArmGroup.position.x = 0.18 + (0.17 * sVal * genderMultiplier);
+
+      updateClothing(
+        selectUpper.value, 
+        selectLower.value, 
+        selectShoes.value, 
+        selectAccessory.value, 
+        colorUpper.value, 
+        colorLower.value,
+        colorShoes.value,
+        colorAccessory.value
+      );
+
+      // LIVE SIZE RECOMMENDATION FORMULAS WITH MULTI-LANGUAGE
+      const physHeight = Math.round(hVal * 180);
+      const physChest = Math.round(sVal * (gender === 'masculine' ? 104 : 94));
+      const physWaist = Math.round(wVal * (gender === 'feminine' ? 74 : 84));
+      
+      const scaleFactor = (physHeight - 150) * 0.35 + (physChest - 85) * 0.45 + (physWaist - 70) * 0.2;
+      
+      let sizeLabel = 'M';
+      let sizeDesc = '';
+      const t = translations[currentLang] || translations.es;
+
+      if (scaleFactor < 12) {
+        sizeLabel = 'XS';
+        sizeDesc = t.aiXS;
+      } else if (scaleFactor < 25) {
+        sizeLabel = 'S';
+        sizeDesc = t.aiS;
+      } else if (scaleFactor < 42) {
+        sizeLabel = 'M';
+        sizeDesc = t.aiM;
+      } else if (scaleFactor < 58) {
+        sizeLabel = 'L';
+        sizeDesc = t.aiL;
+      } else {
+        sizeLabel = 'XL/XXL';
+        sizeDesc = t.aiXL;
+      }
+
+      document.getElementById('lbl-ai-rec-box').innerHTML = 
+        '<span id="lbl-ai-title" class="text-blue-400 font-bold uppercase block pb-1 border-b border-slate-900 mb-1">' + t.aiTitle + '</span>' +
+        t.aiRecommendationTextStart + ' <span class="text-base font-extrabold text-white px-2 py-0.5 bg-blue-500/20 rounded border border-blue-500/40 animate-pulse">' + sizeLabel + '</span>. ' + t.aiRecommendationTextEnd +
+        '<div class="mt-1 text-[10px] text-slate-400 font-sans italic">' + sizeDesc + '</div>';
+    }
+
+    [sliderHeight, sliderShoulders, sliderWaist].forEach(s => s.addEventListener('input', applySliders));
+    [selectUpper, selectLower, selectShoes, selectAccessory, selectPattern, colorUpper, colorUpperPattern, colorLower, colorShoes, colorAccessory].forEach(el => el.addEventListener('change', applySliders));
+
+    selectLighting.addEventListener('change', (e) => {
+      updateLighting(e.target.value);
+    });
+
+    selectSkin.addEventListener('change', (e) => {
+      const selected = skinMaterials[e.target.value] || skinMaterials.glass;
+      head.material = selected;
+      neck.material = selected;
+      chest.material = selected;
+      waist.material = selected;
+      leftArmMesh.material = selected;
+      rightArmMesh.material = selected;
+      leftLeg.material = selected;
+      rightLeg.material = selected;
+    });
+
+    selectGender.addEventListener('change', (e) => {
+      gender = e.target.value;
+      applySliders();
+    });
+
+    // Drag-to-rotate interaction
+    let isDragging = false;
+    let previousMouseX = 0;
+    
+    container.addEventListener('mousedown', (e) => { isDragging = true; previousMouseX = e.clientX; });
+    window.addEventListener('mouseup', () => { isDragging = false; });
+    container.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const deltaX = e.clientX - previousMouseX;
+      mannequinGroup.rotation.y += deltaX * 0.015;
+      previousMouseX = e.clientX;
+    });
+
+    // Touch support for mobile devices rotation
+    container.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        previousMouseX = e.touches[0].clientX;
+      }
+    }, { passive: true });
+    window.addEventListener('touchend', () => { isDragging = false; });
+    container.addEventListener('touchmove', (e) => {
+      if (!isDragging || e.touches.length !== 1) return;
+      const deltaX = e.touches[0].clientX - previousMouseX;
+      mannequinGroup.rotation.y += deltaX * 0.015;
+      previousMouseX = e.touches[0].clientX;
+    }, { passive: true });
+
+    // Mouse wheel zoom support to view full body as required
+    container.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      camera.position.z += e.deltaY * 0.005;
+      camera.position.z = Math.max(2.0, Math.min(camera.position.z, 8.0));
+    }, { passive: false });
+
+    // Inject initial active states in downloaded standalone viewer directly from user's configured settings
+    sliderHeight.value = "1";
+    sliderShoulders.value = "1";
+    sliderWaist.value = "1";
+    selectSkin.value = "glass";
+    selectGender.value = gender;
+    selectMotion.value = "rotate";
+    
+    selectUpper.value = "tshirt";
+    selectLower.value = "cargo";
+    selectShoes.value = "sneakers";
+    selectAccessory.value = "techVisor";
+    selectPattern.value = "cyber";
+    selectLighting.value = "cyber";
+
+    colorUpper.value = "#4f46e5";
+    colorUpperPattern.value = "#00ffff";
+    colorLower.value = "#1e293b";
+    colorShoes.value = "#fafafa";
+    colorAccessory.value = "#00ffff";
+
+    // Initialize lighting
+    updateLighting(selectLighting.value);
+
+    // Set initial skin preset
+    const initialSkinMat = skinMaterials["glass"] || skinMaterials.glass;
+    head.material = initialSkinMat;
+    neck.material = initialSkinMat;
+    chest.material = initialSkinMat;
+    waist.material = initialSkinMat;
+    leftArmMesh.material = initialSkinMat;
+    rightArmMesh.material = initialSkinMat;
+    leftLeg.material = initialSkinMat;
+    rightLeg.material = initialSkinMat;
+
+    // Run initial language translator & clothing assembly 
+    setLanguage(currentLang);
+
+    // Render loop
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const elapsed = clock.getElapsedTime();
+
+      // Scan Laser oscillation
+      scanRing.position.y = 1.05 + Math.sin(elapsed * 1.4) * 0.90;
+      
+      const bodyY = scanRing.position.y;
+      const dynamicHugging = 1.05 + Math.cos(bodyY * 3.4) * 0.12;
+      const sVal = parseFloat(sliderShoulders.value);
+      const wVal = parseFloat(sliderWaist.value);
+      scanRing.scale.set(dynamicHugging * sVal * 1.25, dynamicHugging * wVal * 1.25, 1);
+
+      const motionVal = selectMotion ? selectMotion.value : 'rotate';
+      if (motionVal === 'rotate' && !isDragging) {
+        mannequinGroup.rotation.y += 0.006;
+      }
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Handle Resize
+    window.addEventListener('resize', () => {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      renderer.setSize(w, h);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    });
+  </script>
+</body>
+</html>
