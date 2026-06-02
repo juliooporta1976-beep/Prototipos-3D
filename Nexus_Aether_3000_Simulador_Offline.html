@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUS AETHER 3000 - STANDALONE OFFLINE SIMULATOR</title>
+    <!-- Tailwind CSS for high fidelity exact visual replica styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        html, body {
+            margin: 0;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #0f172a 0%, #020617 60%, #000000 100%);
+            font-family: 'Segoe UI', Arial, sans-serif;
+            height: 100%;
+            color: #f1f5f9;
+        }
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        /* Custom scrollbar for operations terminal */
+        .custom-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.3);
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.4);
+            border-radius: 2px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: rgba(56, 189, 248, 0.7);
+        }
+        button.active {
+            background-color: #38bdf8 !important;
+            color: #0f172a !important;
+            border-color: #38bdf8 !important;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+            font-weight: 700;
+        }
+        .lang-btn.active {
+            background-color: #38bdf8 !important;
+            color: #0c0a09 !important;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="relative w-full h-full select-none overflow-hidden">
+
+<div id="canvas-container"></div>
+
+<!-- 1. FULL MULTI-FUNCTIONAL HUD OVERLAY -->
+<div id="hud" class="absolute inset-0 w-full h-full pointer-events-none z-10 flex flex-col justify-between p-6">
+    
+    <!-- TOP STRIP: Title & Sound/Lang toggles -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full pointer-events-auto">
+        <div class="flex flex-col">
+            <h1 class="text-xl md:text-2xl font-black tracking-wider text-sky-400 drop-shadow-[0_0_10px_rgba(56,189,248,0.45)]">
+                Dr. Julio César Oporta Barrera
+            </h1>
+            <span id="header-subtitle" class="text-[10px] md:text-xs text-slate-400 font-semibold tracking-widest uppercase">
+                NEXUS AETHER 3000 // OFFLINE STANDALONE PILOT CORE
+            </span>
+        </div>
+        
+        <!-- Interactive Top Bar Buttons (Lang, Audio) -->
+        <div class="flex items-center gap-3">
+            <!-- Language Controls -->
+            <div class="flex bg-slate-900/90 border border-sky-950/60 p-1 rounded-lg gap-1">
+                <button id="lang-es" class="lang-btn px-2.5 py-1 text-[10px] font-bold rounded transition text-slate-400 hover:text-white" onclick="changeStandaloneLang('es')">ES</button>
+                <button id="lang-en" class="lang-btn px-2.5 py-1 text-[10px] font-bold rounded transition text-slate-400 hover:text-white" onclick="changeStandaloneLang('en')">EN</button>
+                <button id="lang-zh" class="lang-btn px-2.5 py-1 text-[10px] font-bold rounded transition text-slate-400 hover:text-white" onclick="changeStandaloneLang('zh')">中文</button>
+            </div>
+            
+            <!-- Synth Sound Activation Toggle -->
+            <button id="audio-toggle" onclick="toggleEngineAudio()" class="bg-slate-900/95 border border-sky-500/35 hover:bg-sky-500/20 text-sky-400 hover:text-white font-bold text-xs py-1.5 px-4 rounded-lg shadow-xl shadow-sky-950/30 transition duration-200">
+                🔊 ACTIVAR AUDIO
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN MIDDLE COCKPIT GRID OVERLAYS -->
+    <div class="flex-1 w-full grid grid-cols-1 md:grid-cols-12 gap-6 my-4 overflow-hidden">
+        
+        <!-- LEFT SIDEBAR: Telemetry & Interactive Climates Stack -->
+        <div class="md:col-span-4 lg:col-span-3 flex flex-col gap-4 pointer-events-auto h-full justify-start overflow-y-auto custom-scroll pr-1">
+            
+            <!-- Telemetry Panel -->
+            <div id="telemetry-panel" class="bg-slate-950/85 border border-sky-500/30 rounded-xl p-4 shadow-2xl backdrop-blur-md">
+                <div id="telemetry-panel-title" class="text-[10px] tracking-widest font-bold text-cyan-400 uppercase mb-3 border-b border-cyan-500/20 pb-1.5">
+                    REPORTE DE TELEMETRÍA
+                </div>
+                <div class="flex flex-col gap-2..5">
+                    <div class="flex justify-between items-center text-xs">
+                        <span id="lbl-mode" class="text-sky-300 uppercase">MODO SELECCIONADO</span>
+                        <span id="tel-mode" class="font-bold text-sky-400 tracking-wider">AÉREO</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs mt-2">
+                        <span id="lbl-energy" class="text-sky-300 uppercase">POTENCIA HÍBRIDA</span>
+                        <span id="tel-energy" class="font-mono font-bold text-emerald-400">98.5%</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs mt-2">
+                        <span id="lbl-speed" class="text-sky-300 uppercase">VELOCIDAD</span>
+                        <span id="tel-speed" class="font-mono font-bold text-slate-200">85 km/h</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs mt-2">
+                        <span id="lbl-swarm" class="text-sky-300 uppercase">ENJAMBRE IA</span>
+                        <span id="tel-swarm" class="font-bold text-cyan-400">ONLINE (20n)</span>
+                    </div>
+                    <div class="border-t border-slate-500/10 my-2 pt-2"></div>
+                    <div class="flex justify-between items-center text-[11px] text-slate-400">
+                        <span id="lbl-comms">COMUNICACIONES</span>
+                        <span class="font-medium text-slate-200">Li-Fi + LoRa Mesh</span>
+                    </div>
+                    <div class="flex justify-between items-center text-[11px] text-slate-400 mt-1">
+                        <span id="lbl-sensors">SENSORES</span>
+                        <span class="font-medium text-slate-200">RGB/IR/SONAR/UV</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meteorological Climate Regulator Panel -->
+            <div id="weather-panel" class="bg-slate-950/85 border border-sky-500/30 rounded-xl p-4 shadow-2xl backdrop-blur-md">
+                <div id="weather-panel-title" class="text-[10px] tracking-widest font-bold text-cyan-400 uppercase mb-2 border-b border-cyan-500/20 pb-1.5">
+                    SISTEMA DE CONTROL CLIMÁTICO
+                </div>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <button id="btn-sunny" class="active bg-slate-900 border border-sky-500/20 hover:border-sky-400 text-slate-300 hover:text-white px-2 py-1.5 text-[11px] rounded transition" onclick="setWeather('sunny')">
+                        DESPEJADO
+                    </button>
+                    <button id="btn-windy" class="bg-slate-900 border border-sky-500/20 hover:border-sky-400 text-slate-300 hover:text-white px-2 py-1.5 text-[11px] rounded transition" onclick="setWeather('windy')">
+                        VIENTO
+                    </button>
+                    <button id="btn-foggy" class="bg-slate-900 border border-sky-500/20 hover:border-sky-400 text-slate-300 hover:text-white px-2 py-1.5 text-[11px] rounded transition" onclick="setWeather('foggy')">
+                        NIEBLA
+                    </button>
+                    <button id="btn-stormy" class="bg-slate-900 border border-sky-500/20 hover:border-sky-400 text-slate-300 hover:text-white px-2 py-1.5 text-[11px] rounded transition" onclick="setWeather('stormy')">
+                        TORMENTA
+                    </button>
+                </div>
+            </div>
+            
+        </div>
+        
+        <!-- MIDDLE: Empty space for orbital ThreeJS view -->
+        <div class="hidden md:block col-span-4 lg:col-span-6"></div>
+
+        <!-- RIGHT SIDEBAR: Specification Cards & Dynamic Operations Logs Terminal -->
+        <div class="md:col-span-4 lg:col-span-3 flex flex-col gap-4 pointer-events-auto h-full justify-start overflow-y-auto custom-scroll pl-1">
+            
+            <!-- Real-time Terminal Logger Card -->
+            <div id="terminal-panel" class="bg-slate-950/85 border border-sky-500/30 rounded-xl p-4 shadow-2xl backdrop-blur-md flex flex-col h-[280px]">
+                <div class="flex justify-between items-center text-[10px] tracking-widest font-bold text-cyan-400 uppercase mb-2 border-b border-cyan-500/20 pb-1.5">
+                    <span id="terminal-panel-title">AI OPERATIONS TERMINAL</span>
+                    <button id="terminal-panel-clear" onclick="clearStandaloneLogs()" class="text-slate-400 hover:text-rose-400 text-[9px] lowercase font-normal">Limpiar</button>
+                </div>
+                <!-- Dynamic scrolling container -->
+                <div id="logs-container" class="flex-1 overflow-y-auto custom-scroll text-[10px] font-mono text-cyan-200 pr-1 flex flex-col gap-1.5">
+                    <!-- Logs inserted dynamically -->
+                </div>
+            </div>
+
+            <!-- Technical Board Specifications card -->
+            <div class="bg-slate-950/85 border border-sky-500/30 rounded-xl p-4 shadow-2xl backdrop-blur-md">
+                <div class="text-[10px] tracking-widest font-bold text-sky-400 uppercase mb-2 border-b border-sky-500/10 pb-1">
+                    ESPECIFICACIONES DEL PANEL
+                </div>
+                <div class="text-[10px] font-mono text-slate-400 leading-normal gap-1 flex flex-col">
+                    <div>PROPULSIÓN: VTOL Quad-Electric + Plasma</div>
+                    <div>MATERIAL: Graphene Aeroshell Aerogel</div>
+                    <div>SEÑAL ENLACE: SAT-Mesh Quantum Safe</div>
+                    <div>AUTONOMÍA: Piloto Inteligente Autónomo</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- BOTTOM ROW: System Mode Controllers & Interactive Radar overlay -->
+    <div class="flex flex-col md:flex-row justify-between items-end gap-4 w-full pointing-events-auto">
+        
+        <!-- Mode selection group -->
+        <div id="control-panel" class="bg-slate-950/90 border border-sky-500/30 rounded-xl p-4 w-full max-w-[500px] shadow-2xl backdrop-blur-md pointer-events-auto">
+            <div id="control-panel-title" class="text-[10px] tracking-widest font-bold text-sky-400 uppercase mb-2 border-b border-sky-500/10 pb-1">
+                SISTEMA DE CAMBIO DE MODO // MODE SWITCH CONTROL
+            </div>
+            <div class="grid grid-cols-4 gap-2 mt-2">
+                <button id="btn-air" class="active py-2 px-1 text-xs font-bold rounded border border-sky-500/20 text-slate-100 uppercase" onclick="setMode('air')">
+                    AÉREO
+                </button>
+                <button id="btn-land" class="py-2 px-1 text-xs font-bold rounded border border-sky-500/20 text-slate-100 uppercase" onclick="setMode('land')">
+                    TERRESTRE
+                </button>
+                <button id="btn-water" class="py-2 px-1 text-xs font-bold rounded border border-sky-500/20 text-slate-100 uppercase" onclick="setMode('water')">
+                    ACUÁTICO
+                </button>
+                <button id="btn-stationary" class="py-2 px-1 text-xs font-bold rounded border border-sky-500/20 text-slate-100 uppercase" onclick="setMode('stationary')">
+                    ESTACIONARIO
+                </button>
+            </div>
+        </div>
+
+        <!-- Radar Display -->
+        <div id="radar" class="pointer-events-auto relative w-36 h-36 rounded-full border border-sky-500/35 overflow-hidden invisible md:block shadow-2xl shadow-sky-950/20">
+            <div class="radar-sweep"></div>
+            <div class="radar-center"></div>
+            <div class="radar-blip bg-sky-400 absolute w-1.5 h-1.5 rounded-full" style="top: 30px; left: 80px;"></div>
+            <div class="radar-blip bg-cyan-400 absolute w-1.5 h-1.5 rounded-full" style="top: 90px; left: 40px; animation-delay: 0.6s;"></div>
+            <div class="radar-blip bg-sky-400 absolute w-1.5 h-1.5 rounded-full" style="top: 105px; left: 110px; animation-delay: 1.2s;"></div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- 2. SCANNER CENTER TARGET RETICLE -->
+<div id="crosshair" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-sky-400/40 text-3xl font-extrabold select-none z-15 pointer-events-none">+</div>
+
+<!-- Cargar Three.js y OrbitControls de forma global (Soporta doble click local libre de CORS) -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+    // No usamos ES Modules para evitar bloqueos del protocolo file:// por CORS al abrir localmente
+    const THREE = window.THREE;
+
+    function lerp(a, b, t) {
+        return a + (b - a) * t;
+    }
+
+    function addStandaloneLog(message) {
+        const container = document.getElementById('logs-container');
+        if (!container) return;
+        const entry = document.createElement('div');
+        entry.className = "flex gap-1.5 leading-relaxed text-[10px] items-start border-b border-sky-950/20 py-1";
+        
+        const now = new Date();
+        const timeStr = now.toTimeString().split(' ')[0];
+        
+        entry.innerHTML = '<span class="text-sky-500 font-bold shrink-0 font-mono">[' + timeStr + ']</span> <span>' + message + '</span>';
+        container.appendChild(entry);
+        
+        while (container.children.length > 50) {
+            container.removeChild(container.firstChild);
+        }
+        
+        container.scrollTop = container.scrollHeight;
+    }
+
+    window.clearStandaloneLogs = function() {
+        const container = document.getElementById('logs-container');
+        if (container) {
+            container.innerHTML = "";
+        }
+        addStandaloneLog(currentLang === 'es' ? "[SISTEMA] Historial de terminal purgado." : "[SYSTEM] Terminal logs history cleared.");
+    };
+
+    let scene, camera, renderer, controls, dir;
+    let droneGroup, leftWingGroup, rightWingGroup;
+    let leftPlume, rightPlume, leftFloat, rightFloat;
+    let wheelRearLeft, wheelRearRight, wheelFront;
+    let strutRearLeft, strutRearRight, strutFront;
+    
+    // Friendly upgrades references
+    let spinningBlades = [];
+    let leftEye, rightEye, scienceBeacon;
+    let coreOrbitRing1, coreOrbitRing2, outerRing1, outerRing2, scanCone;
+
+    let swarmNodes = [];
+    let weatherParticles;
+    let mode = 'air';
+    let weather = 'sunny';
+    let energy = 98.4;
+    let systemSpeed = 85;
+    let clock = new THREE.Clock();
+
+    // Sound Synthesizer Engine
+    let audioCtx = null;
+    let engineOsc = null;
+    let engineGain = null;
+    let isMuted = true;
+
+    let currentLang = "es";
+
+    // Multilingual Translation Database
+    const translations = {
+      es: {
+        telemetry: "REPORTE DE TELEMETRÍA",
+        activeMode: "MODO SELECCIONADO",
+        energy: "POTENCIA HÍBRIDA",
+        speed: "VELOCIDAD",
+        swarm: "ENJAMBRE IA",
+        comms: "COMUNICACIONES",
+        sensors: "SENSORES",
+        modeSystem: "SISTEMA DE CAMBIO DE MODO // MODE SWITCH",
+        air: "AÉREO",
+        land: "TERRESTRE",
+        water: "ACUÁTICO",
+        stationary: "ESTACIONARIO",
+        weatherSystem: "SISTEMA DE CONTROL CLIMÁTICO",
+        sunny: "DESPEJADO",
+        windy: "VIENTO",
+        foggy: "NIEBLA",
+        stormy: "TORMENTA",
+        activateAudio: "🔊 ACTIVAR AUDIO",
+        muteAudio: "🔇 SILENCIAR AUDIO",
+        terminalLogs: "AIS SWARM OPERATIVO // TERMINAL",
+        specifications: "ESPECIFICACIONES DEL PANEL",
+        clearLogs: "Limpiar"
+      },
+      en: {
+        telemetry: "VEHICLE TELEMETRY REPORT",
+        activeMode: "ACTIVE SYSTEM MODE",
+        energy: "HYBRID SYSTEM POWER",
+        speed: "CURRENT VELOCITY",
+        swarm: "AI SWARM LINK",
+        comms: "DATA COMMUNICATIONS",
+        sensors: "ENVIRONMENT SENSORS",
+        modeSystem: "MODE CONTROL INTERFACE",
+        air: "AERIAL",
+        land: "LAND DRIVE",
+        water: "AQUATICFLOAT",
+        stationary: "STATIONARY",
+        weatherSystem: "METEOROLOGICAL COMPENSATOR",
+        sunny: "CLEAR SKIES",
+        windy: "HIGH WINDS",
+        foggy: "DENSE FOG",
+        stormy: "STORM ENVELOPE",
+        activateAudio: "🔊 ACTIVE AUDIO",
+        muteAudio: "🔇 SILENCE ENGINE",
+        terminalLogs: "AI OPERATIONS CORE TERMINAL",
+        specifications: "CONSOLE CONFIG DETAILS",
+        clearLogs: "Clear"
+      },
+      zh: {
+        telemetry: "自主飞行器遥测报告",
+        activeMode: "当前工作模式",
+        energy: "混合动力电池",
+        speed: "环境相对速度",
+        swarm: "智能自适应蜂群",
+        comms: "多路保密通讯",
+        sensors: "智能感知雷达",
+        modeSystem: "控制舱运行系统转换键",
+        air: "垂直空中巡航",
+        land: "地面行驶推进",
+        water: "水面气垫悬浮",
+        stationary: "定点高能持荷",
+        weatherSystem: "气象补偿模拟阀门",
+        sunny: "晴天空旷",
+        windy: "高空横风",
+        foggy: "云雾弥漫",
+        stormy: "强磁风暴",
+        activateAudio: "🔊 解除音效静音",
+        muteAudio: "🔇 引擎音频屏蔽",
+        terminalLogs: "蜂群战术核心终端",
+        specifications: "控制台配置细节",
+        clearLogs: "清除"
+      }
+    };
+
+    function translateUI() {
+        try {
+            const dict = translations[currentLang] || translations.en;
+            
+            const sub = document.getElementById('header-subtitle');
+            if (sub) sub.innerText = "NEXUS AETHER 3000 // " + (currentLang === 'es' ? "TERMINAL DESCARGADA OFFLINE" : currentLang === 'en' ? "STANDALONE OFFLINE PILOT TERMINAL" : "自主战术离线仿真仿真总控制台");
+            
+            const telTitle = document.getElementById('telemetry-panel-title');
+            if (telTitle) telTitle.innerText = dict.telemetry;
+            
+            const lm = document.getElementById('lbl-mode'); if (lm) lm.innerText = dict.activeMode;
+            const le = document.getElementById('lbl-energy'); if (le) le.innerText = dict.energy;
+            const ls = document.getElementById('lbl-speed'); if (ls) ls.innerText = dict.speed;
+            const lsw = document.getElementById('lbl-swarm'); if (lsw) lsw.innerText = dict.swarm;
+            const lc = document.getElementById('lbl-comms'); if (lc) lc.innerText = dict.comms;
+            const lse = document.getElementById('lbl-sensors'); if (lse) lse.innerText = dict.sensors;
+            
+            const weTitle = document.getElementById('weather-panel-title');
+            if (weTitle) weTitle.innerText = dict.weatherSystem;
+            
+            const bs = document.getElementById('btn-sunny'); if (bs) bs.innerText = dict.sunny;
+            const bw = document.getElementById('btn-windy'); if (bw) bw.innerText = dict.windy;
+            const bf = document.getElementById('btn-foggy'); if (bf) bf.innerText = dict.foggy;
+            const bst = document.getElementById('btn-stormy'); if (bst) bst.innerText = dict.stormy;
+
+            const termTitle = document.getElementById('terminal-panel-title');
+            if (termTitle) termTitle.innerText = dict.terminalLogs;
+            
+            const termClear = document.getElementById('terminal-panel-clear');
+            if (termClear) termClear.innerText = dict.clearLogs;
+
+            const ctrlTitle = document.getElementById('control-panel-title');
+            if (ctrlTitle) ctrlTitle.innerText = dict.modeSystem;
+            
+            const ba = document.getElementById('btn-air'); if (ba) ba.innerText = dict.air;
+            const bl = document.getElementById('btn-land'); if (bl) bl.innerText = dict.land;
+            const bwat = document.getElementById('btn-water'); if (bwat) bwat.innerText = dict.water;
+            const bstat = document.getElementById('btn-stationary'); if (bstat) bstat.innerText = dict.stationary;
+
+            const audioBtn = document.getElementById('audio-toggle');
+            if (audioBtn) {
+                if (isMuted) {
+                    audioBtn.innerText = dict.activateAudio;
+                } else {
+                    audioBtn.innerText = dict.muteAudio;
+                }
+            }
+
+            // Update active modes translation
+            updateModeText();
+        } catch (err) {
+            console.warn("UI Translation error caught safely:", err);
+        }
+    }
+
+    window.changeStandaloneLang = function(l) {
+        currentLang = l;
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+        const lBtn = document.getElementById('lang-' + l);
+        if (lBtn) lBtn.classList.add('active');
+        translateUI();
+        addStandaloneLog("[SWARM] Telemetry translation swiped to: " + l.toUpperCase());
+    }
+
+    function updateModeText() {
+        try {
+            const telMode = document.getElementById('tel-mode');
+            if (!telMode) return;
+            const dict = translations[currentLang] || translations.en;
+            if (mode === 'air') {
+                telMode.innerText = dict.air;
+                telMode.style.color = "#38bdf8";
+            } else if (mode === 'land') {
+                telMode.innerText = dict.land;
+                telMode.style.color = "#f59e0b";
+            } else if (mode === 'water') {
+                telMode.innerText = dict.water;
+                telMode.style.color = "#10b981";
+            } else if (mode === 'stationary') {
+                telMode.innerText = dict.stationary;
+                telMode.style.color = "#a855f7";
+            }
+        } catch (err) {
+            console.warn("updateModeText exception handled safely:", err);
+        }
+    }
+
+    function init() {
+        try {
+            const container = document.getElementById('canvas-container');
+        const w = window.innerWidth || 800;
+        const h = window.innerHeight || 600;
+
+        scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x070b19, 0.018);
+
+        camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 1000);
+        camera.position.set(0, 5.5, 14.5);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(w, h);
+        renderer.shadowMap.enabled = true;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
+        if (container) {
+            container.appendChild(renderer.domElement);
+        } else {
+            document.body.appendChild(renderer.domElement);
+        }
+
+        try {
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+        } catch (err) {
+            console.warn("OrbitControls failed to construct:", err);
+            controls = null;
+        }
+
+        // Lights
+        const ambient = new THREE.AmbientLight(0x0a1530, 0.61);
+        scene.add(ambient);
+
+        const hemi = new THREE.HemisphereLight(0x7dd3fc, 0x020617, 1.85);
+        scene.add(hemi);
+
+        dir = new THREE.DirectionalLight(0xffffff, 2.8);
+        dir.position.set(10, 25, 10);
+        dir.castShadow = true;
+        scene.add(dir);
+
+        // Grid helper
+        const grid = new THREE.GridHelper(320, 80, 0x38bdf8, 0x111e38);
+        grid.position.y = 0.01;
+        scene.add(grid);
+
+        // Ground floor
+        const floorGeo = new THREE.PlaneGeometry(320, 320);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x070b19, roughness: 0.82, metalness: 0.8 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Drone mesh
+        droneGroup = new THREE.Group();
+        scene.add(droneGroup);
+
+        spinningBlades = [];
+
+        // A. Main Graphene Fuselage & Carbon-Fiber Frame Skeleton (Realistic DJI Mavic-inspired aerodynamic structure)
+        const carbonMat = new THREE.MeshStandardMaterial({
+            color: 0x1e222d, // Matte dark grey carbon/shield color
+            metalness: 0.85,
+            roughness: 0.3,
+        });
+
+        const bodyMat = new THREE.MeshStandardMaterial({
+            color: 0x334155, // Slate grey premium fuselage plating
+            metalness: 0.7,
+            roughness: 0.25,
+        });
+
+        // 1. Central primary structural spine plate (carbon-composite frame)
+        const spineGeo = new THREE.BoxGeometry(0.7, 0.15, 2.4);
+        const spine = new THREE.Mesh(spineGeo, carbonMat);
+        spine.position.set(0, 0.05, 0);
+        spine.castShadow = true;
+        spine.receiveShadow = true;
+        droneGroup.add(spine);
+
+        // 2. Main Aerodynamic Fuselage Cover (sleek low profile quadcopter pod)
+        const coreGeo = new THREE.BoxGeometry(0.76, 0.38, 2.0);
+        const coreMat = new THREE.MeshPhysicalMaterial({
+            color: 0x334155, // Matte dark slate Mavic grey tone
+            metalness: 0.6,
+            roughness: 0.28,
+            clearcoat: 0.5,
+        });
+        const core = new THREE.Mesh(coreGeo, coreMat);
+        core.position.set(0, 0.2, 0);
+        core.castShadow = true;
+        droneGroup.add(core);
+
+        // 3. Front tapered nose block containing stereoscopic sensor sockets
+        const domeGeo = new THREE.BoxGeometry(0.76, 0.28, 0.6);
+        const domeMat = new THREE.MeshStandardMaterial({
+            color: 0x0f172a, // Contrast dark panel finish
+            metalness: 0.7,
+            roughness: 0.2,
+        });
+        const dome = new THREE.Mesh(domeGeo, domeMat);
+        dome.position.set(0, 0.15, 1.15);
+        dome.castShadow = true;
+        droneGroup.add(dome);
+
+        // 4. Glowing protective dual-gyro orbits nested inside the fuselage to represent physical gyroscopic stabilizers
+        const outerRingGeo = new THREE.TorusGeometry(0.35, 0.015, 8, 32);
+        const outerRingMat1 = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0.75,
+        });
+        outerRing1 = new THREE.Mesh(outerRingGeo, outerRingMat1);
+        outerRing1.position.set(0, 0.25, -0.6); // Rear gyro bay
+        droneGroup.add(outerRing1);
+
+        const outerRingMat2 = new THREE.MeshBasicMaterial({
+            color: 0x3b82f6,
+            transparent: true,
+            opacity: 0.55,
+        });
+        outerRing2 = new THREE.Mesh(outerRingGeo, outerRingMat2);
+        outerRing2.position.set(0, 0.25, -0.6);
+        outerRing2.rotation.x = Math.PI / 3;
+        droneGroup.add(outerRing2);
+
+        // Scientific Ecological Mapping Scan Cone
+        const scanConeGeo = new THREE.ConeGeometry(1.6, 2.5, 16, 1, true); // Open bottom cone
+        const scanConeMat = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0.12,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending
+        });
+        scanCone = new THREE.Mesh(scanConeGeo, scanConeMat);
+        scanCone.position.set(0, -1.25, 0.6); // Position relative to camera pod
+        droneGroup.add(scanCone);
+
+        // B. Underbelly High-Fidelity 3-Axis Stabilizer Sensor Gimbal (Realistic focal camera mount)
+        const gimbalMountGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.35, 8);
+        const titaniumMat = new THREE.MeshStandardMaterial({
+            color: 0x94a3b8, // Titanium silver chrome finish
+            metalness: 0.95,
+            roughness: 0.1,
+        });
+        const gimbalMount = new THREE.Mesh(gimbalMountGeo, titaniumMat);
+        gimbalMount.position.set(0, -0.15, 0.85); // Mounted under the nose
+        droneGroup.add(gimbalMount);
+
+        const gimbalArmGeo = new THREE.BoxGeometry(0.08, 0.3, 0.25);
+        const gimbalArm = new THREE.Mesh(gimbalArmGeo, titaniumMat);
+        gimbalArm.position.set(0, -0.28, 0.85);
+        droneGroup.add(gimbalArm);
+        droneGroup.add(gimbalArm);
+
+        // Central camera module pod
+        const camPodGeo = new THREE.SphereGeometry(0.25, 16, 16);
+        const camPodMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.9, roughness: 0.15 });
+        const camPod = new THREE.Mesh(camPodGeo, camPodMat);
+        camPod.position.set(0, -0.7, 0.58);
+        droneGroup.add(camPod);
+
+        // Realistic optical glass camera element with active cyan emitter
+        const camLensGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.1, 12);
+        camLensGeo.rotateX(Math.PI / 2);
+        const camLensMat = new THREE.MeshStandardMaterial({ 
+            color: 0x002244, 
+            emissive: 0x00ffcc, 
+            emissiveIntensity: 0.5, 
+            metalness: 0.95, 
+            roughness: 0.05 
+        });
+        const camLens = new THREE.Mesh(camLensGeo, camLensMat);
+        camLens.position.set(0, -0.7, 0.78);
+        droneGroup.add(camLens);
+
+        // Glowing Smoked-Glass LiDAR Visor (Sleek aerodynamic canopy window on top)
+        const cockpitGeo = new THREE.BoxGeometry(0.5, 0.18, 1.1);
+        const cockpitMat = new THREE.MeshPhysicalMaterial({
+            color: 0x1e293b,
+            transparent: true,
+            opacity: 0.65,
+            roughness: 0.1,
+            metalness: 0.9,
+            transmission: 0.9, 
+            thickness: 0.2,
+        });
+        const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat);
+        cockpit.position.set(0, 0.42, 0.2); // Positioned low-profile on top of the main shell
+        droneGroup.add(cockpit);
+
+        // Glowing real-time status LED floating inside the glass visor
+        const reactorCoreGeo = new THREE.SphereGeometry(0.12, 12, 12);
+        const reactorCoreMat = new THREE.MeshBasicMaterial({ color: 0x10b981 }); // Sci-fi ecology green battery indicator
+        const reactorCore = new THREE.Mesh(reactorCoreGeo, reactorCoreMat);
+        reactorCore.position.set(0, 0.42, 0.2);
+        droneGroup.add(reactorCore);
+
+        // Golden solar energy core orbits surrounding the status core (GNSS guidance antennas)
+        const coreOrbitGeo = new THREE.TorusGeometry(0.24, 0.015, 8, 32);
+        const coreOrbitMat = new THREE.MeshStandardMaterial({
+            color: 0xf59e0b, 
+            metalness: 0.95,
+            roughness: 0.1
+        });
+        coreOrbitRing1 = new THREE.Mesh(coreOrbitGeo, coreOrbitMat);
+        coreOrbitRing1.position.set(0, 0.42, 0.2);
+        coreOrbitRing1.rotation.y = Math.PI / 4;
+        droneGroup.add(coreOrbitRing1);
+
+        coreOrbitRing2 = coreOrbitRing1.clone();
+        coreOrbitRing2.rotation.y = -Math.PI / 4;
+        coreOrbitRing2.rotation.x = Math.PI / 2;
+        droneGroup.add(coreOrbitRing2);
+
+        // Stereoscopic Obstacle Avoidance Camera Sockets (Previously companion eyes, positioned on the nose)
+        const eyeGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.04, 12);
+        eyeGeo.rotateX(Math.PI / 2);
+        const eyeMat = new THREE.MeshStandardMaterial({ 
+            color: 0x111827, 
+            emissive: 0x00ffcc, 
+            emissiveIntensity: 0.4,
+            metalness: 0.9,
+            roughness: 0.1
+        });
+        
+        leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+        leftEye.position.set(-0.22, 0.14, 1.44); // Symmetric front left port
+        droneGroup.add(leftEye);
+
+        rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+        rightEye.position.set(0.22, 0.14, 1.44); // Symmetric front right port
+        droneGroup.add(rightEye);
+
+        // High-tech curved LED status light bar (Previously the smiles bar)
+        const smileGeo = new THREE.TorusGeometry(0.18, 0.02, 6, 16, Math.PI / 2);
+        const smileMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+        const smile = new THREE.Mesh(smileGeo, smileMat);
+        smile.position.set(0, 0.02, 1.4);
+        smile.rotation.x = 0.5; // Angle forward-downward
+        droneGroup.add(smile);
+
+        // Dual telemetry receiver masts at the rear
+        const poleGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.6, 8);
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.92 });
+        const antennaPole = new THREE.Mesh(poleGeo, poleMat);
+        antennaPole.position.set(-0.25, 0.7, -0.6);
+        antennaPole.rotation.x = -Math.PI / 10;
+        droneGroup.add(antennaPole);
+
+        const antennaPoleRight = antennaPole.clone();
+        antennaPoleRight.position.set(0.25, 0.7, -0.6);
+        droneGroup.add(antennaPoleRight);
+
+        // Precision GPS RTK disc dome at the rear spine
+        const gpsGeo = new THREE.CylinderGeometry(0.2, 0.22, 0.06, 16);
+        const gpsMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, metalness: 0.5, roughness: 0.2 });
+        const gpsMast = new THREE.Mesh(gpsGeo, gpsMat);
+        gpsMast.position.set(0, 0.44, -0.4);
+        droneGroup.add(gpsMast);
+
+        const beaconGeo = new THREE.SphereGeometry(0.05, 12, 12);
+        const beaconMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+        scienceBeacon = new THREE.Mesh(beaconGeo, beaconMat);
+        scienceBeacon.position.set(0, 0.48, -0.4);
+        droneGroup.add(scienceBeacon);
+
+        // Underbelly front obstacle sonar receiver plates
+        const sonarLensGeo = new THREE.BoxGeometry(0.28, 0.08, 0.1);
+        const sonarLensMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc });
+        const sonarLens = new THREE.Mesh(sonarLensGeo, sonarLensMat);
+        sonarLens.position.set(0, -0.05, 1.25);
+        droneGroup.add(sonarLens);
+
+        // C. Foldable Rotor Arms - Left & Right (Mavic carbon-composite geometry)
+        const armBeamMat = new THREE.MeshStandardMaterial({
+            color: 0x272b38, // Sleek industrial body arm grey
+            metalness: 0.8,
+            roughness: 0.3,
+        });
+
+        // Inset decorative armor elements (representing solar charging plates)
+        const solarPanelGeo = new THREE.BoxGeometry(0.8, 0.01, 0.12);
+        const solarPanelMat = new THREE.MeshStandardMaterial({
+            color: 0x0f1a30, // Solar elements / battery vents
+            metalness: 0.95,
+            roughness: 0.1
+        });
+
+        // 1. LEFT ROTOR ARMS GROUP (Pivots at the base of the fuselage)
+        leftWingGroup = new THREE.Group();
+        leftWingGroup.position.set(-0.35, 0.1, 0); // Hinged on the fuselage side
+
+        // Rear-Left Arm Beam - diagonal carbon extrusion going backward-outward
+        const armGeoRL = new THREE.BoxGeometry(1.4, 0.08, 0.12);
+        const leftArmRear = new THREE.Mesh(armGeoRL, armBeamMat);
+        leftArmRear.position.set(-0.7, -0.04, -0.45);
+        leftArmRear.rotation.y = 0.42; // Sweep backward
+        leftArmRear.castShadow = true;
+        leftWingGroup.add(leftArmRear);
+
+        // Front-Left Arm Beam - diagonal carbon extrusion going forward-outward
+        const armGeoFL = new THREE.BoxGeometry(1.6, 0.1, 0.14);
+        const leftArmFront = new THREE.Mesh(armGeoFL, armBeamMat);
+        leftArmFront.position.set(-0.8, 0.0, 0.4);
+        leftArmFront.rotation.y = -0.42; // Sweep forward
+        leftArmFront.castShadow = true;
+        leftWingGroup.add(leftArmFront);
+
+        // Left Arm Top Accent trims
+        const leftSolar = new THREE.Mesh(solarPanelGeo, solarPanelMat);
+        leftSolar.position.set(-0.8, 0.06, 0.4);
+        leftSolar.rotation.y = -0.42;
+        leftWingGroup.add(leftSolar);
+        droneGroup.add(leftWingGroup);
+
+        // 2. RIGHT ROTOR ARMS GROUP (Pivots at the base of the fuselage)
+        rightWingGroup = new THREE.Group();
+        rightWingGroup.position.set(0.35, 0.1, 0);
+
+        // Rear-Right Arm Beam - diagonal carbon extrusion going backward-outward
+        const rightArmRear = new THREE.Mesh(armGeoRL, armBeamMat);
+        rightArmRear.position.set(0.7, -0.04, -0.45);
+        rightArmRear.rotation.y = -0.42; // Sweep backward
+        rightArmRear.castShadow = true;
+        rightWingGroup.add(rightArmRear);
+
+        // Front-Right Arm Beam - diagonal carbon extrusion going forward-outward
+        const rightArmFront = new THREE.Mesh(armGeoFL, armBeamMat);
+        rightArmFront.position.set(0.8, 0.0, 0.4);
+        rightArmFront.rotation.y = 0.42; // Sweep forward
+        rightArmFront.castShadow = true;
+        rightWingGroup.add(rightArmFront);
+
+        const rightSolar = new THREE.Mesh(solarPanelGeo, solarPanelMat);
+        rightSolar.position.set(0.8, 0.06, 0.4);
+        rightSolar.rotation.y = 0.42;
+        rightWingGroup.add(rightSolar);
+        droneGroup.add(rightWingGroup);
+
+        // Highly realistic brushless motors and quad props
+        const motorCapGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.22, 16);
+        const motorCapMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9, roughness: 0.2 });
+
+        const propBladeGeo = new THREE.BoxGeometry(0.9, 0.012, 0.08);
+        const propBladeMat = new THREE.MeshStandardMaterial({
+            color: 0x0f172a, // Real carbon-composite matte black prop blades
+            transparent: true,
+            opacity: 0.85,
+            metalness: 0.4,
+            roughness: 0.1
+        });
+
+        const safetyRingGeo = new THREE.TorusGeometry(0.5, 0.02, 8, 32);
+        const safetyRingMat = new THREE.MeshStandardMaterial({
+            color: 0x475569,
+            metalness: 0.9,
+            roughness: 0.2
+        });
+
+        const ringSupportGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.45, 8);
+        const ringSupportMat = new THREE.MeshStandardMaterial({ color: 0x272b38, metalness: 0.9 });
+
+        // Function to assemble a realistic motor + propeller system
+        const createPropellerAssembly = (x, y, z, parentGroup) => {
+            // 1. Motor cooling base housing mesh
+            const motorBase = new THREE.Mesh(motorCapGeo, motorCapMat);
+            motorBase.position.set(x, y, z);
+            motorBase.castShadow = true;
+            parentGroup.add(motorBase);
+
+            // 2. Protective outer duct safety ring mesh
+            const safetyRing = new THREE.Mesh(safetyRingGeo, safetyRingMat);
+            safetyRing.rotation.x = Math.PI / 2;
+            safetyRing.position.set(x, y + 0.1, z);
+            parentGroup.add(safetyRing);
+
+            // 3. Realistic support spokes connecting motor to safety ring mesh
+            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 2) {
+                const support = new THREE.Mesh(ringSupportGeo, ringSupportMat);
+                support.rotation.z = Math.PI / 2;
+                support.rotation.y = angle;
+                support.position.set(x + Math.cos(angle) * 0.25, y + 0.05, z + Math.sin(angle) * 0.25);
+                parentGroup.add(support);
+            }
+
+            // 4. Propeller blade mesh registered for flight rotation calculations
+            const spinnerGroup = new THREE.Group();
+            spinnerGroup.position.set(x, y + 0.12, z);
+            
+            const blade1 = new THREE.Mesh(propBladeGeo, propBladeMat);
+            spinnerGroup.add(blade1);
+
+            // Little aluminum central cap screw
+            const capGeo = new THREE.SphereGeometry(0.04, 8, 8);
+            const capMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, metalness: 0.9 });
+            const cap = new THREE.Mesh(capGeo, capMat);
+            cap.position.y = 0.015;
+            spinnerGroup.add(cap);
+
+            parentGroup.add(spinnerGroup);
+            spinningBlades.push(spinnerGroup); // Dynamic spinner group
+        };
+
+        // Construct quad rotor systems at the end of the newly structured diagonal arms:
+        // RELATIVE Coordinates computed perfectly to be centered at motor locations!
+        createPropellerAssembly(-1.42, 0.08, 0.65, leftWingGroup);   // Front left
+        createPropellerAssembly(-1.22, 0.05, -0.65, leftWingGroup);  // Rear left
+        createPropellerAssembly(1.42, 0.08, 0.65, rightWingGroup);    // Front right
+        createPropellerAssembly(1.22, 0.05, -0.65, rightWingGroup);   // Rear right
+
+        // Front-Left Landing Leg Pod (Sleek fin under the front motor)
+        const wingletGeo = new THREE.BoxGeometry(0.1, 0.45, 0.12);
+        const wingletMat = new THREE.MeshStandardMaterial({
+            color: 0x1e293b, // Matte slate
+            metalness: 0.8,
+            roughness: 0.3
+        });
+        
+        const leftWinglet = new THREE.Mesh(wingletGeo, wingletMat);
+        leftWinglet.position.set(-1.42, -0.2, 0.65);
+        leftWinglet.rotation.z = -Math.PI / 18; // Angled slightly outward
+        leftWingGroup.add(leftWinglet);
+
+        // Glowing Navigation LED indicator (Starboard light on front-left arm)
+        const navLightGeo = new THREE.BoxGeometry(0.02, 0.08, 0.05);
+        const leftNavLightMat = new THREE.MeshBasicMaterial({ color: 0x10b981 }); // Green navigation light
+        const leftNavLight = new THREE.Mesh(navLightGeo, leftNavLightMat);
+        leftNavLight.position.set(-1.46, -0.36, 0.65);
+        leftWingGroup.add(leftNavLight);
+
+        // Front-Right Landing Leg Pod
+        const rightWinglet = new THREE.Mesh(wingletGeo, wingletMat);
+        rightWinglet.position.set(1.42, -0.2, 0.65);
+        rightWinglet.rotation.z = Math.PI / 18; // Angled slightly outward
+        rightWingGroup.add(rightWinglet);
+
+        // Glowing Navigation LED indicator (Port light on front-right arm)
+        const rightNavLightMat = new THREE.MeshBasicMaterial({ color: 0xef4444 }); // Red navigation light
+        const rightNavLight = new THREE.Mesh(navLightGeo, rightNavLightMat);
+        rightNavLight.position.set(1.46, -0.36, 0.65);
+        rightWingGroup.add(rightNavLight);
+
+        // D. Quantum Engine Thrusters at the rear (2 Cylinders with blue flames)
+        const thrusterGeo = new THREE.CylinderGeometry(0.24, 0.32, 0.9, 16);
+        const thrusterMat = new THREE.MeshStandardMaterial({
+            color: 0x1e293b,
+            metalness: 0.9,
+            roughness: 0.2,
+            emissive: 0x0ea5e9,
+            emissiveIntensity: 1.2,
+        });
+
+        // Left Engine nozzle (integrated inside tail)
+        const leftThruster = new THREE.Mesh(thrusterGeo, thrusterMat);
+        leftThruster.rotation.x = Math.PI / 2;
+        leftThruster.position.set(-0.24, 0.15, -1.05);
+        droneGroup.add(leftThruster);
+
+        // Right Engine nozzle (integrated inside tail)
+        const rightThruster = new THREE.Mesh(thrusterGeo, thrusterMat);
+        rightThruster.rotation.x = Math.PI / 2;
+        rightThruster.position.set(0.24, 0.15, -1.05);
+        droneGroup.add(rightThruster);
+
+        // Plumes of Thruster Plasma (Dynamic cone glows)
+        const plumeGeo = new THREE.ConeGeometry(0.2, 1.4, 16);
+        const plumeMat = new THREE.MeshBasicMaterial({
+            color: 0x00f3ff,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending,
+        });
+
+        leftPlume = new THREE.Mesh(plumeGeo, plumeMat);
+        leftPlume.rotation.x = -Math.PI / 2;
+        leftPlume.position.set(-0.24, 0.15, -1.95);
+        droneGroup.add(leftPlume);
+
+        rightPlume = new THREE.Mesh(plumeGeo, plumeMat);
+        rightPlume.rotation.x = -Math.PI / 2;
+        rightPlume.position.set(0.24, 0.15, -1.95);
+        droneGroup.add(rightPlume);
+
+        // E. Heavy Magnetic Wheels & Shock-absorber strut assembly (For TERRESTRIAL mode)
+        const wheelGeo = new THREE.TorusGeometry(0.46, 0.15, 16, 32);
+        const wheelMat = new THREE.MeshStandardMaterial({
+            color: 0x0f172a,
+            roughness: 0.25,
+            metalness: 0.75,
+        });
+
+        // Landing gear shock absorber struts (silver steel cylinder rods)
+        const strutGeo = new THREE.CylinderGeometry(0.06, 0.08, 0.9, 8);
+        
+        // Left Rear Assembly
+        strutRearLeft = new THREE.Mesh(strutGeo, titaniumMat);
+        strutRearLeft.position.set(-1.2, -0.75, -1.0);
+        droneGroup.add(strutRearLeft);
+        wheelRearLeft = new THREE.Mesh(wheelGeo, wheelMat);
+        wheelRearLeft.rotation.y = Math.PI / 2;
+        wheelRearLeft.position.set(-1.2, -1.2, -1.0);
+        droneGroup.add(wheelRearLeft);
+
+        // Right Rear Assembly
+        strutRearRight = new THREE.Mesh(strutGeo, titaniumMat);
+        strutRearRight.position.set(1.2, -0.75, -1.0);
+        droneGroup.add(strutRearRight);
+        wheelRearRight = new THREE.Mesh(wheelGeo, wheelMat);
+        wheelRearRight.rotation.y = Math.PI / 2;
+        wheelRearRight.position.set(1.2, -1.2, -1.0);
+        droneGroup.add(wheelRearRight);
+
+        // Front Assembly
+        strutFront = new THREE.Mesh(strutGeo, titaniumMat);
+        strutFront.position.set(0, -0.75, 1.4);
+        droneGroup.add(strutFront);
+        wheelFront = new THREE.Mesh(wheelGeo, wheelMat);
+        wheelFront.rotation.y = Math.PI / 2;
+        wheelFront.position.set(0, -1.2, 1.4);
+        droneGroup.add(wheelFront);
+
+        // F. Hydrodynamic Floats / Boyas (For ACUÁTICO mode)
+        const floatGeo = new THREE.CylinderGeometry(0.24, 0.24, 3.8, 16);
+        const floatMat = new THREE.MeshStandardMaterial({
+            color: 0x0ea5e9, // Glowing translucent cyan floats
+            transparent: true,
+            opacity: 0.55,
+            metalness: 0.8,
+            roughness: 0.15
+        });
+
+        leftFloat = new THREE.Mesh(floatGeo, floatMat);
+        leftFloat.rotation.x = Math.PI / 2;
+        leftFloat.position.set(-1.6, -1.0, 0);
+        droneGroup.add(leftFloat);
+
+        rightFloat = new THREE.Mesh(floatGeo, floatMat);
+        rightFloat.rotation.x = Math.PI / 2;
+        rightFloat.position.set(1.6, -1.0, 0);
+        droneGroup.add(rightFloat);
+
+        // Particle weather systems
+        const particleCount = 200;
+        const geom = new THREE.BufferGeometry();
+        const pArr = new Float32Array(particleCount * 3);
+        const pSpeeds = [];
+        for(let i=0; i<particleCount; i++) {
+            pArr[i*3] = (Math.random()-0.5)*90;
+            pArr[i*3+1] = Math.random()*40;
+            pArr[i*3+2] = (Math.random()-0.5)*90;
+        }
+        geom.setAttribute('position', new THREE.BufferAttribute(pArr, 3));
+        const pMat = new THREE.PointsMaterial({ color: 0x38bdf8, size: 0.08, transparent: true, opacity: 0.61, blending: THREE.AdditiveBlending });
+        weatherParticles = new THREE.Points(geom, pMat);
+        scene.add(weatherParticles);
+
+        // 20 Swarm Nodes
+        for(let i=0; i<20; i++) {
+            const nG = new THREE.SphereGeometry(0.12, 12, 12);
+            const nM = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+            const mesh = new THREE.Mesh(nG, nM);
+            mesh.position.set((Math.random()-0.5)*18, 1 + Math.random()*5, (Math.random()-0.5)*18);
+            scene.add(mesh);
+            swarmNodes.push(mesh);
+        }
+
+        // Initialize translation & logs
+        changeStandaloneLang(currentLang);
+        addStandaloneLog(currentLang === 'es' ? "[SISTEMA] Licencia autorizada. Iniciando piloto híbrido autónomo offline." : "[SYSTEM] Pilot licence verified. Initializing hybrid pilot standalone offline.");
+        addStandaloneLog(currentLang === 'es' ? "[SISTEMA] Diseño de Fuselaje Aerodinámico de Anillo Explorador Sincronizado." : "[SYSTEM] Aerodynamic Circular Explorer Ring drone fuselage active.");
+        addStandaloneLog(currentLang === 'es' ? "[SENSORES] Matriz de ojos cibernéticos y baliza de detección meteorológica encendidos." : "[SENSORS] Cyber companion eyes and meteorology beacon active.");
+
+            animate();
+
+            window.addEventListener('resize', onWindowResize);
+        } catch (e) {
+            console.error("3D Engine Init Error:", e);
+            addStandaloneLog("<span class='text-red-400'>[ERROR] 3D Engine failed to start: " + e.message + "</span>");
+        }
+    }
+
+    function onWindowResize() {
+        const w = window.innerWidth || 800;
+        const h = window.innerHeight || 600;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+    }
+
+    let animationErrorLogged = false;
+    function animate() {
+        try {
+            requestAnimationFrame(animate);
+            if (controls) {
+                controls.update();
+            }
+
+        const time = clock.getElapsedTime();
+        const speedNorm = systemSpeed / 85.0;
+
+        // Interactive friendly animations
+        // 1. Spin the safety quadcopter blades
+        spinningBlades.forEach((blade) => {
+            blade.rotation.y += 0.25 + speedNorm * 0.15;
+        });
+
+        // Rotating the high-tech gold orbits surrounding the biosphere core
+        if (coreOrbitRing1 && coreOrbitRing2) {
+            coreOrbitRing1.rotation.y += 0.022;
+            coreOrbitRing1.rotation.x += 0.012;
+            coreOrbitRing2.rotation.y -= 0.014;
+            coreOrbitRing2.rotation.z += 0.024;
+        }
+
+        // Rotating the dual gyroscopic status rings
+        if (outerRing1 && outerRing2) {
+            outerRing1.rotation.z += 0.01;
+            outerRing2.rotation.z -= 0.015;
+        }
+
+        // Scientific scanner cone sweeping pulse
+        if (scanCone) {
+            scanCone.scale.x = 1.0 + Math.sin(time * 3.5) * 0.15;
+            scanCone.scale.z = 1.0 + Math.sin(time * 3.5) * 0.15;
+            scanCone.material.opacity = 0.12 + Math.cos(time * 3.5) * 0.06;
+        }
+
+        // 2. Cyber companion eyes blink inside glass
+        const deservesBlink = Math.floor(time) % 4 === 0 && (time % 1.0 < 0.16);
+        if (leftEye && rightEye) {
+            leftEye.scale.y = deservesBlink ? 0.1 : 1.0;
+            rightEye.scale.y = deservesBlink ? 0.1 : 1.0;
+        }
+
+        // 3. Pulse the glowing scientific antenna beacon on top
+        if (scienceBeacon) {
+            scienceBeacon.material.color.setHSL(0.55, 1.0, 0.5 + Math.sin(time * 8) * 0.3);
+        }
+
+        // Dynamic fog and light adjustments depending on WEATHER mode
+        if (weather === 'stormy') {
+            scene.fog.color.setHex(0x040712);
+            scene.fog.density = 0.045;
+            dir.intensity = 0.5 + Math.random() * 0.45; // Lightning flicker effect
+            weatherParticles.material.color.setHex(0x93c5fd);
+            weatherParticles.material.size = 0.11;
+        } else if (weather === 'windy') {
+            scene.fog.color.setHex(0x0c1122);
+            scene.fog.density = 0.015;
+            dir.intensity = 2.4;
+            weatherParticles.material.color.setHex(0x38bdf8);
+            weatherParticles.material.size = 0.08;
+        } else if (weather === 'foggy') {
+            scene.fog.color.setHex(0x1e293b);
+            scene.fog.density = 0.11; // Dense white cyber-fog simulation
+            dir.intensity = 0.8;
+            weatherParticles.material.color.setHex(0xe2e8f0);
+            weatherParticles.material.size = 0.05;
+        } else {
+            // Sunny / standard
+            scene.fog.color.setHex(0x070b19);
+            scene.fog.density = 0.012;
+            dir.intensity = 2.8;
+            weatherParticles.material.color.setHex(0x00ffff);
+            weatherParticles.material.size = 0.08;
+        }
+
+        // Drone physics animations per Selected Mode
+        if (mode === 'air') {
+            droneGroup.position.y = Math.sin(time * 2.5) * 0.35 + 5.5;
+            droneGroup.rotation.x = Math.sin(time * 1.5) * 0.04;
+            droneGroup.rotation.z = Math.sin(time) * 0.06;
+
+            leftWingGroup.rotation.y = lerp(leftWingGroup.rotation.y, 0, 0.1);
+            rightWingGroup.rotation.y = lerp(rightWingGroup.rotation.y, 0, 0.1);
+
+            leftFloat.visible = false;
+            rightFloat.visible = false;
+            wheelRearLeft.visible = false;
+            wheelRearRight.visible = false;
+            wheelFront.visible = false;
+
+            leftPlume.visible = true;
+            rightPlume.visible = true;
+        } 
+        else if (mode === 'land') {
+            droneGroup.position.y = 1.35;
+            droneGroup.rotation.set(Math.sin(time*10)*0.005, 0, 0);
+
+            leftWingGroup.rotation.y = lerp(leftWingGroup.rotation.y, -Math.PI/3, 0.1);
+            rightWingGroup.rotation.y = lerp(rightWingGroup.rotation.y, Math.PI/3, 0.1);
+
+            leftFloat.visible = false;
+            rightFloat.visible = false;
+            
+            wheelRearLeft.visible = true;
+            wheelRearRight.visible = true;
+            wheelFront.visible = true;
+
+            const wRot = speedNorm * 0.3;
+            wheelRearLeft.rotation.x += wRot;
+            wheelRearRight.rotation.x += wRot;
+            wheelFront.rotation.x += wRot;
+
+            leftPlume.visible = true;
+            rightPlume.visible = true;
+        } 
+        else if (mode === 'water') {
+            droneGroup.position.y = 0.88 + Math.sin(time * 1.8) * 0.15;
+            droneGroup.rotation.x = Math.sin(time * 1.8 - 0.5) * 0.04;
+            droneGroup.rotation.z = Math.cos(time * 1.1) * 0.02;
+
+            leftWingGroup.rotation.y = lerp(leftWingGroup.rotation.y, -Math.PI/4, 0.1);
+            rightWingGroup.rotation.y = lerp(rightWingGroup.rotation.y, Math.PI/4, 0.1);
+
+            leftFloat.visible = true;
+            rightFloat.visible = true;
+            leftFloat.position.y = lerp(leftFloat.position.y, -1.2, 0.1);
+            rightFloat.position.y = lerp(rightFloat.position.y, -1.2, 0.1);
+
+            wheelRearLeft.visible = false;
+            wheelRearRight.visible = false;
+            wheelFront.visible = false;
+
+            leftPlume.visible = true;
+            rightPlume.visible = true;
+        } 
+        else if (mode === 'stationary') {
+            droneGroup.position.y = lerp(droneGroup.position.y, 4.0, 0.05);
+            droneGroup.rotation.set(0,0,0);
+
+            leftWingGroup.rotation.y = lerp(leftWingGroup.rotation.y, 0, 0.1);
+            rightWingGroup.rotation.y = lerp(rightWingGroup.rotation.y, 0, 0.1);
+
+            leftFloat.visible = false;
+            rightFloat.visible = false;
+            wheelRearLeft.visible = false;
+            wheelRearRight.visible = false;
+            wheelFront.visible = false;
+
+            leftPlume.visible = false;
+            rightPlume.visible = false;
+        }
+
+        // Sync standalone shock absorber struts with wheels visible state
+        if (strutRearLeft && strutRearRight && strutFront) {
+            strutRearLeft.visible = wheelRearLeft.visible;
+            strutRearRight.visible = wheelRearRight.visible;
+            strutFront.visible = wheelFront.visible;
+        }
+
+        // Swarm Coords simulation
+        swarmNodes.forEach((node, i) => {
+            const orbitIndex = i * 0.3;
+            const angle = time * 0.6 + orbitIndex;
+            const individualRadius = 7 + Math.sin(time * 0.4 + i) * 1.2;
+            node.position.x = Math.cos(angle) * individualRadius;
+            node.position.z = Math.sin(angle) * individualRadius;
+            node.position.y = 3 + Math.sin(time + i) * 1.8;
+        });
+
+        // Dust drift and particles speed mapping
+        const positions = weatherParticles.geometry.attributes.position.array;
+        const driftX = weather === 'stormy' ? 1.2 : weather === 'windy' ? 0.75 : 0.08;
+        const driftY = weather === 'stormy' ? -0.4 : -0.15;
+        
+        for (let i = 0; i < 200; i++) {
+            positions[i * 3] += driftX;
+            positions[i * 3 + 1] += driftY;
+            if (positions[i * 3 + 1] < 0) positions[i * 3 + 1] = 40;
+            if (positions[i * 3] > 60) positions[i * 3] = -60;
+        }
+        weatherParticles.geometry.attributes.position.needsUpdate = true;
+        weatherParticles.rotation.y += 0.0019;
+
+        // Energy management
+        if (mode === 'stationary') {
+            if (energy < 100) energy += 0.06;
+        } else {
+            if (energy > 5) energy -= 0.012;
+        }
+            document.getElementById('tel-energy').innerText = energy.toFixed(1) + '%';
+
+            renderer.render(scene, camera);
+        } catch (e) {
+            console.error("Render loop execution failed:", e);
+            if (!animationErrorLogged) {
+                animationErrorLogged = true;
+                addStandaloneLog("<span class='text-red-400'>[ERROR] Render Loop crashed: " + e.message + "</span>");
+            }
+        }
+    }
+
+    // Dynamic weather changer offline inside download
+    window.setWeather = function(newWeather) {
+        weather = newWeather;
+        
+        document.querySelectorAll('#weather-panel button').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn-' + newWeather).classList.add('active');
+
+        let logMsg = "";
+        const dict = translations[currentLang] || translations.en;
+        if (newWeather === 'sunny') {
+            logMsg = currentLang === 'es' ? "Clima establecido: Sol radiante. Células ópticas optimizadas." : "Climate set: Sunny Skies. Solar intakes online.";
+        } else if (newWeather === 'windy') {
+            logMsg = currentLang === 'es' ? "Sintonizando estabilizadores para vientos ráfaga." : "Compensating drone for high winds.";
+        } else if (newWeather === 'foggy') {
+            logMsg = currentLang === 'es' ? "Niebla espesa detectada. Ganancia de SONAR/IR amplificada." : "Dense fog detected. SONAR/IR sensor amplification raised.";
+        } else if (newWeather === 'stormy') {
+            logMsg = currentLang === 'es' ? "¡ALERTA DE TORMENTA ELÉCTRICA! Supresores de estática encendidos." : "ELECTRIC STORM DETECTED. Over-voltage lightning shielding active.";
+        }
+        addStandaloneLog("<span class='text-amber-400'>[METEO]</span> " + logMsg);
+    }
+
+    // Dynamic Mode Switcher
+    window.setMode = function(newMode) {
+        mode = newMode;
+        
+        document.querySelectorAll('#control-panel button').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn-' + newMode).classList.add('active');
+
+        const telSpeed = document.getElementById('tel-speed');
+
+        if (newMode === 'air') {
+            systemSpeed = 85;
+        } else if (newMode === 'land') {
+            systemSpeed = 32;
+        } else if (newMode === 'water') {
+            systemSpeed = 18;
+        } else if (newMode === 'stationary') {
+            systemSpeed = 0;
+        }
+        
+        telSpeed.innerText = systemSpeed + ' km/h';
+        updateModeText();
+
+        let detailLog = "";
+        if (newMode === 'air') {
+            detailLog = currentLang === 'es' ? "Iniciando propulsión en aire. Rotores optimizados." : "AIR propagation selected. Rotors spinning active.";
+        } else if (newMode === 'land') {
+            detailLog = currentLang === 'es' ? "Ruedas acanaladas descendidas. Conexión de tracción de tierra." : "Deploying magnetic run-wheels. Terrestrial traction online.";
+        } else if (newMode === 'water') {
+            detailLog = currentLang === 'es' ? "Amortiguadores acuáticos ajustados a flote hidro-naval." : "Swapping to water buoyancy floats. Aqua stabilized.";
+        } else if (newMode === 'stationary') {
+            detailLog = currentLang === 'es' ? "Bloqueo estático. Cargando sistema." : "Stationary battery recovery mode initiated.";
+        }
+        addStandaloneLog("<span class='text-sky-400'>[MODE]</span> " + detailLog);
+
+        // Synth audio pitch adjustments
+        if (engineOsc && audioCtx) {
+            let frequency = 60 + systemSpeed * 0.95;
+            if (mode === 'air') frequency += 15;
+            engineOsc.frequency.setTargetAtTime(frequency, audioCtx.currentTime, 0.35);
+        }
+    }
+
+    // Synth Audio engine offline
+    window.toggleEngineAudio = function() {
+        const dict = translations[currentLang] || translations.en;
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            engineOsc = audioCtx.createOscillator();
+            engineGain = audioCtx.createGain();
+
+            engineOsc.type = 'sawtooth';
+            engineOsc.frequency.setValueAtTime(80, audioCtx.currentTime);
+
+            engineGain.connect(audioCtx.destination);
+            engineOsc.connect(engineGain);
+            engineOsc.start();
+            
+            addStandaloneLog("[AUDIO] Synthesis engine turned on successfully.");
+        }
+
+        isMuted = !isMuted;
+        const btn = document.getElementById('audio-toggle');
+        if (isMuted) {
+            engineGain.gain.setValueAtTime(0, audioCtx.currentTime);
+            btn.innerText = dict.activateAudio;
+            addStandaloneLog("[AUDIO] Sound synthesis muted.");
+        } else {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            engineGain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+            btn.innerText = dict.muteAudio;
+            addStandaloneLog("[AUDIO] Sound synthesis unmuted (pitch matches power modes).");
+        }
+    }
+
+    if (document.readyState !== 'loading') {
+        init();
+    } else {
+        document.addEventListener('DOMContentLoaded', init);
+    }
+</script>
+
+</body>
+</html>
