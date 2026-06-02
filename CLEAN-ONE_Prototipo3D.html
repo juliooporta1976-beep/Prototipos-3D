@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CLEAN-ONE™ - 3D Interactive Kinetics Prototype</title>
+  <style>
+    :root {
+      --bg-slate-950: #020617;
+      --bg-slate-900: #0f172a;
+      --bg-slate-800: #1e293b;
+      --cyan-400: #22d3ee;
+      --cyan-500: #06b6d4;
+      --emerald-400: #34d399;
+      --rose-400: #f43f5e;
+      --text-slate-100: #f1f5f9;
+      --text-slate-400: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-slate-950);
+      color: var(--text-slate-100);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Core Layout Workspace */
+    #prototype-container {
+      position: relative;
+      flex-grow: 1;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Three.js Canvas fullscreen background */
+    #three-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 1;
+    }
+
+    /* Overlays inside workspace */
+    .overlay-panel {
+      position: absolute;
+      top: 20px;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(30, 41, 59, 0.8);
+      border-radius: 16px;
+      padding: 20px;
+      z-index: 10;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      pointer-events: auto;
+    }
+
+    #left-diagnostics {
+      left: 20px;
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    #right-controls {
+      right: 20px;
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    #bottom-timeline {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 40px);
+      max-width: 800px;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(30, 41, 59, 0.8);
+      border-radius: 20px;
+      padding: 16px 24px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    /* UI elements styling */
+    h3 {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      color: var(--cyan-400);
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-desc {
+      font-size: 11px;
+      color: var(--text-slate-400);
+      line-height: 1.4;
+    }
+
+    .divider {
+      height: 1px;
+      background: rgba(30, 41, 59, 0.5);
+      width: 100%;
+    }
+
+    /* Parameter Controls Grid */
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-slate-400);
+    }
+
+    .btn-row {
+      display: grid;
+      grid-template-cols: repeat(3, 1fr);
+      gap: 6px;
+      background: #020617;
+      padding: 3px;
+      border-radius: 10px;
+      border: 1px solid rgba(30, 41, 59, 0.6);
+    }
+
+    .btn-row-4 {
+      display: grid;
+      grid-template-cols: repeat(4, 1fr);
+      gap: 6px;
+      background: #020617;
+      padding: 3px;
+      border-radius: 10px;
+      border: 1px solid rgba(30, 41, 59, 0.6);
+    }
+
+    .toggle-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-slate-400);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px 4px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .toggle-btn.active {
+      background: var(--cyan-500);
+      color: #020617;
+      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.2);
+    }
+
+    .toggle-btn.active.indigo {
+      background: #6366f1;
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+    }
+
+    /* Telemetry indicators */
+    .telemetry-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: monospace;
+      font-size: 12px;
+      border-bottom: 1px solid rgba(30, 41, 59, 0.3);
+      padding-bottom: 6px;
+    }
+
+    .telemetry-label {
+      color: var(--text-slate-400);
+    }
+
+    .telemetry-value {
+      color: #fff;
+      font-weight: bold;
+    }
+
+    /* Core Trigger Action Buttons */
+    .main-action-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #06b6d4, #3b82f6);
+      border: none;
+      color: var(--bg-slate-950);
+      font-weight: 850;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 12px 20px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 10px 15px -3px rgba(6, 182, 212, 0.3);
+    }
+
+    .main-action-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 20px -3px rgba(6, 182, 212, 0.4);
+    }
+
+    .main-action-btn:active {
+      transform: translateY(1px);
+    }
+
+    .secondary-action-btn {
+      background: var(--bg-slate-800);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-weight: 700;
+      font-size: 11px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .secondary-action-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Use Cases Grid */
+    .grid-use-cases {
+      display: grid;
+      grid-template-cols: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .use-case-card {
+      background: #020617;
+      border: 1px solid rgba(30, 41, 59, 0.6);
+      border-radius: 12px;
+      padding: 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .use-case-card.active {
+      border-color: var(--cyan-500);
+      background: rgba(6, 182, 212, 0.05);
+    }
+
+    .use-case-emoji {
+      font-size: 16px;
+    }
+
+    .use-case-title {
+      font-size: 11px;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    /* Floating tooltips/status indicator */
+    .status-badge {
+      font-size: 11px;
+      font-weight: bold;
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: rgba(52, 211, 153, 0.1);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      color: var(--emerald-400);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-badge.dissolving {
+      background: rgba(34, 211, 238, 0.1);
+      border: 1px solid rgba(34, 211, 238, 0.3);
+      color: var(--cyan-400);
+      animation: pulse-glow 1.5s infinite;
+    }
+
+    /* Animation effects */
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    /* Header Brand */
+    #top-branding {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #top-branding h1 {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.05em;
+      color: #fff;
+    }
+
+    #top-branding h1 span {
+      color: var(--cyan-400);
+    }
+
+    #top-branding p {
+      font-size: 10px;
+      font-weight: bold;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-slate-400);
+      margin-top: 4px;
+    }
+
+    #interactive-tip {
+      position: absolute;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(30, 41, 59, 0.5);
+      border-radius: 100px;
+      padding: 6px 16px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--text-slate-400);
+      z-index: 5;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      animation: pulse-glow 2s infinite;
+    }
+
+    /* Responsive scaling */
+    @media (max-width: 768px) {
+      body {
+        overflow-y: auto;
+        height: auto;
+      }
+      #prototype-container {
+        height: 450px;
+        flex-grow: 0;
+      }
+      .overlay-panel {
+        position: relative;
+        top: 0;
+        left: 0;
+        right: 0;
+        width: 100% !important;
+        max-width: 100%;
+        border-radius: 0;
+        box-shadow: none;
+        backdrop-filter: none;
+        border-left: none;
+        border-right: none;
+      }
+      #left-diagnostics, #right-controls {
+        position: static;
+        padding: 16px;
+      }
+      #bottom-timeline {
+        position: static;
+        transform: none;
+        width: 100%;
+        max-width: 100%;
+        border-radius: 0;
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+      }
+      #interactive-tip {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top branding logo banner -->
+  <div id="top-branding">
+    <h1>CLEAN-ONE<span>™</span></h1>
+    <p>3D Nanopolymer Disinfection Platform</p>
+  </div>
+
+  <div id="prototype-container">
+    <!-- Active Three.js WebGL Stage -->
+    <canvas id="three-canvas"></canvas>
+
+    <!-- Lab Rotation instruction tip -->
+    <div id="interactive-tip">
+      Arrastra el mouse sobre la microtira para orbitar y analizar en 3D
+    </div>
+
+    <!-- Diagnostics Panel Overlay (Left) -->
+    <div class="overlay-panel" id="left-diagnostics">
+      <div>
+        <h3>🧪 Simulador Clínico</h3>
+        <p class="section-desc">Efectos cinéticos moleculares de disolución hidrofílica bajo temperatura controlada.</p>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Temperature kinetics Selector -->
+      <div class="control-group">
+        <label>Temperatura del Agua</label>
+        <div class="btn-row">
+          <button class="toggle-btn active" onclick="setWaterTemperature(15, this)">Fría (15°)</button>
+          <button class="toggle-btn" onclick="setWaterTemperature(35, this)">Pre (35°)</button>
+          <button class="toggle-btn" onclick="setWaterTemperature(55, this)">Hot (55°)</button>
+        </div>
+      </div>
+
+      <!-- Reaction Speed Multiplier -->
+      <div class="control-group">
+        <label>Velocidad de Simulación</label>
+        <div class="btn-row-4">
+          <button class="toggle-btn active indigo" onclick="setSimulationSpeed(0.5, this)">0.5x</button>
+          <button class="toggle-btn" onclick="setSimulationSpeed(1, this)">1x</button>
+          <button class="toggle-btn" onclick="setSimulationSpeed(2, this)">2x</button>
+          <button class="toggle-btn" onclick="setSimulationSpeed(5, this)">5x</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Live Kinetic Telemetry values -->
+      <div class="control-group" style="gap: 10px;">
+        <label>Telemetría en Tiempo Real</label>
+        <div>
+          <div class="telemetry-row">
+            <span class="telemetry-label">Tiempo Transcurrido:</span>
+            <span class="telemetry-value" id="tele-time">0.0s</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="telemetry-label font-bold text-cyan-400">Tasa de Disolución:</span>
+            <span class="telemetry-value text-cyan-400" id="tele-rate">0%</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="telemetry-label">Turbidez Fluida:</span>
+            <span class="telemetry-value" id="tele-turbidity">0.04 NTU</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="telemetry-label">Tensioactivos Libres:</span>
+            <span class="telemetry-value" id="tele-surfactants">0 ppm</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Parameter Customization Overlay Panel (Right) -->
+    <div class="overlay-panel" id="right-controls">
+      <div>
+        <h3>⚡ Parámetros Químicos</h3>
+        <p class="section-desc">Seleccione color de nanopolímeros y caso de uso para observar la descontaminación.</p>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Polymer Color Tuning -->
+      <div class="control-group">
+        <label>Color / Frecuencia de Energía</label>
+        <div class="btn-row">
+          <button class="toggle-btn active" onclick="setPolymerColor('cyan', this)">Activo</button>
+          <button class="toggle-btn" onclick="setPolymerColor('green', this)">Orgánico</button>
+          <button class="toggle-btn" onclick="setPolymerColor('white', this)">Médico</button>
+        </div>
+      </div>
+
+      <!-- Surfaces Use Cases Tuning -->
+      <div class="control-group">
+        <label>Superficie Objetivo</label>
+        <div class="grid-use-cases">
+          <div class="use-case-card active" onclick="setTargetUseCase('phone', this)">
+            <span class="use-case-emoji">📱</span>
+            <span class="use-case-title">PANTALLA</span>
+          </div>
+          <div class="use-case-card" onclick="setTargetUseCase('hands', this)">
+            <span class="use-case-emoji">🙌</span>
+            <span class="use-case-title">MANOS</span>
+          </div>
+          <div class="use-case-card" onclick="setTargetUseCase('surfaces', this)">
+            <span class="use-case-emoji">🧱</span>
+            <span class="use-case-title">SUPERFICIES</span>
+          </div>
+          <div class="use-case-card" onclick="setTargetUseCase('utensils', this)">
+            <span class="use-case-emoji">🍽️</span>
+            <span class="use-case-title">VAJILLA</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="control-group" style="font-size: 10px; color: var(--text-slate-400); line-height: 1.5; font-family: monospace;">
+        <span>ESTABILIDAD: OK (Hasta 75% HR)</span>
+        <span>ACREDITACIÓN: FDA, CE y EPA COMPLIANT</span>
+        <span>MICRORRESIDUOS QUÍMICOS: 0%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Timeline & Trigger Panel -->
+  <div id="bottom-timeline">
+    <div id="sim-state-container">
+      <div class="status-badge" id="state-badge">
+        <span>● Listo para Usar (Lámina Sólida Seca)</span>
+      </div>
+    </div>
+
+    <!-- Active Triggers -->
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <button class="secondary-action-btn" id="btn-toggle-spin" onclick="toggleAutoSpin()">Rotación: ON</button>
+      <button class="main-action-btn" id="btn-main-trigger" onclick="handleMainAction()">
+        <span>Simular Disolución</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- THREE.JS Library directly loaded via secure, official cdn. Allows local offline running as browsers automatically cache this dependency for local launches! -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  
+  <script>
+    // Global simulation state variables
+    let simulationPhase = "ready"; // ready, hydration, dispersing, dissolved
+    let dissolveProgress = 0;
+    let waterTemp = 15;
+    let simSpeed = 1;
+    let currentColor = "cyan";
+    let currentUseCase = "phone";
+    let isAutoSpinning = true;
+
+    // ThreeJS Globals
+    let scene, camera, renderer, stripMesh, wireframeOverlay, particles, scanRing;
+    let targetMeshGroup;
+
+    // Mouse interactions globals
+    let isDragging = false;
+    let prevMousePos = { x: 0, y: 0 };
+    let objectRotation = { x: 0.4, y: -0.6 };
+
+    // Reaction rates and kinetics map
+    const colorMap = {
+      cyan: { diffuse: 0x4dd0e1, emissive: 0x004d40, particle: 0x80deea },
+      green: { diffuse: 0x81c784, emissive: 0x1b5e20, particle: 0xa5d6a7 },
+      white: { diffuse: 0xf5f5f5, emissive: 0x263238, particle: 0xe3f2fd }
+    };
+
+    // Initialize 3D Engine
+    function init() {
+      const container = document.getElementById('prototype-container');
+      const canvas = document.getElementById('three-canvas');
+
+      // Setup scene
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x020617); // Sleek slate deep dark canvas
+
+      // Setup Camera
+      camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+      camera.position.set(0, 0, 6.5);
+
+      // Setup Renderer
+      renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(container.clientWidth, container.clientHeight);
+
+      // Setup Lights
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+      scene.add(ambientLight);
+
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.82);
+      directionalLight.position.set(5, 8, 5);
+      scene.add(directionalLight);
+
+      // Glowing diagnostic spot lights
+      const cyanSpot = new THREE.PointLight(0x00e5ff, 2.5, 12);
+      cyanSpot.position.set(-4, -2, 2);
+      scene.add(cyanSpot);
+
+      const orangeSpot = new THREE.PointLight(0xff4500, 1.5, 12);
+      orangeSpot.position.set(4, 2, -2);
+      scene.add(orangeSpot);
+
+      // Add Grid diagnostic helper
+      const grid = new THREE.GridHelper(12, 12, 0x00f0ff, 0x1e293b);
+      grid.position.y = -2.1;
+      grid.material.transparent = true;
+      grid.material.opacity = 0.12;
+      scene.add(grid);
+
+      // Build CLEAN-ONE Wavy Nanopolymer strip box
+      const stripGeo = new THREE.BoxGeometry(2.6, 0.03, 1.4, 16, 1, 16);
+      
+      // Wave calculation coordinates
+      const posAttr = stripGeo.attributes.position;
+      for (let i = 0; i < posAttr.count; i++) {
+        const x = posAttr.getX(i);
+        const z = posAttr.getZ(i);
+        const waveY = Math.sin(x * 1.5) * 0.12 + Math.cos(z * 1.5) * 0.08;
+        posAttr.setY(i, posAttr.getY(i) + waveY);
+      }
+      stripGeo.computeVertexNormals();
+
+      const activeColor = colorMap[currentColor];
+      const stripMat = new THREE.MeshPhysicalMaterial({
+        color: activeColor.diffuse,
+        emissive: activeColor.emissive,
+        roughness: 0.1,
+        metalness: 0.15,
+        transmission: 0.6,
+        thickness: 0.4,
+        transparent: true,
+        opacity: 0.95,
+        side: THREE.DoubleSide,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.1
+      });
+
+      stripMesh = new THREE.Mesh(stripGeo, stripMat);
+      scene.add(stripMesh);
+
+      // Scanner laser ring
+      const scanRingGeo = new THREE.RingGeometry(1.6, 1.63, 42);
+      const scanRingMat = new THREE.MeshBasicMaterial({
+        color: activeColor.diffuse,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.2,
+        blending: THREE.AdditiveBlending
+      });
+      scanRing = new THREE.Mesh(scanRingGeo, scanRingMat);
+      scanRing.rotation.x = Math.PI / 2;
+      scanRing.position.y = -0.5;
+      scene.add(scanRing);
+
+      // Organic nanosensor wireframe shell grid overlay
+      const wireframeGeo = new THREE.BoxGeometry(2.62, 0.04, 1.42, 8, 1, 8);
+      const wPos = wireframeGeo.attributes.position;
+      for (let i = 0; i < wPos.count; i++) {
+        const x = wPos.getX(i);
+        const z = wPos.getZ(i);
+        const waveY = Math.sin(x * 1.5) * 0.12 + Math.cos(z * 1.5) * 0.08;
+        wPos.setY(i, wPos.getY(i) + waveY);
+      }
+      wireframeGeo.computeVertexNormals();
+
+      const wireMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.25
+      });
+      wireframeOverlay = new THREE.Mesh(wireframeGeo, wireMat);
+      stripMesh.add(wireframeOverlay);
+
+      // Particles cloud (sanitizing cells)
+      const particleCount = 200;
+      const particleGeo = new THREE.BufferGeometry();
+      const positions = new Float32Array(particleCount * 3);
+      const velocities = new Float32Array(particleCount * 3);
+      const initialOffsets = new Float32Array(particleCount * 3);
+
+      for (let i = 0; i < particleCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 0.5 + Math.random() * 1.8;
+        const y = (Math.random() - 0.5) * 1.5;
+
+        positions[i*3] = Math.cos(angle) * radius;
+        positions[i*3+1] = y;
+        positions[i*3+2] = Math.sin(angle) * radius;
+
+        initialOffsets[i*3] = positions[i*3];
+        initialOffsets[i*3+1] = positions[i*3+1];
+        initialOffsets[i*3+2] = positions[i*3+2];
+
+        const force = 1.0 + Math.random() * 3.0;
+        velocities[i*3] = Math.cos(angle) * force;
+        velocities[i*3+1] = (Math.random() - 0.5) * force;
+        velocities[i*3+2] = Math.sin(angle) * force;
+      }
+
+      particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      particleGeo.userData = { velocities, initialOffsets };
+
+      const pMat = new THREE.PointsMaterial({
+        color: activeColor.particle,
+        size: 0.12,
+        transparent: true,
+        opacity: 0.7,
+        blending: THREE.AdditiveBlending
+      });
+      particles = new THREE.Points(particleGeo, pMat);
+      scene.add(particles);
+
+      // Generate Use Case representations
+      targetMeshGroup = new THREE.Group();
+      targetMeshGroup.position.set(0, -0.2, -1.8);
+      scene.add(targetMeshGroup);
+      buildTargetUseCaseRepresentation();
+
+      // Interactions Listeners
+      container.addEventListener('mousedown', onMouseDown);
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+      
+      // Touch Support
+      container.addEventListener('touchstart', (e) => {
+        if(e.touches.length > 0) onMouseDown({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+      });
+      window.addEventListener('touchmove', (e) => {
+        if(e.touches.length > 0) onMouseMove({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+      });
+      window.addEventListener('touchend', onMouseUp);
+
+      // Resize Listener
+      window.addEventListener('resize', onWindowResize);
+
+      // Boot animation loop
+      animate();
+    }
+
+    // Build representation of Target objects dynamically
+    function buildTargetUseCaseRepresentation() {
+      // Clear previous children elements
+      while (targetMeshGroup.children.length > 0) {
+        targetMeshGroup.remove(targetMeshGroup.children[0]);
+      }
+
+      const activeDirty = (simulationPhase !== "dissolved");
+
+      if (currentUseCase === "phone") {
+        // Smart screen representation
+        const bodyGeo = new THREE.BoxGeometry(2.2, 4.4, 0.15);
+        const bodyMat = new THREE.MeshPhongMaterial({ color: 0x1f2937, shininess: 80 });
+        const phone = new THREE.Mesh(bodyGeo, bodyMat);
+        targetMeshGroup.add(phone);
+
+        // Interactive diagnostic screen layer
+        const screenGeo = new THREE.PlaneGeometry(2.0, 4.1);
+        const screenMat = new THREE.MeshPhongMaterial({
+          color: activeDirty ? 0x0f172a : 0x00e5ff,
+          emissive: activeDirty ? 0x000000 : 0x004d40,
+          shininess: 100
+        });
+        const screen = new THREE.Mesh(screenGeo, screenMat);
+        screen.position.z = 0.081;
+        targetMeshGroup.add(screen);
+      } else if (currentUseCase === "hands") {
+        // Hand model
+        const palmGeo = new THREE.SphereGeometry(1.0, 16, 16);
+        palmGeo.scale(1.2, 0.4, 1.2);
+        const skinMat = new THREE.MeshPhongMaterial({
+          color: activeDirty ? 0x94a3b8 : 0xffe4e6,
+          shininess: 30
+        });
+        const palm = new THREE.Mesh(palmGeo, skinMat);
+        targetMeshGroup.add(palm);
+
+        // Micro finger nodes
+        for (let i = -2; i <= 2; i++) {
+          const fGeo = new THREE.CylinderGeometry(0.12, 0.12, 1.2, 8);
+          const finger = new THREE.Mesh(fGeo, skinMat);
+          finger.position.set(i * 0.4, 0.2, 1.1 + (i === 0 ? 0.2 : -Math.abs(i) * 0.1));
+          finger.rotation.x = 0.4;
+          targetMeshGroup.add(finger);
+        }
+      } else if (currentUseCase === "surfaces") {
+        // Flat laboratory tile with detailed overlay
+        const tileGeo = new THREE.BoxGeometry(5.0, 0.1, 4.0);
+        const tileMat = new THREE.MeshPhongMaterial({
+          color: activeDirty ? 0x64748b : 0xe2e8f0,
+          shininess: 50
+        });
+        const tile = new THREE.Mesh(tileGeo, tileMat);
+        targetMeshGroup.add(tile);
+
+        const gridOverlay = new THREE.GridHelper(4.8, 8, 0x00e5ff, 0x475569);
+        gridOverlay.position.y = 0.06;
+        targetMeshGroup.add(gridOverlay);
+      } else {
+        // Plate/cup food items
+        const panGeo = new THREE.CylinderGeometry(2.0, 1.8, 0.2, 32);
+        const panMat = new THREE.MeshPhongMaterial({
+          color: activeDirty ? 0x475569 : 0xf8fafc,
+          shininess: 85
+        });
+        const plate = new THREE.Mesh(panGeo, panMat);
+        plate.rotation.x = 0.3;
+        targetMeshGroup.add(plate);
+      }
+    }
+
+    // Dynamic Parameter Listeners
+    function setWaterTemperature(temp, btn) {
+      waterTemp = temp;
+      updateToggleButtonSelection(btn);
+    }
+
+    // Dynamic Speed listeners
+    function setSimulationSpeed(speed, btn) {
+      simSpeed = speed;
+      updateToggleButtonSelection(btn);
+    }
+
+    function setPolymerColor(color, btn) {
+      currentColor = color;
+      updateToggleButtonSelection(btn);
+      
+      const activeColor = colorMap[currentColor];
+      if (stripMesh) {
+        stripMesh.material.color.setHex(activeColor.diffuse);
+        stripMesh.material.emissive.setHex(activeColor.emissive);
+      }
+      if (particles) {
+        particles.material.color.setHex(activeColor.particle);
+      }
+      if (scanRing) {
+        scanRing.material.color.setHex(activeColor.diffuse);
+      }
+    }
+
+    function setTargetUseCase(useCase, btn) {
+      currentUseCase = useCase;
+      
+      // Update use case selection styles
+      const cards = document.querySelectorAll('.use-case-card');
+      cards.forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+
+      buildTargetUseCaseRepresentation();
+    }
+
+    function updateToggleButtonSelection(activeBtn) {
+      const parent = activeBtn.parentElement;
+      const buttons = parent.querySelectorAll('.toggle-btn');
+      buttons.forEach(b => b.classList.remove('active'));
+      activeBtn.classList.add('active');
+    }
+
+    function toggleAutoSpin() {
+      isAutoSpinning = !isAutoSpinning;
+      document.getElementById('btn-toggle-spin').innerText = "Rotación: " + (isAutoSpinning ? "ON" : "OFF");
+    }
+
+    // Main kinetic trigger timeline control
+    let simIntervalId = null;
+    function handleMainAction() {
+      const btn = document.getElementById('btn-main-trigger');
+      
+      if (simulationPhase !== "ready") {
+        // Restore simulation
+        simulationPhase = "ready";
+        dissolveProgress = 0;
+        btn.innerHTML = "<span>Simular Disolución</span>";
+        btn.style.background = "linear-gradient(135deg, #06b6d4, #3b82f6)";
+        document.getElementById('state-badge').className = "status-badge";
+        document.getElementById('state-badge').innerHTML = "<span>● Listo para Usar (Lámina Sólida Seca)</span>";
+        
+        buildTargetUseCaseRepresentation();
+        return;
+      }
+
+      simulationPhase = "hydration";
+      btn.innerHTML = "<span>Reestablecer Microtira</span>";
+      btn.style.background = "#334155";
+      document.getElementById('state-badge').className = "status-badge dissolving";
+      document.getElementById('state-badge').innerHTML = "<span>● Disolución Activa (Reacción Cinética)</span>";
+
+      // Arrhenius acceleration concept calculation
+      const tempFactor = waterTemp === 15 ? 0.6 : waterTemp === 35 ? 1.0 : 1.8;
+      const globalMultiplier = simSpeed * tempFactor;
+
+      let intervalTick = 0;
+      if (simIntervalId) clearInterval(simIntervalId);
+
+      simIntervalId = setInterval(() => {
+        if (simulationPhase === "ready") {
+          clearInterval(simIntervalId);
+          return;
+        }
+
+        intervalTick += 0.02 * globalMultiplier;
+
+        if (intervalTick < 0.3) {
+          simulationPhase = "hydration";
+          dissolveProgress = intervalTick;
+        } else if (intervalTick < 0.95) {
+          simulationPhase = "dispersing";
+          dissolveProgress = intervalTick;
+        } else {
+          simulationPhase = "dissolved";
+          dissolveProgress = 1.0;
+          document.getElementById('state-badge').className = "status-badge";
+          document.getElementById('state-badge').innerHTML = "<span>● Nanomaterial Disuelto (Higienizado 100%)</span>";
+          buildTargetUseCaseRepresentation();
+          clearInterval(simIntervalId);
+        }
+        
+        updateLiveTelemetryUI();
+      }, 40);
+    }
+
+    // UI dynamic values update
+    function updateLiveTelemetryUI() {
+      const timeVal = simulationPhase === "ready" ? "0.0s" : simulationPhase === "dissolved" ? "3.0s" : (dissolveProgress * 3.0).toFixed(1) + "s";
+      const rateVal = (dissolveProgress * 100).toFixed(0) + "%";
+      
+      const turbidityNumeric = simulationPhase === "ready" 
+        ? 0.04 
+        : simulationPhase === "dissolved" 
+          ? 0.12 
+          : 0.04 + Math.sin(dissolveProgress * Math.PI) * 7.2;
+      const turbidityVal = turbidityNumeric.toFixed(2) + " NTU";
+
+      const surfactantsVal = simulationPhase === "ready" ? "0 ppm" : (dissolveProgress * 450).toFixed(0) + " ppm";
+
+      document.getElementById('tele-time').innerText = timeVal;
+      document.getElementById('tele-rate').innerText = rateVal;
+      document.getElementById('tele-turbidity').innerText = turbidityVal;
+      document.getElementById('tele-surfactants').innerText = surfactantsVal;
+    }
+
+    // Interactive Drag Orbit Methods
+    function onMouseDown(e) {
+      isDragging = true;
+      prevMousePos.x = e.clientX;
+      prevMousePos.y = e.clientY;
+    }
+
+    function onMouseMove(e) {
+      if (!isDragging) return;
+      const diffX = e.clientX - prevMousePos.x;
+      const diffY = e.clientY - prevMousePos.y;
+
+      objectRotation.y += diffX * 0.007;
+      objectRotation.x += diffY * 0.007;
+
+      if (stripMesh) {
+        stripMesh.rotation.set(objectRotation.x, objectRotation.y, 0);
+      }
+
+      prevMousePos.x = e.clientX;
+      prevMousePos.y = e.clientY;
+    }
+
+    function onMouseUp() {
+      isDragging = false;
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById('prototype-container');
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    // High fidelity render frame pulse loop
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = clock.getDelta();
+      const elapsedTime = clock.getElapsedTime();
+
+      // Dynamic Rotation
+      if (isAutoSpinning && !isDragging) {
+        objectRotation.y += 0.006;
+      }
+
+      // Live Nanofilm updates
+      if (stripMesh) {
+        if (simulationPhase === "ready") {
+          stripMesh.position.y = Math.sin(elapsedTime * 1.5) * 0.12;
+          stripMesh.scale.set(1, 1, 1);
+          stripMesh.rotation.set(objectRotation.x, objectRotation.y + Math.sin(elapsedTime * 0.5) * 0.1, 0);
+          stripMesh.material.opacity = 0.95;
+          wireframeOverlay.material.opacity = 0.25;
+        } else {
+          // Dissolving kinetics animation
+          const currentScale = Math.max(0.001, 1.0 - dissolveProgress);
+          stripMesh.scale.set(currentScale, currentScale, currentScale);
+          stripMesh.rotation.y += 0.05 * dissolveProgress;
+          stripMesh.rotation.x += 0.02 * dissolveProgress;
+          stripMesh.material.opacity = Math.max(0, 0.95 - dissolveProgress);
+          wireframeOverlay.material.opacity = Math.max(0, 0.25 - dissolveProgress);
+        }
+      }
+
+      // Scanner laser pulse animation
+      if (scanRing) {
+        if (simulationPhase === "ready") {
+          scanRing.position.y = -0.6 + Math.sin(elapsedTime * 2.0) * 0.2;
+          scanRing.material.opacity = 0.15 + Math.sin(elapsedTime * 3.0) * 0.05;
+          scanRing.scale.set(1, 1, 1);
+        } else {
+          scanRing.position.y = -0.6 + Math.sin(elapsedTime * 6.0) * 0.5;
+          scanRing.material.opacity = 0.35 + Math.sin(elapsedTime * 12.0) * 0.15;
+          const scaleProg = 1.0 + (dissolveProgress * 0.8);
+          scanRing.scale.set(scaleProg, scaleProg, scaleProg);
+        }
+      }
+
+      // Swirling sanitizing background particles cloud updates
+      if (particles) {
+        const geo = particles.geometry;
+        const posAttr = geo.attributes.position;
+        const oMat = particles.material;
+        const userData = geo.userData;
+
+        if (simulationPhase === "ready") {
+          oMat.opacity = 0.7;
+          for (let i = 0; i < 200; i++) {
+            const initX = userData.initialOffsets[i*3];
+            const initY = userData.initialOffsets[i*3+1];
+            const initZ = userData.initialOffsets[i*3+2];
+
+            const angle = elapsedTime * 0.3 + (i * 0.04);
+            const radius = Math.sqrt(initX * initX + initZ * initZ);
+
+            posAttr.setX(i, Math.cos(angle) * radius);
+            posAttr.setY(i, initY + Math.sin(elapsedTime * 1.2 + i) * 0.05);
+            posAttr.setZ(i, Math.sin(angle) * radius);
+          }
+        } else {
+          // Particles burst out simulation
+          const progress = Math.max(0.01, dissolveProgress);
+          oMat.opacity = Math.max(0, 0.9 * (1.0 - progress));
+
+          for (let i = 0; i < 200; i++) {
+            const initX = userData.initialOffsets[i*3];
+            const initY = userData.initialOffsets[i*3+1];
+            const initZ = userData.initialOffsets[i*3+2];
+
+            const vX = userData.velocities[i*3];
+            const vY = userData.velocities[i*3+1];
+            const vZ = userData.velocities[i*3+2];
+
+            posAttr.setX(i, initX + vX * progress * 2.8);
+            posAttr.setY(i, initY + vY * progress * 2.8);
+            posAttr.setZ(i, initZ + vZ * progress * 2.8);
+          }
+        }
+        posAttr.needsUpdate = true;
+      }
+
+      // Target item gentle rotate and pulse
+      if (targetMeshGroup) {
+        targetMeshGroup.rotation.y = Math.sin(elapsedTime * 0.4) * 0.08;
+        if (simulationPhase === "dissolved") {
+          targetMeshGroup.position.y = -0.2 + Math.sin(elapsedTime * 2.0) * 0.03;
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    // Launch!
+    window.onload = init;
+  </script>
+</body>
+</html>
