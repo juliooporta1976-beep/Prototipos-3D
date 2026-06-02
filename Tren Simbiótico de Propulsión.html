@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TSP-D II - Simulador 3D Interactivo Oficial</title>
+    <!-- Tailwind CSS para interfaz responsiva y estilizada -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js para renderizado de gráficos 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Lucide Icons para el HUD táctico -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&display=swap');
+        
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #02040a;
+            overflow: hidden;
+            user-select: none;
+        }
+        .hud-title {
+            font-family: 'Orbitron', sans-serif;
+        }
+        /* Efectos de brillo neón de alta fidelidad */
+        .neon-glow-cyan {
+            text-shadow: 0 0 8px rgba(6, 182, 212, 0.8), 0 0 18px rgba(6, 182, 212, 0.3);
+        }
+        .neon-border-cyan {
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.15);
+            border: 1px solid rgba(6, 182, 212, 0.35);
+        }
+        .neon-border-green {
+            box-shadow: 0 0 20px rgba(132, 204, 22, 0.25);
+            border: 1px solid rgba(132, 204, 22, 0.45);
+        }
+        /* Personalización de sliders */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #84cc16;
+            box-shadow: 0 0 8px #84cc16;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="relative w-screen h-screen text-gray-100">
+
+    <!-- CANVAS 3D DE THREE.JS -->
+    <div id="canvas-container" class="absolute inset-0 z-0"></div>
+
+    <!-- RECUADRO DE CARGA INICIAL -->
+    <div id="loader" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-950 transition-opacity duration-1000">
+        <div class="relative flex items-center justify-center mb-8">
+            <div class="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-lime-500"></div>
+            <div class="absolute text-lime-400 font-bold hud-title text-xl animate-pulse">TSP-D II</div>
+        </div>
+        <p class="text-lime-400 text-lg tracking-widest animate-pulse font-medium" id="load-text">INICIALIZANDO SISTEMAS SIMBIÓTICOS...</p>
+        <span class="text-gray-500 text-sm mt-2 font-mono">DR. JULIO CÉSAR OPORTA BARRERA</span>
+    </div>
+
+    <!-- HUD SUPERIOR IZQUIERDO: AUTORÍA Y PROYECTO -->
+    <div class="absolute top-4 left-4 z-10 flex flex-col gap-1 bg-gray-950/85 p-4 rounded-lg neon-border-cyan backdrop-blur-md max-w-sm">
+        <div class="text-xs text-lime-400 font-semibold tracking-wider font-mono">DISEÑADOR PRINCIPAL & AUTOR</div>
+        <div class="text-lg font-bold text-white tracking-wide uppercase font-sans">Dr. Julio César Oporta Barrera</div>
+        <div class="h-[1px] bg-gradient-to-r from-lime-500 via-cyan-500 to-transparent my-1"></div>
+        <div class="text-sm font-bold text-cyan-400 hud-title tracking-wider">TSP-D II</div>
+        <div class="text-[10px] text-gray-400 uppercase tracking-widest leading-relaxed">
+            Tren Simbiótico de Propulsión Distribuida • Movilidad Cero Emisiones & Microrred de Resiliencia Climática
+        </div>
+    </div>
+
+    <!-- HUD SUPERIOR DERECHO: SELECTOR DE IDIOMAS E INFORMACIÓN GLOBAL -->
+    <div class="absolute top-4 right-4 z-10 flex flex-col gap-3 items-end">
+        <div class="flex gap-1 bg-gray-950/85 p-1.5 rounded-lg neon-border-cyan backdrop-blur-sm">
+            <button onclick="changeLanguage('es')" id="btn-es" class="px-3 py-1 text-xs rounded font-bold transition-all bg-lime-500 text-black">ES</button>
+            <button onclick="changeLanguage('en')" id="btn-en" class="px-3 py-1 text-xs rounded font-bold transition-all hover:bg-cyan-950 text-cyan-400">EN</button>
+            <button onclick="changeLanguage('zh')" id="btn-zh" class="px-3 py-1 text-xs rounded font-bold transition-all hover:bg-cyan-950 text-cyan-400">ZH</button>
+        </div>
+        
+        <!-- Estado de Red y Disponibilidad Global -->
+        <div class="flex flex-col items-end bg-gray-950/85 p-3 rounded-lg neon-border-cyan backdrop-blur-sm">
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 bg-lime-500 rounded-full animate-ping"></span>
+                <span class="text-xs text-gray-300 tracking-wider uppercase" id="lbl-status">Tasa de Disponibilidad</span>
+            </div>
+            <div class="text-2xl font-black text-lime-400 tracking-wider hud-title neon-glow-cyan">99.99% ZDT</div>
+            <div class="text-[10px] text-gray-400 tracking-widest font-mono uppercase" id="lbl-zdt-desc">Zero Downtime Garantizado</div>
+        </div>
+    </div>
+
+    <!-- CONTROLES LATERALES IZQUIERDOS: SIMULADOR DE MODOS OPERATIVOS -->
+    <div class="absolute left-4 top-40 z-10 flex flex-col gap-4 bg-gray-950/85 p-4 rounded-lg neon-border-cyan backdrop-blur-md w-72">
+        <div class="text-xs font-bold text-lime-400 tracking-widest uppercase flex items-center gap-2 border-b border-lime-500/30 pb-2">
+            <i data-lucide="sliders" class="w-4 h-4"></i>
+            <span id="lbl-op-modes">Modos de Operación</span>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <!-- MODO TRÁNSITO -->
+            <button onclick="setOperatingMode('transit')" id="mode-transit" class="flex flex-col text-left p-3 rounded border transition-all duration-300 bg-lime-950/20 border-lime-500/60 hover:bg-lime-950/30">
+                <span class="text-xs font-bold tracking-widest text-lime-300 uppercase flex items-center justify-between">
+                    <span id="lbl-mode-transit">MODO TRÁNSITO</span>
+                    <i data-lucide="train" class="w-4 h-4 text-lime-400"></i>
+                </span>
+                <span class="text-[11px] text-gray-400 mt-1" id="lbl-mode-transit-desc">Propulsión distribuida activa a 160 km/h. Consumo optimizado por IA.</span>
+            </button>
+
+            <!-- MODO DE EMERGENCIA HUMANITARIA -->
+            <button onclick="setOperatingMode('emergency')" id="mode-emergency" class="flex flex-col text-left p-3 rounded border transition-all duration-300 bg-transparent border-gray-800 hover:bg-red-950/20 hover:border-red-500/50">
+                <span class="text-xs font-bold tracking-widest text-gray-400 uppercase flex items-center justify-between" id="mode-emergency-title">
+                    <span id="lbl-mode-emerg">RESILIENCIA CLIMÁTICA</span>
+                    <i data-lucide="shield-alert" class="w-4 h-4 text-gray-500"></i>
+                </span>
+                <span class="text-[11px] text-gray-400 mt-1" id="lbl-mode-emerg-desc">Acoplamiento de microrred. Despliegue de USD (Hospital/Potabilizador).</span>
+            </button>
+
+            <!-- MODO CARGA DE RED V2X -->
+            <button onclick="setOperatingMode('v2x')" id="mode-v2x" class="flex flex-col text-left p-3 rounded border transition-all duration-300 bg-transparent border-gray-800 hover:bg-green-950/20 hover:border-green-500/50">
+                <span class="text-xs font-bold tracking-widest text-gray-400 uppercase flex items-center justify-between" id="mode-v2x-title">
+                    <span id="lbl-mode-v2x">EXPORTACIÓN MEE (V2X)</span>
+                    <i data-lucide="zap" class="w-4 h-4 text-gray-500"></i>
+                </span>
+                <span class="text-[11px] text-gray-400 mt-1" id="lbl-mode-v2x-desc">Inyección bidireccional mediante inversor de 1MW hacia la microrred.</span>
+            </button>
+        </div>
+
+        <!-- SIMULADORES DE FÍSICA & BIOMECÁNICA INTERACTIVA -->
+        <div class="border-t border-cyan-500/30 pt-3">
+            <div class="text-xs font-bold text-cyan-400 tracking-widest uppercase mb-2 flex items-center gap-1.5">
+                <i data-lucide="activity" class="w-4 h-4"></i>
+                <span id="lbl-phys-sim">Física & Biomecánica</span>
+            </div>
+            
+            <div class="flex flex-col gap-2.5">
+                <div>
+                    <div class="flex justify-between text-xs text-gray-300 mb-1">
+                        <span id="lbl-suspension">Amortiguación Bogie</span>
+                        <span id="val-susp" class="font-mono text-cyan-400 font-bold">4.2 Hz</span>
+                    </div>
+                    <input type="range" id="sim-suspension" min="1" max="10" step="0.1" value="4.2" class="w-full h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs text-gray-300 mb-1">
+                        <span id="lbl-wind-res">Resistencia Aerodinámica</span>
+                        <span id="val-drag" class="font-mono text-cyan-400 font-bold">0.18 Cd</span>
+                    </div>
+                    <input type="range" id="sim-aerodynamics" min="0.10" max="0.45" step="0.01" value="0.18" class="w-full h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL LATERAL DERECHO: TELEMETRÍA Y CONTROL DE ENERGÍA SIMBIÓTICA -->
+    <div class="absolute right-4 top-40 z-10 flex flex-col gap-4 bg-gray-950/85 p-4 rounded-lg neon-border-cyan backdrop-blur-md w-80">
+        <div class="text-xs font-bold text-lime-400 tracking-widest uppercase flex items-center gap-2 border-b border-lime-500/30 pb-2">
+            <i data-lucide="zap" class="w-4 h-4"></i>
+            <span id="lbl-sym-energy">Energía Simbiótica</span>
+        </div>
+
+        <!-- Barras de Flujo de Energía Dinámicas -->
+        <div class="flex flex-col gap-3">
+            <!-- HIDRÓGENO (PEM) -->
+            <div>
+                <div class="flex justify-between text-xs mb-1">
+                    <span class="flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                        <span id="lbl-h2-store">Almacenamiento H₂</span>
+                    </span>
+                    <span id="val-h2" class="font-mono text-blue-400 font-bold">85%</span>
+                </div>
+                <div class="w-full bg-gray-900 rounded-full h-2 overflow-hidden border border-blue-500/20">
+                    <div id="bar-h2" class="bg-gradient-to-r from-blue-600 to-blue-400 h-2 rounded-full transition-all duration-500" style="width: 85%;"></div>
+                </div>
+            </div>
+
+            <!-- BATERÍAS AVANZADAS LFP -->
+            <div>
+                <div class="flex justify-between text-xs mb-1">
+                    <span class="flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-lime-400"></span>
+                        <span id="lbl-lfp-soc">SOC Baterías LFP</span>
+                    </span>
+                    <span id="val-soc" class="font-mono text-lime-400 font-bold">78%</span>
+                </div>
+                <div class="w-full bg-gray-900 rounded-full h-2 overflow-hidden border border-lime-500/20">
+                    <div id="bar-soc" class="bg-gradient-to-r from-lime-600 to-lime-400 h-2 rounded-full transition-all duration-500" style="width: 78%;"></div>
+                </div>
+            </div>
+
+            <!-- GENERACIÓN SOLAR INTEGRADA -->
+            <div>
+                <div class="flex justify-between text-xs mb-1">
+                    <span class="flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
+                        <span id="lbl-solar-gen">Generación Solar</span>
+                    </span>
+                    <span id="val-solar" class="font-mono text-yellow-400 font-bold">320 kW</span>
+                </div>
+                <div class="w-full bg-gray-900 rounded-full h-2 overflow-hidden border border-yellow-500/20">
+                    <div id="bar-solar" class="bg-gradient-to-r from-yellow-600 to-yellow-400 h-2 rounded-full transition-all duration-500" style="width: 65%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SISTEMA DE NODOS IA (SWARM NETWORK) -->
+        <div class="border-t border-cyan-500/30 pt-3">
+            <div class="text-xs font-bold text-cyan-400 tracking-widest uppercase mb-2 flex items-center gap-1.5">
+                <i data-lucide="cpu" class="w-4 h-4"></i>
+                <span id="lbl-ia-nodos">Swarm IA: Red de Nodos</span>
+            </div>
+            <div class="bg-black/40 p-3 rounded border border-cyan-500/20 font-mono text-[11px] flex flex-col gap-1.5">
+                <div class="flex justify-between text-gray-400">
+                    <span id="lbl-node-master">Nodo Director:</span>
+                    <span class="text-green-400 font-bold">OMNIA-5000</span>
+                </div>
+                <div class="flex justify-between text-gray-400">
+                    <span id="lbl-node-status">Estado del Enjambre:</span>
+                    <span class="text-cyan-400" id="val-swarm">Sincronizado (8 Nodos)</span>
+                </div>
+                <div class="flex justify-between text-gray-400">
+                    <span id="lbl-node-opt">Optimización MPC:</span>
+                    <span class="text-yellow-400 animate-pulse" id="val-mpc">ACTIVA - Delta 12ms</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTROLES ADICIONALES DEL SIMULADOR -->
+        <div class="border-t border-cyan-500/30 pt-3 flex flex-col gap-2">
+            <button onclick="triggerFaultIsolation()" class="w-full py-2 bg-red-950/40 hover:bg-red-900/40 border border-red-500/40 hover:border-red-500 rounded text-xs font-bold tracking-widest text-red-400 uppercase transition-all flex items-center justify-center gap-1.5">
+                <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                <span id="btn-fault">Fallas: AutoAislamiento</span>
+            </button>
+            <button onclick="toggleLightMode()" class="w-full py-2 bg-lime-950/40 hover:bg-lime-900/40 border border-lime-500/30 hover:border-lime-400 rounded text-xs font-bold tracking-widest text-lime-300 uppercase transition-all flex items-center justify-center gap-1.5">
+                <i data-lucide="sun" class="w-4 h-4"></i>
+                <span id="btn-lights">Iluminación Cinemática</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- HUD INFERIOR: CONTROLES DE CAMERAS Y MOVIMIENTOS -->
+    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex gap-4 bg-gray-950/85 px-6 py-3 rounded-full neon-border-cyan backdrop-blur-md items-center">
+        <!-- Rotación Automática -->
+        <button onclick="toggleAutoRotate()" id="btn-rotate" class="p-2 rounded-full border border-lime-500/40 hover:border-lime-400 hover:bg-lime-950/50 text-lime-400 transition-all" title="Rotar Cámara">
+            <i data-lucide="rotate-cw" class="w-5 h-5"></i>
+        </button>
+
+        <!-- Control de velocidad -->
+        <div class="h-6 w-[1px] bg-cyan-500/30"></div>
+        <div class="flex items-center gap-3">
+            <i data-lucide="gauge" class="w-5 h-5 text-lime-400"></i>
+            <span class="text-xs text-gray-400 uppercase font-mono tracking-widest" id="lbl-speed-sim">Velocidad</span>
+            <span id="speed-display" class="text-xl font-bold font-mono text-lime-300 w-20 text-center">160 km/h</span>
+            <div class="flex gap-1">
+                <button onclick="changeSpeed(-20)" class="w-6 h-6 rounded bg-gray-900 hover:bg-lime-950 text-lime-400 border border-lime-500/30 text-xs font-bold flex items-center justify-center">-</button>
+                <button onclick="changeSpeed(20)" class="w-6 h-6 rounded bg-gray-900 hover:bg-lime-950 text-lime-400 border border-lime-500/30 text-xs font-bold flex items-center justify-center">+</button>
+            </div>
+        </div>
+
+        <!-- Animación de Despliegue de Unidad USD -->
+        <div class="h-6 w-[1px] bg-cyan-500/30"></div>
+        <button onclick="toggleUSDDeployment()" id="btn-usd" class="px-4 py-1.5 rounded-full bg-lime-950/40 hover:bg-lime-900/50 border border-lime-500/40 text-xs font-bold text-lime-400 tracking-wider hover:text-white transition-all uppercase flex items-center gap-1.5">
+            <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+            <span id="lbl-btn-usd">Desplegar USD</span>
+        </button>
+    </div>
+
+    <!-- NOTIFICACIONES HUD CENTRAL TEMPORALES -->
+    <div id="notification-hub" class="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 pointer-events-none flex flex-col gap-2 items-center"></div>
+
+    <script>
+        // TRADUCCIONES TRILINGÜES
+        const translations = {
+            es: {
+                loadText: "INICIALIZANDO SISTEMAS SIMBIÓTICOS...",
+                status: "Tasa de Disponibilidad",
+                zdtDesc: "Zero Downtime Garantizado",
+                opModes: "Modos de Operación",
+                modeTransit: "MODO TRÁNSITO",
+                modeTransitDesc: "Propulsión distribuida activa a 160 km/h. Consumo optimizado por IA.",
+                modeEmerg: "RESILIENCIA CLIMÁTICA",
+                modeEmergDesc: "Acoplamiento de microrred. Despliegue de USD (Hospital/Potabilizador).",
+                modeV2x: "EXPORTACIÓN MEE (V2X)",
+                modeV2xDesc: "Inyección bidireccional mediante inversor de 1MW hacia la microrred.",
+                physSim: "Física & Biomecánica",
+                suspension: "Amortiguación Bogie",
+                windRes: "Resistencia Aerodinámica",
+                symEnergy: "Energía Simbiótica",
+                h2Store: "Almacenamiento H₂",
+                lfpSoc: "SOC Baterías LFP",
+                solarGen: "Generación Solar",
+                iaNodos: "Swarm IA: Red de Nodos",
+                nodeMaster: "Nodo Director:",
+                nodeStatus: "Estado del Enjambre:",
+                nodeOpt: "Optimización MPC:",
+                faultBtn: "Fallas: AutoAislamiento",
+                lightBtn: "Iluminación Cinemática",
+                speedSim: "Velocidad",
+                btnUsd: "Desplegar USD",
+                btnUsdRetract: "Retraer USD",
+                nodeSwarmActive: "Sincronizado (8 Nodos)",
+                optMpcActive: "ACTIVA - Delta 12ms",
+                notifTransit: "Modo Tránsito Activado. Propulsión al 100%.",
+                notifEmergency: "Modo Resiliencia Climática Activado. Microrred a bordo expuesta.",
+                notifV2x: "Inyección MEE iniciada. Exportando 1.0 MW a microrred.",
+                notifFault: "Aislamiento de fallas iniciado en convertidor 5. Restablecido en 42ms.",
+                notifLights: "Esquema cinematográfico de luz de día alternado.",
+                notifUsdOn: "Módulo de microrred a bordo abierto físicamente.",
+                notifUsdOff: "Paneles de seguridad cerrados de forma segura."
+            },
+            en: {
+                loadText: "INITIALIZING SYMBIOTIC SYSTEMS...",
+                status: "Availability Rate",
+                zdtDesc: "Zero Downtime Guaranteed",
+                opModes: "Operating Modes",
+                modeTransit: "TRANSIT MODE",
+                modeTransitDesc: "Distributed propulsion active at 160 km/h. Consumption optimized by AI.",
+                modeEmerg: "CLIMATE RESILIENCE",
+                modeEmergDesc: "Microgrid coupling. USD deployment (Hospital/Water Purifier).",
+                modeV2x: "MEE EXPORT (V2X)",
+                modeV2xDesc: "Bidirectional injection through a 1MW inverter into the microgrid.",
+                physSim: "Physics & Biomechanics",
+                suspension: "Bogie Dampening",
+                windRes: "Aerodynamic Drag",
+                symEnergy: "Symbiotic Energy",
+                h2Store: "H₂ Storage Capacity",
+                lfpSoc: "LFP Battery SOC",
+                solarGen: "Integrated Solar Gen",
+                iaNodos: "Swarm AI: Node Network",
+                nodeMaster: "Master Node:",
+                nodeStatus: "Swarm Status:",
+                nodeOpt: "MPC Optimization:",
+                faultBtn: "Fault: Auto-Isolation",
+                lightBtn: "Cinematic Lighting",
+                speedSim: "Velocity",
+                btnUsd: "Deploy USD",
+                btnUsdRetract: "Retract USD",
+                nodeSwarmActive: "Synchronized (8 Nodes)",
+                optMpcActive: "ACTIVE - Delta 12ms",
+                notifTransit: "Transit Mode Activated. Propulsion at 100%.",
+                notifEmergency: "Climate Resilience Mode Activated. On-board microgrid exposed.",
+                notifV2x: "MEE injection initiated. Exporting 1.0 MW to microgrid.",
+                notifFault: "Fault isolation initiated on converter 5. Restored in 42ms.",
+                notifLights: "Daylight cinematic schema toggled.",
+                notifUsdOn: "On-board microgrid physically opened.",
+                notifUsdOff: "Security panels safely closed."
+            },
+            zh: {
+                loadText: "共生系统初始化中...",
+                status: "可用率保障",
+                zdtDesc: "保证零停机时间 (ZDT)",
+                opModes: "运行模式",
+                modeTransit: "常规运输模式",
+                modeTransitDesc: "分布式推进系统于160公里/小时激活，AI控制能耗优化。",
+                modeEmerg: "气候韧性与应急",
+                modeEmergDesc: "微电网耦合与USD部署（移动医院/净水设施）。",
+                modeV2x: "双向能源出口 (V2X)",
+                modeV2xDesc: "通过1MW逆变器实现向微电网的双向能量注入。",
+                physSim: "物理与生物力学仿生",
+                suspension: "转向架悬挂阻尼",
+                windRes: "空气动力学阻力",
+                symEnergy: "共生能源系统",
+                h2Store: "氢气储存容量",
+                lfpSoc: "LFP 电池荷电状态 (SOC)",
+                solarGen: "集成太阳能发电",
+                iaNodos: "集群AI：节点网络",
+                nodeMaster: "主控节点：",
+                nodeStatus: "集群状态：",
+                nodeOpt: "预测控制算法 (MPC):",
+                faultBtn: "故障自隔离保护",
+                lightBtn: "电影级光效切换",
+                speedSim: "速度控制",
+                btnUsd: "部署应急模块 (USD)",
+                btnUsdRetract: "折叠应急模块 (USD)",
+                nodeSwarmActive: "已同步 (8个节点)",
+                optMpcActive: "激活状态 - 延迟 12ms",
+                notifTransit: "运输模式已激活。推进系统100%运行。",
+                notifEmergency: "气候韧性救援模式激活。车载微电网展示中。",
+                notifV2x: "双向能源逆变器注入开始。向微网输电 1.0 MW。",
+                notifFault: "变流器5故障快速自隔离，系统于42ms内恢复。",
+                notifLights: "电影级日光照射schema已切换。",
+                notifUsdOn: "车载微电网盖板已物理开启。",
+                notifUsdOff: "安全盖板已安全闭合。"
+            }
+        };
+
+        let currentLang = 'es';
+
+        function triggerNotification(key) {
+            const hub = document.getElementById('notification-hub');
+            if (!hub) return;
+            const toast = document.createElement('div');
+            toast.className = "px-4 py-2 bg-gray-950/90 border border-lime-500 text-lime-300 rounded text-xs tracking-wider uppercase backdrop-blur-md animate-bounce flex items-center gap-2";
+            toast.innerHTML = `<i data-lucide="info" class="w-4 h-4 text-lime-400"></i> ${translations[currentLang][key]}`;
+            hub.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'transition-all', 'duration-500');
+                setTimeout(() => toast.remove(), 500);
+            }, 3000);
+        }
+
+        function changeLanguage(lang) {
+            currentLang = lang;
+            const t = translations[lang];
+            
+            ['es', 'en', 'zh'].forEach(l => {
+                const btn = document.getElementById(`btn-${l}`);
+                if (l === lang) {
+                    btn.className = "px-3 py-1 text-xs rounded font-bold transition-all bg-lime-500 text-black";
+                } else {
+                    btn.className = "px-3 py-1 text-xs rounded font-bold transition-all hover:bg-cyan-950 text-cyan-400";
+                }
+            });
+
+            document.getElementById('lbl-status').textContent = t.status;
+            document.getElementById('lbl-zdt-desc').textContent = t.zdtDesc;
+            document.getElementById('lbl-op-modes').textContent = t.opModes;
+            document.getElementById('lbl-mode-transit').textContent = t.modeTransit;
+            document.getElementById('lbl-mode-transit-desc').textContent = t.modeTransitDesc;
+            document.getElementById('lbl-mode-emerg').textContent = t.modeEmerg;
+            document.getElementById('lbl-mode-emerg-desc').textContent = t.modeEmergDesc;
+            document.getElementById('lbl-mode-v2x').textContent = t.modeV2x;
+            document.getElementById('lbl-mode-v2x-desc').textContent = t.modeV2xDesc;
+            document.getElementById('lbl-phys-sim').textContent = t.physSim;
+            document.getElementById('lbl-suspension').textContent = t.suspension;
+            document.getElementById('lbl-wind-res').textContent = t.windRes;
+            document.getElementById('lbl-sym-energy').textContent = t.symEnergy;
+            document.getElementById('lbl-h2-store').textContent = t.h2Store;
+            document.getElementById('lbl-lfp-soc').textContent = t.lfpSoc;
+            document.getElementById('lbl-solar-gen').textContent = t.solarGen;
+            document.getElementById('lbl-ia-nodos').textContent = t.iaNodos;
+            document.getElementById('lbl-node-master').textContent = t.nodeMaster;
+            document.getElementById('lbl-node-status').textContent = t.nodeStatus;
+            document.getElementById('lbl-node-opt').textContent = t.nodeOpt;
+            document.getElementById('btn-fault').textContent = t.faultBtn;
+            document.getElementById('btn-lights').textContent = t.lightBtn;
+            document.getElementById('lbl-speed-sim').textContent = t.speedSim;
+            
+            const btnUsd = document.getElementById('lbl-btn-usd');
+            if (btnUsd) {
+                btnUsd.textContent = usdDeployed ? t.btnUsdRetract : t.btnUsd;
+            }
+
+            document.getElementById('val-swarm').textContent = t.nodeSwarmActive;
+            document.getElementById('val-mpc').textContent = t.optMpcActive;
+        }
+
+        // CONTROLADORES GLOBALES DE INTERFAZ E INTERACTIVIDAD
+        let currentMode = 'transit';
+        let suspensionVal = 4.2;
+        let dragVal = 0.18;
+        let speedVal = 160;
+        let usdDeployed = false;
+        let daylightScheme = false;
+
+        function setOperatingMode(mode) {
+            currentMode = mode;
+            const btnTransit = document.getElementById('mode-transit');
+            const btnEmergency = document.getElementById('mode-emergency');
+            const btnV2x = document.getElementById('mode-v2x');
+
+            btnTransit.className = "flex flex-col text-left p-3 rounded border transition-all duration-300 bg-transparent border-gray-800 hover:bg-lime-950/20 hover:border-lime-500/50";
+            btnEmergency.className = "flex flex-col text-left p-3 rounded border transition-all duration-300 bg-transparent border-gray-800 hover:bg-red-950/20 hover:border-red-500/50";
+            btnV2x.className = "flex flex-col text-left p-3 rounded border transition-all duration-300 bg-transparent border-gray-800 hover:bg-green-950/20 hover:border-green-500/50";
+
+            if (mode === 'transit') {
+                btnTransit.className = "flex flex-col text-left p-3 rounded border transition-all duration-300 bg-lime-950/40 border-lime-500/60 hover:bg-lime-950/60";
+                triggerNotification('notifTransit');
+                updateSimTelemetry(160, 85, 78, 320);
+                adjustVisualEnergyGrid(0x84cc16);
+                if (usdDeployed) toggleUSDDeployment();
+            } else if (mode === 'emergency') {
+                btnEmergency.className = "flex flex-col text-left p-3 rounded border transition-all duration-300 bg-red-950/40 border-red-500/60 hover:bg-red-950/60";
+                triggerNotification('notifEmergency');
+                updateSimTelemetry(0, 70, 95, 120);
+                adjustVisualEnergyGrid(0xff3333);
+                if (!usdDeployed) toggleUSDDeployment();
+            } else if (mode === 'v2x') {
+                btnV2x.className = "flex flex-col text-left p-3 rounded border transition-all duration-300 bg-green-950/40 border-green-500/60 hover:bg-green-950/60";
+                triggerNotification('notifV2x');
+                updateSimTelemetry(0, 50, 60, 450);
+                adjustVisualEnergyGrid(0x22c55e);
+                if (!usdDeployed) toggleUSDDeployment();
+            }
+        }
+
+        function updateSimTelemetry(speed, h2, battery, solar) {
+            speedVal = speed;
+            document.getElementById('speed-display').textContent = `${speedVal} km/h`;
+            document.getElementById('val-h2').textContent = `${h2}%`;
+            document.getElementById('bar-h2').style.width = `${h2}%`;
+            document.getElementById('val-soc').textContent = `${battery}%`;
+            document.getElementById('bar-soc').style.width = `${battery}%`;
+            document.getElementById('val-solar').textContent = `${solar} kW`;
+            document.getElementById('bar-solar').style.width = `${Math.min((solar/600)*100, 100)}%`;
+        }
+
+        function changeSpeed(delta) {
+            if (currentMode !== 'transit') return;
+            speedVal = Math.max(0, Math.min(240, speedVal + delta));
+            document.getElementById('speed-display').textContent = `${speedVal} km/h`;
+        }
+
+        function triggerFaultIsolation() {
+            triggerNotification('notifFault');
+            const nodeBoard = document.getElementById('val-swarm').parentElement.parentElement;
+            nodeBoard.classList.add('border-red-500');
+            setTimeout(() => {
+                nodeBoard.classList.remove('border-red-500');
+            }, 1000);
+        }
+
+        // INICIALIZACIÓN DE THREE.JS E INFRAESTRUCTURA 3D
+        let scene, camera, renderer;
+        let trainContainer, bogies = [], rails = [], energyFlowParticles;
+        let ambLight, dirLight, pointLight;
+        let autoRotate = true;
+
+        // Elementos interactivos del vagón de Microrred
+        let usdCoverLeft, usdCoverRight, microgridShelves;
+
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x02040a);
+            scene.fog = new THREE.FogExp2(0x02040a, 0.012);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
+            camera.position.set(22, 12, 32);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // ILUMINACIÓN CINEMATOGRÁFICA
+            ambLight = new THREE.AmbientLight(0x0a122c, 1.8);
+            scene.add(ambLight);
+
+            dirLight = new THREE.DirectionalLight(0x06b6d4, 3.0);
+            dirLight.position.set(30, 50, 20);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 4096;
+            dirLight.shadow.mapSize.height = 4096;
+            dirLight.shadow.bias = -0.0001;
+            scene.add(dirLight);
+
+            pointLight = new THREE.PointLight(0x84cc16, 5, 60);
+            pointLight.position.set(-20, 8, -20);
+            scene.add(pointLight);
+
+            const neonUnderglow = new THREE.PointLight(0x00ffff, 6, 20);
+            neonUnderglow.position.set(0, -0.8, 0);
+            scene.add(neonUnderglow);
+
+            const gridHelper = new THREE.GridHelper(300, 150, 0x06b6d4, 0x0f172a);
+            gridHelper.position.y = -2;
+            scene.add(gridHelper);
+
+            // TREN COMPUESTO (Según imagen "Tren Simbiótico de Propulsión Distribuida (TSP-D II).png")
+            trainContainer = new THREE.Group();
+            scene.add(trainContainer);
+
+            // MATERIALES OFICIALES SEGÚN EL RENDER
+            const silverTitaniumMat = new THREE.MeshStandardMaterial({
+                color: 0xe2e8f0,
+                roughness: 0.15,
+                metalness: 0.85,
+                clearcoat: 1.0
+            });
+
+            const deepBlueMat = new THREE.MeshStandardMaterial({
+                color: 0x0f3e7a,
+                roughness: 0.2,
+                metalness: 0.9,
+                clearcoat: 0.8
+            });
+
+            const limeGreenMat = new THREE.MeshStandardMaterial({
+                color: 0x84cc16,
+                roughness: 0.1,
+                metalness: 0.1,
+                emissive: 0x84cc16,
+                emissiveIntensity: 0.35
+            });
+
+            const windowGlassMat = new THREE.MeshStandardMaterial({
+                color: 0x111827,
+                roughness: 0.05,
+                metalness: 0.9,
+                transparent: true,
+                opacity: 0.9
+            });
+
+            // 1. CONSTRUCCIÓN DE LA CABINA FRONT LOCOMOTORA
+            const cabGroup = new THREE.Group();
+            cabGroup.position.set(0, 0, 6.5);
+            trainContainer.add(cabGroup);
+
+            // Chasis base del frente
+            const mainCabGeom = new THREE.BoxGeometry(3.1, 2.6, 6);
+            const mainCab = new THREE.Mesh(mainCabGeom, silverTitaniumMat);
+            mainCab.position.y = 0.5;
+            cabGroup.add(mainCab);
+
+            // Faldón Inferior de cabina
+            const skirtGeom = new THREE.BoxGeometry(3.14, 0.8, 6.02);
+            const skirt = new THREE.Mesh(skirtGeom, deepBlueMat);
+            skirt.position.y = -0.4;
+            cabGroup.add(skirt);
+
+            // Cuña Aerodinámica Frontal
+            const noseGeom = new THREE.ConeGeometry(2.1, 3.5, 4);
+            const nose = new THREE.Mesh(noseGeom, silverTitaniumMat);
+            nose.rotation.x = Math.PI / 1.7;
+            nose.rotation.y = Math.PI / 4;
+            nose.scale.set(1.1, 1.8, 0.8);
+            nose.position.set(0, 0.25, 3.6);
+            cabGroup.add(nose);
+
+            // Panel de faldón del frentón aerodinámico
+            const frontPlateGeom = new THREE.BoxGeometry(1.6, 1.0, 1.5);
+            const frontPlate = new THREE.Mesh(frontPlateGeom, deepBlueMat);
+            frontPlate.position.set(0, -0.4, 4.3);
+            frontPlate.rotation.x = -0.25;
+            cabGroup.add(frontPlate);
+
+            // Parabrisas Slanted Negro Brillante
+            const windshieldGeom = new THREE.BoxGeometry(2.2, 1.1, 1.0);
+            const windshield = new THREE.Mesh(windshieldGeom, windowGlassMat);
+            windshield.position.set(0, 0.9, 3.3);
+            windshield.rotation.x = 0.55;
+            cabGroup.add(windshield);
+
+            // Letrero Ámbar "TSP-D II"
+            const displayGeom = new THREE.BoxGeometry(1.2, 0.22, 0.1);
+            const displayMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+            const textDisplay = new THREE.Mesh(displayGeom, displayMat);
+            textDisplay.position.set(0, 1.35, 3.5);
+            textDisplay.rotation.x = 0.45;
+            cabGroup.add(textDisplay);
+
+            // Faros LED L-Shape
+            const headlightMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe });
+            const headlightL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.65, 0.2), headlightMat);
+            headlightL.position.set(1.2, -0.1, 4.4);
+            headlightL.rotation.y = 0.15;
+            cabGroup.add(headlightL);
+
+            const headlightR = headlightL.clone();
+            headlightR.position.x = -1.2;
+            cabGroup.add(headlightR);
+
+            // Franjas Verdes Simbióticas de la Carrocería
+            const stripeL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 6.0), limeGreenMat);
+            stripeL.position.set(1.56, 0.8, 0.5);
+            cabGroup.add(stripeL);
+
+            const stripeR = stripeL.clone();
+            stripeR.position.x = -1.56;
+            cabGroup.add(stripeR);
+
+            // Logotipo de Cero Emisiones
+            const leafGeom = new THREE.SphereGeometry(0.2, 8, 8);
+            leafGeom.scale(1, 0.6, 2);
+            const leafLeft = new THREE.Mesh(leafGeom, limeGreenMat);
+            leafLeft.position.set(0.15, -0.1, 4.9);
+            leafLeft.rotation.z = -0.4;
+            cabGroup.add(leafLeft);
+
+            const leafRight = leafLeft.clone();
+            leafRight.position.x = -0.15;
+            leafRight.rotation.z = 0.4;
+            cabGroup.add(leafRight);
+
+            // Ventanales del Vagón de Pasajeros
+            const windowGeom = new THREE.BoxGeometry(0.05, 0.8, 1.2);
+            for(let i = -1.8; i <= 1.8; i += 1.6) {
+                const wL = new THREE.Mesh(windowGeom, windowGlassMat);
+                wL.position.set(1.56, 0.6, i);
+                cabGroup.add(wL);
+
+                const wR = wL.clone();
+                wR.position.x = -1.56;
+                cabGroup.add(wR);
+            }
+
+            // 2. VAGÓN CENTRAL: USD & MICRORRED MÓVIL ABIERTA
+            const microgridGroup = new THREE.Group();
+            microgridGroup.position.set(0, 0, -6.5);
+            trainContainer.add(microgridGroup);
+
+            // Base Estructural del Vagón
+            const wagonBase = new THREE.Mesh(new THREE.BoxGeometry(3.1, 2.6, 13), silverTitaniumMat);
+            wagonBase.position.y = 0.5;
+            microgridGroup.add(wagonBase);
+
+            // Faldón Azul
+            const wagonSkirt = new THREE.Mesh(new THREE.BoxGeometry(3.14, 0.8, 13.02), deepBlueMat);
+            wagonSkirt.position.y = -0.4;
+            microgridGroup.add(wagonSkirt);
+
+            // Líneas de acento de diseño verde lima
+            const wStripeL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 13), limeGreenMat);
+            wStripeL.position.set(1.56, 0.8, 0);
+            microgridGroup.add(wStripeL);
+
+            const wStripeR = wStripeL.clone();
+            wStripeR.position.x = -1.56;
+            microgridGroup.add(wStripeR);
+
+            // VENTANAS DE SEGURIDAD
+            const coverGeom = new THREE.BoxGeometry(0.1, 2.0, 7.5);
+            const coverMat = new THREE.MeshStandardMaterial({
+                color: 0x1e293b,
+                roughness: 0.2,
+                metalness: 0.8,
+                clearcoat: 0.5
+            });
+
+            usdCoverLeft = new THREE.Mesh(coverGeom, coverMat);
+            usdCoverLeft.position.set(1.52, 0.6, 0);
+            microgridGroup.add(usdCoverLeft);
+
+            // INTERIOR DE LA MICRORRED MÓVIL
+            microgridShelves = new THREE.Group();
+            microgridShelves.position.set(0, 0.5, 0);
+            microgridGroup.add(microgridShelves);
+
+            // Bastidor de Estantería Táctica
+            const shelfMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9 });
+            const shelfFrame = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.0, 7.3), shelfMat);
+            shelfFrame.position.x = 0.1;
+            microgridShelves.add(shelfFrame);
+
+            // Baterías de Litio LFP
+            const batGeom = new THREE.BoxGeometry(0.7, 0.45, 1.2);
+            const batMat = new THREE.MeshStandardMaterial({
+                color: 0x0f172a,
+                emissive: 0x84cc16,
+                emissiveIntensity: 0.6
+            });
+            for (let y = -0.7; y <= 0.7; y += 0.6) {
+                for (let z = -2.5; z <= 2.5; z += 1.6) {
+                    const batteryStack = new THREE.Mesh(batGeom, batMat);
+                    batteryStack.position.set(0.6, y, z);
+                    microgridShelves.add(batteryStack);
+                }
+            }
+
+            // Suministros Médicos Humanitarios
+            const medGeom = new THREE.BoxGeometry(0.7, 0.45, 0.9);
+            const medMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.5 });
+            const crossMat = new THREE.MeshBasicMaterial({ color: 0x22c55e });
+            
+            for (let y = -0.7; y <= 0.7; y += 0.6) {
+                const medBox = new THREE.Mesh(medGeom, medMat);
+                medBox.position.set(-0.6, y, -1.0);
+                microgridShelves.add(medBox);
+
+                const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.35, 0.02), crossMat);
+                crossH.position.set(-0.96, y, -1.0);
+                const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.12, 0.02), crossMat);
+                crossV.position.set(-0.96, y, -1.0);
+                microgridShelves.add(crossH);
+                microgridShelves.add(crossV);
+            }
+
+            // Tanques de Purificación de Agua
+            const tankMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.2 });
+            const waterTank = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 1.4, 16), tankMat);
+            waterTank.position.set(-0.6, 0.1, 1.5);
+            microgridShelves.add(waterTank);
+
+            // Letrero táctico "MICRORRED A BORDO"
+            const labelBg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.4, 2.5), new THREE.MeshBasicMaterial({ color: 0x090d16 }));
+            labelBg.position.set(1.22, 0.7, 1.5);
+            microgridShelves.add(labelBg);
+
+            const boltGeom = new THREE.ConeGeometry(0.15, 0.5, 4);
+            const boltMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+            const bolt = new THREE.Mesh(boltGeom, boltMat);
+            bolt.position.set(1.3, 0.7, 1.5);
+            bolt.rotation.x = Math.PI;
+            microgridShelves.add(bolt);
+
+            // 3. Bogies con Suspensión Independiente
+            createBogie(0, -1.2, 10.5);
+            createBogie(0, -1.2, 2.5);
+            createBogie(0, -1.2, -4.5);
+            createBogie(0, -1.2, -10.5);
+
+            // 4. Enjambre de Nodos de Inteligencia Artificial Distribuidos
+            createSwarmNodes();
+
+            // 5. Vías
+            createRails();
+
+            // 6. Partículas de flujo
+            createEnergyParticles();
+
+            document.getElementById('loader').classList.add('opacity-0');
+            setTimeout(() => {
+                document.getElementById('loader').remove();
+            }, 1000);
+
+            lucide.createIcons();
+            animate();
+        }
+
+        // CREACIÓN DE BOGIES DE TRACCIÓN
+        function createBogie(x, y, z) {
+            const bogieGroup = new THREE.Group();
+            bogieGroup.position.set(x, y, z);
+
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.5, metalness: 0.85 });
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.1, metalness: 0.95 });
+            const neonRingMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.45, 4.2), frameMat);
+            bogieGroup.add(frame);
+
+            const shockGeom = new THREE.CylinderGeometry(0.08, 0.08, 1.0, 8);
+            const shock1 = new THREE.Mesh(shockGeom, frameMat);
+            shock1.position.set(1.1, 0.3, 0);
+            bogieGroup.add(shock1);
+
+            const shock2 = shock1.clone();
+            shock2.position.set(-1.1, 0.3, 0);
+            bogieGroup.add(shock2);
+
+            const wheelGeom = new THREE.CylinderGeometry(0.75, 0.75, 0.45, 32);
+            wheelGeom.rotateZ(Math.PI / 2);
+
+            const wheelPositions = [
+                [-1.25, -0.1, 1.3],
+                [1.25, -0.1, 1.3],
+                [-1.25, -0.1, -1.3],
+                [1.25, -0.1, -1.3]
+            ];
+
+            wheelPositions.forEach(pos => {
+                const wheel = new THREE.Mesh(wheelGeom, wheelMat);
+                wheel.position.set(pos[0], pos[1], pos[2]);
+                wheel.castShadow = true;
+                
+                const neonRing = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.06, 12, 32), neonRingMat);
+                neonRing.rotation.y = Math.PI / 2;
+                neonRing.position.set(pos[0] > 0 ? 0.24 : -0.24, 0, 0);
+                wheel.add(neonRing);
+
+                bogieGroup.add(wheel);
+                bogies.push(wheel);
+            });
+
+            trainContainer.add(bogieGroup);
+        }
+
+        // SWARM IA - CREACIÓN DE NODOS FLOTANTES
+        let nodeParticlesGroup;
+        let swarmNodes = [];
+        
+        function createSwarmNodes() {
+            nodeParticlesGroup = new THREE.Group();
+            scene.add(nodeParticlesGroup);
+
+            const nodeGeom = new THREE.SphereGeometry(0.19, 24, 24);
+            const nodeMat = new THREE.MeshStandardMaterial({
+                color: 0x84cc16,
+                emissive: 0x84cc16,
+                emissiveIntensity: 1.8,
+                roughness: 0.02,
+                metalness: 1.0
+            });
+
+            for (let i = 0; i < 8; i++) {
+                const nodeMesh = new THREE.Mesh(nodeGeom, nodeMat);
+                const angle = (i / 8) * Math.PI * 2;
+                const radius = 4.8;
+                const height = (Math.random() - 0.5) * 6.5;
+                nodeMesh.position.set(Math.cos(angle) * radius, height, Math.sin(angle) * radius);
+                
+                nodeMesh.userData = {
+                    angle: angle,
+                    speed: 0.012 + Math.random() * 0.008,
+                    radius: radius,
+                    amplitude: height,
+                    frequency: 0.6 + Math.random() * 1.2
+                };
+                
+                swarmNodes.push(nodeMesh);
+                nodeParticlesGroup.add(nodeMesh);
+            }
+        }
+
+        // CREACIÓN DE VÍAS PARA SENSACIÓN DE DESPLAZAMIENTO
+        function createRails() {
+            const railMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.2, metalness: 0.9 });
+            const tieMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.9 });
+
+            const railGeom = new THREE.BoxGeometry(0.12, 0.18, 120);
+            
+            const railL = new THREE.Mesh(railGeom, railMat);
+            railL.position.set(-1.25, -1.95, 0);
+            scene.add(railL);
+
+            const railR = new THREE.Mesh(railGeom, railMat);
+            railR.position.set(1.25, -1.95, 0);
+            scene.add(railR);
+
+            for (let i = -60; i < 60; i += 3) {
+                const tie = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.12, 0.35), tieMat);
+                tie.position.set(0, -2.0, i);
+                scene.add(tie);
+                rails.push(tie);
+            }
+        }
+
+        // FLUJOS DE ENERGÍA SIMBIÓTICA EN PARTÍCULAS
+        function createEnergyParticles() {
+            const pCount = 350;
+            const geom = new THREE.BufferGeometry();
+            const positions = [];
+            const colors = [];
+
+            const color = new THREE.Color();
+
+            for (let i = 0; i < pCount; i++) {
+                positions.push((Math.random() - 0.5) * 3.4);
+                positions.push(Math.random() * 2.4);
+                positions.push((Math.random() - 0.5) * 16);
+
+                color.setHSL(0.22 + Math.random() * 0.12, 1.0, 0.5);
+                colors.push(color.r, color.g, color.b);
+            }
+
+            geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+            const mat = new THREE.PointsMaterial({
+                size: 0.22,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.85,
+                blending: THREE.AdditiveBlending
+            });
+
+            energyFlowParticles = new THREE.Points(geom, mat);
+            scene.add(energyFlowParticles);
+        }
+
+        // FÍSICA Y BIOMECÁNICA INTERACTIVA - AJUSTE EN TIEMPO REAL
+        let bounceAmplitude = 0.05;
+        let bounceSpeed = 4.2;
+
+        function adjustBogiePhysics(val) {
+            bounceSpeed = val;
+            bounceAmplitude = 0.18 / val;
+        }
+
+        function adjustAerodynamicDrag(val) {
+            dragVal = val;
+        }
+
+        function toggleAutoRotate() {
+            autoRotate = !autoRotate;
+            document.getElementById('btn-rotate').classList.toggle('bg-lime-950');
+        }
+
+        // ANIMACIÓN DE DESPLIEGUE USD
+        let usdCoverTargetY = 0.6;
+
+        function toggleUSDDeployment() {
+            usdDeployed = !usdDeployed;
+            const btn = document.getElementById('btn-usd');
+            const label = document.getElementById('lbl-btn-usd');
+            
+            if (usdDeployed) {
+                if (label) label.textContent = translations[currentLang].btnUsdRetract;
+                btn.className = "px-4 py-1.5 rounded-full bg-red-950/40 hover:bg-red-900/50 border border-red-500/40 text-xs font-bold text-red-400 tracking-wider hover:text-white transition-all uppercase flex items-center gap-1.5";
+                triggerNotification('notifUsdOn');
+                usdCoverTargetY = 2.4;
+            } else {
+                if (label) label.textContent = translations[currentLang].btnUsd;
+                btn.className = "px-4 py-1.5 rounded-full bg-lime-950/40 hover:bg-lime-900/50 border border-lime-500/40 text-xs font-bold text-lime-400 tracking-wider hover:text-white transition-all uppercase flex items-center gap-1.5";
+                triggerNotification('notifUsdOff');
+                usdCoverTargetY = 0.6;
+            }
+        }
+
+        // CONMUTACIÓN DE ESQUEMA DE LUZ CINEMATOGRÁFICA
+        function toggleLightMode() {
+            daylightScheme = !daylightScheme;
+            triggerNotification('notifLights');
+            
+            if (daylightScheme) {
+                scene.background = new THREE.Color(0xf1f5f9);
+                scene.fog.color = new THREE.Color(0xf1f5f9);
+                scene.fog.density = 0.01;
+                ambLight.color.setHex(0xffffff);
+                ambLight.intensity = 1.4;
+                dirLight.color.setHex(0xffffff);
+                dirLight.intensity = 2.2;
+                renderer.setClearColor(0xf1f5f9, 1);
+            } else {
+                scene.background = new THREE.Color(0x02040a);
+                scene.fog.color = new THREE.Color(0x02040a);
+                scene.fog.density = 0.012;
+                ambLight.color.setHex(0x0a122c);
+                ambLight.intensity = 1.8;
+                dirLight.color.setHex(0x06b6d4);
+                dirLight.intensity = 3.0;
+                renderer.setClearColor(0x02040a, 1);
+            }
+        }
+
+        // AJUSTE DINÁMICO DE COLORES DE LA RED DE ENERGÍA
+        function adjustVisualEnergyGrid(colorHex) {
+            swarmNodes.forEach(node => {
+                node.material.color.setHex(colorHex);
+                node.material.emissive.setHex(colorHex);
+            });
+            energyFlowParticles.material.color.setHex(colorHex);
+        }
+
+        // CONTROL DE ÁNGULO DE CÁMARA POR MOUSE / TOQUE
+        let isMouseDown = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let cameraRadius = 35;
+        let cameraAzimuth = Math.PI / 4;
+        let cameraElevation = Math.PI / 6;
+
+        function updateCameraPosition() {
+            cameraElevation = Math.max(0.1, Math.min(Math.PI / 2.2, cameraElevation));
+
+            camera.position.x = trainContainer.position.x + cameraRadius * Math.sin(cameraAzimuth) * Math.cos(cameraElevation);
+            camera.position.y = trainContainer.position.y + cameraRadius * Math.sin(cameraElevation);
+            camera.position.z = trainContainer.position.z + cameraRadius * Math.cos(cameraAzimuth) * Math.cos(cameraElevation);
+            
+            camera.lookAt(trainContainer.position);
+        }
+
+        window.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            const deltaMove = {
+                x: e.offsetX - previousMousePosition.x,
+                y: e.offsetY - previousMousePosition.y
+            };
+
+            if (isMouseDown) {
+                cameraAzimuth -= deltaMove.x * 0.005;
+                cameraElevation += deltaMove.y * 0.005;
+                autoRotate = false;
+            }
+
+            previousMousePosition = {
+                x: e.offsetX,
+                y: e.offsetY
+            };
+        });
+
+        window.addEventListener('mouseup', () => {
+            isMouseDown = false;
+        });
+
+        window.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isMouseDown = true;
+                previousMousePosition = {
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY
+                };
+            }
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (isMouseDown && e.touches.length === 1) {
+                const deltaMove = {
+                    x: e.touches[0].clientX - previousMousePosition.x,
+                    y: e.touches[0].clientY - previousMousePosition.y
+                };
+
+                cameraAzimuth -= deltaMove.x * 0.005;
+                cameraElevation += deltaMove.y * 0.005;
+                autoRotate = false;
+
+                previousMousePosition = {
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY
+                };
+            }
+        });
+
+        window.addEventListener('touchend', () => {
+            isMouseDown = false;
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // BUCLE PRINCIPAL DE ANIMACIÓN Y FÍSICA
+        let time = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.01;
+
+            // 1. Simulación de avance infinito de vías
+            const trackSpeed = (speedVal / 160) * 0.85;
+            rails.forEach(tie => {
+                tie.position.z += trackSpeed;
+                if (tie.position.z > 60) {
+                    tie.position.z = -60;
+                }
+            });
+
+            // 2. Rotación de ruedas bogie en función de la velocidad simulada
+            const wheelRotationSpeed = (speedVal / 160) * 0.16;
+            bogies.forEach(wheel => {
+                wheel.rotation.x += wheelRotationSpeed;
+            });
+
+            // 3. FÍSICA BIOMECÁNICA: Balanceo inercial y cabeceo de sustentación
+            if (speedVal > 0) {
+                const suspensionFrequency = bounceSpeed * 2 * Math.PI;
+                trainContainer.position.y = Math.sin(time * suspensionFrequency) * bounceAmplitude;
+                trainContainer.rotation.x = Math.sin(time * 3) * 0.006 * (speedVal / 160);
+                trainContainer.rotation.z = Math.cos(time * suspensionFrequency) * (bounceAmplitude * 0.18);
+            } else {
+                trainContainer.position.y = 0;
+                trainContainer.rotation.x = 0;
+                trainContainer.rotation.z = 0;
+            }
+
+            // 4. ÓRBITA SWARM IA - Movimiento de nodos inteligentes
+            swarmNodes.forEach(node => {
+                node.userData.angle += node.userData.speed;
+                const verticalOffset = Math.sin(time * node.userData.frequency) * 0.9;
+                
+                node.position.x = trainContainer.position.x + Math.cos(node.userData.angle) * node.userData.radius;
+                node.position.y = trainContainer.position.y + node.userData.amplitude + verticalOffset;
+                node.position.z = trainContainer.position.z + Math.sin(node.userData.angle) * node.userData.radius;
+                
+                node.material.emissiveIntensity = 1.2 + Math.sin(time * 6 + node.userData.angle) * 0.6;
+            });
+
+            // 5. Partículas de flujo de energía estela
+            const particlePositions = energyFlowParticles.geometry.attributes.position.array;
+            for (let i = 2; i < particlePositions.length; i += 3) {
+                const flowSpeed = (speedVal / 160) * (0.45 / dragVal);
+                particlePositions[i] -= flowSpeed + Math.random() * 0.06;
+                if (particlePositions[i] < -16) {
+                    particlePositions[i] = 16;
+                }
+            }
+            energyFlowParticles.geometry.attributes.position.needsUpdate = true;
+
+            // 6. Animación del panel deslizante de la Microrred (Despliegue real USD)
+            if (usdCoverLeft) {
+                usdCoverLeft.position.y += (usdCoverTargetY - usdCoverLeft.position.y) * 0.1;
+                if (usdDeployed) {
+                    usdCoverLeft.scale.y += (0.01 - usdCoverLeft.scale.y) * 0.1;
+                    usdCoverLeft.visible = usdCoverLeft.scale.y > 0.05;
+                } else {
+                    usdCoverLeft.visible = true;
+                    usdCoverLeft.scale.y += (1.0 - usdCoverLeft.scale.y) * 0.1;
+                }
+            }
+
+            // 7. Auto-rotación pasiva de la cámara
+            if (autoRotate) {
+                cameraAzimuth += 0.0015;
+            }
+
+            // 8. Actualización de cámara
+            updateCameraPosition();
+
+            renderer.render(scene, camera);
+        }
+
+        // ARRANCAR EL SIMULADOR TRAS EL CARGADO DEL DOM
+        window.onload = function() {
+            init3D();
+            changeLanguage('es');
+        };
+    </script>
+</body>
+</html>
