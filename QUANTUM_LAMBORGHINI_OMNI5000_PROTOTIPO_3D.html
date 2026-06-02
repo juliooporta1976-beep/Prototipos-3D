@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>QUANTUM LAMBORGHINI OMNI-5000 - Prototipo 3D Autónomo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #050609;
+      font-family: 'Space Grotesk', 'Inter', -apple-system, sans-serif;
+      color: #94a3b8;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* Cinematic futuristic overlay HUD */
+    #hud-overlay {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-family: monospace;
+      text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+    }
+
+    .hud-title {
+      font-size: 14px;
+      font-weight: 950;
+      letter-spacing: 0.18em;
+      color: #ffffff;
+      text-transform: uppercase;
+      margin: 0;
+      transition: color 0.3s;
+    }
+
+    .hud-subtitle {
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      color: #10b981;
+      text-transform: uppercase;
+    }
+
+    #hud-sensors {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-family: monospace;
+      font-size: 10px;
+      text-align: right;
+      color: #38bdf8;
+    }
+
+    /* Elegant sleek floating control bar at the bottom containing 3D mode controllers & styling presets */
+    #hud-controls {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+      background: rgba(10, 15, 25, 0.88);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      padding: 18px 28px;
+      border-radius: 20px;
+      box-shadow: 0 15px 44px rgba(0, 0, 0, 0.8), 0 0 15px rgba(16, 185, 129, 0.15);
+      width: 90%;
+      max-width: 720px;
+      box-sizing: border-box;
+    }
+
+    .title {
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.2em;
+      color: #38bdf8;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+      text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+    }
+
+    .modes-row {
+      display: flex;
+      gap: 6px;
+      width: 100%;
+      overflow-x: auto;
+      justify-content: center;
+      scrollbar-width: none;
+    }
+    .modes-row::-webkit-scrollbar {
+      display: none;
+    }
+
+    .row-colors {
+      display: flex;
+      gap: 10px;
+      margin-top: 4px;
+      align-items: center;
+    }
+
+    button {
+      background: rgba(255, 255, 255, 0.04);
+      color: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 10px 18px;
+      font-size: 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.35);
+      transform: translateY(-1px);
+    }
+
+    button.active {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border-color: #10b981;
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.3);
+    }
+
+    .color-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: transform 0.2s;
+      padding: 0;
+    }
+
+    .color-btn:hover {
+      transform: scale(1.2);
+    }
+
+    .color-btn.active {
+      border-color: #ffffff;
+      box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+    }
+
+    #loading-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #050609;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #94a3b8;
+      font-size: 13px;
+      font-weight: bold;
+      letter-spacing: 0.2em;
+      transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(16, 185, 129, 0.1);
+      border-top-color: #34d399;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    #help-guide {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      color: rgba(255, 255, 255, 0.35);
+      font-size: 9px;
+      font-family: monospace;
+      letter-spacing: 0.1em;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 6px 12px;
+      border-radius: 20px;
+      pointer-events: none;
+    }
+
+    .lang-selector {
+      margin-top: 12px;
+      display: flex;
+      gap: 6px;
+      pointer-events: auto; /* Allow interaction */
+    }
+
+    .lang-btn {
+      background: rgba(255, 255, 255, 0.05) !important;
+      border: 1px solid rgba(255, 255, 255, 0.15) !important;
+      color: #94a3b8 !important;
+      font-size: 9px !important;
+      padding: 4px 8px !important;
+      border-radius: 4px !important;
+      cursor: pointer !important;
+      font-family: monospace !important;
+      font-weight: bold !important;
+      text-shadow: none !important;
+      box-shadow: none !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 0 !important;
+    }
+
+    .lang-btn:hover {
+      background: rgba(255, 255, 255, 0.15) !important;
+      color: #ffffff !important;
+      border-color: rgba(255, 255, 255, 0.4) !important;
+    }
+
+    .lang-btn.active {
+      background: rgba(56, 189, 248, 0.25) !important;
+      border-color: #38bdf8 !important;
+      color: #38bdf8 !important;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.2) !important;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loading-screen">
+    <div class="spinner"></div>
+    <span id="tx-loading">CARGANDO PROTOTIPO 3D COMPLETO...</span>
+  </div>
+
+  <div id="help-guide">
+    <span id="tx-help">🖱️ CLICK Y ARRASTRA PARA GIRAR | SCROLL PARA ZOOM</span>
+  </div>
+
+  <div id="hud-overlay">
+    <h1 class="hud-title">LAMBORGHINI OMNI-5000</h1>
+    <span id="hud-subtitle" class="hud-subtitle">PROTOTIPO AUTÓNOMO MULTIMODAL V3D</span>
+    <div style="font-size: 10px; color: #64748b; margin-top: 8px;">
+      <span id="tx-cohere">AUTORRANGO DE COHERENCIA:</span> <span id="telemetry-cohere" style="color: #38bdf8;">98.4%</span>
+    </div>
+    <div style="font-size: 10px; color: #64748b;">
+      <span id="tx-energy">FRACTAL CORE ENERGY:</span> <span id="telemetry-energy" style="color: #a78bfa;">99.1%</span>
+    </div>
+    <div class="lang-selector">
+      <button class="lang-btn active" id="lang-es" onclick="setLanguage('es')">ES</button>
+      <button class="lang-btn" id="lang-en" onclick="setLanguage('en')">EN</button>
+      <button class="lang-btn" id="lang-zh" onclick="setLanguage('zh')">中文</button>
+    </div>
+  </div>
+
+  <div id="hud-sensors">
+    <div><span id="tx-sens-mode">MODO:</span> <span id="sens-mode" style="color: #f59e0b; font-weight: bold;">TERRESTRE</span></div>
+    <div><span id="tx-sens-height">ALTURA:</span> <span id="sens-height">45mm</span></div>
+    <div><span id="tx-sens-shield">SISTEMA DEFLECTOR:</span> <span id="sens-shield" style="color: #ef4444;">INACTIVO</span></div>
+    <div><span id="tx-sens-doors">PUERTAS DE TIJERA:</span> <span id="sens-doors" style="color: #94a3b8;">CERRADAS</span></div>
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <!-- CONTROL PANEL OVERLAY (Aesthetic styling + Controls) -->
+  <div id="hud-controls">
+    <div id="tx-title-quantum" class="title">TRANSFORMACIÓN MULTIMODAL MODO CUÁNTICO</div>
+    <div class="modes-row">
+      <button id="btn-land" class="active" onclick="setMode('land')">🚘 TERRESTRE</button>
+      <button id="btn-air" onclick="setMode('air')">✈️ AÉREO</button>
+      <button id="btn-aquatic" onclick="setMode('aquatic')">🌊 ACUÁTICO</button>
+      <button id="btn-subaquatic" onclick="setMode('subaquatic')">🐙 SUBACUÁTICO</button>
+      <button id="btn-shield" onclick="toggleShield()">🛡️ DEFLECTOR</button>
+      <button id="btn-doors" onclick="toggleDoors()">🚪 PUERTAS</button>
+    </div>
+    
+    <div id="tx-title-paint" class="title" style="margin-top: 4px;">PINTURA ESTRUCTURAL Y DISEÑO</div>
+    <div class="row-colors">
+      <button class="color-btn active" style="background:#10b981" onclick="setColor('#10b981', '#34d399', 'venom', this)"></button>
+      <button class="color-btn" style="background:#8b5cf6" onclick="setColor('#8b5cf6', '#a78bfa', 'nebula', this)"></button>
+      <button class="color-btn" style="background:#06b6d4" onclick="setColor('#06b6d4', '#22d3ee', 'cyan', this)"></button>
+      <button class="color-btn" style="background:#eab308" onclick="setColor('#eab308', '#fde047', 'gold', this)"></button>
+      <button class="color-btn" style="background:#ef4444" onclick="setColor('#ef4444', '#f87171', 'plasma', this)"></button>
+      
+      <div style="width: 2px; height: 18px; background: rgba(255,255,255,0.15); margin: 0 4px;"></div>
+      
+      <button id="btn-theme-download" onclick="toggleDownloadTheme()">🌌 MODO CYBER CORE</button>
+    </div>
+  </div>
+
+  <!-- Load high-performance Three.js Engine via CDN (Guarantees infinite load safety) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <script>
+    // Bind the global THREE instance safely
+    window.THREE = window.THREE || THREE;
+    const THREE = window.THREE;
+
+    // Built-In Ultra Light Dynamic Orbit Controller
+    class SimpleOrbitControls {
+        constructor(THREE, camera, domElement) {
+          this.camera = camera;
+          this.domElement = domElement;
+          this.target = new THREE.Vector3(0, 0, 0);
+          this.radius = 11.0;
+          this.theta = 0.5;
+          this.phi = 1.2;
+          this.minDistance = 3.5;
+          this.maxDistance = 18.0;
+          
+          this.isDragging = false;
+          this.previousMousePosition = { x: 0, y: 0 };
+          
+          this.initEvents(THREE);
+          this.update(THREE);
+        }
+        
+        initEvents(THREE) {
+          const onMouseDown = (e) => {
+            this.isDragging = true;
+            this.previousMousePosition = { x: e.clientX, y: e.clientY };
+          };
+          
+          const onMouseMove = (e) => {
+            if (!this.isDragging) return;
+            const deltaX = e.clientX - this.previousMousePosition.x;
+            const deltaY = e.clientY - this.previousMousePosition.y;
+            
+            this.theta -= deltaX * 0.005;
+            this.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, this.phi - deltaY * 0.005));
+            
+            this.previousMousePosition = { x: e.clientX, y: e.clientY };
+            this.update(THREE);
+          };
+          
+          const onMouseUp = () => {
+            this.isDragging = false;
+          };
+          
+          const onWheel = (e) => {
+            e.preventDefault();
+            this.radius = Math.max(this.minDistance, Math.min(this.maxDistance, this.radius + e.deltaY * 0.01));
+            this.update(THREE);
+          };
+          
+          let touchStartDist = 0;
+          const onTouchStart = (e) => {
+            if (e.touches.length === 1) {
+              this.isDragging = true;
+              this.previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            } else if (e.touches.length === 2) {
+              this.isDragging = false;
+              touchStartDist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+              );
+            }
+          };
+          
+          const onTouchMove = (e) => {
+            if (e.touches.length === 1 && this.isDragging) {
+              const deltaX = e.touches[0].clientX - this.previousMousePosition.x;
+              const deltaY = e.touches[0].clientY - this.previousMousePosition.y;
+              
+              this.theta -= deltaX * 0.008;
+              this.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, this.phi - deltaY * 0.008));
+              
+              this.previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+              this.update(THREE);
+            } else if (e.touches.length === 2) {
+              const dist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+              );
+              const factor = (touchStartDist - dist) * 0.02;
+              this.radius = Math.max(this.minDistance, Math.min(this.maxDistance, this.radius + factor));
+              touchStartDist = dist;
+              this.update(THREE);
+            }
+          };
+          
+          const onTouchEnd = () => {
+            this.isDragging = false;
+          };
+          
+          this.domElement.addEventListener('mousedown', onMouseDown);
+          window.addEventListener('mousemove', onMouseMove);
+          window.addEventListener('mouseup', onMouseUp);
+          this.domElement.addEventListener('wheel', onWheel, { passive: false });
+          
+          this.domElement.addEventListener('touchstart', onTouchStart, { passive: true });
+          this.domElement.addEventListener('touchmove', onTouchMove, { passive: false });
+          this.domElement.addEventListener('touchend', onTouchEnd);
+        }
+        
+        update(THREE) {
+          this.camera.position.x = this.target.x + this.radius * Math.sin(this.phi) * Math.sin(this.theta);
+          this.camera.position.y = this.target.y + this.radius * Math.cos(this.phi);
+          this.camera.position.z = this.target.z + this.radius * Math.sin(this.phi) * Math.cos(this.theta);
+          this.camera.lookAt(this.target);
+        }
+      }
+
+      THREE.OrbitControls = SimpleOrbitControls;
+
+      // Core variables representation
+      let scene, camera, renderer, controls;
+      let currentMode = 'land';
+      let shieldActive = false;
+      let doorsOpen = false;
+      let doorAngle = 0;
+      let isDarkTheme = true;
+      let currentColor = { hex: '#10b981', energyHex: '#34d399', id: 'venom' };
+      let currentLanguage = 'zh';
+
+      // Grouping elements
+      let vehicleGroup, bodyGroup, wheelGroup;
+      let wheels = [];
+      let chassisMat, highlightsMat, neonMat, quantumCore, protectDome, flyerWingLeft, flyerWingRight, rotorBlade, tGlow1, tGlow2, oceanPropeller, jetSpinner, shieldBubble, gridHelper;
+      let louverMat, paintWhiteMat, carbonMat;
+      let leftDoorPivot, rightDoorPivot;
+      let particleGeometry, particlePoints;
+      let concentricGroup;
+
+      function init() {
+        const container = document.getElementById('canvas-container');
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050609); // Cyber dark background default for maximum contrast
+        scene.fog = new THREE.FogExp2(0x050609, 0.04);
+
+        camera = new THREE.PerspectiveCamera(40, w / h, 0.1, 100);
+        camera.position.set(5.8, 3.8, 9.8);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(w, h);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        controls = new THREE.OrbitControls(THREE, camera, renderer.domElement);
+        controls.minDistance = 3.5;
+        controls.maxDistance = 18;
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+        scene.add(ambientLight);
+
+        const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
+        mainLight.position.set(10, 25, 10);
+        mainLight.castShadow = true;
+        scene.add(mainLight);
+
+        // Customizable neon indicators
+        const energyLight = new THREE.PointLight(currentColor.hex, 10, 15);
+        energyLight.position.set(0, 1.5, 0);
+        scene.add(energyLight);
+
+        // Floor grid system
+        gridHelper = new THREE.GridHelper(36, 36, 0x1e293b, 0x0f172a);
+        gridHelper.position.y = -1.4;
+        scene.add(gridHelper);
+
+        // Adding Concentric circular blueprints to downloaded file for extreme realism!
+        concentricGroup = new THREE.Group();
+        concentricGroup.position.y = -1.39;
+        scene.add(concentricGroup);
+
+        const ringMat = new THREE.MeshBasicMaterial({
+          color: 0x38bdf8,
+          transparent: true,
+          opacity: 0.35,
+          side: THREE.DoubleSide
+        });
+
+        const innerRing = new THREE.Mesh(new THREE.RingGeometry(1.8, 1.83, 44), ringMat);
+        innerRing.rotation.x = Math.PI / 2;
+        concentricGroup.add(innerRing);
+
+        const outerRing = new THREE.Mesh(new THREE.RingGeometry(3.5, 3.54, 44), ringMat);
+        outerRing.rotation.x = Math.PI / 2;
+        concentricGroup.add(outerRing);
+
+        // Floor plane shadow reception
+        const floorGeo = new THREE.PlaneGeometry(40, 40);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x020306, roughness: 0.95 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -1.41;
+        floor.receiveShadow = true;
+        scene.add(floor);
+        window.floor = floor; 
+
+        // Assembly Groups
+        vehicleGroup = new THREE.Group();
+        scene.add(vehicleGroup);
+
+        bodyGroup = new THREE.Group();
+        vehicleGroup.add(bodyGroup);
+
+        // MATERIALS INITIALIZATION
+        paintWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf3f4f6, roughness: 0.08, metalness: 0.15 });
+        carbonMat = new THREE.MeshStandardMaterial({ color: 0x101114, roughness: 0.4, metalness: 0.85 });
+        highlightsMat = new THREE.MeshStandardMaterial({ color: currentColor.hex, roughness: 0.18, metalness: 0.95 });
+        neonMat = new THREE.MeshBasicMaterial({ color: currentColor.energyHex });
+        louverMat = carbonMat;
+
+        // LOWER CHASSIS FRAME FLOOR
+        const frameGeo = new THREE.BoxGeometry(4.3, 0.2, 2.1);
+        const frame = new THREE.Mesh(frameGeo, carbonMat);
+        frame.position.y = -0.3;
+        frame.castShadow = true;
+        bodyGroup.add(frame);
+
+        // BUMPER LEFT & RIGHT (Lamborghini aerodynamic elements)
+        const noseLeftGeo = new THREE.BoxGeometry(1.2, 0.35, 0.95);
+        const noseLeft = new THREE.Mesh(noseLeftGeo, paintWhiteMat);
+        noseLeft.position.set(1.9, -0.15, 0.5);
+        noseLeft.rotation.y = -Math.PI / 10;
+        noseLeft.castShadow = true;
+        bodyGroup.add(noseLeft);
+
+        const noseRight = noseLeft.clone();
+        noseRight.position.set(1.9, -0.15, -0.5);
+        noseRight.rotation.y = Math.PI / 10;
+        bodyGroup.add(noseRight);
+
+        // Front bumper splitter
+        const centerSplitter = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.08, 0.6), carbonMat);
+        centerSplitter.position.set(2.4, -0.32, 0);
+        bodyGroup.add(centerSplitter);
+
+        // SHARP NOSE HOOD
+        const hoodGeo = new THREE.BoxGeometry(1.6, 0.25, 1.8);
+        const hood = new THREE.Mesh(hoodGeo, paintWhiteMat);
+        hood.position.set(1.0, 0.02, 0);
+        hood.rotation.z = -0.11;
+        hood.castShadow = true;
+        bodyGroup.add(hood);
+
+        // WINDSHIELD (Aventador futuristic styling)
+        const windshieldGeo = new THREE.BoxGeometry(1.4, 0.6, 1.7);
+        const glassMat = new THREE.MeshStandardMaterial({ color: 0x111e2e, roughness: 0.05, metalness: 0.95, transparent: true, opacity: 0.75 });
+        const windshield = new THREE.Mesh(windshieldGeo, glassMat);
+        windshield.position.set(0.0, 0.36, 0);
+        windshield.rotation.z = -0.42;
+        windshield.scale.set(1.2, 0.8, 1.0);
+        bodyGroup.add(windshield);
+
+        // GLASS PROTECTIVE DOME CUPULA
+        const domeGeo = new THREE.SphereGeometry(1.0, 32, 16);
+        const domeMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.22, roughness: 0.05, metalness: 0.95 });
+        protectDome = new THREE.Mesh(domeGeo, domeMat);
+        protectDome.position.set(-0.2, 0.45, 0);
+        protectDome.scale.set(1.5, 0.8, 1.35);
+        bodyGroup.add(protectDome);
+
+        // INTERACTIVE SCISSOR DOORS IN THE STANDALONE PROTOTYPE!
+        // Setup Left Door via Pivot Group for real-life scissor door rotation!
+        leftDoorPivot = new THREE.Group();
+        leftDoorPivot.position.set(0.55, 0.3, 0.95); // Hinge joint position
+        bodyGroup.add(leftDoorPivot);
+
+        const doorLeftMesh = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.65, 0.12), paintWhiteMat);
+        doorLeftMesh.position.set(-0.95, -0.3, 0.05); // Offset relative to pivot joint
+        doorLeftMesh.castShadow = true;
+        leftDoorPivot.add(doorLeftMesh);
+
+        // Setup Right Door via Pivot Group
+        rightDoorPivot = new THREE.Group();
+        rightDoorPivot.position.set(0.55, 0.3, -0.95); // Hinge joint position
+        bodyGroup.add(rightDoorPivot);
+
+        const doorRightMesh = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.65, 0.12), paintWhiteMat);
+        doorRightMesh.position.set(-0.95, -0.3, -0.05);
+        doorRightMesh.castShadow = true;
+        rightDoorPivot.add(doorRightMesh);
+
+        // INTERIOR CABIN DETAILS (Holographic cockpit & dashboard core!)
+        const dashboard = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 0.9), carbonMat);
+        dashboard.position.set(0.4, 0.1, 0);
+        const dashCore = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.4), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+        dashCore.position.set(0.2, 0.05, 0);
+        dashboard.add(dashCore);
+        bodyGroup.add(dashboard);
+
+        // Side carbon flaps
+        const intakeLeft = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.22), carbonMat);
+        intakeLeft.position.set(-1.1, 0.0, 0.95);
+        intakeLeft.rotation.y = -Math.PI / 12;
+        bodyGroup.add(intakeLeft);
+
+        const intakeRight = intakeLeft.clone();
+        intakeRight.position.set(-1.1, 0.0, -0.95);
+        intakeRight.rotation.y = Math.PI / 12;
+        bodyGroup.add(intakeRight);
+
+        // Color chassis highlights
+        const compLeft = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.3, 0.05), highlightsMat);
+        compLeft.position.set(-0.3, -0.05, 1.07);
+        bodyGroup.add(compLeft);
+
+        const compRight = compLeft.clone();
+        compRight.position.set(-0.3, -0.05, -1.07);
+        bodyGroup.add(compRight);
+
+        // REAR LAYERED ENGINE DECK WITH COOL BLACK VENOM LOUVERS
+        const rearDeck = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, 1.9), paintWhiteMat);
+        rearDeck.position.set(-1.4, 0.15, 0);
+        rearDeck.castShadow = true;
+        bodyGroup.add(rearDeck);
+
+        const louver = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.05, 1.3), carbonMat);
+        louver.position.set(-1.4, 0.34, 0);
+        bodyGroup.add(louver);
+
+        // Y-SHAPE GLOWING FRONT HEADLAMPS (Custom aesthetic glowing LED style!)
+        const lampGeo = new THREE.BoxGeometry(0.12, 0.04, 0.44);
+        const lampLeft = new THREE.Mesh(lampGeo, neonMat);
+        lampLeft.position.set(2.4, -0.05, 0.55);
+        lampLeft.rotation.y = -Math.PI / 6;
+        bodyGroup.add(lampLeft);
+
+        const lampRight = lampLeft.clone();
+        lampRight.position.set(2.4, -0.05, -0.55);
+        lampRight.rotation.y = Math.PI / 6;
+        bodyGroup.add(lampRight);
+
+        // ENGINES & STABILIZERS
+        const coreGeo = new THREE.IcosahedronGeometry(0.38, 1);
+        quantumCore = new THREE.Mesh(coreGeo, new THREE.MeshBasicMaterial({ color: currentColor.energyHex, wireframe: true }));
+        quantumCore.position.set(-1.3, 0.28, 0);
+        bodyGroup.add(quantumCore);
+
+        // INTEGRATING LARGE CYAN FLIGHT WINGS (Swept wings identical to the schema template)
+        const flightWingLeftGeo = new THREE.BoxGeometry(0.8, 0.05, 2.6);
+        const flyerCyanMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.15, metalness: 0.7 });
+        
+        flyerWingLeft = new THREE.Mesh(flightWingLeftGeo, flyerCyanMat);
+        flyerWingLeft.position.set(-1.8, 0.42, 1.45);
+        flyerWingLeft.rotation.y = -Math.PI / 6; // swept backwards
+        flyerWingLeft.rotation.x = Math.PI / 18; // angled slightly up
+        bodyGroup.add(flyerWingLeft);
+
+        // Winglet
+        const wingletL = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.05), flyerCyanMat);
+        wingletL.position.set(-2.0, 0.45, 2.7);
+        wingletL.rotation.z = Math.PI / 5;
+        bodyGroup.add(wingletL);
+
+        flyerWingRight = flyerWingLeft.clone();
+        flyerWingRight.position.set(-1.8, 0.42, -1.45);
+        flyerWingRight.rotation.y = Math.PI / 6;
+        flyerWingRight.rotation.x = -Math.PI / 18;
+        bodyGroup.add(flyerWingRight);
+
+        const wingletR = wingletL.clone();
+        wingletR.position.set(-2.0, 0.45, -2.7);
+        wingletR.rotation.z = -Math.PI / 5;
+        bodyGroup.add(wingletR);
+
+        // ROOF AERIAL HELICOPTER STABILIZER MASTS
+        const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.5, 12), carbonMat);
+        mast.position.set(-0.3, 0.85, 0);
+        bodyGroup.add(mast);
+
+        const flightPod = new THREE.Mesh(new THREE.SphereGeometry(0.24, 24, 16), paintWhiteMat);
+        flightPod.position.set(-0.3, 1.1, 0);
+        flightPod.scale.set(1.4, 0.8, 1.0);
+        bodyGroup.add(flightPod);
+
+        rotorBlade = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.01, 1.8), flyerCyanMat);
+        rotorBlade.position.set(-0.3, 1.25, 0);
+        bodyGroup.add(rotorBlade);
+
+        // WHEELS (As requested, styled with glowing rims exactly matching the schema image)
+        wheelGroup = new THREE.Group();
+        vehicleGroup.add(wheelGroup);
+
+        const tireGeo = new THREE.CylinderGeometry(0.72, 0.72, 0.42, 32);
+        const tireMat = new THREE.MeshStandardMaterial({ color: 0x131416, roughness: 0.65 });
+        const greenRimMat = new THREE.MeshBasicMaterial({ color: 0x22c55e }); // Lime-green hub rings from schematic image
+        const metalHubMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.1, metalness: 0.9 });
+
+        const wCoords = [
+          { x: 1.48, z: 1.18, name: 'FL' },
+          { x: 1.48, z: -1.18, name: 'FR' },
+          { x: -1.35, z: 1.18, name: 'RL' },
+          { x: -1.35, z: -1.18, name: 'RR' }
+        ];
+
+        wCoords.forEach(c => {
+          const wPair = new THREE.Group();
+          wPair.position.set(c.x, -0.65, c.z);
+
+          const tire = new THREE.Mesh(tireGeo, tireMat);
+          tire.rotation.x = Math.PI / 2;
+          tire.castShadow = true;
+          wPair.add(tire);
+
+          const hubTorus = new THREE.Mesh(new THREE.TorusGeometry(0.73, 0.05, 8, 30), greenRimMat);
+          hubTorus.rotation.y = Math.PI / 2;
+          wPair.add(hubTorus);
+
+          // aluminum spokes
+          const spokeGroup = new THREE.Group();
+          spokeGroup.rotation.y = Math.PI / 2;
+          const spokeBox = new THREE.BoxGeometry(0.08, 1.25, 0.08);
+          for (let s = 0; s < 5; s++) {
+            const sMesh = new THREE.Mesh(spokeBox, metalHubMat);
+            sMesh.rotation.z = (s * Math.PI) / 5;
+            spokeGroup.add(sMesh);
+          }
+          wPair.add(spokeGroup);
+
+          wheelGroup.add(wPair);
+          wheels.push({ mesh: wPair, basePosition: new THREE.Vector3(c.x, -0.65, c.z) });
+        });
+
+        // ROCKET THRUSTER CONES WITH INTENSE NEON THERMAL ATMOSPHERES
+        const thrusterGeo = new THREE.ConeGeometry(0.3, 0.8, 16);
+        const thrusterMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.9 });
+        const exhaustGeo = new THREE.ConeGeometry(0.25, 0.7, 16);
+        const exhaustMat = new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.8 });
+
+        const rightThr = new THREE.Group();
+        rightThr.position.set(-2.15, -0.05, -0.65);
+        const tBodyR = new THREE.Mesh(thrusterGeo, thrusterMat);
+        tBodyR.rotation.z = Math.PI / 2;
+        rightThr.add(tBodyR);
+        tGlow2 = new THREE.Mesh(exhaustGeo, exhaustMat);
+        tGlow2.position.set(-0.55, 0, 0);
+        tGlow2.rotation.z = -Math.PI / 2;
+        rightThr.add(tGlow2);
+        bodyGroup.add(rightThr);
+
+        const leftThr = rightThr.clone();
+        leftThr.position.set(-2.15, -0.05, 0.65);
+        tGlow1 = leftThr.children[1];
+        bodyGroup.add(leftThr);
+
+        // AQUATIC FLUID PROPULSION DUCTS
+        jetSpinner = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 1.2, 16), new THREE.MeshStandardMaterial({ color: 0x111827, metalness: 0.8 }));
+        jetSpinner.rotation.x = Math.PI / 2;
+        jetSpinner.position.set(-0.2, -0.44, 0);
+        bodyGroup.add(jetSpinner);
+
+        oceanPropeller = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.82, 0.18), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+        oceanPropeller.position.set(-0.8, 0, 0);
+        jetSpinner.add(oceanPropeller);
+
+        // FORCE FIELD SHIELD
+        shieldBubble = new THREE.Mesh(
+          new THREE.SphereGeometry(3.3, 32, 24),
+          new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0, wireframe: true })
+        );
+        scene.add(shieldBubble);
+
+        // WEATHER FLUID GRID DEBRIS
+        const particleCount = 180;
+        particleGeometry = new THREE.BufferGeometry();
+        const pArr = new Float32Array(particleCount * 3);
+        for (let i = 0; i < particleCount * 3; i += 3) {
+          pArr[i] = (Math.random() - 0.5) * 30;
+          pArr[i + 1] = (Math.random() - 0.5) * 12 + 1;
+          pArr[i + 2] = (Math.random() - 0.5) * 30;
+        }
+        particleGeometry.setAttribute('position', new THREE.BufferAttribute(pArr, 3));
+        particlePoints = new THREE.Points(particleGeometry, new THREE.PointsMaterial({ size: 0.08, color: 0x22c55e, transparent: true, opacity: 0.6 }));
+        scene.add(particlePoints);
+
+        // Dismiss Loader overlay
+        document.getElementById('loading-screen').style.opacity = 0;
+        setTimeout(() => {
+          document.getElementById('loading-screen').style.display = 'none';
+        }, 500);
+
+        window.addEventListener('resize', onResize);
+      }
+
+      function onResize() {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      }
+
+      // MAIN COGNITOR ENGINE LOOP
+      function animate() {
+        requestAnimationFrame(animate);
+
+        const elapsedTime = Date.now() * 0.001;
+
+        // Spin quantum cores
+        if (quantumCore) {
+          quantumCore.rotation.y += 0.03;
+          quantumCore.rotation.z += 0.015;
+        }
+
+        // Spin top rotor
+        if (rotorBlade) {
+          rotorBlade.rotation.y += 0.08;
+        }
+
+        // Animate scissor doors interpolation smoothly!
+        const targetDoorAngle = doorsOpen ? -Math.PI / 3.2 : 0;
+        doorAngle += (targetDoorAngle - doorAngle) * 0.08;
+        if (leftDoorPivot && rightDoorPivot) {
+          leftDoorPivot.rotation.z = doorAngle;
+          rightDoorPivot.rotation.z = -doorAngle; // mirror
+        }
+
+        // Control dynamic force shield dome glow pulses
+        if (shieldBubble) {
+          if (shieldActive) {
+            shieldBubble.visible = true;
+            shieldBubble.material.opacity = 0.06 + Math.sin(elapsedTime * 6) * 0.02;
+            shieldBubble.scale.setScalar(1 + Math.sin(elapsedTime * 4) * 0.015);
+          } else {
+            shieldBubble.visible = false;
+          }
+        }
+
+        // Randomly flicker live telemetry in offline dashboard for ultimate realism!
+        if (Math.random() > 0.95) {
+          document.getElementById("telemetry-cohere").textContent = (95 + Math.random() * 4.9).toFixed(1) + "%";
+          document.getElementById("telemetry-energy").textContent = (97 + Math.random() * 2.9).toFixed(1) + "%";
+        }
+
+        // Set vehicle bobbing and mode transforms
+        let amplitude = 0.04;
+        let bobFreq = 1.6;
+
+        if (currentMode === 'air') {
+          amplitude = 0.22;
+          bobFreq = 2.4;
+
+          // Angle helper wings
+          flyerWingLeft.rotation.y = -Math.PI / 4 + Math.sin(elapsedTime * 0.5) * 0.03;
+          flyerWingRight.rotation.y = Math.PI / 4 - Math.sin(elapsedTime * 0.5) * 0.03;
+
+          // fold tires flat
+          wheels.forEach(w => {
+            w.mesh.rotation.z = Math.max(-Math.PI / 2, w.mesh.rotation.z - 0.05);
+            w.mesh.position.y = w.basePosition.y + 0.35;
+          });
+
+          // Boost flame exhaust flare active
+          tGlow1.scale.set(1, 1.4 + Math.sin(elapsedTime * 35) * 0.3, 1);
+          tGlow2.scale.set(1, 1.4 + Math.sin(elapsedTime * 35) * 0.3, 1);
+          tGlow1.visible = true;
+          tGlow2.visible = true;
+          oceanPropeller.rotation.y = 0;
+
+          vehicleGroup.rotation.z = Math.sin(elapsedTime) * 0.03;
+        } else if (currentMode === 'aquatic') {
+          amplitude = 0.12;
+          bobFreq = 1.1;
+
+          wheels.forEach(w => {
+            w.mesh.rotation.z = -Math.PI / 4;
+            w.mesh.position.y = w.basePosition.y + 0.18;
+          });
+
+          oceanPropeller.rotation.y += 0.12;
+          tGlow1.visible = false;
+          tGlow2.visible = false;
+
+          vehicleGroup.rotation.z = Math.sin(elapsedTime * 1.5) * 0.04;
+        } else if (currentMode === 'subaquatic') {
+          amplitude = 0.08;
+          bobFreq = 0.7;
+
+          wheels.forEach(w => {
+            w.mesh.rotation.z = -Math.PI / 3.2;
+            w.mesh.position.y = w.basePosition.y + 0.42;
+          });
+
+          oceanPropeller.rotation.y += 0.04;
+          tGlow1.visible = true;
+          tGlow2.visible = true;
+          tGlow1.scale.setScalar(0.5);
+          tGlow2.scale.setScalar(0.5);
+          tGlow1.material.color.setHex(0x38bdf8);
+          tGlow2.material.color.setHex(0x38bdf8);
+
+          // slow sub steering
+          vehicleGroup.rotation.y = elapsedTime * 0.025;
+        } else {
+          // LAND GROUND MODE
+          amplitude = 0.01;
+          bobFreq = 12;
+
+          vehicleGroup.rotation.set(0, 0, 0);
+
+          wheels.forEach(w => {
+            w.mesh.rotation.set(0, 0, 0);
+            w.mesh.position.y = w.basePosition.y;
+            // Spin wheels cylinders
+            w.mesh.children[0].rotation.y += 0.08;
+            w.mesh.children[2].rotation.y += 0.08;
+          });
+
+          tGlow1.visible = false;
+          tGlow2.visible = false;
+          oceanPropeller.rotation.y = 0;
+        }
+
+        const oscillation = Math.sin(elapsedTime * bobFreq) * amplitude;
+        vehicleGroup.position.y = oscillation + (currentMode === 'air' ? 1.0 : 0);
+
+        // Flow background environment bubble particles
+        const positions = particleGeometry.attributes.position.array;
+        for (let i = 0; i < positions.length; i += 3) {
+          positions[i] -= 0.15;
+          if (positions[i] < -15) {
+            positions[i] = 15;
+            positions[i+1] = (Math.random() - 0.5) * 10;
+          }
+        }
+        particleGeometry.attributes.position.needsUpdate = true;
+
+        controls.update(THREE);
+        renderer.render(scene, camera);
+      }
+
+      // Interactive button hooks/translations
+      const translations = {
+        es: {
+          loading: "CARGANDO PROTOTIPO 3D COMPLETO...",
+          help: "🖱️ CLICK Y ARRASTRA PARA GIRAR | SCROLL PARA ZOOM",
+          subtitle: "PROTOTIPO AUTÓNOMO MULTIMODAL V3D",
+          cohere: "AUTORRANGO DE COHERENCIA:",
+          energy: "FRACTAL CORE ENERGY:",
+          sensMode: "MODO:",
+          sensHeight: "ALTURA:",
+          sensShield: "SISTEMA DEFLECTOR:",
+          sensDoors: "PUERTAS DE TIJERA:",
+          titleQuantum: "TRANSFORMACIÓN MULTIMODAL MODO CUÁNTICO",
+          titlePaint: "PINTURA ESTRUCTURAL Y DISEÑO",
+          modeLabels: {
+            land: 'TERRESTRE',
+            air: 'AÉREO',
+            aquatic: 'ACUÁTICO',
+            subaquatic: 'SUBACUÁTICO'
+          },
+          heightLabels: {
+            land: '45mm',
+            air: '1.20m (SUSTENTACIÓN)',
+            aquatic: 'FLOTACIÓN 0m',
+            subaquatic: '-24m SUBMERGIDO'
+          },
+          shieldActive: 'ACTIVO (100%)',
+          shieldInactive: 'INACTIVO',
+          doorsOpen: 'ABIERTAS (SCISSOR)',
+          doorsClosed: 'CERRADAS',
+          btnLand: '🚘 TERRESTRE',
+          btnAir: '✈️ AÉREO',
+          btnAquatic: '🌊 ACUÁTICO',
+          btnSubaquatic: '🐙 SUBACUÁTICO',
+          btnShield: '🛡️ DEFLECTOR',
+          btnDoors: '🚪 PUERTAS',
+          themeCyber: '🌌 MODO CYBER CORE',
+          themeBlueprint: '🛸 MODO BLUEPRINT'
+        },
+        en: {
+          loading: "LOADING COMPREHENSIVE 3D PROTOTYPE...",
+          help: "🖱️ CLICK AND DRAG TO ROTATE | SCROLL TO ZOOM",
+          subtitle: "V3D MULTIMODAL AUTONOMOUS PROTOTYPE",
+          cohere: "COHERENCE AUTORANGE:",
+          energy: "FRACTAL CORE ENERGY:",
+          sensMode: "MODE:",
+          sensHeight: "HEIGHT:",
+          sensShield: "DEFLECTOR SYSTEM:",
+          sensDoors: "SCISSOR DOORS:",
+          titleQuantum: "QUANTUM MODE MULTIMODAL TRANSFORMATION",
+          titlePaint: "STRUCTURAL PAINT AND DESIGN",
+          modeLabels: {
+            land: 'GROUND',
+            air: 'AERIAL',
+            aquatic: 'AQUATIC',
+            subaquatic: 'SUBAQUATIC'
+          },
+          heightLabels: {
+            land: '45mm',
+            air: '1.20m (LIFT-OFF)',
+            aquatic: 'FLOATATION 0m',
+            subaquatic: '-24m SUBMERGED'
+          },
+          shieldActive: 'ACTIVE (100%)',
+          shieldInactive: 'INACTIVE',
+          doorsOpen: 'OPEN (SCISSOR)',
+          doorsClosed: 'CLOSED',
+          btnLand: '🚘 GROUND',
+          btnAir: '✈️ AERIAL',
+          btnAquatic: '🌊 AQUATIC',
+          btnSubaquatic: '🐙 SUBAQUATIC',
+          btnShield: '🛡️ DEFLECTOR',
+          btnDoors: '🚪 DOORS',
+          themeCyber: '🌌 CYBER CORE MODE',
+          themeBlueprint: '🛸 BLUEPRINT MODE'
+        },
+        zh: {
+          loading: "正在加载完整3D原型...",
+          help: "🖱️ 拖拽以旋转 | 滚轮进行缩放",
+          subtitle: "V3D 多模态自适应原型进化平台",
+          cohere: "量子波凝聚度范围:",
+          energy: "反物质核反应稳定性:",
+          sensMode: "运行模式:",
+          sensHeight: "悬吊高度:",
+          sensShield: "粒子防护壁系统:",
+          sensDoors: "剪刀车门状态:",
+          titleQuantum: "量子多模态行为控制中枢",
+          titlePaint: "液晶复合纳米漆面与设计",
+          modeLabels: {
+            land: '陆地模式',
+            air: '飞行模式',
+            aquatic: '水面模式',
+            subaquatic: '水下模式'
+          },
+          heightLabels: {
+            land: '45mm',
+            air: '1.20m (已悬浮升起)',
+            aquatic: '浮航模式 0m',
+            subaquatic: '水下防压状态 -24m'
+          },
+          shieldActive: '已启用 (100%)',
+          shieldInactive: '未启用',
+          doorsOpen: '开启状态 (双剪刀门)',
+          doorsClosed: '关闭状态',
+          btnLand: '🚘 陆地模式',
+          btnAir: '✈️ 飞行模式',
+          btnAquatic: '🌊 水面模式',
+          btnSubaquatic: '🐙 水下模式',
+          btnShield: '🛡️ 粒子防壁',
+          btnDoors: '🚪 双剪刀门',
+          themeCyber: '🌌 赛博核心模式',
+          themeBlueprint: '🛸 蓝图研究模式'
+        }
+      };
+
+      function applyTranslations() {
+        const t = translations[currentLanguage] || translations.es;
+        
+        // Static labels
+        const elLoading = document.getElementById('tx-loading');
+        if (elLoading) elLoading.textContent = t.loading;
+
+        const elHelp = document.getElementById('tx-help');
+        if (elHelp) elHelp.textContent = t.help;
+
+        const elSubtitle = document.getElementById('hud-subtitle');
+        if (elSubtitle) elSubtitle.textContent = t.subtitle;
+
+        const elCohere = document.getElementById('tx-cohere');
+        if (elCohere) elCohere.textContent = t.cohere;
+
+        const elEnergy = document.getElementById('tx-energy');
+        if (elEnergy) elEnergy.textContent = t.energy;
+
+        const elSensMode = document.getElementById('tx-sens-mode');
+        if (elSensMode) elSensMode.textContent = t.sensMode;
+
+        const elSensHeight = document.getElementById('tx-sens-height');
+        if (elSensHeight) elSensHeight.textContent = t.sensHeight;
+
+        const elSensShield = document.getElementById('tx-sens-shield');
+        if (elSensShield) elSensShield.textContent = t.sensShield;
+
+        const elSensDoors = document.getElementById('tx-sens-doors');
+        if (elSensDoors) elSensDoors.textContent = t.sensDoors;
+
+        const elTitleQuantum = document.getElementById('tx-title-quantum');
+        if (elTitleQuantum) elTitleQuantum.textContent = t.titleQuantum;
+
+        const elTitlePaint = document.getElementById('tx-title-paint');
+        if (elTitlePaint) elTitlePaint.textContent = t.titlePaint;
+
+        // Interactive control buttons
+        const elBtnLand = document.getElementById('btn-land');
+        if (elBtnLand) elBtnLand.textContent = t.btnLand;
+
+        const elBtnAir = document.getElementById('btn-air');
+        if (elBtnAir) elBtnAir.textContent = t.btnAir;
+
+        const elBtnAquatic = document.getElementById('btn-aquatic');
+        if (elBtnAquatic) elBtnAquatic.textContent = t.btnAquatic;
+
+        const elBtnSubaquatic = document.getElementById('btn-subaquatic');
+        if (elBtnSubaquatic) elBtnSubaquatic.textContent = t.btnSubaquatic;
+
+        const elBtnShield = document.getElementById('btn-shield');
+        if (elBtnShield) elBtnShield.textContent = t.btnShield;
+
+        const elBtnDoors = document.getElementById('btn-doors');
+        if (elBtnDoors) elBtnDoors.textContent = t.btnDoors;
+
+        // Theme button
+        const elBtnTheme = document.getElementById('btn-theme-download');
+        if (elBtnTheme) {
+          elBtnTheme.textContent = isDarkTheme ? t.themeCyber : t.themeBlueprint;
+        }
+
+        // Active state sensors
+        const elSensModeVal = document.getElementById('sens-mode');
+        if (elSensModeVal) {
+          elSensModeVal.textContent = t.modeLabels[currentMode];
+        }
+
+        const elSensHeightVal = document.getElementById('sens-height');
+        if (elSensHeightVal) {
+          elSensHeightVal.textContent = t.heightLabels[currentMode];
+        }
+
+        const elSensShieldVal = document.getElementById('sens-shield');
+        if (elSensShieldVal) {
+          if (shieldActive) {
+            elSensShieldVal.textContent = t.shieldActive;
+            elSensShieldVal.style.color = '#34d399';
+          } else {
+            elSensShieldVal.textContent = t.shieldInactive;
+            elSensShieldVal.style.color = '#ef4444';
+          }
+        }
+
+        const elSensDoorsVal = document.getElementById('sens-doors');
+        if (elSensDoorsVal) {
+          if (doorsOpen) {
+            elSensDoorsVal.textContent = t.doorsOpen;
+            elSensDoorsVal.style.color = '#34d399';
+          } else {
+            elSensDoorsVal.textContent = t.doorsClosed;
+            elSensDoorsVal.style.color = '#94a3b8';
+          }
+        }
+
+        // Active language buttons selection highlighting
+        ['es', 'en', 'zh'].forEach(langId => {
+          const btn = document.getElementById('lang-' + langId);
+          if (btn) {
+            if (langId === currentLanguage) {
+              btn.classList.add('active');
+            } else {
+              btn.classList.remove('active');
+            }
+          }
+        });
+      }
+
+      window.setLanguage = function(langCode) {
+        currentLanguage = langCode;
+        applyTranslations();
+      };
+
+      window.setMode = function(modeName) {
+        currentMode = modeName;
+        applyTranslations();
+        
+        // Update ui active styles for buttons
+        document.querySelectorAll('.modes-row button').forEach(b => {
+          b.classList.remove('active');
+          if (b.id === 'btn-' + modeName) b.classList.add('active');
+        });
+      };
+
+      window.toggleShield = function() {
+        shieldActive = !shieldActive;
+        const btn = document.getElementById('btn-shield');
+        if (shieldActive) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+        applyTranslations();
+      };
+
+      window.toggleDoors = function() {
+        doorsOpen = !doorsOpen;
+        const btn = document.getElementById('btn-doors');
+        if (doorsOpen) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+        applyTranslations();
+      };
+
+      window.toggleDownloadTheme = function() {
+        isDarkTheme = !isDarkTheme;
+        const bgHex = isDarkTheme ? 0x050609 : 0xf8fafc;
+        scene.background.setHex(bgHex);
+        scene.fog.color.setHex(bgHex);
+        floor.material.color.setHex(isDarkTheme ? 0x020306 : 0xf1f5f9);
+        gridHelper.material.color.setHex(isDarkTheme ? 0x1e293b : 0x94a3b8);
+        concentricGroup.children.forEach(ring => {
+          ring.material.color.setHex(isDarkTheme ? 0x38bdf8 : 0x0284c7);
+        });
+
+        // HUD theme class adaptation
+        const hud = document.getElementById('hud-overlay');
+        const title = hud.querySelector('.hud-title');
+        title.style.color = isDarkTheme ? '#ffffff' : '#0f172a';
+        
+        const sensors = document.getElementById('hud-sensors');
+        sensors.style.color = isDarkTheme ? '#38bdf8' : '#0369a1';
+
+        applyTranslations();
+      };
+
+      // Color customization selectors
+      window.setColor = function(hex, energyHex, id, domBtn) {
+        currentColor = { hex, energyHex, id };
+        highlightsMat.color.set(hex);
+        neonMat.color.set(energyHex);
+        quantumCore.material.color.set(energyHex);
+        shieldBubble.material.color.set(energyHex);
+
+        // update active color circles
+        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+        domBtn.classList.add('active');
+      };
+
+      init();
+      applyTranslations();
+      animate();
+  </script>
+</body>
+</html>
