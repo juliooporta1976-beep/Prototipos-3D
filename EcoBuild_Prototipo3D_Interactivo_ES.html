@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ECO-BUILD SOCIAL™ - PROTOTIPO 3D INTERACTIVO</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['Orbitron', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #0c0f1d;
+      color: #f1f5f9;
+      user-select: none;
+    }
+    canvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+    /* Hide scrollbars completely inside sidebar */
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.4);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(16, 185, 129, 0.4);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(16, 185, 129, 0.6);
+    }
+  </style>
+</head>
+<body class="font-sans antialiased text-slate-200">
+
+  <!-- TOP DECK HUD BAR -->
+  <header class="fixed top-4 left-4 right-4 z-40 bg-slate-950/80 backdrop-blur-md rounded-2xl border border-slate-800 p-4 shadow-2xl flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center space-x-3">
+      <div class="p-2 bg-gradient-to-tr from-emerald-600 to-teal-500 rounded-xl flex items-center justify-center border border-emerald-400/30">
+        <span class="font-mono text-sm font-black text-slate-950">EBS</span>
+      </div>
+      <div>
+        <h1 class="font-mono text-base font-black tracking-tight text-white flex items-center gap-2" id="brand-title">
+          ECO-BUILD SOCIAL™ <span class="text-xs bg-emerald-500 text-slate-950 font-bold px-1.5 py-0.5 rounded leading-none">V2.6</span>
+        </h1>
+        <p class="text-[9px] text-emerald-400 font-medium tracking-widest uppercase" id="brand-tagline">VIVIENDA DE BAJO COSTO Y ALTO IMPACTO</p>
+      </div>
+    </div>
+
+    <!-- Right Controls with Language Selector -->
+    <div class="flex items-center space-x-4">
+      <!-- Active Multilingual Selector in Standalone App -->
+      <div class="flex items-center space-x-2 bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 shadow-inner" title="Soporte Multilingüe Integrado">
+        <span class="text-xs">🌐</span>
+        <select id="lang-select" class="bg-transparent text-[11px] font-bold text-white outline-none cursor-pointer border-none p-0 pr-1 hover:text-emerald-400 transition">
+          <option value="es" class="bg-slate-950" selected>Español</option>
+          <option value="en" class="bg-slate-950" >English</option>
+          <option value="zh" class="bg-slate-950" >中文</option>
+        </select>
+      </div>
+
+      <!-- Active Rating Indicators -->
+      <div class="flex items-center space-x-6 bg-slate-900/50 px-4 py-1.5 rounded-xl border border-slate-800">
+        <div class="text-center">
+          <span class="text-[8px] text-slate-400 uppercase font-bold block" id="score-title-label">Eficiencia Estimada</span>
+          <span class="text-xs font-mono font-black text-emerald-400" id="live-score-badge">80/100</span>
+        </div>
+        <div class="h-6 w-[1px] bg-slate-800"></div>
+        <div>
+          <span class="text-[8px] text-emerald-400 uppercase font-black block leading-none">● READY ONLINE</span>
+          <span class="text-[9px] text-slate-400 block mt-0.5" id="export-text-badge">Vivienda Sostenible Personalizada</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- FLOATING INTERACTIVE CONTROLS MENU -->
+  <aside class="fixed top-24 left-4 w-80 max-h-[calc(100vh-120px)] z-40 bg-slate-950/85 backdrop-blur-md rounded-2xl border border-slate-800 p-5 shadow-2xl overflow-y-auto flex flex-col gap-5">
+    
+    <div>
+      <h3 class="font-mono text-xs font-black tracking-wider text-emerald-400 uppercase border-b border-slate-800 pb-2 flex items-center gap-1.5" id="aside-how-to">
+        ⚡ Panel de Control Integrado
+      </h3>
+      <p class="text-[9px] text-slate-400 leading-relaxed mt-1.5" id="aside-instructions">
+        Arrastra para girar | Scroll para zoom | Doble click para reiniciar vista
+      </p>
+    </div>
+
+    <!-- CONFIGURATOR OPTIONS -->
+    <div class="flex flex-col gap-4">
+      <h4 class="font-semibold text-[10px] text-slate-300 uppercase tracking-widest" id="design-opts-title">Parámetros del Prototipo</h4>
+
+      <!-- Dynamic Insulation Toggle -->
+      <div class="flex flex-col gap-1.5">
+        <label class="text-[10px] text-slate-400 font-bold uppercase" id="insulation-label">Aislamiento Estructura</label>
+        <select id="insulation-select" class="bg-slate-900 text-[11px] rounded-lg p-2 border border-slate-800 font-medium text-slate-300 outline-none focus:border-emerald-500 transition cursor-pointer">
+          <option id="opt-insulation-standard" value="standard" >Estándar (Hormigón de Arcilla)</option>
+          <option id="opt-insulation-ecobrick" value="ecobrick" selected>Ladrillo Ecológico Térmico</option>
+          <option id="opt-insulation-bamboo" value="bamboo" >Eco-Bambú & Barro Estructurado</option>
+        </select>
+      </div>
+
+      <!-- Solar Setup Toggle -->
+      <div class="flex flex-col gap-1.5">
+        <label class="text-[10px] text-slate-400 font-bold uppercase" id="solar-label">Paneles Solares</label>
+        <select id="solar-select" class="bg-slate-900 text-[11px] rounded-lg p-2 border border-slate-800 font-medium text-slate-300 outline-none focus:border-emerald-500 transition cursor-pointer">
+          <option id="opt-solar-none" value="none" >Desactivados</option>
+          <option id="opt-solar-basic" value="basic" selected>Básico (2x Paneles)</option>
+          <option id="opt-solar-advanced" value="advanced" >Avanzado (Completo)</option>
+        </select>
+      </div>
+
+      <!-- Water Harvesting system -->
+      <div class="flex flex-col gap-1.5">
+        <label class="text-[10px] text-slate-400 font-bold uppercase" id="water-label">Captación de Agua de Lluvia</label>
+        <select id="water-select" class="bg-slate-900 text-[11px] rounded-lg p-2 border border-slate-800 font-medium text-slate-300 outline-none focus:border-emerald-500 transition cursor-pointer">
+          <option id="opt-water-active" value="active" selected>Activo (Tanque de Reciclado)</option>
+          <option id="opt-water-inactive" value="inactive" >Desactivado</option>
+        </select>
+      </div>
+
+      <!-- Garden Scale -->
+      <div class="flex flex-col gap-1.5">
+        <label class="text-[10px] text-slate-400 font-bold uppercase" id="garden-label">Jardín / Huerta Orgánica</label>
+        <select id="garden-select" class="bg-slate-900 text-[11px] rounded-lg p-2 border border-slate-800 font-medium text-slate-300 outline-none focus:border-emerald-500 transition cursor-pointer">
+          <option id="opt-garden-none" value="none" >Pasto estándar</option>
+          <option id="opt-garden-lush" value="lush" >Jardinería Biofiltro Completa</option>
+        </select>
+      </div>
+
+      <!-- Time Slider -->
+      <div class="flex flex-col gap-1.5 border-t border-slate-900 pt-3">
+        <div class="flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase">
+          <span id="time-label-prefix">Hora de Simulación Solar</span>
+          <span id="time-display" class="font-mono text-emerald-400">15:00h</span>
+        </div>
+        <input type="range" id="time-range" min="0" max="23" value="15" class="w-full accent-emerald-500 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+      </div>
+
+      <!-- Auto Rotate Toggle -->
+      <div class="flex items-center justify-between py-1.5 border-t border-slate-900 mt-1">
+        <span class="text-[10px] text-slate-400 font-bold uppercase" id="rotate-label">Giro Automático</span>
+        <input type="checkbox" id="rotate-toggle" checked class="w-4 h-4 rounded text-emerald-500 bg-slate-900 border-slate-800 focus:ring-emerald-500 accent-emerald-500 cursor-pointer">
+      </div>
+    </div>
+
+    <!-- PRESET VIEWS -->
+    <div class="border-t border-slate-900 pt-3 flex flex-col gap-2">
+      <span class="text-[10px] text-slate-400 font-bold uppercase" id="preset-views-label">Perspectivas de Cámara</span>
+      <div class="grid grid-cols-4 gap-1.5">
+        <button id="camera-preset-iso" class="py-1 text-[9px] font-bold rounded-lg bg-slate-900 border border-slate-800 text-white hover:bg-slate-800 active:scale-95 transition">Isométrica</button>
+        <button id="camera-preset-front" class="py-1 text-[9px] font-bold rounded-lg bg-slate-900 border border-slate-800 text-white hover:bg-slate-800 active:scale-95 transition">Fachada</button>
+        <button id="camera-preset-solar" class="py-1 text-[9px] font-bold rounded-lg bg-slate-900 border border-slate-800 text-white hover:bg-slate-800 active:scale-95 transition">Techo Solar</button>
+        <button id="camera-preset-garden" class="py-1 text-[9px] font-bold rounded-lg bg-slate-900 border border-slate-800 text-white hover:bg-slate-800 active:scale-95 transition">Huerto</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MINI-PANEL ECO INDICATORS -->
+  <footer class="fixed bottom-4 left-4 right-4 z-40 bg-slate-950/75 backdrop-blur-md p-4 rounded-xl border border-slate-900 shadow-2xl flex items-center justify-around flex-wrap gap-4 text-center">
+    <div>
+      <span class="text-[9px] text-slate-500 uppercase font-bold block" id="footer-label-energy">Energía Ahorrada</span>
+      <span id="label-energy" class="text-xs font-mono font-black text-emerald-400">52.4 kWh</span>
+    </div>
+    <div class="h-6 w-[1px] bg-slate-900"></div>
+    <div>
+      <span class="text-[9px] text-slate-500 uppercase font-bold block" id="footer-label-water">Agua Reciclada</span>
+      <span id="label-water" class="text-xs font-mono font-black text-sky-400">68 L</span>
+    </div>
+    <div class="h-6 w-[1px] bg-slate-900"></div>
+    <div>
+      <span class="text-[9px] text-slate-500 uppercase font-bold block" id="footer-label-co2">CO₂ Reducido</span>
+      <span id="label-co2" class="text-xs font-mono font-black text-teal-400">34.5 kg</span>
+    </div>
+  </footer>
+
+  <!-- CANVAS STAGE CONTAINER -->
+  <div id="canvas-container" class="absolute inset-0 z-0"></div>
+
+  <!-- MAIN SCRIPT TO BUILD THREE.JS STAGE -->
+  <script>
+    // Embed localization dataset directly inside the offline client
+    const locales = {
+  "es": {
+    "brand": "ECO-BUILD SOCIAL™",
+    "tagline": "VIVIENDA DE BAJO COSTO Y ALTO IMPACTO",
+    "status": "PROTOTIPO 3D INTERACTIVO",
+    "howTo": "Panel de Control Integrado",
+    "instructions": "Arrastra para girar | Scroll para zoom | Doble click para reiniciar vista",
+    "designOpts": "Parámetros del Prototipo",
+    "insulation": "Aislamiento Estructura",
+    "insulationStandard": "Estándar (Hormigón de Arcilla)",
+    "insulationEcoBrick": "Ladrillo Ecológico Térmico",
+    "insulationBamboo": "Eco-Bambú & Barro Estructurado",
+    "solarArr": "Paneles Solares",
+    "solarNone": "Desactivados",
+    "solarBasic": "Básico (2x Paneles)",
+    "solarAdvanced": "Avanzado (Completo)",
+    "rainHarvest": "Captación de Agua de Lluvia",
+    "waterActive": "Activo (Tanque de Reciclado)",
+    "waterInactive": "Desactivado",
+    "gardenScale": "Jardín / Huerta Orgánica",
+    "gardenNone": "Pasto estándar",
+    "gardenLush": "Jardinería Biofiltro Completa",
+    "timeOfDay": "Hora de Simulación Solar",
+    "autoRotate": "Giro Automático",
+    "scoreTitle": "Eficiencia Estimada",
+    "savedEnergy": "Energía Ahorrada",
+    "recycledWater": "Agua Reciclada",
+    "co2Prevented": "CO₂ Reducido",
+    "presetViews": "Perspectivas de Cámara",
+    "iso": "Isométrica",
+    "front": "Fachada",
+    "roof": "Techo Solar",
+    "eco": "Huerto",
+    "exportText": "Vivienda Sostenible Personalizada"
+  },
+  "en": {
+    "brand": "ECO-BUILD SOCIAL™",
+    "tagline": "LOW-COST HIGH-IMPACT GREEN HOME",
+    "status": "INTERACTIVE 3D PROTOTYPE",
+    "howTo": "Interactive Control Console",
+    "instructions": "Drag to rotate | Scroll to zoom | Double click to reset camera focus",
+    "designOpts": "Prototype Parameters",
+    "insulation": "Thermal Insulation",
+    "insulationStandard": "Standard Concrete Clay Mix",
+    "insulationEcoBrick": "Eco-Friendly Thermal Brick",
+    "insulationBamboo": "Eco-Bamboo & Straw-Clay Matrix",
+    "solarArr": "Solar Panels Setup",
+    "solarNone": "Inactive",
+    "solarBasic": "Basic (2x Panels)",
+    "solarAdvanced": "Advanced (Full Grid)",
+    "rainHarvest": "Rain Harvesting & Filter",
+    "waterActive": "Active (Storage & Recycling)",
+    "waterInactive": "Inactive",
+    "gardenScale": "Organic Gardens & Biome",
+    "gardenNone": "Standard Grass",
+    "gardenLush": "Lush Biofiltering Shrubbery",
+    "timeOfDay": "Daylight Elevation Position",
+    "autoRotate": "Automatic House Turn",
+    "scoreTitle": "Efficiency Rating",
+    "savedEnergy": "Saved Power",
+    "recycledWater": "Recycled Water",
+    "co2Prevented": "CO₂ Reduced",
+    "presetViews": "Preset Camera Views",
+    "iso": "Isometric",
+    "front": "Facade",
+    "roof": "Solar Focus",
+    "eco": "Eco Garden",
+    "exportText": "Custom Sustainable Environment"
+  },
+  "zh": {
+    "brand": "ECO-BUILD SOCIAL™",
+    "tagline": "低成本环保节能社会民生保障住宅",
+    "status": "3D 高维交互原型系统",
+    "howTo": "本地互动控制台",
+    "instructions": "鼠标拖拽或触控旋转 | 滚轮等比例缩放 | 双击重置视角",
+    "designOpts": "住宅原型环境设定",
+    "insulation": "墙体及隔热结构",
+    "insulationStandard": "标准（粘土混凝土）",
+    "insulationEcoBrick": "高性能环保生态砖",
+    "insulationBamboo": "低碳环保竹木混合泥墙",
+    "solarArr": "光伏太阳能系统",
+    "solarNone": "未安装",
+    "solarBasic": "基础（2块电池板）",
+    "solarAdvanced": "高级（全覆盖智能电池板）",
+    "rainHarvest": "雨水收集与净化",
+    "waterActive": "启用（储存回收）",
+    "waterInactive": "禁用状态",
+    "gardenScale": "庭院有机菜园规模",
+    "gardenNone": "标准微绿草坪",
+    "gardenLush": "多能生物净化过滤林",
+    "timeOfDay": "太阳仰角时段模拟",
+    "autoRotate": "模型自动旋转",
+    "scoreTitle": "可持续性综合能效",
+    "savedEnergy": "节约能源",
+    "recycledWater": "回收水源",
+    "co2Prevented": "减少排放",
+    "presetViews": "相机快速视角",
+    "iso": "轴侧图",
+    "front": "对称正立面",
+    "roof": "太阳能特写",
+    "eco": "生态菜地",
+    "exportText": "定制化生态保驾示范房屋"
+  }
+};
+    let activeLang = "es";
+
+    // State values initial setup matches downloaded states
+    let globalInsulation = "ecobrick";
+    let globalSolar = "basic";
+    let globalWater = "active";
+    let globalGarden = "basic";
+    let globalTime = 15.6;
+    let globalAutoRotate = true;
+
+    // Container initialization
+    const container = document.getElementById("canvas-container");
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x0a0f1d, 0.015);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    // Orbit coordinates camera logic
+    let cameraAngles = { theta: Math.PI / 4, phi: Math.PI / 3, radius: 11 };
+    let isDragging = false;
+    let previousMouse = { x: 0, y: 0 };
+
+    function updateCamera() {
+      const x = cameraAngles.radius * Math.sin(cameraAngles.theta) * Math.sin(cameraAngles.phi);
+      const y = cameraAngles.radius * Math.cos(cameraAngles.phi);
+      const z = cameraAngles.radius * Math.cos(cameraAngles.theta) * Math.sin(cameraAngles.phi);
+      camera.position.set(x, y, z);
+      camera.lookAt(0, 0.7, 0);
+    }
+    updateCamera();
+
+    // Mouse orbital listeners
+    window.addEventListener("mousedown", (e) => {
+      if (e.target.closest("aside, header, footer")) return; // protect HUD interactivity
+      isDragging = true;
+      previousMouse = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (!isDragging) return;
+      const deltaX = e.clientX - previousMouse.x;
+      const deltaY = e.clientY - previousMouse.y;
+
+      cameraAngles.theta -= deltaX * 0.007;
+      cameraAngles.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, cameraAngles.phi - deltaY * 0.007));
+
+      previousMouse = { x: e.clientX, y: e.clientY };
+      updateCamera();
+    });
+
+    window.addEventListener("mouseup", () => { isDragging = false; });
+    window.addEventListener("mouseleave", () => { isDragging = false; });
+
+    // Touch support for screen rotation
+    window.addEventListener("touchstart", (e) => {
+      if (e.target.closest("aside, header, footer")) return;
+      if (e.touches.length === 1) {
+        isDragging = true;
+        previousMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    }, { passive: true });
+
+    window.addEventListener("touchmove", (e) => {
+      if (!isDragging) return;
+      if (e.touches.length === 1) {
+        const deltaX = e.touches[0].clientX - previousMouse.x;
+        const deltaY = e.touches[0].clientY - previousMouse.y;
+        cameraAngles.theta -= deltaX * 0.008;
+        cameraAngles.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, cameraAngles.phi - deltaY * 0.008));
+        previousMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        updateCamera();
+      }
+    }, { passive: true });
+
+    window.addEventListener("touchend", () => { isDragging = false; });
+
+    // Zoom on floor wheel
+    window.addEventListener("wheel", (e) => {
+      if (e.target.closest("aside, header, footer")) return;
+      cameraAngles.radius = Math.max(6, Math.min(18, cameraAngles.radius + e.deltaY * 0.004));
+      updateCamera();
+    }, { passive: true });
+
+    window.addEventListener("dblclick", () => {
+      applyPreset('isometric');
+    });
+
+    function applyPreset(preset) {
+      switch (preset) {
+        case 'isometric':
+          cameraAngles = { theta: Math.PI / 4, phi: Math.PI / 3, radius: 10.5 };
+          break;
+        case 'front':
+          cameraAngles = { theta: 0, phi: Math.PI / 2.2, radius: 10 };
+          break;
+        case 'solar':
+          cameraAngles = { theta: Math.PI / 3, phi: Math.PI / 4, radius: 9 };
+          break;
+        case 'garden':
+          cameraAngles = { theta: -Math.PI / 3, phi: Math.PI / 2.1, radius: 11 };
+          break;
+      }
+      updateCamera();
+    }
+
+    // Connect Camera buttons
+    document.getElementById("camera-preset-iso").addEventListener("click", () => applyPreset('isometric'));
+    document.getElementById("camera-preset-front").addEventListener("click", () => applyPreset('front'));
+    document.getElementById("camera-preset-solar").addEventListener("click", () => applyPreset('solar'));
+    document.getElementById("camera-preset-garden").addEventListener("click", () => applyPreset('garden'));
+
+    // Base Ground Floor Geometries
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+    scene.add(ambientLight);
+
+    const sunLight = new THREE.DirectionalLight(0xfff7e6, 1.2);
+    sunLight.position.set(10, 15, 10);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 1024;
+    sunLight.shadow.mapSize.height = 1024;
+    scene.add(sunLight);
+
+    const floorGeo = new THREE.CylinderGeometry(6.5, 6.5, 0.15, 32);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x2e4a3b, roughness: 0.8, metalness: 0.1 });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.position.y = -0.575;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const grid = new THREE.GridHelper(12, 12, 0x4d7c5a, 0x36503c);
+    grid.position.y = -0.49;
+    scene.add(grid);
+
+    // HOUSE STRUCTURES
+    const houseGroup = new THREE.Group();
+    scene.add(houseGroup);
+
+    const foundationGeo = new THREE.BoxGeometry(4.2, 0.25, 4.2);
+    const foundationMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.9 });
+    const foundation = new THREE.Mesh(foundationGeo, foundationMat);
+    foundation.position.y = -0.375;
+    foundation.receiveShadow = true;
+    foundation.castShadow = true;
+    houseGroup.add(foundation);
+
+    const houseGeo = new THREE.BoxGeometry(3.6, 2.3, 3.6);
+    const houseMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.4, metalness: 0.5 });
+    const houseMesh = new THREE.Mesh(houseGeo, houseMat);
+    houseMesh.position.y = 0.9;
+    houseMesh.castShadow = true;
+    houseMesh.receiveShadow = true;
+    houseGroup.add(houseMesh);
+
+    const roofGeo = new THREE.CylinderGeometry(0, 2.7, 1.4, 4);
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x223344, roughness: 0.5, flatShading: true });
+    const roofMesh = new THREE.Mesh(roofGeo, roofMat);
+    roofMesh.rotation.y = Math.PI / 4;
+    roofMesh.position.y = 2.75;
+    roofMesh.castShadow = true;
+    roofMesh.receiveShadow = true;
+    houseGroup.add(roofMesh);
+
+    // Glazing Glowing windows
+    const winMat = new THREE.MeshStandardMaterial({
+      color: 0xe6f2ff, roughness: 0.1, metalness: 0.9, transparent: true, opacity: 0.8,
+      emissive: new THREE.Color(0xfadb7d), emissiveIntensity: 0
+    });
+
+    const fWin = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 0.1), winMat);
+    fWin.position.set(0, 1.2, 1.82);
+    const lWin = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.7, 1.1), winMat);
+    lWin.position.set(-1.82, 1.2, 0.5);
+    const rWin = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.7, 1.1), winMat);
+    rWin.position.set(1.82, 1.2, -0.5);
+    houseGroup.add(fWin, lWin, rWin);
+
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.5, 0.12), new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.7 }));
+    door.position.set(1.0, 0.75, 1.81);
+    houseGroup.add(door);
+
+    // BASIC SOLAR PANEL SETUPS
+    const solarBasicGroup = new THREE.Group();
+    const frameGeo = new THREE.BoxGeometry(1.4, 0.06, 0.85);
+    const cellGeo = new THREE.BoxGeometry(1.35, 0.08, 0.8);
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x7f8c8d, metalness: 0.9, roughness: 0.2 });
+    const cellMat = new THREE.MeshStandardMaterial({ color: 0x051e3e, roughness: 0.1, metalness: 0.9 });
+
+    const p1Frame = new THREE.Mesh(frameGeo, frameMat);
+    const p1Cell = new THREE.Mesh(cellGeo, cellMat);
+    const p1 = new THREE.Group();
+    p1.add(p1Frame, p1Cell);
+    p1.rotation.set(0.35, 0, 0);
+    p1.position.set(-0.8, 2.7, 0.8);
+    solarBasicGroup.add(p1);
+
+    const p2 = p1.clone();
+    p2.rotation.set(-0.35, 0, 0);
+    p2.position.set(0.8, 2.7, -0.8);
+    solarBasicGroup.add(p2);
+    houseGroup.add(solarBasicGroup);
+
+    // ADVANCED SOLAR ROOF GRIDS
+    const solarAdvancedGroup = new THREE.Group();
+    const spots = [
+      { x: -0.9, y: 2.7, z: 0.85, rotX: 0.35 },
+      { x: 0.9, y: 2.7, z: 0.85, rotX: 0.35 },
+      { x: -0.9, y: 2.7, z: -0.85, rotX: -0.35 },
+      { x: 0.9, y: 2.7, z: -0.85, rotX: -0.35 },
+    ];
+    spots.forEach(spot => {
+      const pg = new THREE.Group();
+      pg.add(new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.05, 0.95), frameMat), new THREE.Mesh(new THREE.BoxGeometry(1.36, 0.07, 0.90), cellMat));
+      pg.rotation.set(spot.rotX, 0, 0);
+      pg.position.set(spot.x, spot.y, spot.z);
+      solarAdvancedGroup.add(pg);
+    });
+
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.2), frameMat);
+    mast.position.set(-1.2, 3.4, -1.2);
+    const tracker = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.05, 0.7), cellMat);
+    tracker.position.set(-1.2, 4.0, -1.2);
+    tracker.rotation.set(0.4, 0, 0);
+    solarAdvancedGroup.add(mast, tracker);
+    houseGroup.add(solarAdvancedGroup);
+
+    // WATER RECYCLING HARVESTER
+    const waterGroup = new THREE.Group();
+    const rPipe = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.5), new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8 }));
+    rPipe.position.set(-1.95, 1.25, 1.95);
+    const rConn = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.7), new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8 }));
+    rConn.rotation.z = Math.PI / 2;
+    rConn.position.set(-2.2, 1.9, 1.95);
+    const tankBody = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.5, 16), new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.6, roughness: 0.4 }));
+    tankBody.position.set(-2.55, 0.2, 1.95);
+    const ledRing = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.03, 8, 24), new THREE.MeshBasicMaterial({ color: 0x60a5fa }));
+    ledRing.rotation.x = Math.PI / 2;
+    ledRing.position.set(-2.55, 0.6, 1.95);
+    waterGroup.add(rPipe, rConn, tankBody, ledRing);
+    houseGroup.add(waterGroup);
+
+    // SHRUBS AND GARDENS
+    const organicGarden = new THREE.Group();
+    const soil = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.12, 1.8), new THREE.MeshStandardMaterial({ color: 0x543d2b, roughness: 0.95 }));
+    soil.position.set(3.0, -0.42, 1.5);
+    const compBox = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), new THREE.MeshStandardMaterial({ color: 0x224d35, roughness: 0.8 }));
+    compBox.position.set(2.8, -0.15, -2.8);
+    organicGarden.add(soil, compBox);
+
+    const bushMat = new THREE.MeshStandardMaterial({ color: 0x2e8b57, roughness: 0.9, flatShading: true });
+    const rFruit = new THREE.MeshStandardMaterial({ color: 0xd9383a });
+
+    const c1 = new THREE.Group();
+    c1.add(new THREE.Mesh(new THREE.DodecahedronGeometry(0.28, 1), bushMat), new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), rFruit));
+    c1.children[1].position.set(0.1, 0.25, 0.1);
+    c1.position.set(2.4, -0.32, 1.4);
+    organicGarden.add(c1);
+
+    const c2 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.35, 1), bushMat);
+    c2.position.set(3.4, -0.14, 1.8);
+    organicGarden.add(c2);
+
+    const treeTrunkGeo = new THREE.CylinderGeometry(0.09, 0.13, 1.8);
+    const treeTrunkMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.9 });
+    
+    // LowPoly Cypress & Oak Trees
+    const tree1 = new THREE.Group();
+    tree1.add(new THREE.Mesh(treeTrunkGeo, treeTrunkMat), new THREE.Mesh(new THREE.SphereGeometry(0.85, 8, 8), new THREE.MeshStandardMaterial({ color: 0x1d5c34 })));
+    tree1.children[0].position.y = 0.5;
+    tree1.children[1].position.y = 1.35;
+    tree1.position.set(3.8, -0.4, -1.8);
+    organicGarden.add(tree1);
+
+    const tree2 = new THREE.Group();
+    tree2.add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.1, 1.4), treeTrunkMat), new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.5, 6), new THREE.MeshStandardMaterial({ color: 0x2e8b57 })));
+    tree2.children[0].position.y = 0.3;
+    tree2.children[1].position.y = 1.05;
+    tree2.position.set(-3.6, -0.4, -2.4);
+    organicGarden.add(tree2);
+    houseGroup.add(organicGarden);
+
+    // FUTURISTIC HIGH-TECH HUD ELEMENTS (Giga project aesthetic)
+    const hologramGroup = new THREE.Group();
+    const hRing1 = new THREE.Mesh(new THREE.RingGeometry(4.7, 4.8, 64), new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.3, side: THREE.DoubleSide }));
+    hRing1.rotation.x = Math.PI / 2; hRing1.position.y = -0.47;
+    const hRing2 = new THREE.Mesh(new THREE.RingGeometry(5.0, 5.04, 64), new THREE.MeshBasicMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
+    hRing2.rotation.x = Math.PI / 2; hRing2.position.y = -0.47;
+    hologramGroup.add(hRing1, hRing2);
+
+    const notchGeo = new THREE.BoxGeometry(0.12, 0.015, 0.2);
+    const notchMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.7 });
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      const notch = new THREE.Mesh(notchGeo, notchMat);
+      notch.position.set(Math.sin(angle) * 5.02, -0.47, Math.cos(angle) * 5.02);
+      notch.rotation.y = -angle;
+      hologramGroup.add(notch);
+    }
+    scene.add(hologramGroup);
+
+    // Eolic Wind Turbine
+    const turbineGroup = new THREE.Group();
+    const mastMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.1, 3.4, 8), new THREE.MeshStandardMaterial({ color: 0xf1f5f9, metalness: 0.8 }));
+    mastMesh.position.set(-2.8, 1.2, -2.5);
+    const podMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.5, 12), new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9 }));
+    podMesh.rotation.x = Math.PI / 2; podMesh.position.set(-2.8, 2.9, -2.42);
+    const hubMesh = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x10b981, emissiveIntensity: 0.8 }));
+    hubMesh.position.set(-2.8, 2.9, -2.17);
+    
+    const turbineBlades = new THREE.Group();
+    turbineBlades.position.set(-2.8, 2.9, -2.17);
+    const bladeGeo = new THREE.BoxGeometry(0.06, 1.1, 0.015);
+    const bladeMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.4 });
+    for (let i = 0; i < 3; i++) {
+      const bMesh = new THREE.Mesh(bladeGeo, bladeMat);
+      bMesh.position.y = 0.5;
+      const bPivot = new THREE.Group();
+      bPivot.rotation.z = (i / 3) * Math.PI * 2;
+      bPivot.add(bMesh);
+      turbineBlades.add(bPivot);
+    }
+    turbineGroup.add(mastMesh, podMesh, hubMesh, turbineBlades);
+    scene.add(turbineGroup);
+
+    // Smart Storage Battery pack
+    const batteryGroup = new THREE.Group();
+    const batMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.1, 0.4), new THREE.MeshStandardMaterial({ color: 0xf1f5f9, metalness: 0.85 }));
+    batMesh.position.set(-2.2, 0.1, 0.5);
+    batteryGroup.add(batMesh);
+
+    const ledStrips = [];
+    const lStripGeo = new THREE.BoxGeometry(0.35, 0.06, 0.04);
+    const lStripMat = new THREE.MeshStandardMaterial({ color: 0x059669, emissive: 0x059669, emissiveIntensity: 0.95 });
+    for (let i = 0; i < 4; i++) {
+      const led = new THREE.Mesh(lStripGeo, lStripMat);
+      led.position.set(-2.2, -0.28 + i * 0.18, 0.71);
+      batteryGroup.add(led);
+      ledStrips.push(led);
+    }
+    scene.add(batteryGroup);
+
+    // Glowing pipelines
+    const pipeline = new THREE.Group();
+    const pipeLineMat = new THREE.MeshStandardMaterial({ color: 0x34d399, emissive: 0x34d399, emissiveIntensity: 0.7, transparent: true, opacity: 0.9 });
+    const p1Mesh = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 2.85), pipeLineMat); p1Mesh.position.set(-2.5, -0.42, -1.0);
+    const p2Mesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.04, 0.04), pipeLineMat); p2Mesh.position.set(-1.8, -0.42, 0.5);
+    pipeline.add(p1Mesh, p2Mesh);
+    scene.add(pipeline);
+
+    // High fidelity bamboo columns
+    const bambooGroup = new THREE.Group();
+    const bambooPolesMat = new THREE.MeshStandardMaterial({ color: 0xdeb887, roughness: 0.4, metalness: 0.1 });
+    const bPoleGeo = new THREE.CylinderGeometry(0.08, 0.08, 2.3, 12);
+    const poles = [{x:-1.82, z:1.82}, {x:1.82, z:1.82}, {x:-1.82, z:-1.82}, {x:1.82, z:-1.82}];
+    poles.forEach(pos => {
+      const col = new THREE.Mesh(bPoleGeo, bambooPolesMat);
+      col.position.set(pos.x, 0.9, pos.z);
+      bambooGroup.add(col);
+    });
+    houseGroup.add(bambooGroup);
+
+    // MULTILINGUAL REALTIME UI SCRIPT UPDATER
+    function applyLanguage(selectedLang) {
+      activeLang = selectedLang;
+      const t = locales[activeLang];
+      if (!t) return;
+
+      // Update browser tab title
+      document.title = t.brand + " - " + t.status;
+
+      // Header labels
+      document.getElementById("brand-title").innerHTML = t.brand + ' <span class="text-xs bg-emerald-500 text-slate-950 font-bold px-1.5 py-0.5 rounded leading-none">V2.6</span>';
+      document.getElementById("brand-tagline").innerText = t.tagline;
+      document.getElementById("score-title-label").innerText = t.scoreTitle;
+      document.getElementById("export-text-badge").innerText = t.exportText;
+
+      // Sidebar instructions
+      document.getElementById("aside-how-to").innerText = "⚡ " + t.howTo;
+      document.getElementById("aside-instructions").innerText = t.instructions;
+      document.getElementById("design-opts-title").innerText = t.designOpts;
+
+      // Form parameter headers
+      document.getElementById("insulation-label").innerText = t.insulation;
+      document.getElementById("solar-label").innerText = t.solarArr;
+      document.getElementById("water-label").innerText = t.rainHarvest;
+      document.getElementById("garden-label").innerText = t.gardenScale;
+      document.getElementById("time-label-prefix").innerText = t.timeOfDay;
+      document.getElementById("rotate-label").innerText = t.autoRotate;
+      document.getElementById("preset-views-label").innerText = t.presetViews;
+
+      // Inner selection fields inside list options
+      document.getElementById("opt-insulation-standard").innerText = t.insulationStandard;
+      document.getElementById("opt-insulation-ecobrick").innerText = t.insulationEcoBrick;
+      document.getElementById("opt-insulation-bamboo").innerText = t.insulationBamboo;
+
+      document.getElementById("opt-solar-none").innerText = t.solarNone;
+      document.getElementById("opt-solar-basic").innerText = t.solarBasic;
+      document.getElementById("opt-solar-advanced").innerText = t.solarAdvanced;
+
+      document.getElementById("opt-water-active").innerText = t.waterActive;
+      document.getElementById("opt-water-inactive").innerText = t.waterInactive;
+
+      document.getElementById("opt-garden-none").innerText = t.gardenNone;
+      document.getElementById("opt-garden-lush").innerText = t.gardenLush;
+
+      // Camera focal points quick shortcuts
+      document.getElementById("camera-preset-iso").innerText = t.iso;
+      document.getElementById("camera-preset-front").innerText = t.front;
+      document.getElementById("camera-preset-solar").innerText = t.roof;
+      document.getElementById("camera-preset-garden").innerText = t.eco;
+
+      // Footer titles
+      document.getElementById("footer-label-energy").innerText = t.savedEnergy;
+      document.getElementById("footer-label-water").innerText = t.recycledWater;
+      document.getElementById("footer-label-co2").innerText = t.co2Prevented;
+
+      // Refresh dynamic values with unit symbols
+      applyDesignChanges();
+    }
+
+    // SYNC FUNCTIONS TO RE-CLIP SCENE PROPERTIES ON USER SELECT CHANGE
+    function applyDesignChanges() {
+      // 1. Insulation / Structure Colors
+      const mat = houseMesh.material;
+      if (globalInsulation === 'standard') {
+        mat.color.setHex(0xe2e8f0); mat.roughness = 0.4; mat.metalness = 0.5;
+        bambooGroup.visible = false;
+      } else if (globalInsulation === 'ecobrick') {
+        mat.color.setHex(0xc2410c); mat.roughness = 0.9; mat.metalness = 0.15;
+        bambooGroup.visible = false;
+      } else {
+        mat.color.setHex(0x3f6212); mat.roughness = 0.95; mat.metalness = 0.0;
+        bambooGroup.visible = true; // Bamboo columns
+      }
+
+      // 2. Solar panels visibilities
+      solarBasicGroup.visible = globalSolar === 'basic';
+      solarAdvancedGroup.visible = globalSolar === 'advanced';
+
+      // 3. Water Harvesting active structures
+      waterGroup.visible = globalWater === 'active';
+
+      // 4. Garden levels
+      if (globalGarden === 'none') {
+        organicGarden.visible = false;
+      } else {
+        organicGarden.visible = true;
+        organicGarden.scale.set(1.2, 1.2, 1.2);
+      }
+
+      // Re-estimate micro-score feedback simulation offline!
+      let subScore = 40;
+      if (globalInsulation !== 'standard') subScore += 15;
+      if (globalSolar === 'basic') subScore += 15;
+      if (globalSolar === 'advanced') subScore += 30;
+      if (globalWater === 'active') subScore += 15;
+      if (globalGarden === 'lush') subScore += 15;
+
+      document.getElementById("live-score-badge").innerText = subScore + "/100";
+      document.getElementById("label-energy").innerText = (globalSolar === 'advanced' ? 95 : globalSolar === 'basic' ? 45 : 0) + " kWh";
+      document.getElementById("label-water").innerText = (globalWater === 'active' ? 48 : 0) + " L";
+      document.getElementById("label-co2").innerText = (subScore * 0.45).toFixed(1) + " kg";
+    }
+
+    // Sync Day / Night slider solar lights & sky color
+    function applySolarTime() {
+      const h = globalTime;
+      const rad = (h / 24) * Math.PI * 2 - Math.PI / 2;
+      const sunY = Math.max(-0.2, Math.sin(rad));
+      const sunX = Math.cos(rad);
+      sunLight.position.set(sunX * 12, sunY * 12 + 1, sunX * 3);
+
+      if (h >= 6 && h < 10) { // Sunrise
+        sunLight.color.setHex(0xffaa66); sunLight.intensity = 0.95;
+        ambientLight.color.setHex(0xffcccc); ambientLight.intensity = 0.45;
+        renderer.setClearColor(0xe69980, 1.0);
+        scene.fog.color.setHex(0xe69980);
+        winMat.emissiveIntensity = 0.15;
+      } else if (h >= 10 && h < 17) { // Noon
+        sunLight.color.setHex(0xfff7e6); sunLight.intensity = 1.3;
+        ambientLight.color.setHex(0xd0e8ff); ambientLight.intensity = 0.55;
+        renderer.setClearColor(0xb3d1ff, 1.0);
+        scene.fog.color.setHex(0xb3d1ff);
+        winMat.emissiveIntensity = 0.0;
+      } else if (h >= 17 && h < 20) { // Sunset
+        sunLight.color.setHex(0xff5511); sunLight.intensity = 0.85;
+        ambientLight.color.setHex(0xffaa44); ambientLight.intensity = 0.35;
+        renderer.setClearColor(0x3a1029, 1.0);
+        scene.fog.color.setHex(0x3a1029);
+        winMat.emissiveIntensity = 0.4;
+      } else { // Night
+        sunLight.color.setHex(0x8899ff); sunLight.intensity = 0.15;
+        ambientLight.color.setHex(0x223388); ambientLight.intensity = 0.22;
+        renderer.setClearColor(0x0a0f1d, 1.0);
+        scene.fog.color.setHex(0x0a0f1d);
+        winMat.emissiveIntensity = 1.15; // Emissive cozy window lighting glows
+      }
+    }
+
+    // Binding select controllers directly to offline javascript
+    document.getElementById("insulation-select").addEventListener("change", (e) => {
+      globalInsulation = e.target.value;
+      applyDesignChanges();
+    });
+    document.getElementById("solar-select").addEventListener("change", (e) => {
+      globalSolar = e.target.value;
+      applyDesignChanges();
+    });
+    document.getElementById("water-select").addEventListener("change", (e) => {
+      globalWater = e.target.value;
+      applyDesignChanges();
+    });
+    document.getElementById("garden-select").addEventListener("change", (e) => {
+      globalGarden = e.target.value;
+      applyDesignChanges();
+    });
+    document.getElementById("time-range").addEventListener("input", (e) => {
+      globalTime = parseInt(e.target.value);
+      document.getElementById("time-display").innerText = globalTime.toString().padStart(2, '0') + ":00h";
+      applySolarTime();
+    });
+    document.getElementById("rotate-toggle").addEventListener("change", (e) => {
+      globalAutoRotate = e.target.checked;
+    });
+
+    // Language Select Dropdown Listener
+    document.getElementById("lang-select").addEventListener("change", (e) => {
+      applyLanguage(e.target.value);
+    });
+
+    // Run Initializers
+    applyLanguage(activeLang);
+    applyDesignChanges();
+    applySolarTime();
+
+    // MAIN ANIMATION RENDER LOOP
+    let rotationAngle = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // Spin wind turbine carbon-fiber blades with precise motion
+      turbineBlades.rotation.z += 0.05;
+
+      // Rotate ground holographic HUD indicators
+      hRing1.rotation.z += 0.004;
+      hRing2.rotation.z -= 0.002;
+
+      // Pulsate LED indicators of the battery packs
+      const pulseVal = Math.sin(Date.now() * 0.004) * 0.35 + 0.65;
+      lStripMat.emissiveIntensity = pulseVal;
+
+      // Active tracker rotation
+      if (globalSolar === 'advanced') {
+        tracker.rotation.y += 0.005;
+      }
+
+      // Auto rotation of the house model
+      if (globalAutoRotate) {
+        rotationAngle += 0.003;
+        houseGroup.rotation.y = rotationAngle;
+      }
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Resize viewport compatibility
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+  </script>
+</body>
+</html>
