@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proyecto Aegis - ASU | Dr. Julio César Oporta Barrera</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #000;
+      color: #fff;
+      overflow: hidden;
+    }
+    #canvas { display: block; }
+    .hud { position: absolute; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px; border: 1px solid #00ffff; }
+    .creator { top: 10px; left: 10px; color: #00ffff; font-weight: bold; font-size: 18px; }
+    .info { bottom: 10px; left: 10px; font-size: 14px; }
+    .info div { margin: 5px 0; }
+    .cyan { color: #00ffff; }
+    .green { color: #00ff00; }
+    .yellow { color: #ffff00; }
+    .purple { color: #ff00ff; }
+    .controls { top: 10px; right: 10px; max-width: 300px; font-size: 14px; }
+    .controls h3 { color: #00ffff; margin-bottom: 10px; }
+    .lang-controls { top: 33%; left: 10px; transform: translateY(-50%); max-width: 220px; }
+    .sim-controls { top: 120px; right: 10px; max-width: 300px; }
+    .sim-btn {
+      background: rgba(0, 100, 255, 0.3);
+      border: 2px solid #0066ff;
+      color: #fff;
+      padding: 10px 15px;
+      margin: 5px 0;
+      cursor: pointer;
+      border-radius: 5px;
+      width: 100%;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    .sim-btn:hover { background: rgba(0, 150, 255, 0.5); border-color: #00ffff; }
+    .sim-btn.active { background: rgba(0, 255, 255, 0.4); border-color: #00ffff; }
+    .lang-btn {
+      background: rgba(0, 150, 100, 0.3);
+      border: 2px solid #00aa88;
+      color: #fff;
+      padding: 8px 12px;
+      cursor: pointer;
+      border-radius: 5px;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.3s;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .lang-btn:hover { background: rgba(0, 200, 150, 0.5); }
+    .lang-btn.active {
+      background: rgba(0, 255, 200, 0.4);
+      border-color: #00ffaa;
+      box-shadow: 0 0 15px rgba(0, 255, 170, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <div class="hud creator">Dr. Julio César Oporta Barrera</div>
+
+  <div class="hud info">
+    <div id="hudTitle">HUD táctico activo | Estados dinámicos</div>
+    <div class="cyan" id="projectTitle">Proyecto Aegis - ASU</div>
+    <div class="green" id="realTime">✓ Simulación en tiempo real</div>
+    <div class="yellow">Rotación: <span id="rotSpeed">0.01</span> rad/frame</div>
+    <div class="purple">Pulsación: ±5% escala</div>
+    <div class="cyan">Modo: <span id="modeText">Reposo</span></div>
+  </div>
+
+  <div class="hud controls">
+    <h3 id="controlsTitle">Controles:</h3>
+    <div id="dragText">• Click + Arrastrar: Rotar</div>
+    <div id="autoText">• Animación automática activa</div>
+  </div>
+
+  <div class="hud lang-controls">
+    <h3 id="langTitle" style="color: #00ffaa; text-align: center; margin-bottom: 8px; font-size: 14px;">Idioma / Language / 语言</h3>
+    <div style="display: flex; gap: 8px;">
+      <button class="lang-btn active" onclick="setLanguage('es')">🇪🇸 ESP</button>
+      <button class="lang-btn" onclick="setLanguage('en')">🇺🇸 ENG</button>
+      <button class="lang-btn" onclick="setLanguage('zh')">🇨🇳 中文</button>
+    </div>
+  </div>
+
+  <div class="hud sim-controls">
+    <h3 id="simTitle">Simulaciones</h3>
+    <button class="sim-btn active" onclick="setSimulation('idle')" id="btnIdle">Reposo</button>
+    <button class="sim-btn" onclick="setSimulation('binding')" id="btnBinding">Unión al Antígeno</button>
+    <button class="sim-btn" onclick="setSimulation('neutralizing')" id="btnNeutralizing">Neutralización</button>
+    <button class="sim-btn" onclick="setSimulation('replicating')" id="btnReplicating">Replicación</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    let currentLang = 'es';
+    let currentSimulation = 'idle';
+    let rotation = 0;
+    let animationSpeed = 0.01;
+    let particleCount = 20;
+    let particleRadius = 200;
+    let isDragging = false;
+
+    const translations = {
+      es: {
+        hudTitle: 'HUD táctico activo | Estados dinámicos',
+        projectTitle: 'Proyecto Aegis - ASU',
+        realTime: '✓ Simulación en tiempo real',
+        controlsTitle: 'Controles:',
+        dragText: '• Click + Arrastrar: Rotar',
+        autoText: '• Animación automática activa',
+        simTitle: 'Simulaciones',
+        idle: 'Reposo',
+        binding: 'Unión al Antígeno',
+        neutralizing: 'Neutralización',
+        replicating: 'Replicación',
+        modeText: { idle: 'Reposo', binding: 'Unión', neutralizing: 'Neutralización', replicating: 'Replicación' }
+      },
+      en: {
+        hudTitle: 'Tactical HUD active | Dynamic states',
+        projectTitle: 'Project Aegis - ASU',
+        realTime: '✓ Real-time simulation',
+        controlsTitle: 'Controls:',
+        dragText: '• Click + Drag: Rotate',
+        autoText: '• Auto animation active',
+        simTitle: 'Simulations',
+        idle: 'Idle',
+        binding: 'Antigen Binding',
+        neutralizing: 'Neutralization',
+        replicating: 'Replication',
+        modeText: { idle: 'Idle', binding: 'Binding', neutralizing: 'Neutralization', replicating: 'Replication' }
+      },
+      zh: {
+        hudTitle: '战术显示器激活 | 动态状态',
+        projectTitle: '宙斯盾计划 - ASU',
+        realTime: '✓ 实时模拟',
+        controlsTitle: '控制：',
+        dragText: '• 点击+拖动：旋转',
+        autoText: '• 自动动画激活',
+        simTitle: '模拟',
+        idle: '静止',
+        binding: '抗原结合',
+        neutralizing: '中和',
+        replicating: '复制',
+        modeText: { idle: '静止', binding: '结合', neutralizing: '中和', replicating: '复制' }
+      }
+    };
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      const t = translations[lang];
+      document.getElementById('hudTitle').textContent = t.hudTitle;
+      document.getElementById('projectTitle').textContent = t.projectTitle;
+      document.getElementById('realTime').textContent = t.realTime;
+      document.getElementById('controlsTitle').textContent = t.controlsTitle;
+      document.getElementById('dragText').textContent = t.dragText;
+      document.getElementById('autoText').textContent = t.autoText;
+      document.getElementById('simTitle').textContent = t.simTitle;
+      document.getElementById('btnIdle').textContent = t.idle;
+      document.getElementById('btnBinding').textContent = t.binding;
+      document.getElementById('btnNeutralizing').textContent = t.neutralizing;
+      document.getElementById('btnReplicating').textContent = t.replicating;
+      document.getElementById('modeText').textContent = t.modeText[currentSimulation];
+
+      document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+      window.event.target.classList.add('active');
+    }
+
+    function setSimulation(mode) {
+      currentSimulation = mode;
+      document.querySelectorAll('.sim-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('btn' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active');
+
+      const t = translations[currentLang];
+      document.getElementById('modeText').textContent = t.modeText[mode];
+      document.getElementById('rotSpeed').textContent = mode === 'binding' ? '0.02' : mode === 'neutralizing' ? '0.03' : mode === 'replicating' ? '0.015' : '0.01';
+    }
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    canvas.addEventListener('mousedown', () => { isDragging = true; });
+    canvas.addEventListener('mouseup', () => { isDragging = false; });
+    canvas.addEventListener('mousemove', (e) => {
+      if (isDragging) rotation += 0.02;
+    });
+
+    function drawAntibody() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+
+      switch (currentSimulation) {
+        case 'binding': animationSpeed = 0.02; particleCount = 30; particleRadius = 180; break;
+        case 'neutralizing': animationSpeed = 0.03; particleCount = 40; particleRadius = 220; break;
+        case 'replicating': animationSpeed = 0.015; particleCount = 50; particleRadius = 250; break;
+        default: animationSpeed = 0.01; particleCount = 20; particleRadius = 200;
+      }
+
+      rotation += animationSpeed;
+      const scale = 1 + 0.05 * Math.sin(Date.now() * 0.002);
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(rotation);
+      ctx.scale(scale, scale);
+
+      for (let ring = 0; ring < 3; ring++) {
+        ctx.strokeStyle = 'rgba(0, 255, 255, ' + (0.3 - ring * 0.1) + ')';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, particleRadius + ring * 30, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      for (let i = 0; i < particleCount; i++) {
+        const angle = (i / particleCount) * Math.PI * 2 + rotation;
+        const x = Math.cos(angle) * particleRadius;
+        const y = Math.sin(angle) * particleRadius;
+        const size = currentSimulation === 'replicating' ? 3 : 5;
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
+        gradient.addColorStop(0, '#00ffff');
+        gradient.addColorStop(1, 'rgba(0, 255, 255, 0)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (currentSimulation === 'binding') {
+        const waveRadius = 150 + Math.sin(Date.now() * 0.003) * 30;
+        ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, waveRadius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      if (currentSimulation === 'neutralizing') {
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2 + rotation * 2;
+          ctx.strokeStyle = 'rgba(255, 0, 255, 0.6)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(Math.cos(angle) * 150, Math.sin(angle) * 150);
+          ctx.stroke();
+        }
+      }
+
+      const fabSize = currentSimulation === 'replicating' ? 45 : 40;
+
+      // Fab izquierda
+      ctx.fillStyle = 'rgba(0, 100, 100, 0.3)';
+      ctx.beginPath();
+      ctx.arc(-115, -75, fabSize, 0, Math.PI * 2);
+      ctx.fill();
+      const gradL = ctx.createRadialGradient(-130, -90, 0, -120, -80, fabSize);
+      gradL.addColorStop(0, '#ffffff');
+      gradL.addColorStop(0.3, '#00ffff');
+      gradL.addColorStop(0.7, '#00aaaa');
+      gradL.addColorStop(1, '#006666');
+      ctx.fillStyle = gradL;
+      ctx.beginPath();
+      ctx.arc(-120, -80, fabSize, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#00ffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Fab derecha
+      ctx.fillStyle = 'rgba(0, 100, 100, 0.3)';
+      ctx.beginPath();
+      ctx.arc(125, -75, fabSize, 0, Math.PI * 2);
+      ctx.fill();
+      const gradR = ctx.createRadialGradient(110, -90, 0, 120, -80, fabSize);
+      gradR.addColorStop(0, '#ffffff');
+      gradR.addColorStop(0.3, '#00ffff');
+      gradR.addColorStop(0.7, '#00aaaa');
+      gradR.addColorStop(1, '#006666');
+      ctx.fillStyle = gradR;
+      ctx.beginPath();
+      ctx.arc(120, -80, fabSize, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#00ffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Conectores
+      ctx.shadowColor = 'rgba(0, 150, 255, 0.5)';
+      ctx.shadowBlur = 10;
+      ctx.strokeStyle = '#0099ff';
+      ctx.lineWidth = 15;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-120, -80);
+      ctx.lineTo(0, 0);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(120, -80);
+      ctx.lineTo(0, 0);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Núcleo
+      const coreSize = 30 + Math.sin(Date.now() * 0.004) * 5;
+      const gradCore = ctx.createRadialGradient(0, 0, 0, 0, 0, coreSize);
+      gradCore.addColorStop(0, '#ffffff');
+      gradCore.addColorStop(0.4, '#00ffff');
+      gradCore.addColorStop(0.8, '#0088aa');
+      gradCore.addColorStop(1, 'rgba(0, 136, 170, 0)');
+      ctx.fillStyle = gradCore;
+      ctx.beginPath();
+      ctx.arc(0, 0, coreSize, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Fc
+      const fcW = currentSimulation === 'replicating' ? 110 : 100;
+      const fcH = currentSimulation === 'replicating' ? 160 : 150;
+      ctx.fillStyle = 'rgba(0, 50, 100, 0.5)';
+      ctx.fillRect(-fcW/2 + 5, 55, fcW, fcH);
+      const gradFc = ctx.createLinearGradient(-fcW/2, 50, fcW/2, 50);
+      gradFc.addColorStop(0, '#004488');
+      gradFc.addColorStop(0.5, '#0066ff');
+      gradFc.addColorStop(1, '#004488');
+      ctx.fillStyle = gradFc;
+      ctx.fillRect(-fcW/2, 50, fcW, fcH);
+      ctx.strokeStyle = '#0066ff';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(-fcW/2, 50, fcW, fcH);
+
+      ctx.strokeStyle = 'rgba(0, 200, 255, 0.3)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 5; i++) {
+        const y = 70 + i * 25;
+        ctx.beginPath();
+        ctx.moveTo(-fcW/2 + 10, y);
+        ctx.lineTo(fcW/2 - 10, y);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+      requestAnimationFrame(drawAntibody);
+    }
+
+    drawAntibody();
+  </script>
+</body>
+</html>
