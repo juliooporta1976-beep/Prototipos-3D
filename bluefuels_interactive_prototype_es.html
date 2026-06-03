@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlueFuels – Prototipo 3D Interactivo</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      overflow: hidden;
+      background-color: #020617;
+      color: #f8fafc;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      background: #38bdf8;
+      border: none;
+      border-radius: 9999px;
+      height: 14px;
+      width: 14px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body class="w-screen h-screen flex flex-col bg-slate-950 text-slate-100 font-sans">
+
+  <!-- TOP BAR -->
+  <header class="h-16 border-b border-slate-800 bg-slate-900 px-6 flex items-center justify-between shrink-0 select-none shadow-md">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center border border-sky-400/30">
+        <svg class="w-5 h-5 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </div>
+      <div>
+        <h1 class="text-lg font-extrabold tracking-tight bg-gradient-to-r from-sky-450 to-white bg-clip-text text-transparent">BlueFuels</h1>
+        <p class="text-[10px] text-slate-400 font-mono tracking-wider uppercase" id="top-subtitle">Ecosistema de Energía Sostenible</p>
+      </div>
+    </div>
+
+    <!-- Live Telemetry Stats -->
+    <div class="hidden md:flex items-center gap-6 bg-slate-950/70 py-1.5 px-4 rounded-full border border-slate-800 text-xs font-mono">
+      <div class="flex items-center gap-1.5 border-r border-slate-800 pr-4">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="text-slate-400">COP: </span>
+        <span class="text-emerald-450 font-bold">4.21</span>
+      </div>
+      <div class="flex items-center gap-1.5 border-r border-slate-800 pr-4">
+        <span class="text-slate-400" id="stat-eff-label">Eficiencia: </span>
+        <span class="text-sky-450 font-bold" id="overall-efficiency-val">70.5%</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <span class="text-slate-400">CO₂ Capt: </span>
+        <span class="text-emerald-400 font-bold">540 kg/h</span>
+      </div>
+    </div>
+
+    <!-- Language selectors -->
+    <div class="bg-slate-800 py-1.5 px-3 rounded-lg border border-slate-700 flex items-center gap-2 text-xs font-medium">
+      <svg class="w-3.5 h-3.5 text-slate-450" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 1.5a18.025 18.025 0 01-2.45 5.517m0 0l1.127 1.127m-1.127-1.127a18.522 18.522 0 01-2.288-3.042M12 17l4 4m0 0l4-4m-4 4V13" /></svg>
+      <select id="lang-select" class="bg-transparent border-none text-slate-200 outline-none cursor-pointer text-xs font-semibold">
+        <option value="es" class="bg-slate-900 text-slate-100">ES (Español)</option>
+        <option value="en" class="bg-slate-900 text-slate-100">EN (English)</option>
+        <option value="zh" class="bg-slate-900 text-slate-100">ZH (中文)</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- CONTENT VIEW -->
+  <main class="flex-1 flex min-h-0 relative">
+    
+    <!-- LEFT CONTROL PANEL -->
+    <div class="w-80 bg-slate-900 border-r border-slate-800 flex flex-col h-full overflow-y-auto select-none p-4 gap-4">
+      
+      <!-- Sim Status -->
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <span class="text-xs font-mono text-slate-400 uppercase tracking-wider" id="lbl-status">Estado</span>
+        <span class="px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold" id="status-badge">ACTIVO</span>
+      </div>
+
+      <!-- View Toggles -->
+      <div>
+        <label class="text-xs font-mono text-slate-400 block mb-2 uppercase tracking-wider" id="lbl-view">Vista de Sistema</label>
+        <div class="grid grid-cols-2 gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
+          <button id="btn-single-view" class="py-1 px-2 rounded text-xs font-medium transition-all duration-200 bg-slate-800 text-white border border-slate-700">Módulo</button>
+          <button id="btn-system-view" class="py-1 px-2 rounded text-xs font-medium transition-all duration-200 text-slate-400 border border-transparent">Planta completa</button>
+        </div>
+      </div>
+
+      <!-- Modules Selector List -->
+      <div id="module-selector-box" class="flex flex-col gap-1.5 border-t border-slate-800 pt-3">
+        <label class="text-xs font-mono text-slate-400 block mb-1 uppercase tracking-wider" id="lbl-center-mod">Módulos</label>
+        
+        <button onclick="selectModule('microalgae')" id="btn-mod-microalgae" class="mod-btn flex items-center gap-3 p-2.5 rounded-xl border text-left bg-slate-850/80 border-sky-500/40 text-slate-100">
+          <div class="p-1.5 rounded-lg border bg-emerald-500/10 text-emerald-400 border-emerald-505/30 font-bold text-xs uppercase font-mono">MA</div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-semibold truncate" id="name-microalgae">Cultivo de Microalgas</p>
+            <p class="text-[9px] text-slate-400 truncate">CO2 Capture -> Lipids</p>
+          </div>
+        </button>
+
+        <button onclick="selectModule('plasma_reactor')" id="btn-mod-plasma_reactor" class="mod-btn flex items-center gap-3 p-2.5 rounded-xl border text-left bg-slate-950/20 border-slate-800/50 hover:bg-slate-800/40 text-slate-300">
+          <div class="p-1.5 rounded-lg border bg-indigo-500/10 text-indigo-400 border-indigo-505/30 font-bold text-xs uppercase font-mono">PR</div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-semibold truncate" id="name-plasma_reactor">Reactor de Plasma Frío</p>
+            <p class="text-[9px] text-slate-400 truncate">Non-thermal Crack</p>
+          </div>
+        </button>
+
+        <button onclick="selectModule('bio_reactor')" id="btn-mod-bio_reactor" class="mod-btn flex items-center gap-3 p-2.5 rounded-xl border text-left bg-slate-950/20 border-slate-800/50 hover:bg-slate-800/40 text-slate-300">
+          <div class="p-1.5 rounded-lg border bg-amber-500/10 text-amber-400 border-amber-550/30 font-bold text-xs uppercase font-mono">BR</div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-semibold truncate" id="name-bio_reactor">Biorreactor Enzimático</p>
+            <p class="text-[9px] text-slate-400 truncate">Enzymatic Synth</p>
+          </div>
+        </button>
+
+        <button onclick="selectModule('catalyst')" id="btn-mod-catalyst" class="mod-btn flex items-center gap-3 p-2.5 rounded-xl border text-left bg-slate-950/20 border-slate-800/50 hover:bg-slate-800/40 text-slate-300">
+          <div class="p-1.5 rounded-lg border bg-pink-500/10 text-pink-400 border-pink-500/30 font-bold text-xs uppercase font-mono">MC</div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-semibold truncate" id="name-catalyst">Catalizador Magnético</p>
+            <p class="text-[9px] text-slate-400 truncate">Magnetic Filter</p>
+          </div>
+        </button>
+
+        <button onclick="selectModule('magnetic_recovery')" id="btn-mod-magnetic_recovery" class="mod-btn flex items-center gap-3 p-2.5 rounded-xl border text-left bg-slate-950/20 border-slate-800/50 hover:bg-slate-800/40 text-slate-300">
+          <div class="p-1.5 rounded-lg border bg-cyan-500/10 text-cyan-400 border-cyan-500/30 font-bold text-xs uppercase font-mono">RU</div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-semibold truncate" id="name-magnetic_recovery">Recuperación Magnética</p>
+            <p class="text-[9px] text-slate-400 truncate">Catalyst Recycling</p>
+          </div>
+        </button>
+
+        <button onclick="selectModule('storage_tank')" id="btn-mod-storage_tank" class="mod-btn flex items-center gap-3 p-2.5 rounded-xl border text-left bg-slate-950/20 border-slate-800/50 hover:bg-slate-800/40 text-slate-300">
+          <div class="p-1.5 rounded-lg border bg-slate-500/10 text-slate-400 border-slate-500/30 font-bold text-xs uppercase font-mono">ST</div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-semibold truncate" id="name-storage_tank">Tanque de Almacenamiento</p>
+            <p class="text-[9px] text-slate-400 truncate">Fuel Reservoir</p>
+          </div>
+        </button>
+      </div>
+
+      <!-- Parameters Sliders controls -->
+      <div class="border-t border-slate-800 pt-3 flex-1 flex flex-col gap-4">
+        <label class="text-xs font-mono text-slate-400 uppercase tracking-wider flex items-center gap-2" id="lbl-params">
+          Parámetros de Control
+        </label>
+        
+        <!-- SLIDERS container -->
+        <div id="sliders-box" class="flex flex-col gap-4">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- CENTER 3D PORT -->
+    <div class="flex-1 min-w-0 relative flex flex-col bg-slate-950">
+      <div id="canvas-container" class="flex-1 w-full h-full relative"></div>
+      
+      <!-- Overlay Guide -->
+      <div class="absolute bottom-5 left-5 right-5 bg-slate-950/80 backdrop-blur border border-slate-800/80 p-3.5 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2 pointer-events-none select-none z-10 shadow-lg">
+        <div class="flex items-center gap-3">
+          <div class="w-2.5 h-2.5 rounded-full bg-sky-400 animate-ping"></div>
+          <p class="text-xs text-slate-300" id="bottom-instruction">Explora el ecosistema de conversión molecular en 3D</p>
+        </div>
+        <p class="text-[10px] text-slate-500 font-mono" id="mouse-tip">Arrastre para rotar / Botón izquierdo para desplazar / Scroll para zoom</p>
+      </div>
+    </div>
+
+    <!-- RIGHT DIAGNOSTICS BOARD -->
+    <div class="w-80 bg-slate-900 border-l border-slate-800 flex flex-col h-full overflow-y-auto select-none p-4 gap-4">
+      <div class="flex items-center gap-2 text-xs font-mono text-slate-400 border-b border-slate-800 pb-2.5 uppercase tracking-wider">
+        <span id="lbl-metrics">Diagnóstico de Operación</span>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <div class="p-3.5 rounded-xl bg-slate-955/50 border border-slate-800 flex flex-col gap-1">
+          <p class="text-xs text-slate-450 font-sans" id="metric-p1-lbl">Intensidad de Luz</p>
+          <p class="text-lg font-extrabold tracking-tight text-white font-mono" id="metric-p1-val">12000 Lux</p>
+        </div>
+        <div class="p-3.5 rounded-xl bg-slate-955/50 border border-slate-800 flex flex-col gap-1">
+          <p class="text-xs text-slate-450 font-sans" id="metric-p2-lbl">Flujo de CO₂</p>
+          <p class="text-lg font-extrabold tracking-tight text-white font-mono" id="metric-p2-val">65 mL/min</p>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-xl bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 flex flex-col gap-2 mt-2">
+        <h4 class="text-xs font-mono font-bold text-slate-300 uppercase tracking-widest" id="lbl-desc-tit">Descripción funcional</h4>
+        <p class="text-xs text-slate-400 leading-relaxed" id="module-desc-content"></p>
+      </div>
+    </div>
+  </main>
+
+  <footer class="h-8 bg-slate-950 border-t border-slate-850 px-4 flex items-center justify-between text-[10px] text-slate-500 font-mono">
+    <span>CYBERNETIC_GRID: ONLINE</span>
+    <span>SYSTEM_TIME: 2026-05-22 UTC</span>
+  </footer>
+
+  <!-- Tree JS ES Module Maps -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // Embed data objects
+    const langData = {"es":{"title":"BlueFuels – Prototipo 3D","subtitle":"Ecosistema de Energía Sostenible","instruction":"Explore los módulos del sistema energético en tiempo real","langLabel":"Idioma","systemView":"Vista de Sistema","singleView":"Vista de Módulo","allModules":"Planta Completa (3D Flow)","uploadButton":"Cargar GLB","uploadTip":"Arrastra y suelta tu propio modelo .glb aquí o haz clic para probarlo","parameters":"Parámetros de Control","diagnostics":"Diagnóstico de Operación","formulas":"Reacciones Químicas","status":"Estado","active":"ACTIVO","idle":"INACTIVO","efficiency":"Eficiencia","power":"Potencia","temperature":"Temperatura","simulationSpeed":"Velocidad de Simulación","cameraReset":"Reiniciar Cámara","systemFlow":"Flujo de Conversión de Energía","efficiencyLog":"Registro de Rendimiento","modules":{"plasma_reactor":{"name":"Reactor de Plasma Frío","desc":"Utiliza descargas eléctricas de alto voltaje para romper enlaces moleculares de CO2 y vapor de agua, iniciando el craqueo térmico no térmico de manera altamente eficiente.","p1":"Voltaje del Electrodo","p2":"Frecuencia de Arco","metric1":"Tasa de Craqueo","metric2":"Voltaje Crítico"},"bio_reactor":{"name":"Biorreactor Enzimático","desc":"Tanque cilíndrico avanzado donde catalizadores biológicos y enzimas específicas transforman los gases activados en lípidos complejos y precursores de hidrocarburos.","p1":"Velocidad de Agitación","p2":"pH del Medio","metric1":"Rendimiento de Lípidos","metric2":"Concentración de Biomasa"},"catalyst":{"name":"Catalizador Magnético","desc":"Esfera metálica con nanopartículas electromagnéticas que atraen, alinean y aceleran la separación de combustibles sintéticos del resto de la mezcla reactiva.","p1":"Fuerza Magnética","p2":"Frecuencia de Pulsos","metric1":"Grado de Pureza","metric2":"Entropía de Mezcla"},"magnetic_recovery":{"name":"Unidad de Recuperación Magnética","desc":"Unidad de filtración ciclónica con electroimanes de alta gradiente que recupera catalizadores magnéticos suspendidos para su reutilización indefinida en el ciclo cerrado.","p1":"Fuerza del Electroimán","p2":"Velocidad de Caudal","metric1":"Tasa de Retención","metric2":"Ciclos de Reciclaje"},"microalgae":{"name":"Cultivo de Microalgas","desc":"Tanque de fotobiorreactor translúcido verde. Las microalgas absorben CO2 y luz solar para fotosintetizar lípidos de alta densidad energética a velocidad ultrarrápida.","p1":"Intensidad de Luz (Lux)","p2":"Flujo de CO2","metric1":"Densidad de Algas","metric2":"Tasa de Absorción"},"storage_tank":{"name":"Tanque de Almacenamiento","desc":"Contenedor industrial fortificado que almacena el combustible sintético líquido purificado bajo condiciones ideales de presión y monitoreo constante.","p1":"Nivel de Llenado","p2":"Presión Interna","metric1":"Volumen Almacenado","metric2":"Días de Reserva"}},"history":"Historial de Eventos del Sistema","footerText":"Sistema Inteligente de Monitoreo BlueFuels - 2026. Todos los derechos reservados."},"en":{"title":"BlueFuels – 3D Prototype","subtitle":"Sustainable Energy Ecosystem","instruction":"Explore energy system modules in real time","langLabel":"Language","systemView":"System View","singleView":"Module View","allModules":"Full Plant (3D Flow)","uploadButton":"Upload GLB","uploadTip":"Drag and drop your own .glb model here or click to test it","parameters":"Control Parameters","diagnostics":"Operation Diagnostics","formulas":"Chemical Reactions","status":"Status","active":"ACTIVE","idle":"IDLE","efficiency":"Efficiency","power":"Power","temperature":"Temperature","simulationSpeed":"Simulation Speed","cameraReset":"Reset Camera","systemFlow":"Energy Conversion Flow","efficiencyLog":"Performance Log","modules":{"plasma_reactor":{"name":"Cold Plasma Reactor","desc":"Utilizes high-voltage electrical discharges to break CO2 and water vapor molecular bonds, initiating highly efficient non-thermal cracking.","p1":"Electrode Voltage","p2":"Arc Frequency","metric1":"Cracking Rate","metric2":"Critical Voltage"},"bio_reactor":{"name":"Enzymatic Bioreactor","desc":"Advanced cylindrical tank where biological catalysts and specific enzymes transform activated gases into complex lipids and hydrocarbon precursors.","p1":"Agitation Speed","p2":"Medium pH","metric1":"Lipid Yield","metric2":"Biomass Concentration"},"catalyst":{"name":"Magnetic Catalyst","desc":"Metallic sphere embedded with electromagnetic nanoparticles that attract, align, and accelerate the separation of synthetic fuels from the reaction mixture.","p1":"Magnetic Force","p2":"Pulse Frequency","metric1":"Purity Grade","metric2":"Mixing Entropy"},"magnetic_recovery":{"name":"Magnetic Recovery Unit","desc":"Cyclonic filtration unit equipped with high-gradient electromagnets that recovers suspended magnetcatalysts for continuous circular reuse.","p1":"Electromagnet Intensity","p2":"Hydraulics Flow Rate","metric1":"Retention Rate","metric2":"Recycle Loops Completed"},"microalgae":{"name":"Microalgae Cultivation","desc":"Translucent green photobioreactor tank. Microalgae absorb CO2 and solar light to photosynthesize high-density lipids at ultra-fast speeds.","p1":"Light Intensity (Lux)","p2":"CO2 Flow","metric1":"Algae Density","metric2":"Absorption Rate"},"storage_tank":{"name":"Storage Tank","desc":"Fortified industrial container storing purified liquid synthetic fuel under ideal pressure conditions with constant telemetry monitoring.","p1":"Fill Level","p2":"Internal Pressure","metric1":"Stored Volume","metric2":"Reserve Days"}},"history":"System Event Log","footerText":"BlueFuels Intelligent Monitoring System - 2026. All rights reserved."},"zh":{"title":"BlueFuels – 三维原型","subtitle":"可持续能源生态系统","instruction":"实时探索能源系统模块","langLabel":"语言","systemView":"系统视图","singleView":"模块视图","allModules":"完整厂房 (3D流控)","uploadButton":"上传 GLB","uploadTip":"在此处拖放您自己的 .glb 模型或点击进行测试","parameters":"控制参数","diagnostics":"运行诊断","formulas":"化学反应","status":"状态","active":"运行中","idle":"闲置","efficiency":"效率","power":"功率","temperature":"温度","simulationSpeed":"模拟速度","cameraReset":"重置相机","systemFlow":"能量转换流","efficiencyLog":"性能日志","modules":{"plasma_reactor":{"name":"低温等离子体反应器","desc":"利用高压电放电打破二氧化碳和水蒸气的分子键，开启高效的非等温裂解反应。","p1":"电极电压","p2":"电弧频率","metric1":"裂解率","metric2":"临界电压"},"bio_reactor":{"name":"酶生物反应器","desc":"先进的圆柱形罐，其中生物催化剂和特定酶将混合激活气体转化为复杂脂质和碳氢化合物前体。","p1":"搅拌速度","p2":"介质 pH 值","metric1":"脂质产率","metric2":"生物质浓度"},"catalyst":{"name":"磁性催化剂","desc":"带有电磁纳米颗粒的金属球体，可吸引、排列并加速合成燃料与反应混合物的分离。","p1":"磁力强度","p2":"脉冲频率","metric1":"纯度等级","metric2":"混合熵"},"magnetic_recovery":{"name":"磁力回收装置","desc":"配备高梯度电磁铁的旋流过滤装置，用于捕捉和回收悬浮的磁性催化颗粒，实现无限次的闭环循环利用。","p1":"电磁力强度","p2":"流道流速","metric1":"催化剂截留率","metric2":"循环利用次数"},"microalgae":{"name":"微藻培育罐","desc":"绿色半透明光生物反应器罐。微藻吸收二氧化碳和阳光，以极快的速度光合作用合成高能量密度的脂质。","p1":"光照强度 (Lux)","p2":"二氧化碳流量","metric1":"微藻密度","metric2":"吸收速率"},"storage_tank":{"name":"储罐","desc":"强化的工业容器，在理想的压力条件和恒定的遥测监控下存储纯净的液体合成燃料。","p1":"填充液位","p2":"内部压力","metric1":"存储容积","metric2":"备用天数"}},"history":"系统事件日志","footerText":"BlueFuels 智能监控系统 - 2026. 保留所有权利。"}};
+    let params = {"plasma_reactor":{"voltage":65,"frequency":45},"bio_reactor":{"stirSpeed":60,"ph":7.2},"catalyst":{"magneticForce":50,"pulseFrequency":30},"magnetic_recovery":{"magneticIntensity":60,"flowSpeed":55},"microalgae":{"lightIntensity":80,"co2Flow":65},"storage_tank":{"fillLevel":42,"pressure":28}};
+    let activeModule = "microalgae";
+    let viewMode = "single";
+    let lang = "es";
+
+    const rootTranslations = langData;
+
+    // SCENE, CAMERA, LIGHTS
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0f1d);
+    scene.fog = new THREE.FogExp2(0x0a0f1d, 0.03);
+
+    const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(0, 5, 12);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI/2 + 0.1;
+    controls.minDistance = 3;
+    controls.maxDistance = 30;
+
+    const ambientLight = new THREE.AmbientLight(0x1e293b, 1.5);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+    dirLight.position.set(5, 15, 7);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+
+    const pointLight = new THREE.PointLight(0x0ea5e9, 4, 15);
+    pointLight.position.set(0, 4, 0);
+    scene.add(pointLight);
+
+    const gridHelper = new THREE.GridHelper(40, 40, 0x334155, 0x1e293b);
+    gridHelper.position.y = -1.5;
+    scene.add(gridHelper);
+
+    // GROUPS MAP
+    const systemGroup = new THREE.Group();
+    const modulesGroupMap = {
+      microalgae: new THREE.Group(),
+      plasma_reactor: new THREE.Group(),
+      bio_reactor: new THREE.Group(),
+      catalyst: new THREE.Group(),
+      magnetic_recovery: new THREE.Group(),
+      storage_tank: new THREE.Group(),
+    };
+
+    const animators = {
+      plasmaSparkLines: [],
+      plasmaParticles: null,
+      bioStirrer: null,
+      bioEnzymes: [],
+      magnSphere: null,
+      magnRings: [],
+      magnParticles: null,
+      algaeBubbles: null,
+      algaeSpirals: [],
+      storageGauge: null,
+      recoveryRotor: null,
+      recoveryParticles: null
+    };
+
+    const metalMaterial = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.9, roughness: 0.15 });
+    const metalGold = new THREE.MeshStandardMaterial({ color: 0xb45309, metalness: 0.8, roughness: 0.2 });
+    const glassMaterial = new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.15 });
+    const steelMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.2 });
+    const dynamicFluidMat = new THREE.MeshStandardMaterial({ color: 0xf1c40f, transparent: true, opacity: 0.35, roughness: 0.1 });
+    const copperMat = new THREE.MeshStandardMaterial({ color: 0xe9d5ff, metalness: 0.9, roughness: 0.1 });
+    const goldChromeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 1.0, roughness: 0.05 });
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.7, roughness: 0.3 });
+    const glassPhysicalMat = new THREE.MeshPhysicalMaterial({ color: 0x10b981, transparent: true, opacity: 0.35, transmission: 0.6, roughness: 0.1 });
+    const greenLiquidMat = new THREE.MeshStandardMaterial({ color: 0x047857, transparent: true, opacity: 0.75, roughness: 0.3 });
+    const pipeMaterial = new THREE.MeshStandardMaterial({ color: 0xd1fae5, metalness: 0.6, roughness: 0.1 });
+    const gaugeFrameMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.55, roughness: 0.4 });
+    const gaugeNeonGreen = new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x047857, roughness: 0.2 });
+
+    // BUILD PROCEDURAL MODELS
+
+    // 1. Plasma
+    const buildPlasma = (g) => {
+      const pl = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.8, 0.2, 16), metalMaterial); pl.position.y = -1.4; g.add(pl);
+      const gl = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 3, 16, 1, true), glassMaterial); gl.position.y = 0.1; g.add(gl);
+      const topCr = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.3, 0.3, 16), metalMaterial); topCr.position.y = 1.6; g.add(topCr);
+      const cr = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.8, 8), metalGold); cr.position.y = 0.1; g.add(cr);
+      const c1 = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.2, 8), metalGold); c1.position.y = 1.1; g.add(c1);
+      const c2 = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.2, 8), metalGold); c2.position.y = -0.9; g.add(c2);
+
+      const sparks = [];
+      const sparkMaterial = new THREE.LineBasicMaterial({ color: 0xa855f7, linewidth: 2 });
+      for (let i = 0; i < 4; i++) {
+        const points = [];
+        for (let j = 0; j < 6; j++) points.push(new THREE.Vector3(0, -1.2 + j * 0.48, 0));
+        const sGeo = new THREE.BufferGeometry().setFromPoints(points);
+        const sLine = new THREE.Line(sGeo, sparkMaterial);
+        g.add(sLine);
+        sparks.push(sLine);
+      }
+      animators.plasmaSparkLines = sparks;
+
+      const pGeo = new THREE.BufferGeometry();
+      const pCount = 80;
+      const positions = new Float32Array(pCount * 3);
+      for (let i = 0; i < pCount * 3; i += 3) {
+        const theta = Math.random() * Math.PI * 2;
+        const rad = Math.random() * 0.8;
+        positions[i] = Math.cos(theta) * rad;
+        positions[i+1] = Math.random() * 2.6 - 1.3;
+        positions[i+2] = Math.sin(theta) * rad;
+      }
+      pGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      animators.plasmaParticles = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0x3b82f6, size: 0.1, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending }));
+      animators.plasmaParticles.position.y = 0.1;
+      g.add(animators.plasmaParticles);
+    };
+
+    // 2. Bioreactor
+    const buildBio = (g) => {
+      const stand = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.7, 0.5, 12, 1, true), steelMat); stand.position.y = -1.25; g.add(stand);
+      const liquid = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 2.4, 16), dynamicFluidMat); liquid.position.y = 0.15; g.add(liquid);
+      
+      for (let i = 0; i < 4; i++) {
+        const angle = (i * Math.PI) / 2;
+        const rib = new THREE.Mesh(new THREE.BoxGeometry(0.12, 3.2, 0.2), steelMat);
+        rib.position.set(Math.cos(angle) * 1.45, 0.2, Math.sin(angle) * 1.45);
+        rib.rotation.y = -angle;
+        g.add(rib);
+      }
+
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(1.4, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2), steelMat); cap.position.y = 1.5; g.add(cap);
+
+      const stirrer = new THREE.Group(); stirrer.position.y = 0.15;
+      stirrer.add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 8), steelMat));
+      for (let level = -0.6; level <= 0.6; level += 1.2) {
+        for (let b = 0; b < 3; b++) {
+          const bladeAngle = (b * Math.PI * 2) / 3;
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.15, 0.03), steelMat);
+          blade.position.set(Math.cos(bladeAngle) * 0.4, level, Math.sin(bladeAngle) * 0.4);
+          blade.rotation.y = -bladeAngle;
+          stirrer.add(blade);
+        }
+      }
+      g.add(stirrer);
+      animators.bioStirrer = stirrer;
+
+      const enzymeMat = new THREE.MeshPhongMaterial({ color: 0xef4444, emissive: 0x991b1b, shininess: 80 });
+      for (let i = 0; i < 8; i++) {
+        const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.08 + Math.random() * 0.06, 8, 8), enzymeMat);
+        const r = 0.4 + Math.random() * 0.7;
+        const theta = Math.random() * Math.PI * 2;
+        mesh.position.set(Math.cos(theta) * r, -0.6 + Math.random() * 1.5, Math.sin(theta) * r);
+        mesh.userData = { radius: r, speed: 1.5 + Math.random() * 2, angle: theta };
+        g.add(mesh);
+        animators.bioEnzymes.push(mesh);
+      }
+    };
+
+    // 3. Catalyst
+    const buildCatalyst = (g) => {
+      const base = new THREE.Mesh(new THREE.BoxGeometry(2, 0.4, 2), copperMat); base.position.y = -1.3; g.add(base);
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 1, 8), copperMat); post.position.y = -0.7; g.add(post);
+
+      const centerSphere = new THREE.Mesh(new THREE.SphereGeometry(1.2, 32, 32), goldChromeMat); centerSphere.position.y = 0.5; g.add(centerSphere);
+      animators.magnSphere = centerSphere;
+
+      const ringMat = new THREE.MeshStandardMaterial({ color: 0xec4899, metalness: 0.8, roughness: 0.2, wireframe: true });
+      for (let i = 0; i < 3; i++) {
+        const ringG = new THREE.Group();
+        ringG.position.y = 0.5;
+        if (i === 1) ringG.rotation.x = Math.PI / 2;
+        if (i === 2) ringG.rotation.y = Math.PI / 4;
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(1.8 - i*0.05, 0.04, 8, 48), ringMat);
+        ringG.add(ring);
+        g.add(ringG);
+        animators.magnRings.push(ringG);
+      }
+
+      const pCount = 120;
+      const pGeo = new THREE.BufferGeometry();
+      const coords = [];
+      const currentPos = new Float32Array(pCount * 3);
+      for (let i = 0; i < pCount; i++) {
+        const theta = (i / pCount) * Math.PI * 2;
+        const r = 1.3 + Math.random() * 0.9;
+        const x = Math.cos(theta) * r;
+        const y = Math.sin(theta * 2) * 0.6;
+        const z = Math.sin(theta) * r;
+        currentPos[i*3] = x; currentPos[i*3+1] = y; currentPos[i*3+2] = z;
+        coords.push(x, y, z, theta, r);
+      }
+      pGeo.setAttribute('position', new THREE.BufferAttribute(currentPos, 3));
+      const mSpherePoints = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xf472b6, size: 0.08, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending }));
+      mSpherePoints.position.y = 0.5;
+      g.add(mSpherePoints);
+      animators.magnParticles = mSpherePoints;
+      mSpherePoints.userData = { original: coords };
+    };
+
+    // 4. Microalgae
+    const buildAlgae = (g) => {
+      const base = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.4, 2.4), frameMat); base.position.y = -1.3; g.add(base);
+      const glass = new THREE.Mesh(new THREE.BoxGeometry(1.8, 3.2, 1.8), glassPhysicalMat); glass.position.y = 0.5; g.add(glass);
+      const liq = new THREE.Mesh(new THREE.BoxGeometry(1.7, 2.8, 1.7), greenLiquidMat); liq.position.y = 0.4; g.add(liq);
+
+      const spiralCurves = [];
+      for (let i = 0; i < 60; i++) {
+        const theta = (i / 60) * Math.PI * 18;
+        const r = 0.35 + Math.sin(i * 0.1) * 0.1;
+        const py = -1.2 + (i / 60) * 2.8;
+        spiralCurves.push(new THREE.Vector3(Math.cos(theta) * r, py, Math.sin(theta) * r));
+      }
+      const pathCurve = new THREE.CatmullRomCurve3(spiralCurves);
+      const tubeMesh = new THREE.Mesh(new THREE.TubeGeometry(pathCurve, 64, 0.05, 8, false), pipeMaterial);
+      tubeMesh.position.y = 0.4;
+      g.add(tubeMesh);
+      animators.algaeSpirals.push(tubeMesh);
+
+      const bCount = 90;
+      const bGeo = new THREE.BufferGeometry();
+      const bPos = new Float32Array(bCount * 3);
+      for (let i = 0; i < bCount * 3; i += 3) {
+        bPos[i] = (Math.random() - 0.5) * 1.4;
+        bPos[i+1] = Math.random() * 2.6 - 1.3;
+        bPos[i+2] = (Math.random() - 0.5) * 1.4;
+      }
+      bGeo.setAttribute('position', new THREE.BufferAttribute(bPos, 3));
+      animators.algaeBubbles = new THREE.Points(bGeo, new THREE.PointsMaterial({ color: 0x34d399, size: 0.09, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending }));
+      animators.algaeBubbles.position.y = 0.4;
+      g.add(animators.algaeBubbles);
+    };
+
+    // 5. Magnetic Recovery Unit
+    const buildRecovery = (g) => {
+      const darkMetalMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9, roughness: 0.2 });
+      const copperCoilMat = new THREE.MeshStandardMaterial({ color: 0xd97706, metalness: 0.95, roughness: 0.1 });
+      const chamberGlass = new THREE.MeshStandardMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.25 });
+      const rotorMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.8, roughness: 0.3 });
+
+      const mount = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.3, 1.4), darkMetalMat); mount.position.y = -1.35; g.add(mount);
+      const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.8), darkMetalMat); p1.position.set(-0.6, -0.9, 0); g.add(p1);
+      const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.8), darkMetalMat); p2.position.set(0.6, -0.9, 0); g.add(p2);
+
+      const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 2.2, 16), chamberGlass);
+      housing.rotation.z = Math.PI / 2; housing.position.y = -0.3; g.add(housing);
+
+      for (let offset = -0.8; offset <= 0.8; offset += 0.8) {
+        if (offset === 0) continue;
+        const coil = new THREE.Mesh(new THREE.TorusGeometry(0.78, 0.12, 8, 24), copperCoilMat);
+        coil.rotation.y = Math.PI / 2; coil.position.set(offset, -0.3, 0); g.add(coil);
+      }
+
+      const screwGroup = new THREE.Group();
+      screwGroup.position.set(0, -0.3, 0);
+      screwGroup.rotation.z = Math.PI / 2;
+      screwGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 2.0, 8), darkMetalMat));
+      for (let i = 0; i < 16; i++) {
+        const angle = (i / 16) * Math.PI * 6;
+        const ty = -0.9 + (i / 16) * 1.8;
+        const t = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.08, 0.4), rotorMat);
+        t.position.set(Math.cos(angle) * 0.25, ty, Math.sin(angle) * 0.25);
+        t.rotation.y = -angle;
+        screwGroup.add(t);
+      }
+      g.add(screwGroup);
+      animators.recoveryRotor = screwGroup;
+
+      const pCount = 60;
+      const rGeo = new THREE.BufferGeometry();
+      const rPositions = new Float32Array(pCount * 3);
+      const rOriginal = [];
+      for (let i = 0; i < pCount; i++) {
+        const theta = (i / pCount) * Math.PI * 2;
+        const rad = 0.2 + Math.random() * 0.45;
+        const hOffset = (Math.random() - 0.5) * 1.6;
+        rPositions[i * 3] = hOffset;
+        rPositions[i * 3 + 1] = -0.3 + Math.cos(theta) * rad;
+        rPositions[i * 3 + 2] = Math.sin(theta) * rad;
+        rOriginal.push(hOffset, theta, rad);
+      }
+      rGeo.setAttribute('position', new THREE.BufferAttribute(rPositions, 3));
+      animators.recoveryParticles = new THREE.Points(rGeo, new THREE.PointsMaterial({ color: 0x06b6d4, size: 0.09, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending }));
+      g.add(animators.recoveryParticles);
+      animators.recoveryParticles.userData = { original: rOriginal };
+    };
+
+    // 6. Tank Silo
+    const buildTank = (g) => {
+      const cement = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.7, 0.4, 16), new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 })); cement.position.y = -1.3; g.add(cement);
+      const silo = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 3, 16), steelMat); silo.position.y = 0.4; g.add(silo);
+
+      for (let r = -1; r <= 1.5; r += 0.8) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(1.42, 0.04, 6, 24), steelMat);
+        ring.position.y = r + 0.4; ring.rotation.x = Math.PI / 2; g.add(ring);
+      }
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(1.45, 0.8, 16), steelMat); cap.position.y = 2.2; g.add(cap);
+
+      const backing = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.4, 0.05), gaugeFrameMat); backing.position.set(0, 0.4, 1.42); g.add(backing);
+      const activeGauge = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 0.08), gaugeNeonGreen); activeGauge.position.set(0, 0.4, 1.43); g.add(activeGauge);
+      animators.storageGauge = activeGauge;
+    };
+
+    buildAlgae(modulesGroupMap.microalgae);
+    buildPlasma(modulesGroupMap.plasma_reactor);
+    buildBio(modulesGroupMap.bio_reactor);
+    buildCatalyst(modulesGroupMap.catalyst);
+    buildRecovery(modulesGroupMap.magnetic_recovery);
+    buildTank(modulesGroupMap.storage_tank);
+
+    // SYSTEM PLATFORMS INTERCONNECT MAP
+    const locMap = {
+      microalgae: [-4.5, 0, -2.2],
+      plasma_reactor: [-1.5, 0, -2.2],
+      bio_reactor: [1.5, 0, -2.2],
+      catalyst: [4.5, 0, -2.2],
+      magnetic_recovery: [-1.5, 0, 2.2],
+      storage_tank: [4.5, 0, 2.2]
+    };
+
+    const pipelineMaterial = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8, roughness: 0.25 });
+    const buildPipelinePipe = (from, to) => {
+      const pts = [];
+      const midX = (from[0] + to[0]) / 2;
+      pts.push(new THREE.Vector3(from[0], from[1] - 0.5, from[2]));
+      pts.push(new THREE.Vector3(midX, from[1] - 0.5, from[2]));
+      pts.push(new THREE.Vector3(midX, to[1] - 0.5, to[2]));
+      pts.push(new THREE.Vector3(to[0], to[1] - 0.5, to[2]));
+      const path = new THREE.CatmullRomCurve3(pts);
+      const pipeGeo = new THREE.TubeGeometry(path, 24, 0.12, 8, false);
+      systemGroup.add(new THREE.Mesh(pipeGeo, pipelineMaterial));
+      return path;
+    };
+
+    const paths = [
+      buildPipelinePipe(locMap.microalgae, locMap.plasma_reactor),
+      buildPipelinePipe(locMap.microalgae, locMap.magnetic_recovery),
+      buildPipelinePipe(locMap.plasma_reactor, locMap.bio_reactor),
+      buildPipelinePipe(locMap.plasma_reactor, locMap.magnetic_recovery),
+      buildPipelinePipe(locMap.magnetic_recovery, locMap.bio_reactor),
+      buildPipelinePipe(locMap.bio_reactor, locMap.catalyst),
+      buildPipelinePipe(locMap.catalyst, locMap.magnetic_recovery),
+      buildPipelinePipe(locMap.catalyst, locMap.storage_tank)
+    ];
+
+    const pulseCount = 20;
+    const pulsePositions = new Float32Array(pulseCount * 3);
+    const pulseGeo = new THREE.BufferGeometry();
+    pulseGeo.setAttribute('position', new THREE.BufferAttribute(pulsePositions, 3));
+    const flowingEnergyPoints = new THREE.Points(pulseGeo, new THREE.PointsMaterial({ color: 0x38bdf8, size: 0.35, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending }));
+    systemGroup.add(flowingEnergyPoints);
+
+    const pulseData = Array.from({ length: pulseCount }, (_, i) => ({
+      pathIndex: i % paths.length,
+      progress: (i / pulseCount),
+      speed: 0.3 + Math.random() * 0.15
+    }));
+
+    Object.keys(modulesGroupMap).forEach((key) => {
+      modulesGroupMap[key].position.set(...locMap[key]);
+      systemGroup.add(modulesGroupMap[key]);
+    });
+    scene.add(systemGroup);
+
+    // SETUP EXPORT ENGINE SYNCS
+    window.selectModule = function(id) {
+      activeModule = id;
+      viewMode = "single";
+      document.getElementById('btn-single-view').className = "py-1 px-2 rounded text-xs font-medium transition-all duration-200 bg-slate-800 text-white border border-slate-700";
+      document.getElementById('btn-system-view').className = "py-1 px-2 rounded text-xs font-medium transition-all duration-200 text-slate-400 border border-transparent";
+      
+      document.querySelectorAll('.mod-btn').forEach(b => {
+        b.className = "mod-btn flex items-center gap-3 p-2.5 rounded-xl border text-left bg-slate-950/20 border-slate-800/50 hover:bg-slate-800/40 text-slate-300";
+      });
+      document.getElementById('btn-mod-' + id).className = "mod-btn flex items-center gap-3 p-2.5 rounded-xl border text-left bg-slate-850/80 border-sky-500/40 text-slate-100";
+      
+      renderSliders();
+      updateDiagnostics();
+    };
+
+    document.getElementById('btn-single-view').addEventListener('click', () => {
+      viewMode = "single";
+      document.getElementById('btn-single-view').className = "py-1 px-2 rounded text-xs font-medium transition-all duration-200 bg-slate-800 text-white border border-slate-700";
+      document.getElementById('btn-system-view').className = "py-1 px-2 rounded text-xs font-medium transition-all duration-200 text-slate-400 border border-transparent";
+      document.getElementById('module-selector-box').className = "flex flex-col gap-1.5 border-t border-slate-800 pt-3";
+      updateDiagnostics();
+    });
+
+    document.getElementById('btn-system-view').addEventListener('click', () => {
+      viewMode = "system";
+      document.getElementById('btn-system-view').className = "py-1 px-2 rounded text-xs font-medium transition-all duration-200 bg-slate-800 text-white border border-slate-700";
+      document.getElementById('btn-single-view').className = "py-1 px-2 rounded text-xs font-medium transition-all duration-200 text-slate-400 border border-transparent";
+      document.getElementById('module-selector-box').className = "flex flex-col gap-1.5 border-t border-slate-800 pt-3";
+      updateDiagnostics();
+    });
+
+    document.getElementById('lang-select').addEventListener('change', (e) => {
+      lang = e.target.value;
+      updateLanguages();
+    });
+
+    // RENDER INTERACTIVE SLIDERS
+    function renderSliders() {
+      const parent = document.getElementById('sliders-box');
+      parent.innerHTML = '';
+      const activeMeta = rootTranslations[lang].modules[activeModule];
+
+      if (activeModule === 'plasma_reactor') {
+        parent.appendChild(createSliderMarkup(activeMeta.p1, params.plasma_reactor.voltage, 10, 100, 'V', (v) => { params.plasma_reactor.voltage = v; }));
+        parent.appendChild(createSliderMarkup(activeMeta.p2, params.plasma_reactor.frequency, 5, 100, 'kHz', (v) => { params.plasma_reactor.frequency = v; }));
+      } else if (activeModule === 'bio_reactor') {
+        parent.appendChild(createSliderMarkup(activeMeta.p1, params.bio_reactor.stirSpeed, 0, 100, 'RPM', (v) => { params.bio_reactor.stirSpeed = v; }));
+        parent.appendChild(createSliderMarkup(activeMeta.p2, params.bio_reactor.ph, 0, 14, 'pH', (v) => { params.bio_reactor.ph = v; }, 0.2));
+      } else if (activeModule === 'catalyst') {
+        parent.appendChild(createSliderMarkup(activeMeta.p1, params.catalyst.magneticForce, 0, 100, 'T', (v) => { params.catalyst.magneticForce = v; }));
+        parent.appendChild(createSliderMarkup(activeMeta.p2, params.catalyst.pulseFrequency, 1, 100, 'Hz', (v) => { params.catalyst.pulseFrequency = v; }));
+      } else if (activeModule === 'magnetic_recovery') {
+        parent.appendChild(createSliderMarkup(activeMeta.p1, params.magnetic_recovery.magneticIntensity, 0, 100, 'T', (v) => { params.magnetic_recovery.magneticIntensity = v; }));
+        parent.appendChild(createSliderMarkup(activeMeta.p2, params.magnetic_recovery.flowSpeed, 0, 100, 'm³/h', (v) => { params.magnetic_recovery.flowSpeed = v; }));
+      } else if (activeModule === 'microalgae') {
+        parent.appendChild(createSliderMarkup(activeMeta.p1, params.microalgae.lightIntensity, 10, 100, 'x150 Lux', (v) => { params.microalgae.lightIntensity = v; }));
+        parent.appendChild(createSliderMarkup(activeMeta.p2, params.microalgae.co2Flow, 0, 100, 'mL/min', (v) => { params.microalgae.co2Flow = v; }));
+      } else if (activeModule === 'storage_tank') {
+        parent.appendChild(createSliderMarkup(activeMeta.p1, params.storage_tank.fillLevel, 5, 100, '%', (v) => { params.storage_tank.fillLevel = v; }));
+        parent.appendChild(createSliderMarkup(activeMeta.p2, params.storage_tank.pressure, 5, 100, 'Bar', (v) => { params.storage_tank.pressure = v; }));
+      }
+    }
+
+    function createSliderMarkup(label, currentVal, min, max, unit, onChangeCallback, step = 1) {
+      const div = document.createElement('div');
+      div.className = "flex flex-col gap-1.5";
+      
+      const header = document.createElement('div');
+      header.className = "flex justify-between text-xs";
+      header.innerHTML = `<span class="text-slate-350 font-medium">${label}</span><span class="text-sky-400 font-mono font-bold" id="val-${label}">${currentVal} ${unit}</span>`;
+      div.appendChild(header);
+
+      const input = document.createElement('input');
+      input.type = "range";
+      input.min = min;
+      input.max = max;
+      input.step = step;
+      input.value = currentVal;
+      input.className = "w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400";
+      
+      input.addEventListener('input', (e) => {
+        const numericVal = parseFloat(e.target.value);
+        document.getElementById(`val-${label}`).innerText = numericVal + " " + unit;
+        onChangeCallback(numericVal);
+        updateDiagnostics();
+      });
+      div.appendChild(input);
+
+      return div;
+    }
+
+    // UPDATE TELEMETRY TEXTS
+    function updateDiagnostics() {
+      const activeMeta = rootTranslations[lang].modules[activeModule];
+      
+      document.getElementById('module-desc-content').innerText = activeMeta.desc;
+      
+      // Update label and value tiles on Right Bar
+      document.getElementById('metric-p1-lbl').innerText = activeMeta.p1;
+      document.getElementById('metric-p2-lbl').innerText = activeMeta.p2;
+
+      let v1 = "", v2 = "";
+      if (activeModule === 'plasma_reactor') {
+        v1 = params.plasma_reactor.voltage + " V";
+        v2 = params.plasma_reactor.frequency + " kHz";
+      } else if (activeModule === 'bio_reactor') {
+        v1 = params.bio_reactor.stirSpeed + " RPM";
+        v2 = params.bio_reactor.ph.toFixed(1) + " pH";
+      } else if (activeModule === 'catalyst') {
+        v1 = params.catalyst.magneticForce + " T";
+        v2 = params.catalyst.pulseFrequency + " Hz";
+      } else if (activeModule === 'magnetic_recovery') {
+        v1 = params.magnetic_recovery.magneticIntensity + " T";
+        v2 = params.magnetic_recovery.flowSpeed + " m³/h";
+      } else if (activeModule === 'microalgae') {
+        v1 = (params.microalgae.lightIntensity * 150) + " Lux";
+        v2 = params.microalgae.co2Flow + " mL/min";
+      } else if (activeModule === 'storage_tank') {
+        v1 = params.storage_tank.fillLevel + "%";
+        v2 = params.storage_tank.pressure + " Bar";
+      }
+
+      document.getElementById('metric-p1-val').innerText = v1;
+      document.getElementById('metric-p2-val').innerText = v2;
+
+      // Update cop efficiency
+      const overallEff = (((params.plasma_reactor.voltage + params.bio_reactor.stirSpeed + params.catalyst.magneticForce + params.microalgae.lightIntensity) / 400) * 100).toFixed(1);
+      document.getElementById('overall-efficiency-val').innerText = overallEff + "%";
+    }
+
+    // UPDATE LANGUAGES DYNAMICALLY
+    function updateLanguages() {
+      const activeTranslations = rootTranslations[lang];
+      document.getElementById('top-subtitle').innerText = activeTranslations.subtitle;
+      document.getElementById('lbl-status').innerText = activeTranslations.status;
+      document.getElementById('status-badge').innerText = activeTranslations.active;
+      document.getElementById('lbl-view').innerText = activeTranslations.systemView;
+      document.getElementById('btn-single-view').innerText = activeTranslations.singleView;
+      document.getElementById('btn-system-view').innerText = activeTranslations.allModules;
+      document.getElementById('lbl-center-mod').innerText = activeTranslations.langLabel === "Idioma" ? "Módulos de Planta" : activeTranslations.langLabel === "Language" ? "Plant Modules" : "系统模块";
+      document.getElementById('lbl-params').innerText = activeTranslations.parameters;
+      document.getElementById('lbl-metrics').innerText = activeTranslations.diagnostics;
+      document.getElementById('lbl-desc-tit').innerText = activeTranslations.langLabel === "Idioma" ? "Descripción científica" : activeTranslations.langLabel === "Language" ? "Scientific Description" : "科学描述";
+      document.getElementById('bottom-instruction').innerText = activeTranslations.instruction;
+      document.getElementById('stat-eff-label').innerText = activeTranslations.efficiency + ": ";
+
+      // Set modules names
+      Object.keys(modulesGroupMap).forEach(key => {
+        document.getElementById('name-' + key).innerText = activeTranslations.modules[key].name;
+      });
+
+      renderSliders();
+      updateDiagnostics();
+    }
+
+    // RUN TIME TICKER
+    const clock = new THREE.Clock();
+    const animate = () => {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const step = delta * 1.5; // active play
+
+      // Toggling visual layout modes
+      if (viewMode === 'system') {
+        systemGroup.visible = true;
+        Object.keys(modulesGroupMap).forEach((k) => {
+          modulesGroupMap[k].visible = true;
+          modulesGroupMap[k].scale.set(0.7, 0.7, 0.7);
+        });
+
+        // Pipeline flow particles routing
+        const pulsePositionsArray = flowingEnergyPoints.geometry.attributes.position.array;
+        pulseData.forEach((p, idx) => {
+          const path = paths[p.pathIndex];
+          p.progress += step * p.speed * 0.9;
+          if (p.progress >= 1.0) p.progress = 0.0;
+          const point = path.getPointAt(p.progress);
+          pulsePositionsArray[idx * 3] = point.x;
+          pulsePositionsArray[idx * 3 + 1] = point.y + 0.55;
+          pulsePositionsArray[idx * 3 + 2] = point.z;
+        });
+        flowingEnergyPoints.geometry.attributes.position.needsUpdate = true;
+      } else {
+        systemGroup.visible = false;
+        Object.keys(modulesGroupMap).forEach((k) => {
+          const mGroup = modulesGroupMap[k];
+          if (k === activeModule) {
+            mGroup.visible = true;
+            mGroup.position.set(0, 0, 0);
+            mGroup.scale.set(1.4, 1.4, 1.4);
+          } else {
+            mGroup.visible = false;
+          }
+        });
+      }
+
+      // Animating components inside modules
+      
+      // Plasma
+      if (modulesGroupMap.plasma_reactor.visible) {
+        const pVolt = params.plasma_reactor.voltage;
+        const pFreq = params.plasma_reactor.frequency;
+        const sparkRate = pFreq / 100;
+        animators.plasmaSparkLines.forEach((spark) => {
+          const arr = spark.geometry.attributes.position.array;
+          if (Math.random() < sparkRate * 0.4) {
+            for (let j = 1; j < 5; j++) {
+              const amp = (pVolt / 100) * 0.28;
+              arr[j * 3] = (Math.random() - 0.5) * amp;
+              arr[j * 3 + 1] = -1.2 + j * 0.48;
+              arr[j * 3 + 2] = (Math.random() - 0.5) * amp;
+            }
+            spark.visible = true;
+          } else if (Math.random() > 0.82) {
+            spark.visible = false;
+          }
+          spark.geometry.attributes.position.needsUpdate = true;
+        });
+        animators.plasmaParticles.rotation.y += step * (pFreq / 30);
+      }
+
+      // Bioreactor rotation
+      if (modulesGroupMap.bio_reactor.visible) {
+        animators.bioStirrer.rotation.y += step * (params.bio_reactor.stirSpeed / 20);
+        animators.bioEnzymes.forEach((sphere) => {
+          const uData = sphere.userData;
+          uData.angle += step * uData.speed * (params.bio_reactor.stirSpeed / 50 + 0.2);
+          sphere.position.x = Math.cos(uData.angle) * uData.radius;
+          sphere.position.y = Math.max(-0.9, Math.min(1.2, sphere.position.y + Math.sin(uData.angle * 2) * 0.004));
+          sphere.position.z = Math.sin(uData.angle) * uData.radius;
+        });
+      }
+
+      // Catalyst spin & files alignment
+      if (modulesGroupMap.catalyst.visible) {
+        animators.magnSphere.rotation.y += step * 0.15;
+        animators.magnSphere.rotation.z += step * 0.08;
+        animators.magnRings.forEach((ringGroup, ri) => {
+          ringGroup.rotation.y += step * (params.catalyst.pulseFrequency / 40 + 0.2) * (ri % 2 === 0 ? 1 : -1);
+          ringGroup.rotation.x += step * 0.1 * (ri % 2 === 0 ? -1 : 1);
+        });
+
+        const force = params.catalyst.magneticForce;
+        const pPulse = params.catalyst.pulseFrequency;
+        const pmArray = animators.magnParticles.geometry.attributes.position.array;
+        const origin = animators.magnParticles.userData.original;
+        if (origin) {
+          for (let i = 0; i < pmArray.length / 3; i++) {
+            const orgX = origin[i * 5];
+            const orgY = origin[i * 5 + 1];
+            const orgZ = origin[i * 5 + 2];
+            const theta = origin[i * 5 + 3];
+            const pullFactor = force / 100;
+            const targetX = Math.cos(theta) * (1.2 + Math.sin(Date.now() * 0.001 * pPulse) * 0.1);
+            const targetY = Math.sin(theta * 2) * 0.1 * pullFactor;
+            const targetZ = Math.sin(theta) * (1.2 + Math.sin(Date.now() * 0.001 * pPulse) * 0.1);
+
+            pmArray[i * 3] = THREE.MathUtils.lerp(orgX, targetX, pullFactor);
+            pmArray[i * 3 + 1] = THREE.MathUtils.lerp(orgY, targetY, pullFactor);
+            pmArray[i * 3 + 2] = THREE.MathUtils.lerp(orgZ, targetZ, pullFactor);
+          }
+          animators.magnParticles.geometry.attributes.position.needsUpdate = true;
+        }
+      }
+
+      // Algae Bubbles rising
+      if (modulesGroupMap.microalgae.visible) {
+        const co2 = params.microalgae.co2Flow;
+        const lights = params.microalgae.lightIntensity;
+        const bubbleArray = animators.algaeBubbles.geometry.attributes.position.array;
+        const upwardSpeed = step * (co2 / 40 + 0.3) * 0.7;
+
+        for (let i = 1; i < bubbleArray.length; i += 3) {
+          bubbleArray[i] += upwardSpeed;
+          if (bubbleArray[i] > 1.3) {
+            bubbleArray[i] = -1.3;
+            bubbleArray[i - 1] = (Math.random() - 0.5) * 1.5;
+            bubbleArray[i + 1] = (Math.random() - 0.5) * 1.5;
+          }
+        }
+        animators.algaeBubbles.geometry.attributes.position.needsUpdate = true;
+        animators.algaeSpirals.forEach((node) => {
+          node.material.emissiveIntensity = THREE.MathUtils.lerp(0.1, 1.8, lights / 100);
+        });
+      }
+
+      // Recovery Unit Cyclone spin
+      if (modulesGroupMap.magnetic_recovery.visible) {
+        const intensity = params.magnetic_recovery.magneticIntensity;
+        const rSpeed = params.magnetic_recovery.flowSpeed;
+        animators.recoveryRotor.rotation.y += step * (rSpeed / 15 + 0.5);
+
+        const recArray = animators.recoveryParticles.geometry.attributes.position.array;
+        const rOrig = animators.recoveryParticles.userData.original;
+        if (rOrig) {
+          const attraction = intensity / 100;
+          for (let i = 0; i < recArray.length / 3; i++) {
+            const hOffset = rOrig[i * 3];
+            let theta = rOrig[i * 3 + 1];
+            const baseRad = rOrig[i * 3 + 2];
+
+            theta += step * (rSpeed / 15 + 1.2);
+            rOrig[i * 3 + 1] = theta;
+
+            const activeRad = THREE.MathUtils.lerp(baseRad, 0.62, attraction);
+            recArray[i * 3] = hOffset;
+            recArray[i * 3 + 1] = -0.3 + Math.cos(theta) * activeRad;
+            recArray[i * 3 + 2] = Math.sin(theta) * activeRad;
+          }
+          animators.recoveryParticles.geometry.attributes.position.needsUpdate = true;
+        }
+      }
+
+      // Storage Gauge update
+      if (modulesGroupMap.storage_tank.visible) {
+        const lvl = params.storage_tank.fillLevel;
+        const scaleVal = Math.max(0.01, lvl / 100);
+        animators.storageGauge.scale.y = scaleVal * 2.2;
+        animators.storageGauge.position.y = 0.4 + (scaleVal * 1.1) - 1.1;
+
+        const press = params.storage_tank.pressure;
+        if (press > 80) {
+          animators.storageGauge.material.color.setHex(0xef4444);
+          animators.storageGauge.material.emissive.setHex(0x991b1b);
+        } else if (press > 55) {
+          animators.storageGauge.material.color.setHex(0xf59e0b);
+          animators.storageGauge.material.emissive.setHex(0x78350f);
+        } else {
+          animators.storageGauge.material.color.setHex(0x10b981);
+          animators.storageGauge.material.emissive.setHex(0x047857);
+        }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    };
+
+    window.addEventListener('resize', () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    // INITIALIZATION
+    renderSliders();
+    updateDiagnostics();
+    updateLanguages();
+    animate();
+
+  </script>
+</body>
+</html>
