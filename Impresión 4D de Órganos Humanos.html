@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Biorreactor Cardiorrenal 4D - Dr. Julio César Oporta Barrera</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Inter:wght@300;400;600;800&display=swap');
+    
+    :root {
+      --glow-cyan: #00f0ff;
+      --glow-red: #ff0055;
+      --glow-green: #00ffaa;
+      --glow-yellow: #ffb700;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #03050c;
+    }
+
+    .tech-font {
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    .title-font {
+      font-family: 'Orbitron', sans-serif;
+    }
+
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 240, 255, 0.05);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 240, 255, 0.3);
+      border-radius: 2px;
+    }
+
+    .glass-panel {
+      background: rgba(8, 12, 24, 0.93);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.85), inset 0 0 20px rgba(0, 240, 255, 0.05);
+    }
+
+    .neon-border-cyan { border-color: rgba(0, 240, 255, 0.4); }
+    .neon-border-red { border-color: rgba(255, 0, 85, 0.4); }
+    .neon-border-yellow { border-color: rgba(255, 183, 0, 0.4); }
+    .neon-border-green { border-color: rgba(0, 255, 170, 0.4); }
+  </style>
+</head>
+<body class="overflow-hidden h-screen w-screen text-slate-100 select-none">
+
+  <div id="canvas-container" class="absolute inset-0 w-full h-full z-1">
+    <canvas id="stage3d" class="w-full h-full block"></canvas>
+  </div>
+
+  <div class="absolute top-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none hidden md:flex gap-8 tech-font text-xs text-[#00f0ff] tracking-[0.2em] drop-shadow-[0_0_8px_rgba(0,240,255,0.5)]">
+    <span class="flex items-center gap-2">
+      <span class="w-1.5 h-1.5 bg-[#00f0ff] rounded-full animate-ping"></span>
+      SISTEMA: EN LÍNEA
+    </span>
+    <span class="flex items-center gap-2">
+      <span id="system-status-indicator" class="w-1.5 h-1.5 bg-[#00ffaa] rounded-full animate-pulse"></span>
+      <span id="lbl-top-secure">EJE CARDIORRENAL: SEGURO</span>
+    </span>
+    <span id="holo-fps">FPS: 60</span>
+  </div>
+
+  <header class="absolute top-4 left-4 z-10 p-5 glass-panel rounded-xl flex flex-col gap-1 w-[320px] md:w-[380px]">
+    <div class="creator-title title-font text-base md:text-lg font-black text-[#00f0ff] tracking-wide drop-shadow-[0_0_10px_rgba(0,240,255,0.5)]">
+      Dr. Julio César Oporta Barrera
+    </div>
+    <h1 id="txt-title" class="title-font text-xs font-bold text-white tracking-[0.15em] uppercase">
+      🧬 Bioreactor Cardiorrenal 4D
+    </h1>
+    <div id="txt-subtitle" class="text-[10px] md:text-xs text-slate-400 font-light mt-1">
+      Prototipo de Simulación Orgánica Autónoma
+    </div>
+  </header>
+
+  <div class="absolute top-4 right-4 z-10 p-2 glass-panel rounded-xl flex gap-1.5 shadow-lg">
+    <button class="lang-btn px-3 py-1.5 bg-[#00f0ff]/20 border border-[#00f0ff]/40 text-white rounded-lg text-xs font-bold transition-all duration-300 shadow-[0_0_10px_rgba(0,240,255,0.3)] active" onclick="changeLanguage('es')">ES</button>
+    <button class="lang-btn px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300 rounded-lg text-xs font-bold transition-all duration-300 hover:bg-[#00f0ff]/10" onclick="changeLanguage('en')">EN</button>
+    <button class="lang-btn px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300 rounded-lg text-xs font-bold transition-all duration-300 hover:bg-[#00f0ff]/10" onclick="changeLanguage('zh')">ZH</button>
+  </div>
+
+  <div id="left-hud-panel" class="absolute top-[135px] left-4 z-10 w-[320px] md:w-[380px] p-5 glass-panel rounded-xl shadow-2xl flex flex-col gap-4 max-h-[calc(100vh-170px)] overflow-y-auto transition-colors duration-500 neon-border-cyan">
+    
+    <div class="panel-title title-font text-xs font-bold text-[#00f0ff] tracking-wider border-b border-[#00f0ff]/20 pb-2 uppercase" id="title-telemetry">
+      Telemetría Fisiológica
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <div class="flex justify-between text-[11px] text-slate-400 tech-font">
+        <span id="lbl-ecg">Monitor de Actividad Bioeléctrica</span>
+        <span class="text-[#00f0ff] font-bold" id="val-rate">60 Hz</span>
+      </div>
+      <div class="biomonitor w-full h-[60px] bg-black/60 border border-[#00f0ff]/15 rounded-lg overflow-hidden relative">
+        <canvas id="ecgCanvas" class="w-full h-full block"></canvas>
+      </div>
+    </div>
+
+    <div class="p-3 bg-white/[0.02] border border-white/[0.05] rounded-lg flex flex-col gap-2 text-xs tech-font">
+      <div class="flex justify-between border-b border-white/[0.05] pb-1">
+        <span class="text-slate-400" id="lbl-stat-gc">Gasto Cardíaco (GC):</span>
+        <span class="text-[#00ffaa] font-bold" id="val-stat-gc">4.8 L/min</span>
+      </div>
+      <div class="flex justify-between border-b border-white/[0.05] pb-1">
+        <span class="text-slate-400" id="lbl-stat-fe">Fracción Eyección (FE):</span>
+        <span class="text-[#00ffaa] font-bold" id="val-stat-fe">60%</span>
+      </div>
+      <div class="flex justify-between border-b border-white/[0.05] pb-1">
+        <span class="text-slate-400" id="lbl-stat-tfg">Filtración Glomerular (TFG):</span>
+        <span class="text-[#00f0ff] font-bold" id="val-stat-tfg">105 mL/min</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-slate-400" id="lbl-stat-uo">Producción de Orina:</span>
+        <span class="text-[#ffb700] font-bold" id="val-stat-uo">1.2 mL/min</span>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <button id="btn-audio" class="audio-btn w-full py-2.5 bg-[#00f0ff]/10 border border-[#00f0ff]/30 text-[#00f0ff] font-bold text-xs rounded-lg flex items-center justify-center gap-2 hover:bg-[#00f0ff]/25 transition-all duration-300 uppercase tracking-wider shadow-[inset_0_0_10px_rgba(0,240,255,0.05)]" onclick="toggleAudioSystem()">
+        🔊 Activar Biosonido Clínico
+      </button>
+    </div>
+
+    <div class="flex flex-col gap-3">
+      <div class="flex flex-col gap-1">
+        <div class="flex justify-between text-xs text-slate-300 font-medium">
+          <span id="lbl-freq">Frecuencia Orgánica / Ritmo</span>
+          <span class="text-[#00f0ff] font-bold tech-font text-sm" id="val-freq">60 BPM</span>
+        </div>
+        <input type="range" id="ctrl-freq" min="35" max="180" value="60" class="cursor-pointer">
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <div class="flex justify-between text-xs text-slate-300 font-medium">
+          <span id="lbl-perfusion">Presión de Perfusión Celular</span>
+          <span class="text-[#00f0ff] font-bold tech-font text-sm" id="val-perf">120 mmHg</span>
+        </div>
+        <input type="range" id="ctrl-perf" min="40" max="210" value="120" class="cursor-pointer">
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-2 border-t border-[#00f0ff]/10 pt-3">
+      <div class="grid grid-cols-2 gap-2">
+        <button id="btn-s-healthy" class="state-btn py-2 text-[10px] md:text-xs font-extrabold uppercase border border-white/10 bg-white/5 rounded-lg text-slate-300 hover:bg-white/10 transition-all duration-300 active" data-state="healthy" onclick="setPhysiologyState('healthy')">
+          Fisiológico
+        </button>
+        <button id="btn-s-path1" class="state-btn py-2 text-[10px] md:text-xs font-extrabold uppercase border border-white/10 bg-white/5 rounded-lg text-slate-300 hover:bg-white/10 transition-all duration-300" data-state="pathology1" onclick="setPhysiologyState('pathology1')">
+          S. Cardiorrenal
+        </button>
+        <button id="btn-s-path2" class="state-btn py-2 text-[10px] md:text-xs font-extrabold uppercase border border-white/10 bg-white/5 rounded-lg text-slate-300 hover:bg-white/10 transition-all duration-300" data-state="pathology2" onclick="setPhysiologyState('pathology2')">
+          Isquemia Glom.
+        </button>
+        <button id="btn-s-path3" class="state-btn py-2 text-[10px] md:text-xs font-extrabold uppercase border border-white/10 bg-white/5 rounded-lg text-slate-300 hover:bg-white/10 transition-all duration-300" data-state="pathology3" onclick="setPhysiologyState('pathology3')">
+          Insuf. Cardíaca
+        </button>
+        <button id="btn-s-path4" class="state-btn py-2 text-[10px] md:text-xs font-extrabold uppercase border border-white/10 bg-white/5 rounded-lg text-slate-300 hover:bg-white/10 transition-all duration-300" data-state="pathology4" onclick="setPhysiologyState('pathology4')">
+          HTN Renovasc.
+        </button>
+        <button id="btn-s-biop" class="state-btn py-2 text-[10px] md:text-xs font-extrabold uppercase border border-white/10 bg-white/5 rounded-lg text-slate-300 hover:bg-white/10 transition-all duration-300" data-state="bioprinting" onclick="setPhysiologyState('bioprinting')">
+          Biotinta 4D
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="absolute top-[135px] right-4 z-10 w-[320px] md:w-[380px] p-5 glass-panel rounded-xl shadow-2xl flex flex-col gap-3">
+    <div class="panel-title title-font text-xs font-bold text-[#00f0ff] tracking-wider border-b border-[#00f0ff]/20 pb-2 uppercase" id="title-ainodes">
+      Red de Nodos IA / Biofabricación
+    </div>
+    <div class="node-canvas-container w-full h-[120px] bg-black/60 border border-[#00f0ff]/15 rounded-lg relative overflow-hidden">
+      <canvas id="nodeCanvas" class="w-full h-full block cursor-pointer"></canvas>
+    </div>
+    <div class="node-info-box p-3.5 bg-white/[0.02] border border-white/[0.08] rounded-lg min-h-[90px] flex flex-col gap-1">
+      <div id="node-active-title" class="text-xs font-bold text-[#00f0ff] tracking-wide uppercase">
+        Nodo Activo
+      </div>
+      <div id="node-active-desc" class="text-[11px] text-slate-300 leading-relaxed font-light">
+        Selecciona un nodo del circuito neural anterior para proyectar la analítica de IA.
+      </div>
+    </div>
+  </div>
+
+  <div class="absolute bottom-6 right-4 z-10 w-[260px] md:w-[300px] p-4 glass-panel rounded-xl shadow-2xl flex flex-col gap-3">
+    <div class="panel-title title-font text-[10px] font-bold text-[#00f0ff] tracking-wider uppercase border-b border-[#00f0ff]/10 pb-1.5" id="title-cinelighting">
+      Filtros de Iluminación
+    </div>
+    <div class="light-knob-container flex gap-2">
+      <button id="btn-l-neon" class="light-btn-toggle flex-1 py-1.5 text-[9px] font-bold uppercase bg-white/5 border border-white/10 rounded-md transition-all duration-200 active" onclick="toggleLightMode('neon')">Neón Quirúrgico</button>
+      <button id="btn-l-warm" class="light-btn-toggle flex-1 py-1.5 text-[9px] font-bold uppercase bg-white/5 border border-white/10 rounded-md transition-all duration-200" onclick="toggleLightMode('warm')">Quirófano Cálido</button>
+    </div>
+    <div class="control-group">
+      <div class="control-label text-[10px] text-slate-400 flex justify-between font-medium">
+        <span id="lbl-l-intensity">Atenuación Lumínica</span>
+        <span class="text-[#00f0ff] font-bold tech-font" id="val-l-intensity">85%</span>
+      </div>
+      <input type="range" id="ctrl-light-intensity" min="15" max="150" value="85" class="cursor-pointer">
+    </div>
+  </div>
+
+  <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 p-2.5 bg-[#040710]/95 border border-[#00f0ff]/30 rounded-2xl backdrop-blur-xl flex gap-4 shadow-[0_15px_45px_rgba(0,0,0,0.9),0_0_20px_rgba(0,240,255,0.15)]">
+    <button class="organ-btn px-6 py-3 bg-transparent border-0 text-[#00f0ff] rounded-xl flex flex-col items-center gap-1.5 transition-all duration-300 font-bold text-xs tracking-wider uppercase active" onclick="selectOrgan('heart', event)">
+      <svg class="w-7 h-7 drop-shadow-[0_0_6px_currentColor]" viewBox="0 0 24 24">
+        <path d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z"/>
+      </svg>
+      <span id="btn-heart">Corazón</span>
+    </button>
+    <button class="organ-btn px-6 py-3 bg-transparent border-0 text-slate-400 hover:text-[#00f0ff] rounded-xl flex flex-col items-center gap-1.5 transition-all duration-300 font-bold text-xs tracking-wider uppercase" onclick="selectOrgan('kidney', event)">
+      <svg class="w-7 h-7" viewBox="0 0 24 24">
+        <path d="M12,2C10.11,2 8.35,2.62 7,3.67C5.33,4.96 4.13,6.88 3.5,9.08C2.5,12.58 2.9,16.42 4.67,19.33C5.78,21.17 7.5,22 9.5,22C10.74,22 11.9,21.41 12.75,20.5C13.1,20.15 13.25,19.65 13.1,19.18C12.8,18.21 12.65,17.18 12.65,16.12C12.65,13.62 13.5,11.33 15,9.5C16.5,7.67 18.62,6.5 21,6.15C21.5,6.1 22,5.65 22,5.1V4.5C22,3.12 20.88,2 19.5,2H12Z"/>
+      </svg>
+      <span id="btn-kidney">Riñones</span>
+    </button>
+  </div>
+
+  <script>
+    const translations = {
+      es: {
+        title: "🧬 Bioreactor Cardiorrenal 4D",
+        subtitle: "Prototipo de Simulación Orgánica Autónoma",
+        telemetry: "Telemetría Fisiológica",
+        ecg: "Monitor de Actividad Bioeléctrica",
+        freq: "Frecuencia Orgánica / Ritmo",
+        perfusion: "Presión de Perfusión Celular",
+        ainodes: "Red de Nodos IA / Biofabricación",
+        cinelighting: "Filtros de Iluminación",
+        neon: "Neón Quirúrgico",
+        warm: "Quirófano Cálido",
+        intensity: "Atenuación Lumínica",
+        heart: "Corazón",
+        kidney: "Riñones",
+        secure: "EJE CARDIORRENAL: SEGURO",
+        critical: "EJE CARDIORRENAL: CRÍTICO",
+        gc: "Gasto Cardíaco (GC):",
+        fe: "Fracción Eyección (FE):",
+        tfg: "Filtración Glomerular (TFG):",
+        uo: "Producción de Orina:",
+        defaultNodeTitle: "Nodo Activo",
+        defaultNodeDesc: "Selecciona un nodo del circuito neural anterior para proyectar la analítica de IA.",
+        audioOn: "🔊 Biosonido Clínico Activo",
+        audioOff: "🔇 Activar Biosonido Clínico",
+        nodes: [
+          { name: "Células Madre Progenitoras", desc: "Análisis inteligente de maduración de cardiomiocitos y podocitos renales a partir de células autólogas del paciente." },
+          { name: "Soporte Hidrogel Capilar", desc: "Monitoreo predictivo de la viscosidad molecular del hidrogel para asegurar la permeabilidad de la microvasculatura cardiorrenal." },
+          { name: "Deposición Celular 4D", desc: "Sincronización micro-mecánica de cabezales neumáticos para el ensamblaje exacto de capas musculares y glomerulares." },
+          { name: "Perfusión de Medio", desc: "Simulación de presión de perfusión continua para evaluar la viabilidad de filtrado urinario y capillarización muscular." },
+          { name: "Evaluación Funcional", desc: "Monitoreo del aclaramiento de urea y contractilidad electromecánica sincronizada antes del trasplante clínico." }
+        ]
+      },
+      en: {
+        title: "🧬 4D Cardiorenal Bioreactor",
+        subtitle: "Autonomous Organic Simulation Prototype",
+        telemetry: "Physiological Telemetry",
+        ecg: "Bioelectrical Activity Monitor",
+        freq: "Organic Frequency / Rhythm",
+        perfusion: "Cellular Perfusion Pressure",
+        ainodes: "AI Node Network / Biofabrication",
+        cinelighting: "Lighting Filters",
+        neon: "Surgical Neon",
+        warm: "Warm OR Mode",
+        intensity: "Lighting Dimming",
+        heart: "Heart",
+        kidney: "Kidneys",
+        secure: "CARDIORENAL AXIS: SECURE",
+        critical: "CARDIORENAL AXIS: CRITICAL",
+        gc: "Cardiac Output (CO):",
+        fe: "Ejection Fraction (EF):",
+        tfg: "Glomerular Filtration (GFR):",
+        uo: "Urine Output Rate:",
+        defaultNodeTitle: "Active Node",
+        defaultNodeDesc: "Select any node from the neural circuit above to project AI telemetry analysis.",
+        audioOn: "🔊 Clinical Biosound Active",
+        audioOff: "🔇 Enable Clinical Biosound",
+        nodes: [
+          { name: "Progenitor Stem Cells", desc: "Intelligent maturation analysis of cardiomyocytes and renal podocytes derived from autologous patient stem cells." },
+          { name: "Capillary Hydrogel Support", desc: "Predictive monitoring of hydrogel molecular viscosity to ensure permeability in the cardiorrenal microvasculature." },
+          { name: "4D Cellular Assembly", desc: "Micro-pneumatic synchronization of printheads for precise alignment of muscular and glomerular layers." },
+          { name: "Media Perfusion System", desc: "Simulation of continuous perfusion pressure to evaluate urinary filtration viability and muscular capillarization." },
+          { name: "Functional Evaluation", desc: "Real-time monitoring of urea clearance and synchronized electromechanical contractility prior to clinical transplant." }
+        ]
+      },
+      zh: {
+        title: "🧬 4D 心肾模拟生物反应器",
+        subtitle: "自主运行器官模拟控制系统",
+        telemetry: "生理学遥测参数",
+        ecg: "生物电活性检测波形",
+        freq: "生理器官频率 / 节奏",
+        perfusion: "细胞介质灌注压力",
+        ainodes: "人工智能拓扑网络 / 生物制造",
+        cinelighting: "临床渲染照明过滤",
+        neon: "高亮无影冷光",
+        warm: "手术室高强暖光",
+        intensity: "全局光源衰减控制",
+        heart: "心脏",
+        kidney: "肾脏 (双肾)",
+        secure: "心肾协同系统：安全运行",
+        critical: "心肾协同系统：严重异常",
+        gc: "心输出量 (CO):",
+        fe: "射血分数 (EF):",
+        tfg: "肾小球滤过率 (GFR):",
+        uo: "实时尿液排出量:",
+        defaultNodeTitle: "激活神经节点",
+        defaultNodeDesc: "轻点上方的人工智能逻辑拓扑图中的任意节点，即可运行深度预测模型分析。",
+        audioOn: "🔊 实时生理音效已激活",
+        audioOff: "🔇 开启生理搏动音效",
+        nodes: [
+          { name: "原代干细胞分化", desc: "基于患者自体的原代干细胞向心肌细胞及肾脏足细胞定向分化保真度与活性智能测定。" },
+          { name: "微血管水凝胶支架", desc: "三维打印水凝胶流变学切变粘稠度测定，以 asegurarse 心肾毛细血管的吻合和通畅。" },
+          { name: "4D精密空间对位", desc: "高精度微气压喷头空间自适应沉积，实现高保真心肌和肾小球物理切片精密成型。" },
+          { name: "连续灌注系统", desc: "模拟营养介质恒定流速和剪切应力，加速肾脏尿液滤过和心肌供氧发育。" },
+          { name: "离体功能完整成熟度", desc: "连续微通道追踪尿素清除率以及心肌细胞电生理自发极化电泳收缩力的预后监测。" }
+        ]
+      }
+    };
+
+    let currentLang = 'es';
+    let activeOrgan = 'heart';
+    let systemState = 'healthy'; 
+    let bpm = 60;
+    let perfusionPressure = 120;
+    let lightMode = 'neon'; 
+    let lightIntensity = 0.85;
+    let activeNodeIndex = 0;
+
+    const nodeCoords = [
+      { x: 30, y: 70 },
+      { x: 95, y: 45 },
+      { x: 160, y: 70 },
+      { x: 225, y: 95 },
+      { x: 290, y: 70 }
+    ];
+
+    let audioCtx = null;
+    let audioEnabled = false;
+    let audioInterval = null;
+
+    function initAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    function toggleAudioSystem() {
+      initAudioContext();
+      audioEnabled = !audioEnabled;
+      
+      const btn = document.getElementById('btn-audio');
+      if (audioEnabled) {
+        btn.classList.add('active');
+        btn.style.backgroundColor = 'rgba(0, 255, 170, 0.2)';
+        btn.style.borderColor = 'var(--glow-green)';
+        btn.style.color = 'var(--glow-green)';
+        startAudioLoop();
+      } else {
+        btn.classList.remove('active');
+        btn.style.backgroundColor = '';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+        stopAudioLoop();
+      }
+      updateAudioButtonLabel();
+    }
+
+    function updateAudioButtonLabel() {
+      const btn = document.getElementById('btn-audio');
+      if (!btn) return;
+      btn.textContent = audioEnabled ? translations[currentLang].audioOn : translations[currentLang].audioOff;
+    }
+
+    function startAudioLoop() {
+      if (audioInterval) clearInterval(audioInterval);
+      
+      const schedulePulse = () => {
+        if (!audioEnabled || !audioCtx) return;
+
+        let freq1 = 65; 
+        let freq2 = 45;
+        let duration = 0.15;
+        let type = 'sine';
+
+        if (activeOrgan === 'kidney') {
+          freq1 = 110; 
+          freq2 = 70;
+          duration = 0.10;
+          type = 'triangle';
+        }
+
+        if (systemState === 'pathology1') {
+          freq1 *= 1.4;
+          freq2 *= 1.4;
+          duration = 0.08;
+          playBeepAlarm(880, 0.05, 0.05);
+        } else if (systemState === 'pathology2') {
+          freq1 *= 0.75;
+          freq2 *= 0.75;
+          playBeepAlarm(660, 0.06, 0.03); 
+        } else if (systemState === 'pathology3') {
+          freq1 *= 0.65;
+          freq2 *= 0.65;
+          duration = 0.22;
+          playBeepAlarm(554, 0.1, 0.04);
+        } else if (systemState === 'pathology4') {
+          freq1 *= 1.2;
+          freq2 *= 1.2;
+          duration = 0.09;
+          playBeepAlarm(1100, 0.04, 0.07);
+        } else if (systemState === 'bioprinting') {
+          freq1 = 200;
+          freq2 = 180;
+          type = 'sawtooth';
+        }
+
+        try {
+          let osc = audioCtx.createOscillator();
+          let gainNode = audioCtx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq1, audioCtx.currentTime);
+          gainNode.gain.setValueAtTime(0.18 * lightIntensity, audioCtx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+          osc.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + duration);
+
+          if (activeOrgan === 'heart' && systemState !== 'bioprinting') {
+            setTimeout(() => {
+              if (!audioEnabled || !audioCtx) return;
+              let osc2 = audioCtx.createOscillator();
+              let gainNode2 = audioCtx.createGain();
+              osc2.type = 'sine';
+              osc2.frequency.setValueAtTime(freq2, audioCtx.currentTime);
+              gainNode2.gain.setValueAtTime(0.10 * lightIntensity, audioCtx.currentTime);
+              gainNode2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+              osc2.connect(gainNode2);
+              gainNode2.connect(audioCtx.destination);
+              osc2.start();
+              osc2.stop(audioCtx.currentTime + 0.12);
+            }, 150);
+          }
+        } catch (e) {
+          console.warn(e);
+        }
+      };
+
+      let msInterval = (60 / bpm) * 1000;
+      audioInterval = setInterval(schedulePulse, msInterval);
+    }
+
+    function playBeepAlarm(freq, duration, volume) {
+      try {
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(volume * lightIntensity, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function stopAudioLoop() {
+      if (audioInterval) {
+        clearInterval(audioInterval);
+        audioInterval = null;
+      }
+    }
+
+    const canvas = document.getElementById('stage3d');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+
+    let cameraZ = 330;
+    let rotX = 0.40;
+    let rotY = 0.65;
+    let isDragging = false;
+    let previousMousePosition = { x: 0, y: 0 };
+
+    function resizeCanvas() {
+      width = canvas.width = canvas.parentElement.clientWidth;
+      height = canvas.height = canvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      previousMousePosition = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('mouseup', () => { isDragging = false; });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const deltaX = e.clientX - previousMousePosition.x;
+      const deltaY = e.clientY - previousMousePosition.y;
+
+      rotY += deltaX * 0.006;
+      rotX += deltaY * 0.006;
+      rotX = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, rotX));
+
+      previousMousePosition = { x: e.clientX, y: e.clientY };
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      cameraZ += e.deltaY * 0.35;
+      cameraZ = Math.max(140, Math.min(800, cameraZ));
+      e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    });
+    canvas.addEventListener('touchend', () => { isDragging = false; });
+    canvas.addEventListener('touchmove', (e) => {
+      if (!isDragging || e.touches.length !== 1) return;
+      const deltaX = e.touches[0].clientX - previousMousePosition.x;
+      const deltaY = e.touches[0].clientY - previousMousePosition.y;
+
+      rotY += deltaX * 0.008;
+      rotX += deltaY * 0.008;
+      rotX = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, rotX));
+
+      previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    });
+
+    function generateHeartMesh() {
+      const vertices = [];
+      const faces = [];
+      const uSteps = 24;
+      const vSteps = 24;
+
+      for (let i = 0; i <= uSteps; i++) {
+        let u = -Math.PI + (2 * Math.PI * i) / uSteps;
+        for (let j = 0; j <= vSteps; j++) {
+          let v = -Math.PI / 2 + (Math.PI * j) / vSteps;
+
+          let x = 15 * Math.pow(Math.sin(u), 3) * Math.cos(v);
+          let y = (12 * Math.cos(u) - 5 * Math.cos(2*u) - 2 * Math.cos(3*u) - Math.cos(4*u)) * 0.85;
+          let z = 15 * Math.pow(Math.sin(u), 3) * Math.sin(v) * (1.0 + 0.25 * Math.sin(u));
+
+          vertices.push({ x: x * 4.6, y: -y * 4.6, z: z * 4.6 });
+        }
+      }
+
+      for (let i = 0; i < uSteps; i++) {
+        for (let j = 0; j < vSteps; j++) {
+          let p0 = i * (vSteps + 1) + j;
+          let p1 = p0 + 1;
+          let p2 = (i + 1) * (vSteps + 1) + j;
+          let p3 = p2 + 1;
+
+          faces.push({ a: p0, b: p1, c: p3, type: 'surface' });
+          faces.push({ a: p0, b: p3, c: p2, type: 'surface' });
+        }
+      }
+
+      const aortaBaseIdx = vertices.length;
+      const aortaSubdivisions = 10;
+      for (let i = 0; i < aortaSubdivisions; i++) {
+        let angle = (i * Math.PI * 2) / aortaSubdivisions;
+        let rx = Math.cos(angle) * 8.5;
+        let rz = Math.sin(angle) * 8.5;
+
+        vertices.push({ x: rx - 14, y: -45, z: rz - 5 });
+        vertices.push({ x: rx - 18, y: -85, z: rz + 5 });
+        vertices.push({ x: rx - 26, y: -105, z: rz + 18 });
+      }
+
+      for (let i = 0; i < aortaSubdivisions; i++) {
+        let next = (i + 1) % aortaSubdivisions;
+        let b0 = aortaBaseIdx + i * 3;
+        let b1 = aortaBaseIdx + next * 3;
+
+        faces.push({ a: b0, b: b0 + 1, c: b1 + 1, type: 'artery' });
+        faces.push({ a: b0, b: b1 + 1, c: b1, type: 'artery' });
+        faces.push({ a: b0 + 1, b: b0 + 2, c: b1 + 2, type: 'artery' });
+        faces.push({ a: b0 + 1, b: b1 + 2, c: b1 + 1, type: 'artery' });
+      }
+
+      return { vertices, faces };
+    }
+
+    function generateKidneysMesh() {
+      const vertices = [];
+      const faces = [];
+      const uSteps = 20;
+      const vSteps = 20;
+
+      function buildKidney(xOffset, rotateY) {
+        const startIdx = vertices.length;
+        const cosR = Math.cos(rotateY);
+        const sinR = Math.sin(rotateY);
+
+        for (let i = 0; i <= uSteps; i++) {
+          let theta = (i * Math.PI) / uSteps;
+          for (let j = 0; j <= vSteps; j++) {
+            let phi = (j * Math.PI * 2) / vSteps;
+
+            let lx = 26 * Math.sin(theta) * Math.cos(phi);
+            let ly = 48 * Math.cos(theta);
+            let lz = 18 * Math.sin(theta) * Math.sin(phi);
+
+            if (lx < 0) {
+              let indentation = 1.0 - 0.55 * Math.sin(theta) * Math.pow(Math.sin(phi), 2);
+              lx *= indentation;
+              lz *= indentation;
+            }
+
+            let rx = lx * cosR - lz * sinR + xOffset;
+            let ry = ly;
+            let rz = lx * sinR + lz * cosR;
+
+            vertices.push({ x: rx * 1.5, y: ry * 1.5, z: rz * 1.5 });
+          }
+        }
+
+        for (let i = 0; i < uSteps; i++) {
+          for (let j = 0; j < vSteps; j++) {
+            let p0 = startIdx + i * (vSteps + 1) + j;
+            let p1 = p0 + 1;
+            let p2 = startIdx + (i + 1) * (vSteps + 1) + j;
+            let p3 = p2 + 1;
+
+            faces.push({ a: p0, b: p1, c: p3, type: 'surface' });
+            faces.push({ a: p0, b: p3, c: p2, type: 'surface' });
+          }
+        }
+      }
+
+      buildKidney(-55, 0.2); 
+      buildKidney(55, -0.2);
+
+      const arteryStartIdx = vertices.length;
+      const aortaSteps = 12;
+      const radialDivs = 8;
+      for (let i = 0; i < aortaSteps; i++) {
+        let y = -90 + (180 * i) / (aortaSteps - 1);
+        for (let j = 0; j < radialDivs; j++) {
+          let angle = (j * Math.PI * 2) / radialDivs;
+          let rx = Math.cos(angle) * 7;
+          let rz = Math.sin(angle) * 7;
+          vertices.push({ x: rx, y: y, z: rz });
+        }
+      }
+
+      for (let i = 0; i < aortaSteps - 1; i++) {
+        for (let j = 0; j < radialDivs; j++) {
+          let next = (j + 1) % radialDivs;
+          let b0 = arteryStartIdx + i * radialDivs + j;
+          let b1 = arteryStartIdx + i * radialDivs + next;
+          let t0 = b0 + radialDivs;
+          let t1 = b1 + radialDivs;
+
+          faces.push({ a: b0, b: b1, c: t1, type: 'artery' });
+          faces.push({ a: b0, b: t1, c: t0, type: 'artery' });
+        }
+      }
+
+      return { vertices, faces };
+    }
+
+    const models = {
+      heart: generateHeartMesh(),
+      kidney: generateKidneysMesh()
+    };
+
+    let particles = [];
+    function initParticles() {
+      particles = [];
+      for (let i = 0; i < 110; i++) {
+        particles.push({
+          x: (Math.random() - 0.5) * 60,
+          y: (Math.random() - 0.5) * 140,
+          z: (Math.random() - 0.5) * 60,
+          speed: 0.012 + Math.random() * 0.02,
+          progress: Math.random(),
+          colorGroup: Math.random() > 0.5 ? 'arterial' : 'venous'
+        });
+      }
+    }
+    initParticles();
+
+    function selectOrgan(organ, event) {
+      activeOrgan = organ;
+      document.querySelectorAll('.organ-btn').forEach(btn => {
+        btn.classList.remove('active', 'text-[#00f0ff]');
+        btn.classList.add('text-slate-400');
+        btn.querySelector('svg').classList.remove('drop-shadow-[0_0_6px_currentColor]');
+      });
+
+      const currentBtn = event.currentTarget;
+      currentBtn.classList.add('active', 'text-[#00f0ff]');
+      currentBtn.classList.remove('text-slate-400');
+      currentBtn.querySelector('svg').classList.add('drop-shadow-[0_0_6px_currentColor]');
+      
+      initParticles();
+
+      if (audioEnabled) {
+        startAudioLoop(); 
+      }
+    }
+
+    function setPhysiologyState(state) {
+      systemState = state;
+      document.querySelectorAll('.state-btn').forEach(btn => {
+        btn.className = "state-btn py-2 text-[10px] md:text-xs font-extrabold uppercase border border-white/10 bg-white/5 rounded-lg text-slate-300 hover:bg-white/10 transition-all duration-300";
+      });
+
+      const activeBtn = document.querySelector(`.state-btn[data-state="${state}"]`);
+      activeBtn.classList.add('active');
+
+      const leftPanel = document.getElementById('left-hud-panel');
+      const systemIndicator = document.getElementById('system-status-indicator');
+      const topSecureText = document.getElementById('lbl-top-secure');
+
+      leftPanel.classList.remove('neon-border-cyan', 'neon-border-red', 'neon-border-yellow', 'neon-border-green');
+
+      const freqSlider = document.getElementById('ctrl-freq');
+      const perfSlider = document.getElementById('ctrl-perf');
+
+      if (state === 'healthy') {
+        freqSlider.value = 60;
+        perfSlider.value = 120;
+        activeBtn.classList.add('border-[#00ffaa]', 'bg-[#00ffaa]/12', 'text-[#00ffaa]', 'shadow-[0_0_12px_rgba(0,255,170,0.4)]');
+        leftPanel.classList.add('neon-border-green');
+        systemIndicator.className = "w-1.5 h-1.5 bg-[#00ffaa] rounded-full animate-pulse";
+        topSecureText.textContent = translations[currentLang].secure;
+      } else if (state === 'pathology1') {
+        freqSlider.value = 125;
+        perfSlider.value = 75;
+        activeBtn.classList.add('border-[#ff0055]', 'bg-[#ff0055]/12', 'text-[#ff0055]', 'shadow-[0_0_12px_rgba(255,0,85,0.4)]');
+        leftPanel.classList.add('neon-border-red');
+        systemIndicator.className = "w-1.5 h-1.5 bg-[#ff0055] rounded-full animate-ping";
+        topSecureText.textContent = translations[currentLang].critical;
+      } else if (state === 'pathology2') {
+        freqSlider.value = 45;
+        perfSlider.value = 60;
+        activeBtn.classList.add('border-[#ffb700]', 'bg-[#ffb700]/12', 'text-[#ffb700]', 'shadow-[0_0_12px_rgba(255,183,0,0.4)]');
+        leftPanel.classList.add('neon-border-yellow');
+        systemIndicator.className = "w-1.5 h-1.5 bg-[#ffb700] rounded-full animate-bounce";
+        topSecureText.textContent = translations[currentLang].critical;
+      } else if (state === 'pathology3') {
+        freqSlider.value = 85;
+        perfSlider.value = 80;
+        activeBtn.classList.add('border-[#ff0055]', 'bg-[#ff0055]/12', 'text-[#ff0055]', 'shadow-[0_0_12px_rgba(255,0,85,0.4)]');
+        leftPanel.classList.add('neon-border-red');
+        systemIndicator.className = "w-1.5 h-1.5 bg-[#ff0055] rounded-full animate-pulse";
+        topSecureText.textContent = translations[currentLang].critical;
+      } else if (state === 'pathology4') {
+        freqSlider.value = 95;
+        perfSlider.value = 180;
+        activeBtn.classList.add('border-[#ffb700]', 'bg-[#ffb700]/12', 'text-[#ffb700]', 'shadow-[0_0_12px_rgba(255,183,0,0.4)]');
+        leftPanel.classList.add('neon-border-yellow');
+        systemIndicator.className = "w-1.5 h-1.5 bg-[#ffb700] rounded-full animate-ping";
+        topSecureText.textContent = translations[currentLang].critical;
+      } else if (state === 'bioprinting') {
+        freqSlider.value = 35;
+        perfSlider.value = 45;
+        activeBtn.classList.add('border-[#00f0ff]', 'bg-[#00f0ff]/12', 'text-[#00f0ff]', 'shadow-[0_0_12px_rgba(0,240,255,0.4)]');
+        leftPanel.classList.add('neon-border-cyan');
+        systemIndicator.className = "w-1.5 h-1.5 bg-[#00f0ff] rounded-full animate-pulse";
+        topSecureText.textContent = translations[currentLang].secure;
+      }
+
+      updateSliders();
+    }
+
+    function updateSliders() {
+      bpm = parseInt(document.getElementById('ctrl-freq').value);
+      perfusionPressure = parseInt(document.getElementById('ctrl-perf').value);
+
+      document.getElementById('val-freq').textContent = bpm + " BPM";
+      document.getElementById('val-perf').textContent = perfusionPressure + " mmHg";
+
+      let strokeVolume = perfusionPressure * 0.65; 
+      let cardiacOutput = (bpm * strokeVolume) / 1000; 
+
+      let ejectionFraction = 62; 
+      if (systemState === 'pathology1') {
+        ejectionFraction = 32; 
+      } else if (systemState === 'pathology2') {
+        ejectionFraction = 48; 
+      } else if (systemState === 'pathology3') {
+        ejectionFraction = 22;
+        cardiacOutput *= 0.55; 
+      } else if (systemState === 'pathology4') {
+        ejectionFraction = 52;
+        cardiacOutput *= 1.15;
+      } else if (systemState === 'bioprinting') {
+        ejectionFraction = 55;
+      }
+
+      let gfr = Math.floor((perfusionPressure * 0.8) + (cardiacOutput * 2.5));
+      if (systemState === 'pathology2') {
+        gfr = Math.floor(gfr * 0.3); 
+      } else if (systemState === 'pathology3') {
+        gfr = Math.floor(gfr * 0.45);
+      } else if (systemState === 'pathology4') {
+        gfr = Math.max(125, Math.floor(gfr * 0.95));
+      }
+
+      let urineOutput = (gfr * 0.012).toFixed(2);
+      if (systemState === 'pathology3') {
+        urineOutput = (gfr * 0.006).toFixed(2);
+      }
+
+      document.getElementById('val-stat-gc').textContent = cardiacOutput.toFixed(1) + " L/min";
+      document.getElementById('val-stat-fe').textContent = ejectionFraction + "%";
+      document.getElementById('val-stat-tfg').textContent = gfr + " mL/min";
+      document.getElementById('val-stat-uo').textContent = urineOutput + " mL/min";
+
+      if (audioEnabled) {
+        startAudioLoop(); 
+      }
+    }
+
+    document.getElementById('ctrl-freq').addEventListener('input', updateSliders);
+    document.getElementById('ctrl-perf').addEventListener('input', updateSliders);
+
+    function toggleLightMode(mode) {
+      lightMode = mode;
+      document.querySelectorAll('.light-btn-toggle').forEach(btn => {
+        btn.classList.remove('active', 'border-[#00f0ff]', 'bg-[#00f0ff]/12', 'text-[#00f0ff]', 'shadow-[0_0_8px_rgba(0,240,255,0.3)]');
+        btn.classList.add('border-white/10', 'bg-white/5', 'text-slate-300');
+      });
+
+      const activeBtn = document.getElementById(mode === 'neon' ? 'btn-l-neon' : 'btn-l-warm');
+      activeBtn.classList.remove('border-white/10', 'bg-white/5', 'text-slate-300');
+      activeBtn.classList.add('active', 'border-[#00f0ff]', 'bg-[#00f0ff]/12', 'text-[#00f0ff]', 'shadow-[0_0_8px_rgba(0,240,255,0.3)]');
+    }
+
+    document.getElementById('ctrl-light-intensity').addEventListener('input', (e) => {
+      lightIntensity = parseInt(e.target.value) / 100;
+      document.getElementById('val-l-intensity').textContent = e.target.value + "%";
+    });
+
+    const nodeCanvas = document.getElementById('nodeCanvas');
+    const nodeCtx = nodeCanvas.getContext('2d');
+    let nodeWidth = nodeCanvas.width = 320;
+    let nodeHeight = nodeCanvas.height = 120;
+
+    function drawNodeNetwork() {
+      nodeCtx.clearRect(0, 0, nodeWidth, nodeHeight);
+
+      nodeCtx.strokeStyle = 'rgba(0, 240, 255, 0.04)';
+      nodeCtx.lineWidth = 1;
+      for (let i = 0; i < nodeWidth; i += 16) {
+        nodeCtx.beginPath();
+        nodeCtx.moveTo(i, 0);
+        nodeCtx.lineTo(i, nodeHeight);
+        nodeCtx.stroke();
+      }
+      for (let j = 0; j < nodeHeight; j += 16) {
+        nodeCtx.beginPath();
+        nodeCtx.moveTo(0, j);
+        nodeCtx.lineTo(nodeWidth, j);
+        nodeCtx.stroke();
+      }
+
+      nodeCtx.beginPath();
+      nodeCtx.strokeStyle = 'rgba(0, 240, 255, 0.15)';
+      nodeCtx.lineWidth = 1.5;
+      for (let i = 0; i < nodeCoords.length - 1; i++) {
+        nodeCtx.moveTo(nodeCoords[i].x, nodeCoords[i].y);
+        nodeCtx.lineTo(nodeCoords[i+1].x, nodeCoords[i+1].y);
+      }
+      nodeCtx.stroke();
+
+      let timePulse = Date.now() * 0.0025;
+      for (let i = 0; i < nodeCoords.length - 1; i++) {
+        let pA = nodeCoords[i];
+        let pB = nodeCoords[i+1];
+        let t = (timePulse + i * 0.35) % 1.0;
+        let px = pA.x + (pB.x - pA.x) * t;
+        let py = pA.y + (pB.y - pA.y) * t;
+
+        let pulseGrad = nodeCtx.createRadialGradient(px, py, 0, px, py, 6);
+        pulseGrad.addColorStop(0, '#fff');
+        pulseGrad.addColorStop(0.4, 'rgba(0, 240, 255, 0.9)');
+        pulseGrad.addColorStop(1, 'rgba(0, 240, 255, 0)');
+        nodeCtx.fillStyle = pulseGrad;
+        nodeCtx.beginPath();
+        nodeCtx.arc(px, py, 6, 0, Math.PI * 2);
+        nodeCtx.fill();
+      }
+
+      nodeCoords.forEach((node, idx) => {
+        let isSelected = idx === activeNodeIndex;
+        nodeCtx.shadowColor = isSelected ? 'var(--glow-cyan)' : 'rgba(0, 240, 255, 0.2)';
+        nodeCtx.shadowBlur = isSelected ? 12 : 4;
+        nodeCtx.fillStyle = isSelected ? '#fff' : 'rgba(8, 12, 28, 0.9)';
+        nodeCtx.strokeStyle = isSelected ? 'var(--glow-cyan)' : 'rgba(0, 240, 255, 0.5)';
+        nodeCtx.lineWidth = isSelected ? 2.5 : 1.5;
+        nodeCtx.beginPath();
+        nodeCtx.arc(node.x, node.y, isSelected ? 9 : 6, 0, Math.PI * 2);
+        nodeCtx.fill();
+        nodeCtx.stroke();
+        nodeCtx.shadowBlur = 0;
+        nodeCtx.fillStyle = isSelected ? '#fff' : 'rgba(255,255,255,0.6)';
+        nodeCtx.font = 'bold 8px "Share Tech Mono", monospace';
+        nodeCtx.textAlign = 'center';
+        nodeCtx.fillText(translations[currentLang].nodes[idx].name.split(" ")[0], node.x, node.y - 12);
+      });
+    }
+
+    nodeCanvas.addEventListener('click', (e) => {
+      const rect = nodeCanvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      nodeCoords.forEach((node, idx) => {
+        let dist = Math.sqrt(Math.pow(clickX - node.x, 2) + Math.pow(clickY - node.y, 2));
+        if (dist < 15) {
+          activeNodeIndex = idx;
+          const dict = translations[currentLang];
+          document.getElementById('node-active-title').textContent = dict.nodes[idx].name;
+          document.getElementById('node-active-desc').textContent = dict.nodes[idx].desc;
+          drawNodeNetwork();
+        }
+      });
+    });
+
+    const ecgCanvas = document.getElementById('ecgCanvas');
+    const ecgCtx = ecgCanvas.getContext('2d');
+    let ecgWidth = ecgCanvas.width = 300;
+    let ecgHeight = ecgCanvas.height = 60;
+    let ecgPoints = [];
+
+    function initECG() {
+      for (let i = 0; i < ecgWidth; i++) {
+        ecgPoints.push(ecgHeight / 2);
+      }
+    }
+    initECG();
+
+    function drawECGGraph() {
+      ecgCtx.fillStyle = 'rgba(5, 8, 17, 0.4)';
+      ecgCtx.fillRect(0, 0, ecgWidth, ecgHeight);
+      let signal = ecgHeight / 2;
+      let wavePeriod = (60 / bpm) * 60; 
+      let currentCyclePos = (Date.now() * 0.05) % wavePeriod;
+
+      if (activeOrgan === 'heart') {
+        if (systemState === 'pathology3') {
+          if (currentCyclePos < 2) signal -= 1; 
+          else if (currentCyclePos >= 3 && currentCyclePos < 5) signal += 0.8;
+          else if (currentCyclePos >= 5 && currentCyclePos < 7) signal -= 10; 
+          else if (currentCyclePos >= 7 && currentCyclePos < 9) signal += 6; 
+        } else if (systemState === 'pathology4') {
+          if (currentCyclePos < 2) signal -= 4; 
+          else if (currentCyclePos >= 3 && currentCyclePos < 5) signal += 3;
+          else if (currentCyclePos >= 5 && currentCyclePos < 7) signal -= 32; 
+          else if (currentCyclePos >= 7 && currentCyclePos < 9) signal += 20; 
+        } else {
+          if (currentCyclePos < 2) signal -= 2; 
+          else if (currentCyclePos >= 3 && currentCyclePos < 5) signal += 1.5;
+          else if (currentCyclePos >= 5 && currentCyclePos < 7) signal -= 24; 
+          else if (currentCyclePos >= 7 && currentCyclePos < 9) signal += 14; 
+          else if (currentCyclePos >= 13 && currentCyclePos < 16) signal -= 5; 
+        }
+      } else {
+        let slowWave = Math.sin(Date.now() * 0.006) * 10;
+        let arterialPulse = Math.sin(Date.now() * 0.05) * 3;
+        if (systemState === 'pathology4') arterialPulse = Math.sin(Date.now() * 0.08) * 7;
+        signal = (ecgHeight / 2) + slowWave + arterialPulse;
+      }
+
+      ecgPoints.push(signal);
+      if (ecgPoints.length > ecgWidth) ecgPoints.shift();
+      ecgCtx.strokeStyle = (systemState === 'pathology1' || systemState === 'pathology3') ? 'var(--glow-red)' :
+                           (systemState === 'pathology2' || systemState === 'pathology4') ? 'var(--glow-yellow)' :
+                           'var(--glow-cyan)';
+      ecgCtx.lineWidth = 1.5;
+      ecgCtx.shadowColor = ecgCtx.strokeStyle;
+      ecgCtx.shadowBlur = 4;
+      ecgCtx.beginPath();
+      for (let i = 0; i < ecgPoints.length; i++) ecgCtx.lineTo(i, ecgPoints[i]);
+      ecgCtx.stroke();
+      ecgCtx.shadowBlur = 0;
+    }
+
+    let frameCount = 0;
+    let lastFPSUpdate = 0;
+    let fps = 0;
+
+    function run3DProjectionEngine() {
+      ctx.clearRect(0, 0, width, height);
+      frameCount++;
+      let now = Date.now();
+      if (now - lastFPSUpdate >= 1000) {
+        fps = frameCount;
+        frameCount = 0;
+        lastFPSUpdate = now;
+        document.getElementById('holo-fps').textContent = `FPS: ${fps}`;
+      }
+
+      const currentMesh = models[activeOrgan];
+      const modelVerts = currentMesh.vertices;
+      const modelFaces = currentMesh.faces;
+
+      let pulsation = 1.0;
+      if (systemState === 'bioprinting') pulsation = 1.0 + 0.012 * Math.sin(Date.now() * 0.002);
+      else if (systemState === 'pathology3') {
+        let speed = (bpm / 60) * Math.PI * 2;
+        pulsation = 1.06 + 0.02 * Math.max(0, Math.sin((Date.now() / 1000) * speed));
+      } else {
+        let speed = (bpm / 60) * Math.PI * 2;
+        pulsation = 1.0 + 0.055 * Math.max(0, Math.sin((Date.now() / 1000) * speed));
+      }
+
+      let lightDir = { x: 0.6, y: -0.7, z: -0.9 };
+      let lightColor = { r: 0, g: 240, b: 255 }; 
+      let ambientCoeff = 0.18;
+
+      if (lightMode === 'warm') {
+        lightDir = { x: -0.5, y: -0.9, z: -0.5 };
+        lightColor = { r: 255, g: 190, b: 120 }; 
+        ambientCoeff = 0.28;
+      }
+
+      let lMag = Math.sqrt(lightDir.x*lightDir.x + lightDir.y*lightDir.y + lightDir.z*lightDir.z);
+      lightDir.x /= lMag; lightDir.y /= lMag; lightDir.z /= lMag;
+
+      const projectedVerts = [];
+      const cosY = Math.cos(rotY + (Date.now() * 0.00022));
+      const sinY = Math.sin(rotY + (Date.now() * 0.00022));
+      const cosX = Math.cos(rotX);
+      const sinX = Math.sin(rotX);
+
+      modelVerts.forEach((vert) => {
+        let sx = vert.x * pulsation;
+        let sy = vert.y * pulsation;
+        let sz = vert.z * pulsation;
+        let x1 = sx * cosY - sz * sinY;
+        let z1 = sx * sinY + sz * cosY;
+        let y2 = sy * cosX - z1 * sinX;
+        let z2 = sy * sinX + z1 * cosX;
+        let dist = cameraZ / (cameraZ + z2);
+        projectedVerts.push({ x: (width / 2) + x1 * dist, y: (height / 2) + y2 * dist, z: z2, worldX: x1, worldY: y2, worldZ: z2 });
+      });
+
+      const depthArray = [];
+      modelFaces.forEach((face, idx) => {
+        depthArray.push({ faceIdx: idx, averageZ: (projectedVerts[face.a].z + projectedVerts[face.b].z + projectedVerts[face.c].z) / 3 });
+      });
+      depthArray.sort((a, b) => b.averageZ - a.averageZ);
+
+      depthArray.forEach((item) => {
+        let f = modelFaces[item.faceIdx];
+        let pA = projectedVerts[f.a], pB = projectedVerts[f.b], pC = projectedVerts[f.c];
+        let cross = (pB.x - pA.x) * (pC.y - pA.y) - (pB.y - pA.y) * (pC.x - pA.x);
+        if (cross < 0) {
+          let v1 = { x: pB.worldX - pA.worldX, y: pB.worldY - pA.worldY, z: pB.worldZ - pA.worldZ };
+          let v2 = { x: pC.worldX - pA.worldX, y: pC.worldY - pA.worldY, z: pC.worldZ - pA.worldZ };
+          let nx = v1.y * v2.z - v1.z * v2.y, ny = v1.z * v2.x - v1.x * v2.z, nz = v1.x * v2.y - v1.y * v2.z;
+          let nMag = Math.sqrt(nx*nx + ny*ny + nz*nz);
+          if (nMag > 0) { nx /= nMag; ny /= nMag; nz /= nMag; }
+          let lambertFactor = Math.max(0, nx * lightDir.x + ny * lightDir.y + nz * lightDir.z);
+          let totalLight = (ambientCoeff + lambertFactor * (1 - ambientCoeff)) * lightIntensity;
+          let r = 12, g = 50, b = 90;
+          if (f.type === 'artery') { r = 230; g = 15; b = 55; }
+          else {
+            if (activeOrgan === 'heart') { r = 210; g = 25; b = 65; }
+            else if (activeOrgan === 'kidney') { r = 145; g = 30; b = 80; }
+          }
+          if (systemState === 'pathology1' || systemState === 'pathology3') { 
+            if (activeOrgan === 'kidney') { r = r * 0.35; g = g * 0.45; b = b * 1.45; }
+            else { r = r * 0.45; g = g * 0.50; b = b * 1.25; }
+          } else if (systemState === 'pathology2') { 
+            if (activeOrgan === 'kidney') { r = r * 0.85; g = g * 0.80; b = b * 0.70; }
+            else { r = r * 0.90; g = g * 0.85; b = b * 0.75; }
+          } else if (systemState === 'pathology4') { 
+            if (activeOrgan === 'kidney') { r = Math.min(255, r * 1.5); g *= 0.5; b *= 0.6; }
+            else { r = Math.min(255, r * 1.4); g *= 0.6; b *= 0.7; }
+          } else if (systemState === 'bioprinting') { r = 0; g = 250; b = 135; }
+          let fR = Math.min(255, Math.floor(r * (1 - totalLight * 0.45) + lightColor.r * totalLight * 0.55));
+          let fG = Math.min(255, Math.floor(g * (1 - totalLight * 0.45) + lightColor.g * totalLight * 0.55));
+          let fB = Math.min(255, Math.floor(b * (1 - totalLight * 0.45) + lightColor.b * totalLight * 0.55));
+          ctx.fillStyle = `rgb(${fR}, ${fG}, ${fB})`;
+          ctx.strokeStyle = `rgba(${fR + 45}, ${fG + 45}, ${fB + 45}, 0.15)`;
+          ctx.lineWidth = 0.55;
+          ctx.beginPath();
+          ctx.moveTo(pA.x, pA.y);
+          ctx.lineTo(pB.x, pB.y);
+          ctx.lineTo(pC.x, pC.y);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+      });
+      particles.forEach((part) => {
+        part.progress += part.speed * (bpm / 60);
+        if (part.progress > 1.0) {
+          part.progress = 0;
+          part.x = (Math.random() - 0.5) * 50;
+          part.y = -95 + Math.random() * 20;
+          part.z = (Math.random() - 0.5) * 50;
+        }
+        let speedMultiplier = (perfusionPressure / 120);
+        if (systemState === 'pathology3') speedMultiplier *= 0.5;
+        else if (systemState === 'pathology4') speedMultiplier *= 1.6;
+        part.y += (2.0 + Math.sin(Date.now() * 0.004) * 0.25) * speedMultiplier;
+        part.x += Math.sin(part.progress * Math.PI * 4) * 0.6;
+        part.z += Math.cos(part.progress * Math.PI * 4) * 0.6;
+        let x1 = part.x * cosY - part.z * sinY, z1 = part.x * sinY + part.z * cosY;
+        let y2 = part.y * cosX - z1 * sinX, z2 = part.y * sinX + z1 * cosX;
+        let dist = cameraZ / (cameraZ + z2);
+        if (z2 > -cameraZ) {
+          ctx.fillStyle = (part.colorGroup === 'arterial') ? 
+            ((systemState === 'pathology1' || systemState === 'pathology3') ? 'rgba(180, 50, 100, 0.8)' : 'rgba(255, 12, 75, 0.85)') :
+            (systemState === 'pathology2' ? 'rgba(215, 135, 25, 0.8)' : 'rgba(12, 175, 255, 0.8)');
+          if (systemState === 'bioprinting') ctx.fillStyle = 'rgba(0, 255, 135, 0.85)';
+          ctx.beginPath();
+          ctx.arc((width / 2) + x1 * dist, (height / 2) + y2 * dist, Math.max(1, 3.5 * dist), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+      drawECGGraph();
+      requestAnimationFrame(run3DProjectionEngine);
+    }
+
+    function changeLanguage(lang) {
+      currentLang = lang;
+      document.querySelectorAll('.lang-btn').forEach(btn => btn.className = "lang-btn px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300 rounded-lg text-xs font-bold transition-all duration-300 hover:bg-[#00f0ff]/10");
+      event.target.className = "lang-btn px-3 py-1.5 bg-[#00f0ff]/20 border border-[#00f0ff]/40 text-white rounded-lg text-xs font-bold transition-all duration-300 shadow-[0_0_10px_rgba(0,240,255,0.3)] active";
+      const dict = translations[lang];
+      document.getElementById('txt-title').textContent = dict.title;
+      document.getElementById('txt-subtitle').textContent = dict.subtitle;
+      document.getElementById('title-telemetry').textContent = dict.telemetry;
+      document.getElementById('lbl-ecg').textContent = dict.ecg;
+      document.getElementById('lbl-freq').textContent = dict.freq;
+      document.getElementById('lbl-perfusion').textContent = dict.perfusion;
+      document.getElementById('title-ainodes').textContent = dict.ainodes;
+      document.getElementById('title-cinelighting').textContent = dict.cinelighting;
+      document.getElementById('lbl-l-intensity').textContent = dict.intensity;
+      
+      document.getElementById('btn-heart').textContent = dict.heart;
+      document.getElementById('btn-kidney').textContent = dict.kidney;
+      document.getElementById('lbl-stat-gc').textContent = dict.gc;
+      document.getElementById('lbl-stat-fe').textContent = dict.fe;
+      document.getElementById('lbl-stat-tfg').textContent = dict.tfg;
+      document.getElementById('lbl-stat-uo').textContent = dict.uo;
+      const topSecureText = document.getElementById('lbl-top-secure');
+      topSecureText.textContent = (systemState === 'healthy' || systemState === 'bioprinting') ? dict.secure : dict.critical;
+      updateAudioButtonLabel();
+      if (activeNodeIndex !== null) {
+        document.getElementById('node-active-title').textContent = dict.nodes[activeNodeIndex].name;
+        document.getElementById('node-active-desc').textContent = dict.nodes[activeNodeIndex].desc;
+      }
+      drawNodeNetwork();
+    }
+
+    window.onload = function() {
+      run3DProjectionEngine();
+      drawNodeNetwork();
+      changeLanguage('es');
+      setPhysiologyState('healthy');
+      toggleLightMode('neon');
+    };
+  </script>
+</body>
+</html>
