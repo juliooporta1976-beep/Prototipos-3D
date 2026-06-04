@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proyecto Quimera - Consola de Simulación Holográfica y Ómico-Financiera</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #02050b; overflow: hidden; font-family: 'Courier New', Courier, monospace; user-select: none; }
+        canvas { display: block; width: 100%; height: 100%; }
+        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; color: #00ffcc; text-shadow: 0 0 6px rgba(0, 255, 204, 0.4); }
+        .hud-element { position: absolute; padding: 14px; border: 1px solid rgba(0, 255, 204, 0.18); background: rgba(2, 6, 12, 0.94); backdrop-filter: blur(12px); pointer-events: auto; box-shadow: inset 0 0 20px rgba(0, 255, 204, 0.05); border-radius: 4px; }
+        
+        #top-left { top: 20px; left: 20px; font-weight: bold; font-size: 14px; border-left: 4px solid #00ffcc; letter-spacing: 1px; width: 340px; }
+        #top-right { top: 20px; right: 20px; display: flex; gap: 8px; }
+        #bottom-panel { bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; }
+        
+        .btn { background: transparent; border: 1px solid #00ffcc; color: #00ffcc; padding: 8px 14px; cursor: pointer; font-family: inherit; transition: all 0.2s ease; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; border-radius: 2px; }
+        .btn:hover { background: #00ffcc; color: #02050b; box-shadow: 0 0 15px #00ffcc; }
+        .btn.active { background: rgba(0, 255, 204, 0.25); color: #fff; box-shadow: 0 0 10px rgba(0, 255, 204, 0.2); }
+        .btn.danger { border-color: #ef4444; color: #ef4444; }
+        .btn.danger:hover { background: #ef4444; color: #02050b; box-shadow: 0 0 15px #ef4444; }
+        
+        #stats { top: 110px; left: 20px; font-size: 11px; line-height: 1.7; width: 340px; }
+        #hud-telemetry { top: 110px; right: 20px; font-size: 11px; line-height: 1.7; width: 340px; border-right: 4px solid #ef4444; color: #ef4444; text-shadow: 0 0 6px rgba(239, 68, 68, 0.4); }
+        
+        /* HUD ADICIONAL DE BIOMETRÍA CLÍNICA */
+        #hud-biometrics { bottom: 110px; left: 20px; font-size: 11px; line-height: 1.7; width: 340px; border-left: 4px solid #38bdf8; color: #38bdf8; text-shadow: 0 0 6px rgba(56, 189, 248, 0.3); }
+        
+        /* NUEVO HUD ADICIONAL: VIABILIDAD LOGÍSTICA Y AMORTIZACIÓN FINANCIERA (SECCIÓN VIII) */
+        #hud-financial-logistics { bottom: 110px; right: 20px; font-size: 11px; line-height: 1.7; width: 340px; border-right: 4px solid #eab308; color: #eab308; text-shadow: 0 0 6px rgba(234, 179, 8, 0.3); }
+        
+        .meter-container { width: 100%; background: rgba(255,255,255,0.06); height: 5px; margin-top: 3px; margin-bottom: 7px; border-radius: 2px; overflow: hidden; }
+        .meter-bar { height: 100%; width: 0%; transition: width 0.2s ease; }
+        
+        .grid-overlay { position: absolute; width: 100%; height: 100%; border: inset 2px rgba(0,255,204,0.02); pointer-events: none; top:0; left:0; box-sizing: border-box; }
+        #interaction-alert { position: absolute; bottom: 85px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #00ffcc; text-transform: uppercase; letter-spacing: 2px; padding: 4px 14px; background: rgba(2,5,11,0.85); border: 1px solid rgba(0,255,204,0.15); text-align: center; line-height: 1.4; }
+        .patent-tag { font-size: 9px; color: rgba(255,255,255,0.4); display: block; margin-top: 2px; }
+    </style>
+</head>
+<body>
+
+    <div class="grid-overlay"></div>
+    <canvas id="simCanvas"></canvas>
+
+    <div id="hud">
+        <div id="top-left" class="hud-element">
+            Dr. Julio César Oporta Barrera
+            <span class="patent-tag">THE PROJECT CHIMERA ARCHITECTURE [Ref-1]</span>
+        </div>
+        
+        <div id="top-right" class="hud-element">
+            <button class="btn" onclick="setLang('es')">ES</button>
+            <button class="btn" onclick="setLang('en')">EN</button>
+            <button class="btn" onclick="setLang('zh')">ZH</button>
+        </div>
+
+        <div id="stats" class="hud-element">
+            <div id="txt-phase">Fase: Reprogramación In Vivo</div>
+            <div id="txt-nodes">Nodos Activos: 0</div>
+            <div id="txt-ai">Sistema de Nodos IA: Activo (Chimera-Select) [20]</div>
+            <div id="txt-energy">Energía Híbrida: Estable (ATP-Metabólica)</div>
+            <div id="txt-vector">Vector Activo: VQ-01 [Ref-50]</div>
+        </div>
+
+        <div id="hud-biometrics" class="hud-element">
+            <div style="font-weight: bold; margin-bottom: 5px; letter-spacing: 1px;" id="title-biometrics">MONITOREO BIOMÉTRICO (FASE 6)</div>
+            <div>Índice de Toxicidad CRS (IL-6 / TNF-α): <span id="val-crs">0%</span></div>
+            <div class="meter-container"><div id="bar-crs" class="meter-bar" style="background: #ef4444;"></div></div>
+            <div>Diversidad de Clones TCR (TCR-seq): <span id="val-tcr">12.4 Hz</span></div>
+            <div class="meter-container"><div id="bar-tcr" class="meter-bar" style="background: #38bdf8;"></div></div>
+            <div>Carga ctDNA Viral en Tumor: <span id="val-ctdna">0.00 cpm</span></div>
+            <div class="meter-container"><div id="bar-ctdna" class="meter-bar" style="background: #00ffcc;"></div></div>
+        </div>
+
+        <div id="hud-financial-logistics" class="hud-element">
+            <div style="font-weight: bold; margin-bottom: 5px; letter-spacing: 1px;" id="title-financial">VIABILIDAD Y AMORTIZACIÓN (USD)</div>
+            <div>Costo Amortizado Vial VQ-01 [Ref-274]: <span id="val-cost-vial">\$0</span></div>
+            <div>Control Calidad RCV (FDA/EMA) [Ref-275]: <span id="val-cost-qc">\$0</span></div>
+            <div>Secuenciación Profunda (WGS+RNA) [Ref-273]: <span id="val-cost-seq">\$0</span></div>
+            <div class="meter-container"><div id="bar-financial" class="meter-bar" style="background: #eab308;"></div></div>
+            <div style="font-weight: bold;">Inversión Clínica Acumulada: <span id="val-cost-total">\$0</span></div>
+        </div>
+
+        <div id="hud-telemetry" class="hud-element">
+            <div style="font-weight: bold; margin-bottom: 5px; letter-spacing: 1px;" id="title-telemetry">TELEMETRÍA DE PATENTE</div>
+            <div id="txt-mutational">Muestra de Biopsia [Ref-40]: Analizada</div>
+            <div id="txt-antigens">Antenas Neoantígenos [Ref-60]: 0</div>
+            <div id="txt-efficiency">Eficacia Oncolítica In Vivo: 0.0%</div>
+        </div>
+
+        <div id="interaction-alert">
+            <span id="txt-alert-1">Clic Izquierdo: Inyectar VQ-01 [50] | Rueda: Zoom Eje Z</span><br>
+            <span id="txt-alert-2">Presione 'S' para Densificar la Barrera Estromal de Colágeno</span><br>
+            <span id="txt-alert-3" style="color: #ef4444; font-size: 9px;">Presione 'K' para activar el Kill Switch Mecánico [Ref-152]</span>
+        </div>
+
+        <div id="bottom-panel" class="hud-element">
+            <button class="btn active" id="btn-biomech" onclick="toggleMode('biomech')">Biomecánica Realista</button>
+            <button class="btn" id="btn-stroma" onclick="toggleMode('stroma')">Interferencia Estromal (Módulo Nuevo)</button>
+            <button class="btn" id="btn-kinetic" onclick="toggleMode('kinetic')">Cinética de Afinidad TCR</button>
+            <button class="btn danger" id="btn-killswitch" onclick="triggerKillSwitch()">Kill Switch [Ref-152]</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Diccionario Avanzado Trilingüe ---
+        const dict = {
+            'es': { 
+                phase: "Fase: Reprogramación In Vivo", nodes: "Nodos Activos: ", ai: "Sistema de Nodos IA: Activo (Chimera-Select) [20]", energy: "Energía Híbrida: Estable (ATP-Metabólica)", vector: "Vector Activo: VQ-01 [Ref-50]", 
+                btn1: "Biomecánica Realista", btn2: "Interferencia Estromal (Módulo Nuevo)", btn3: "Cinética de Afinidad TCR", btn4: "Kill Switch [Ref-152]",
+                title: "TELEMETRÍA DE PATENTE", mutational: "Muestra de Biopsia [Ref-40]: Analizada", antigens: "Antenas Neoantígenos [Ref-60]: ", efficiency: "Eficacia Oncolítica In Vivo: ",
+                alert1: "Clic Izquierdo: Inyectar VQ-01 [50] | Rueda: Zoom Eje Z", alert2: "Presione 'S' para Densificar la Barrera Estromal de Colágeno", alert3: "Presione 'K' para activar el Kill Switch Mecánico [Ref-152]", 
+                titleBio: "MONITOREO BIOMÉTRICO (FASE 6)", titleFin: "VIABILIDAD Y AMORTIZACIÓN (USD)"
+            },
+            'en': { 
+                phase: "Phase: In Vivo Reprogramming", nodes: "Active Nodes: ", ai: "AI Node System: Active (Chimera-Select) [20]", energy: "Hybrid Energy: Stable (ATP-Metabolic)", vector: "Active Vector: VQ-01 [Ref-50]", 
+                btn1: "Realistic Biomechanics", btn2: "Stromal Interference (New Module)", btn3: "TCR Affinity Kinetics", btn4: "Kill Switch [Ref-152]",
+                title: "PATENT TELEMETRY", mutational: "Biopsy Sample [Ref-40]: Analyzed", antigens: "Neoantigen Antennas [Ref-60]: ", efficiency: "In Vivo Oncolytic Efficiency: ",
+                alert1: "Left Click: Inject VQ-01 [50] | Wheel: Zoom Z-Axis", alert2: "Press 'S' to Densify Collagen Stromal Barrier", alert3: "Press 'K' to activate Mechanical Kill Switch [Ref-152]", 
+                titleBio: "BIOMETRIC MONITORING (PHASE 6)", titleFin: "VIABILITY & AMORTIZATION (USD)"
+            },
+            'zh': { 
+                phase: "阶段：体内重编程", nodes: "活动节点：", ai: "人工智能节点系统：激活 (Chimera-Select) [20]", energy: "混合能量：稳定 (ATP代谢)", vector: "活动载体：VQ-01 [Ref-50]", 
+                btn1: "逼真生物力学", btn2: "基质 star 干扰 (新模块)", btn3: "TCR亲和力动力学", btn4: "自杀开关 [Ref-152]",
+                title: "专利技术遥测", mutational: "活检样本 [Ref-40]：已分析", antigens: "新抗原天线 [Ref-60]：", efficiency: "体内溶瘤效率：",
+                alert1: "左键点击：注入 VQ-01 [50] | 滚轮：缩放 Z轴", alert2: "按 'S' 键增加胶原基质阻挡层密度", alert3: "按 'K' 键激活机械自杀开关 [Ref-152]", 
+                titleBio: "生物特征监测 (第六阶段)", titleFin: "可行性与资产摊销 (美元)"
+            }
+        };
+        let currentLang = 'es';
+
+        function setLang(lang) {
+            currentLang = lang;
+            document.getElementById('txt-phase').innerText = dict[lang].phase;
+            document.getElementById('txt-ai').innerText = dict[lang].ai;
+            document.getElementById('txt-energy').innerText = dict[lang].energy;
+            document.getElementById('txt-vector').innerText = dict[lang].vector;
+            document.getElementById('btn-biomech').innerText = dict[lang].btn1;
+            document.getElementById('btn-stroma').innerText = dict[lang].btn2;
+            document.getElementById('btn-kinetic').innerText = dict[lang].btn3;
+            document.getElementById('btn-killswitch').innerText = dict[lang].btn4;
+            document.getElementById('title-telemetry').innerText = dict[lang].title;
+            document.getElementById('title-biometrics').innerText = dict[lang].titleBio;
+            document.getElementById('title-financial').innerText = dict[lang].titleFin;
+            document.getElementById('txt-mutational').innerText = dict[lang].mutational;
+            document.getElementById('txt-alert-1').innerText = dict[lang].alert1;
+            document.getElementById('txt-alert-2').innerText = dict[lang].alert2;
+            document.getElementById('txt-alert-3').innerText = dict[lang].alert3;
+        }
+
+        // --- Core del Motor Gráfico 3D Matricial ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        let focalLength = 550;
+        let cameraZ = -900; 
+        let angleX = 0.25; let angleY = -0.35;
+        let isDragging = false; let lastMouseX = 0; let lastMouseY = 0;
+        let killSwitchActive = false;
+        let crsGlobalScore = 0;
+        let stromaDensity = 15; // Control dinámico de fibras mecánicas
+
+        // Control Avanzado de Interacción (Rueda de Ratón - Profundidad Z)
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            cameraZ += e.deltaY * 0.7;
+            cameraZ = Math.max(-1700, Math.min(-400, cameraZ));
+        });
+
+        canvas.addEventListener('mousedown', (e) => { isDragging = true; lastMouseX = e.clientX; lastMouseY = e.clientY; });
+        canvas.addEventListener('mouseup', (e) => { 
+            isDragging = false; 
+            if (Math.abs(e.clientX - lastMouseX) < 4 && Math.abs(e.clientY - lastMouseY) < 4) {
+                injectPatentedVectors(e.clientX, e.clientY);
+            }
+        });
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                let dx = e.clientX - lastMouseX; let dy = e.clientY - lastMouseY;
+                angleY += dx * 0.0035; angleX += dy * 0.0035;
+                lastMouseX = e.clientX; lastMouseY = e.clientY;
+            }
+        });
+
+        // Captura de teclado avanzada para modificar estados estromales y killswitch [Ref-152]
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'k' || e.key === 'K') triggerKillSwitch();
+            if (e.key === 's' || e.key === 'S') {
+                stromaDensity = stromaDensity >= 40 ? 10 : stromaDensity + 5;
+            }
+        });
+
+        const nodes = [];
+        let antigensCount = 0;
+        let simulationMode = 'biomech'; // biomech, stroma, kinetic
+        
+        // Variables de costo acumulado basadas en la Sección VIII
+        let totalFinancialVial = 0;
+        let totalFinancialQC = 0;
+        let totalFinancialSeq = 11400; // Costo base fijo de secuenciación (WGS + RNA-Seq + Kits) [Ref-273]
+
+        class Node3D {
+            constructor(type) {
+                this.type = type; // 0: Célula Tumoral, 1: Vector VQ-01 [50], 2: Célula T [63], 3: Citoquina [64]
+                this.x = (Math.random() - 0.5) * 650;
+                this.y = (Math.random() - 0.5) * 650;
+                this.z = (Math.random() - 0.5) * 650;
+                this.vx = (Math.random() - 0.5) * 2.5;
+                this.vy = (Math.random() - 0.5) * 2.5;
+                this.vz = (Math.random() - 0.5) * 2.5;
+                
+                this.radius = type === 0 ? 68 : (type === 1 ? 4.5 : (type === 2 ? 22 : 2.5));
+                this.infected = false;
+                this.reprogrammingProgress = 0;
+                
+                // ESTADO DINÁMICO EXTRA 1: Expresión de Carga Útil (Payload)
+                this.payloadExpression = 0.0;
+                // INCORPORACIÓN DE ESTADO DINÁMICO EXTRA 2: Índice de Desmascaramiento e ICD (Da) [Ref-92]
+                this.antigenicUnmasking = 0.0;
+                
+                this.isLysed = false;
+                this.lysisProgress = 0;
+                this.membraneSeed = Math.random() * 120;
+                this.pulseTime = Math.random() * Math.PI * 2;
+            }
+
+            update() {
+                this.pulseTime += 0.045;
+
+                if (killSwitchActive && this.infected && this.type === 0) {
+                    this.isLysed = true;
+                }
+
+                // NUEVO MÓDULO DE SIMULACIÓN: Simulación de Desplazamiento con Barrera e Interferencia Estromal
+                if (simulationMode === 'stroma' && (this.type === 1 || this.type === 2)) {
+                    // El estroma desacelera y desvía la trayectoria rectilínea hacia el tumor [Ref-204]
+                    this.vx += Math.sin(this.z * 0.05) * 0.12;
+                    this.vy += Math.cos(this.x * 0.05) * 0.12;
+                }
+
+                if (this.type === 1) { // Vector VQ-01 [50]
+                    let target = nodes.find(n => n.type === 0 && !n.isLysed);
+                    if (target) {
+                        let dx = target.x - this.x; let dy = target.y - this.y; let dz = target.z - this.z;
+                        let dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                        if (dist < target.radius + 6) {
+                            if (!target.infected) {
+                                target.infected = true;
+                                totalFinancialVial += 350; // Amortización por evento de transfección [Ref-274]
+                                totalFinancialQC += 90;    // Costo indexado de control analítico [Ref-275]
+                            }
+                            this.x = (Math.random() - 0.5) * 650;
+                            this.y = (Math.random() - 0.5) * 650;
+                            this.z = (Math.random() - 0.5) * 650;
+                        } else {
+                            let factor = simulationMode === 'stroma' ? 0.09 : 0.22;
+                            this.vx += (dx / dist) * factor; this.vy += (dy / dist) * factor; this.vz += (dz / dist) * factor;
+                        }
+                    }
+                } 
+                
+                else if (this.type === 0) { // Muestra de Célula Tumoral [Ref-40]
+                    if (this.infected && !this.isLysed) {
+                        this.reprogrammingProgress += 0.0025;
+                        
+                        // Incremento evolutivo de los Estados Dinámicos Extras
+                        if (this.payloadExpression < 1.0) this.payloadExpression += 0.0035;
+                        if (this.antigenicUnmasking < 1.0) this.antigenicUnmasking += 0.005; // Desmascaramiento ICD [Ref-92]
+
+                        if (simulationMode === 'kinetic') {
+                            this.payloadExpression += 0.007;
+                            this.antigenicUnmasking += 0.012; // Aceleración por acoplamiento de afinidad TCR [Ref-62]
+                            this.reprogrammingProgress += 0.004;
+                        }
+
+                        if (this.reprogrammingProgress >= 1.0) {
+                            this.isLysed = true;
+                        }
+                        
+                        if (Math.random() < this.payloadExpression * 0.08) {
+                            let cytokine = new Node3D(3);
+                            cytokine.x = this.x; cytokine.y = this.y; cytokine.z = this.z;
+                            cytokine.vx = (Math.random() - 0.5) * 5; cytokine.vy = (Math.random() - 0.5) * 5; cytokine.vz = (Math.random() - 0.5) * 5;
+                            nodes.push(cytokine);
+                        }
+                    }
+                    if (this.isLysed) {
+                        this.lysisProgress += 0.01;
+                        this.radius = Math.max(0, 68 * (1 - this.lysisProgress));
+                        if (Math.random() < 0.18 && this.radius > 3) {
+                            antigensCount++;
+                        }
+                    }
+                } 
+                
+                else if (this.type === 2) { // Linfocitos T [Ref-63]
+                    let target = nodes.find(n => (n.type === 0 && n.antigenicUnmasking > 0.4) || n.type === 3);
+                    if (target) {
+                        let dx = target.x - this.x; let dy = target.y - this.y; let dz = target.z - this.z;
+                        let dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                        let acceleration = 0.12 + (target.antigenicUnmasking ? target.antigenicUnmasking * 0.15 : 0);
+                        this.vx += (dx / dist) * acceleration; 
+                        this.vy += (dy / dist) * acceleration; 
+                        this.vz += (dz / dist) * acceleration;
+                    }
+                }
+
+                // Amortiguación cinemática
+                let drag = simulationMode === 'stroma' ? 0.78 : 0.92;
+                this.vx *= drag; this.vy *= drag; this.vz *= drag;
+                this.x += this.vx; this.y += this.vy; this.z += this.vz;
+
+                // Algoritmo de Proyección Esférica Matricial Nativa
+                let cosX = Math.cos(angleX); let sinX = Math.sin(angleX);
+                let cosY = Math.cos(angleY); let sinY = Math.sin(angleY);
+
+                let y1 = this.y * cosX - this.z * sinX;
+                let z1 = this.y * sinX + this.z * cosX;
+                let x2 = this.x * cosY + z1 * sinY;
+                let z2 = -this.x * sinY + z1 * cosY;
+
+                this.projZ = z2 - cameraZ;
+                if (this.projZ > 0) {
+                    let scale = focalLength / this.projZ;
+                    this.projX = (x2 * scale) + (width / 2);
+                    this.projY = (y1 * scale) + (height / 2);
+                    this.projR = this.radius * scale;
+                }
+            }
+
+            draw() {
+                if (this.projZ <= 0 || this.radius <= 0) return;
+
+                ctx.beginPath();
+                let numPoints = this.type === 0 ? 50 : 10;
+                
+                for (let i = 0; i < numPoints; i++) {
+                    let angle = (i / numPoints) * Math.PI * 2;
+                    let wave = Math.sin(angle * 7 + this.pulseTime + this.membraneSeed) * (this.type === 0 ? 4 : 0.6);
+                    
+                    // Modificación morfológica estructural dictada por el ESTADO EXTRA de Desmascaramiento Antigénico (Da)
+                    if (this.type === 0 && this.infected) {
+                        wave += Math.sin(angle * 16) * (7 * this.antigenicUnmasking);
+                    }
+                    
+                    let r = this.projR + wave;
+                    let x = this.projX + Math.cos(angle) * r;
+                    let y = this.projY + Math.sin(angle) * r;
+                    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+
+                let specX = this.projX - this.projR * 0.2;
+                let specY = this.projY - this.projR * 0.2;
+                let specR = Math.max(0.1, this.projR * 0.04);
+                let gradient = ctx.createRadialGradient(specX, specY, specR, this.projX, this.projY, this.projR);
+
+                if (this.type === 0) {
+                    if (this.isLysed) {
+                        gradient.addColorStop(0, '#ef4444');
+                        gradient.addColorStop(0.6, 'rgba(150, 15, 45, 0.7)');
+                        gradient.addColorStop(1, 'rgba(25, 4, 10, 0.96)');
+                    } else if (this.infected) {
+                        // El color muta transdimensionalmente según la expresión combinada de los estados dinámicos extras
+                        let greenComponent = Math.floor(255 * (1 - this.antigenicUnmasking * 0.4));
+                        let blueComponent = Math.floor(204 + (this.payloadExpression * 51));
+                        gradient.addColorStop(0, `rgb(0, ${greenComponent}, ${blueComponent})`);
+                        gradient.addColorStop(0.5, 'rgba(2, 130, 160, 0.5)');
+                        gradient.addColorStop(1, 'rgba(3, 20, 38, 0.96)');
+                        
+                        this.drawNeoantigens(); // Antenas [Ref-60]
+                    } else {
+                        gradient.addColorStop(0, '#64748b');
+                        gradient.addColorStop(0.6, '#334155');
+                        gradient.addColorStop(1, 'rgba(15, 23, 42, 0.98)');
+                    }
+                } else if (this.type === 1) { // VQ-01 [Ref-50]
+                    gradient.addColorStop(0, '#ffffff');
+                    gradient.addColorStop(0.4, '#38bdf8');
+                    gradient.addColorStop(1, 'rgba(2, 132, 199, 0.85)');
+                } else if (this.type === 2) { // Células T [Ref-63]
+                    gradient.addColorStop(0, '#ffffff');
+                    gradient.addColorStop(0.3, '#818cf8');
+                    gradient.addColorStop(1, 'rgba(49, 46, 129, 0.95)');
+                    this.drawActivatedReceptors(); // Receptores [Ref-62]
+                } else if (this.type === 3) { // Citoquinas [Ref-64]
+                    gradient.addColorStop(0, '#f43f5e');
+                    gradient.addColorStop(1, 'rgba(244, 63, 94, 0)');
+                }
+
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                if (this.type === 0 && !this.isLysed) {
+                    ctx.strokeStyle = this.infected ? `rgba(0, 255, 204, ${0.4 + this.antigenicUnmasking * 0.5})` : 'rgba(100, 116, 139, 0.25)';
+                    ctx.lineWidth = 1.6;
+                    ctx.stroke();
+                }
+            }
+
+            drawNeoantigens() {
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+                ctx.lineWidth = 1.4;
+                let antennas = 12;
+                for (let a = 0; a < antennas; a++) {
+                    let angle = (a / antennas) * Math.PI * 2 + this.pulseTime * 0.05;
+                    let variableLength = 1.15 + (this.antigenicUnmasking * 0.3); 
+                    let startX = this.projX + Math.cos(angle) * this.projR;
+                    let startY = this.projY + Math.sin(angle) * this.projR;
+                    let endX = this.projX + Math.cos(angle) * (this.projR * variableLength);
+                    let endY = this.projY + Math.sin(angle) * (this.projR * variableLength);
+                    
+                    ctx.moveTo(startX, startY); ctx.lineTo(endX, endY); ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(endX, endY, Math.max(1, this.projR * 0.05), 0, Math.PI * 2);
+                    ctx.fillStyle = '#ffffff'; ctx.fill();
+                }
+            }
+
+            drawActivatedReceptors() {
+                ctx.strokeStyle = 'rgba(165, 180, 252, 0.75)';
+                ctx.lineWidth = 1.2;
+                for (let r = 0; r < 6; r++) {
+                    let angle = (r / 6) * Math.PI * 2 - this.pulseTime * 0.1;
+                    ctx.beginPath();
+                    ctx.arc(this.projX + Math.cos(angle)*this.projR, this.projY + Math.sin(angle)*this.projR, Math.max(1, this.projR * 0.15), 0, Math.PI, true);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        function injectPatentedVectors(screenX, screenY) {
+            let spatialX = (screenX - width / 2) * 1.3;
+            let spatialY = (screenY - height / 2) * 1.3;
+            for (let i = 0; i < 25; i++) {
+                let v = new Node3D(1);
+                v.x = spatialX + (Math.random() - 0.5) * 50;
+                v.y = spatialY + (Math.random() - 0.5) * 50;
+                v.z = (Math.random() - 0.5) * 90;
+                nodes.push(v);
+            }
+        }
+
+        function triggerKillSwitch() {
+            killSwitchActive = true;
+            crsGlobalScore = 0; 
+            setTimeout(() => { killSwitchActive = false; }, 2000);
+        }
+
+        function initArchitecture() {
+            nodes.length = 0; antigensCount = 0;
+            totalFinancialVial = 25000; // Inversión base amortizada [Ref-274]
+            totalFinancialQC = 6500;    // Costo inicial de ensayos de seguridad [Ref-275]
+            
+            for (let i = 0; i < 5; i++) nodes.push(new Node3D(0)); // Muestra Tumoral [40]
+            for (let i = 0; i < 100; i++) nodes.push(new Node3D(1)); // Biblioteca VQ-01 [50]
+            for (let i = 0; i < 15; i++) nodes.push(new Node3D(2)); // Células T [63]
+        }
+
+        function toggleMode(newMode) {
+            simulationMode = newMode;
+            document.querySelectorAll('#bottom-panel .btn').forEach(b => b.classList.remove('active'));
+            let activeBtn = document.getElementById('btn-' + newMode);
+            if (activeBtn) activeBtn.classList.add('active');
+        }
+
+        // Bucle Principal de Renderizado Avanzado
+        function renderLoop() {
+            ctx.fillStyle = 'rgba(2, 5, 11, 0.25)';
+            ctx.fillRect(0, 0, width, height);
+
+            // RENDERIZADO DEL NUEVO MÓDULO DE INTERFERENCIA ESTROMAL
+            // Dibuja la red tridimensional de fibras colágenas que dificultan el tropismo [Ref-204]
+            if (simulationMode === 'stroma') {
+                ctx.strokeStyle = 'rgba(234, 179, 8, 0.06)';
+                ctx.lineWidth = 1.5;
+                for (let i = 0; i < stromaDensity; i++) {
+                    ctx.beginPath();
+                    let dynamicY = (height / stromaDensity) * i + Math.sin(Date.now() * 0.001 + i) * 15;
+                    ctx.moveTo(0, dynamicY);
+                    ctx.bezierCurveTo(width * 0.25, dynamicY - 40, width * 0.75, dynamicY + 40, width, dynamicY);
+                    ctx.stroke();
+                }
+            }
+
+            if (!isDragging) {
+                angleY += 0.001; angleX += 0.0003;
+            }
+
+            nodes.sort((a, b) => b.projZ - a.projZ);
+
+            let infectedCount = 0; let lysedCount = 0;
+            let cumulativePayload = 0; let cumulativeUnmasking = 0;
+            let activeCytokines = 0;
+
+            nodes.forEach(node => {
+                node.update();
+                node.draw();
+                if (node.type === 0) {
+                    if (node.isLysed) lysedCount++;
+                    else if (node.infected) {
+                        infectedCount++;
+                        cumulativePayload += node.payloadExpression;
+                        cumulativeUnmasking += node.antigenicUnmasking;
+                    }
+                }
+                if (node.type === 3) activeCytokines++;
+            });
+
+            // Conexiones de Red Neuronal Artificial de Chimera-Select [20]
+            ctx.strokeStyle = 'rgba(0, 255, 204, 0.03)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let i = 0; i < nodes.length; i += 5) {
+                for (let j = i + 1; j < nodes.length; j += 12) {
+                    let d = Math.hypot(nodes[i].projX - nodes[j].projX, nodes[i].projY - nodes[j].projY);
+                    if (d < 140 && nodes[i].projZ > 0 && nodes[j].projZ > 0) {
+                        ctx.moveTo(nodes[i].projX, nodes[i].projY);
+                        ctx.lineTo(nodes[j].projX, nodes[j].projY);
+                    }
+                }
+            }
+            ctx.stroke();
+
+            // --- ACTUALIZACIÓN SINCRÓNICA MULTI-HUD ---
+            let totalNodes = nodes.filter(n => n.projZ > 0).length;
+            let efficiency = (((infectedCount * 0.3) + (lysedCount * 1.0)) / 5) * 100;
+            
+            if (!killSwitchActive) {
+                crsGlobalScore = Math.min(100, (activeCytokines * 0.8) + (cumulativePayload * 15));
+            }
+            let tcrDiversity = 12.4 + (lysedCount * 4.5) + (cumulativeUnmasking * 3);
+            let ctDnaLoad = (infectedCount * 2.5) + (lysedCount * 14.8) * (1 - Math.min(1, lysedCount / 5));
+
+            document.getElementById('txt-nodes').innerText = dict[currentLang].nodes + totalNodes;
+            document.getElementById('txt-antigens').innerText = dict[currentLang].antigens + antigensCount;
+            document.getElementById('txt-efficiency').innerText = dict[currentLang].efficiency + efficiency.toFixed(1) + "%";
+            
+            // Inyección de Datos en el HUD Biométrico Izquierdo
+            document.getElementById('val-crs').innerText = crsGlobalScore.toFixed(0) + "%";
+            document.getElementById('bar-crs').style.width = crsGlobalScore + "%";
+            document.getElementById('val-tcr').innerText = tcrDiversity.toFixed(1) + " Hz";
+            document.getElementById('bar-tcr').style.width = Math.min(100, tcrDiversity * 2) + "%";
+            document.getElementById('val-ctdna').innerText = ctDnaLoad.toFixed(2) + " cpm";
+            document.getElementById('bar-ctdna').style.width = Math.min(100, ctDnaLoad) + "%";
+
+            // INYECCIÓN DE DATOS EN EL NUEVO HUD ADICIONAL FINANCIERO (SECCIÓN VIII)
+            let combinedClinicalTotal = totalFinancialVial + totalFinancialQC + totalFinancialSeq;
+            document.getElementById('val-cost-vial').innerText = "\$" + totalFinancialVial.toLocaleString();
+            document.getElementById('val-cost-qc').innerText = "\$" + totalFinancialQC.toLocaleString();
+            document.getElementById('val-cost-seq').innerText = "\$" + totalFinancialSeq.toLocaleString();
+            document.getElementById('val-cost-total').innerText = "\$" + combinedClinicalTotal.toLocaleString();
+            
+            let financialBarWidth = Math.min(100, (combinedClinicalTotal / 184915) * 100); // Mapeado contra el rango alto [Ref-283]
+            document.getElementById('bar-financial').style.width = financialBarWidth + "%";
+
+            requestAnimationFrame(renderLoop);
+        }
+
+        initArchitecture();
+        setLang('es');
+        renderLoop();
+    </script>
+</body>
+</html>
