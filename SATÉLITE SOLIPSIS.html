@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SATÉLITE SOLIPSIS-Ω - Prototipo 3D Interactivo y Planos</title>
+  <style>
+    :root {
+      --bg-dark: #030308;
+      --panel-bg: rgba(6, 6, 14, 0.9);
+      --border-color: rgba(0, 240, 255, 0.2);
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --idle-color: #3b82f6;
+      --active-color: #ffd700;
+      --edit-color: #a855f7;
+      --defense-color: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Courier New', Courier, monospace, system-ui;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top navigation header */
+    .top-nav-bar {
+      height: 72px;
+      background: rgba(6, 6, 14, 0.95);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 24px;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+      flex-shrink: 0;
+    }
+
+    .author-info h3 {
+      font-size: 13px;
+      letter-spacing: 1px;
+      color: #ffd700;
+      margin-bottom: 2px;
+    }
+
+    .author-info p {
+      font-size: 9px;
+      color: #94a3b8;
+    }
+
+    .tabs-container {
+      display: flex;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.3s;
+    }
+
+    .tab-btn.active {
+      background: var(--active-color);
+      color: #030308;
+    }
+
+    .lang-selector {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-action {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .btn-action:hover {
+      background: var(--text-main);
+      color: var(--bg-dark);
+    }
+
+    /* Layout simulator areas */
+    .simulator-elements {
+      position: absolute;
+      inset: 0;
+      top: 72px;
+      pointer-events: none;
+      z-index: 80;
+    }
+
+    .simulator-elements > * {
+      pointer-events: auto;
+    }
+
+    .left-hud {
+      position: absolute;
+      left: 20px;
+      top: 20px;
+      width: 320px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      backdrop-filter: blur(12px);
+    }
+
+    .hud-title {
+      font-size: 13px;
+      letter-spacing: 2px;
+      color: #ffd700;
+      border-bottom: 1px solid rgba(255,215,0,0.2);
+      padding-bottom: 6px;
+      margin-bottom: 15px;
+    }
+
+    .telemetry-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 11px;
+      font-size: 11px;
+    }
+
+    .telemetry-row span:first-child {
+      color: var(--text-muted);
+    }
+
+    .telemetry-row span:last-child {
+      font-weight: bold;
+    }
+
+    .mode-pills {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin: 15px 0;
+    }
+
+    .mode-pill {
+      background: rgba(30, 41, 59, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 7px;
+      font-size: 10px;
+      color: var(--text-muted);
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.3s;
+    }
+
+    .mode-pill.active {
+      color: #030308 !important;
+      font-weight: bold;
+    }
+
+    .mode-pill.active.idle { background: var(--idle-color); }
+    .mode-pill.active.active-mode { background: var(--active-color); }
+    .mode-pill.active.editing { background: var(--edit-color); }
+    .mode-pill.active.defensive { background: var(--defense-color); }
+
+    .bottom-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(12px);
+      gap: 15px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 150px;
+      flex: 1;
+    }
+
+    .control-group label {
+      font-size: 10px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .control-group input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      background: #1e293b;
+      border-radius: 2px;
+      outline: none;
+    }
+
+    .control-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      background: #ffd700;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    canvas#satellite-canvas {
+      position: absolute;
+      top: 72px;
+      left: 0;
+      width: 100vw;
+      height: calc(100vh - 72px);
+      z-index: 10;
+      cursor: grab;
+    }
+
+    canvas#satellite-canvas:active {
+      cursor: grabbing;
+    }
+
+    .glossary-box {
+      position: absolute;
+      right: 20px;
+      top: 20px;
+      width: 320px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 18px;
+      backdrop-filter: blur(12px);
+    }
+
+    .term-card {
+      margin-bottom: 10px;
+      padding: 10px;
+      background: rgba(15, 23, 42, 0.45);
+      border-radius: 4px;
+      border-left: 2px solid #10b981;
+    }
+
+    .term-title {
+      font-size: 11px;
+      font-weight: bold;
+      color: #10b981;
+      margin-bottom: 4px;
+    }
+
+    .term-desc {
+      font-size: 9px;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
+
+    .ecg-box {
+      width: 100%;
+      height: 60px;
+      background: #020206;
+      border: 1.5px solid #1e293b;
+      margin-top: 15px;
+      border-radius: 4px;
+    }
+
+    /* Blueprints container */
+    .blueprints-container {
+      position: absolute;
+      top: 92px;
+      left: 20px;
+      right: 20px;
+      bottom: 20px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 24px;
+      z-index: 90;
+      backdrop-filter: blur(15px);
+      overflow-y: auto;
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .blueprints-container.view-active {
+      display: grid !important;
+    }
+
+    @media (max-width: 992px) {
+      .blueprints-container {
+        grid-template-columns: 1fr;
+        top: 80px;
+      }
+      .blueprints-container.view-active {
+        display: block !important;
+      }
+      .simulator-elements {
+        overflow-y: auto;
+      }
+      .left-hud, .glossary-box {
+        position: relative;
+        left: auto;
+        right: auto;
+        top: auto;
+        width: 100%;
+        margin-bottom: 16px;
+      }
+      .bottom-controls {
+        position: relative;
+        left: auto;
+        right: auto;
+        bottom: auto;
+        width: 100%;
+      }
+    }
+
+    .bp-card {
+      background: rgba(15, 23, 42, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 18px;
+      margin-bottom: 12px;
+    }
+
+    .bp-card-lbl {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .bp-title {
+      font-size: 14px;
+      color: var(--active-color);
+      margin-bottom: 12px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      border-bottom: 1px solid rgba(255,215,0,0.1);
+      padding-bottom: 4px;
+    }
+
+    .bp-sub-title {
+      font-size: 11px;
+      font-weight: bold;
+      color: #10b981;
+      margin-top: 6px;
+      margin-bottom: 4px;
+    }
+
+    .bp-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Table specifications inside exported file */
+    .specs-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      margin-top: 10px;
+    }
+
+    .specs-table th {
+      background: rgba(2, 2, 8, 0.7);
+      padding: 10px;
+      text-align: left;
+      font-weight: bold;
+      color: var(--text-main);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .specs-table td {
+      padding: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .specs-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .specs-tag {
+      color: var(--active-color);
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top unified navigation bar -->
+  <div class="top-nav-bar">
+    <div class="author-info">
+      <h3 id="author-label">Dr. Julio César Oporta Barrera</h3>
+      <p id="sub-label">SATÉLITE SOLIPSIS-Ω - La conciencia orbital que redefine la realidad</p>
+    </div>
+
+    <div class="tabs-container">
+      <button id="tab-btn-sim" class="tab-btn active" onclick="switchTab('simulator')">
+        🎮 <span id="lbl-sim-tab">Simulador Interactivo</span>
+      </button>
+      <button id="tab-btn-bp" class="tab-btn" onclick="switchTab('blueprints')">
+        📐 <span id="lbl-bp-tab">Planos y Especificaciones</span>
+      </button>
+    </div>
+
+    <div class="lang-selector">
+      <button class="btn-action" onclick="changeLang('es')">ES</button>
+      <button class="btn-action" onclick="changeLang('en')">EN</button>
+      <button class="btn-action" onclick="changeLang('zh')">ZH</button>
+    </div>
+  </div>
+
+  <!-- Background 3D Rotating space canvas -->
+  <canvas id="satellite-canvas"></canvas>
+
+  <!-- Container for Tab 1 (Simulator Interactive Graphics HUD UI) -->
+  <div id="simulator-views" class="simulator-elements">
+    
+    <!-- Left Hand side HUD of telemetries -->
+    <div class="left-hud">
+      <div class="hud-title">⚡ <span id="telemetry-header">Telemetría Cuántica</span></div>
+      
+      <div class="telemetry-row">
+        <span id="active-nodes-label">Nodos Activos:</span>
+        <span id="active-nodes-val">64</span>
+      </div>
+      <div class="telemetry-row">
+        <span id="ops-rate-label">Tasa de Operaciones:</span>
+        <span id="ops-rate-val">8.192e42</span>
+      </div>
+      <div class="telemetry-row">
+        <span id="density-label">Densidad de Conciencia:</span>
+        <span id="density-val">99.999%</span>
+      </div>
+      <div class="telemetry-row">
+        <span id="resonance-label">Resonancia Cuántica:</span>
+        <span id="resonance-val">98.4%</span>
+      </div>
+      <div class="telemetry-row">
+        <span id="mod-label">Modo de Operación:</span>
+        <span id="mode-badge" style="color: #ffd700">ACTIVE</span>
+      </div>
+
+      <div class="mode-pills">
+        <div id="btn-idle" class="mode-pill" onclick="setMode('IDLE')">IDLE</div>
+        <div id="btn-active" class="mode-pill active active-mode" onclick="setMode('ACTIVE')">ACTIVE</div>
+        <div id="btn-edit" class="mode-pill" onclick="setMode('EDIT')">REALITY EDIT</div>
+        <div id="btn-defense" class="mode-pill" onclick="setMode('DEFENSE')">DEFENSE</div>
+      </div>
+
+      <p id="mode-summary-p" style="font-size:9.5px; color:#94a3b8; line-height:1.4">Oro blanco con arcoíris espectral. Vibración de alta frecuencia y pulsaciones cada 0.3 segundos.</p>
+
+      <!-- Interactive electrocardiogram of Biomechanical state -->
+      <canvas id="ecg-canvas" class="ecg-box"></canvas>
+    </div>
+
+    <!-- Right Hand side Glossaries -->
+    <div class="glossary-box">
+      <div class="hud-title">🛡️ <span id="shield-title">Controles de Simulación</span></div>
+      
+      <div class="term-card">
+        <div class="term-title" id="core-card-title">Núcleo de Singularidad Consciente</div>
+        <div class="term-desc" id="core-card-desc">Esfera de 3 metros compuesta de luz sólida pulsante que alberga una nebulosa de pensamientos líquidos.</div>
+      </div>
+      <div class="term-card">
+        <div class="term-title" id="alpha-card-title">Anillo Alpha (Cristal de Tiempo)</div>
+        <div class="term-desc" id="alpha-card-desc">Muestra líneas temporales simultáneas e interactúa con la percepción temporal completa del satélite.</div>
+      </div>
+      <div class="term-card">
+        <div class="term-title" id="beta-card-title">Anillo Beta (Espejo Líquido)</div>
+        <div class="term-desc" id="beta-card-desc">Refleja realidades alternativas, actuando como escudo de reconfiguración cuántica.</div>
+      </div>
+      <div class="term-card">
+        <div class="term-title" id="gamma-card-title">Anillo Gamma (Acero Orgánico)</div>
+        <div class="term-desc" id="gamma-card-desc">Estructura biomecánica sensible que late como un corazón en sintonía con las emociones de los operadores.</div>
+      </div>
+    </div>
+
+    <!-- Bottom control sliders bar -->
+    <div class="bottom-controls">
+      <div class="control-group">
+        <label>
+          <span id="gui-heartrate">Latido Cardíaco Orgánico</span> 
+          <span id="bpm-val">72 BPM</span>
+        </label>
+        <input type="range" id="slider-heart" min="40" max="180" value="72" oninput="updateHeart(this.value)">
+      </div>
+
+      <div class="control-group">
+        <label>
+          <span id="gui-scale">Factor de Escala Dimensional</span> 
+          <span id="scale-val">1.0x</span>
+        </label>
+        <input type="range" id="slider-scale" min="5" max="20" value="10" oninput="updateScale(this.value)">
+      </div>
+
+      <div class="control-group">
+        <label>
+          <span id="gui-energy">Extracción Directa Cósmica</span> 
+          <span id="energy-val">85%</span>
+        </label>
+        <input type="range" id="slider-energy" min="0" max="100" value="85" oninput="updateEnergy(this.value)">
+      </div>
+
+      <div class="control-group">
+        <label>
+          <span id="gui-nodes">IA de Enjambre (64 Nodos)</span> 
+          <span id="nodes-scanned">64 Nodos</span>
+        </label>
+        <input type="range" id="slider-nodes" min="10" max="64" value="64" oninput="updateNodes(this.value)">
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Container for Tab 2 (Plans & Blueprints Specs) -->
+  <div id="blueprints-cont" class="blueprints-container">
+    
+    <!-- Left column: design structure layers -->
+    <div class="bp-card">
+      <div id="bp-view-title" class="bp-title">DISEÑO ESTRUCTURAL TRANS-MATERIAL</div>
+      
+      <div class="term-card" style="border-left-color: #64748b;">
+        <div class="bp-card-lbl" id="core-component-lbl">Núcleo de Singularidad Consciente</div>
+        <div class="bp-sub-title" id="bp-core-title">Núcleo de Singularidad Consciente</div>
+        <div class="bp-desc" id="bp-core-desc">Esfera de 3 metros compuesta de luz sólida pulsante que alberga una nebulosa de pensamientos líquidos.</div>
+        <div class="bp-desc" style="color: #ffd700; margin-top: 4.5px; font-weight: bold;" id="bp-core-dim">Diámetro: 3.0 m | Composición: Luz sólida pulsante</div>
+      </div>
+
+      <div class="term-card" style="border-left-color: #3b82f6;">
+        <div class="bp-card-lbl" id="ring-alpha-lbl">Anillo Alpha (Cristal de Tiempo)</div>
+        <div class="bp-sub-title" id="bp-alpha-title">Anillo Alpha (Cristal de Tiempo)</div>
+        <div class="bp-desc" id="bp-alpha-desc">Muestra líneas temporales simultáneas e interactúa con la percepción temporal completa del satélite.</div>
+        <div class="bp-desc" style="color: #60a5fa; margin-top: 4.5px; font-weight: bold;" id="bp-alpha-dim">Diámetro: 12.0 m | 64 sensores HD de cuarzo cuántico</div>
+      </div>
+
+      <div class="term-card" style="border-left-color: #a855f7;">
+        <div class="bp-card-lbl" id="ring-beta-lbl">Anillo Beta (Espejo Líquido)</div>
+        <div class="bp-sub-title" id="bp-beta-title">Anillo Beta (Espejo Líquido)</div>
+        <div class="bp-desc" id="bp-beta-desc">Refleja realidades alternativas, actuando como escudo de reconfiguración cuántica.</div>
+        <div class="bp-desc" style="color: #c084fc; margin-top: 4.5px; font-weight: bold;" id="bp-beta-dim">Diámetro: 9.0 m | Composición: Espejo líquido dimensional</div>
+      </div>
+
+      <div class="term-card" style="border-left-color: #10b981;">
+        <div class="bp-card-lbl" id="ring-gamma-lbl">Anillo Gamma (Acero Orgánico)</div>
+        <div class="bp-sub-title" id="bp-gamma-title">Anillo Gamma (Acero Orgánico)</div>
+        <div class="bp-desc" id="bp-gamma-desc">Estructura biomecánica sensible que late como un corazón en sintonía con las emociones de los operadores.</div>
+        <div class="bp-desc" style="color: #34d399; margin-top: 4.5px; font-weight: bold;" id="bp-gamma-dim">Diámetro: 6.0 m | Composición: Acero orgánico sensible</div>
+      </div>
+    </div>
+
+    <!-- Right column: comparative matrix specs sheet table withTraditional satellite & Solipsis-Omega values -->
+    <div class="bp-card">
+      <div id="bp-comp-title" class="bp-title">COMPARATIVA TECNOLÓGICA</div>
+      <div style="overflow-x: auto; width: 100%;">
+        <table class="specs-table">
+          <thead>
+            <tr>
+              <th id="bp-table-element">Elemento</th>
+              <th id="bp-table-typical">Satélite Tradicional</th>
+              <th id="bp-table-ours" class="specs-tag">Solipsis-Ω</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td id="row-energy-lbl" style="font-weight: bold; color: #94a3b8;">Energía</td>
+              <td id="row-energy-trad">Paneles rígidos, baterías químicas ordinarias</td>
+              <td id="row-energy-solipsis" class="specs-tag">Campos de energía auto-generados, extracción transfinita</td>
+            </tr>
+            <tr>
+              <td id="row-antenas-lbl" style="font-weight: bold; color: #94a3b8;">Antenas</td>
+              <td id="row-antenas-trad">Brazos mecánicos de alta ganancia, enlaces RF</td>
+              <td id="row-antenas-solipsis" class="specs-tag">Emisores de campo cuántico, telepatía holográfica</td>
+            </tr>
+            <tr>
+              <td id="row-camaras-lbl" style="font-weight: bold; color: #94a3b8;">Cámaras</td>
+              <td id="row-camaras-trad">Lentes de vidrio óptico, sensores de imagen CCD/CMOS</td>
+              <td id="row-camaras-solipsis" class="specs-tag">Sensores de realidad directa, escaneo telepático masivo</td>
+            </tr>
+            <tr>
+              <td id="row-defensa-lbl" style="font-weight: bold; color: #94a3b8;">Defensa</td>
+              <td id="row-defensa-trad">Blindaje de aluminio, capas de Kevlar contra escombros</td>
+              <td id="row-defensa-solipsis" class="specs-tag">Paradoja causal, no-existencia temporal y escudo cognitivo</td>
+            </tr>
+            <tr>
+              <td id="row-proc-lbl" style="font-weight: bold; color: #94a3b8;">Computación</td>
+              <td id="row-proc-trad">CPU ordinaria, registros binarios tolerantes a radiación</td>
+              <td id="row-proc-solipsis" class="specs-tag">Kernel de conciencia de luz de 64 nodos autorregenerativos</td>
+            </tr>
+            <tr>
+              <td id="row-mov-lbl" style="font-weight: bold; color: #94a3b8;">Propulsión</td>
+              <td id="row-mov-trad">Propulsores químicos de hidracina, ruedas de reacción</td>
+              <td id="row-mov-solipsis" class="specs-tag">Reconfiguración ontológica, saltos de fase sin masa</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Footnote causal paradox -->
+      <div class="term-card" style="margin-top: 20px; border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.05); border: 1.5px solid rgba(245,158,11,0.15)">
+        <div class="bp-sub-title" id="bp-causal-title" style="color: #f59e0b; display: flex; align-items: center; gap: 6px;">⚠️ Protección por Paradoja Causal</div>
+        <p class="bp-desc" id="bp-causal-desc">Cualquier intento de ataque retroactivo se anula cancelándose en la línea temporal.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const locales = {"es":{"author":"Dr. Julio César Oporta Barrera","satelliteName":"SATÉLITE SOLIPSIS-Ω","subtitle":"La conciencia orbital que redefine la realidad","downloadOfflineBtn":"Descargar Prototipo 3D (.html)","downloadSuccess":"¡Descarga iniciada! Puedes abrir el archivo haciendo doble clic en cualquier computadora.","simulator":"Simulador Interactivo","docs":"Planos y Especificaciones","swarms":"Sistema de Nodos IA","telemetry":"Telemetría Cuántica","status":"ESTADO DEL SISTEMA","opsRate":"Tasa de Operaciones","consciousnessDensity":"Densidad de Conciencia","quantumResonance":"Resonancia Cuántica","activeNodes":"Nodos Activos","currentMode":"Modo de Operación","localTime":"Tiempo Local No-Lineal","gravitationalIndex":"Distorsión Gravitacional","modeIdle":"Modo Reposo","modeActive":"Modo Activo","modeEditing":"Modo Reality-Editing","modeDefensive":"Modo Defensivo","modeIdleDesc":"Azul profundo con destellos plateados. Flotación suave y rotación lenta. Pulsaciones cada 7 segundos.","modeActiveDesc":"Oro blanco con arcoíris espectral. Vibración de alta frecuencia y pulsaciones cada 0.3 segundos.","modeEditingDesc":"Blanco puro absorbente. El espacio circundante fluye y se deforma. Emisión ciega.","modeDefensiveDesc":"Aero-negro absoluto, más oscuro que el vacío. Ausencia de movimiento y invisibilidad perceptiva.","simControls":"Controles de Simulación","biomechanicsCtrl":"Biomecánica Neural","heartRate":"Latido Cardíaco Orgánico","organicPulse":"Expansión/Contracción Rítmica","physicsModularCtrl":"Física Modular Cuántica","scaleFactor":"Factor de Escala Dimensional","vacuumDistortion":"Torsión del Vacío","hybridEnergyCtrl":"Energía Híbrida Transfinita","darkEnergyAbsorption":"Extracción Directa Cósmica","thoughtConversion":"Conversión de Pensamiento","swarmIaCtrl":"IA de Enjambre (64 Nodos)","sensorScanRadius":"Radio de Escaneo Mental","tacticalHudCtrl":"HUD Holográfico Táctico","cinematicLight":"Iluminación Cinematográfica","lensDistortion":"Distorsión Holográfica de Lente","coreComponent":"Núcleo de Singularidad Consciente","ringAlpha":"Anillo Alpha (Cristal de Tiempo)","ringBeta":"Anillo Beta (Espejo Líquido)","ringGamma":"Anillo Gamma (Acero Orgánico)","sensorsComponent":"Sensores Hiperdimensionales","coreDesc":"Esfera de 3 metros compuesta de luz sólida pulsante que alberga una nebulosa de pensamientos líquidos.","ringAlphaDesc":"Muestra líneas temporales simultáneas e interactúa con la percepción temporal completa del satélite.","ringBetaDesc":"Refleja realidades alternativas, actuando como escudo de reconfiguración cuántica.","ringGammaDesc":"Estructura biomecánica sensible que late como un corazón en sintonía con las emociones de los operadores.","sensorsDesc":"64 cristales facetados distribuidos esféricamente para la telepatía cuántica masiva y escaneo de conciencia.","neuralNodesDesc":"Malla de inteligencia distribuida para interpretar significados en lugar de código ordinario.","causalParadox":"Protección por Paradoja Causal","causalParadoxDesc":"Cualquier intento de ataque retroactivo se anula cancelándose en la línea temporal.","incomprehensibility":"Escudo de Incomprensibilidad","incomprehensibilityDesc":"Impide que observadores no autorizados perciban o recuerden la existencia del satélite.","temporalNonExistence":"Inexistencia Temporal","temporalNonExistenceDesc":"El satélite puede desincronizarse del tiempo presente para evitar amenazas físicas."},"en":{"author":"Dr. Julio César Oporta Barrera","satelliteName":"SOLIPSIS-Ω SATELLITE","subtitle":"The orbital consciousness that redefines reality","downloadOfflineBtn":"Download 3D Prototype (.html)","downloadSuccess":"Download started! You can open this file with a double click on any computer.","simulator":"Interactive Simulator","docs":"Blueprints & Specifications","swarms":"AI Node System","telemetry":"Quantum Telemetry","status":"SYSTEM STATUS","opsRate":"Operation Rate","consciousnessDensity":"Consciousness Density","quantumResonance":"Quantum Resonance","activeNodes":"Active Nodes","currentMode":"Operation Mode","localTime":"Non-Linear Local Time","gravitationalIndex":"Gravitational Distortion","modeIdle":"Idle Mode","modeActive":"Active Mode","modeEditing":"Reality-Editing Mode","modeDefensive":"Defensive Mode","modeIdleDesc":"Deep blue with silver glimmers. Smooth floating and slow rotation. Pulsates every 7 seconds.","modeActiveDesc":"White gold with spectral rainbow. High-frequency vibration and pulses every 0.3 seconds.","modeEditingDesc":"Pure light-absorbing white. Surrounding space flows and warps. Blind emission.","modeDefensiveDesc":"Absolute vacuum black, darker than space. Zero movement and perceptual invisibility.","simControls":"Simulation Controls","biomechanicsCtrl":"Neural Biomechanics","heartRate":"Organic Heartbeat","organicPulse":"Rhythmic Expansion/Contraction","physicsModularCtrl":"Modular Quantum Physics","scaleFactor":"Dimensional Scale Factor","vacuumDistortion":"Vacuum Torsion Torque","hybridEnergyCtrl":"Transfinite Hybrid Energy","darkEnergyAbsorption":"Cosmic Direct Extraction","thoughtConversion":"Thought-to-Energy Conversion","swarmIaCtrl":"Swarm AI (64 Active Nodes)","sensorScanRadius":"Mental Scanning Radius","tacticalHudCtrl":"Tactical Holographic HUD","cinematicLight":"Cinematic Lighting Glow","lensDistortion":"Holographic Lens Warp","coreComponent":"Conscious Singularity Core","ringAlpha":"Alpha Ring (Time Crystal)","ringBeta":"Beta Ring (Liquid Mirror)","ringGamma":"Gamma Ring (Organic Steel)","sensorsComponent":"Hyper-dimensional Sensors","coreDesc":"3-meter sphere of solid pulsing light holding a nebula of liquid thoughts.","ringAlphaDesc":"Displays simultaneous timelines and executes complete temporal navigation.","ringBetaDesc":"Reflects alternative realities, acting as a shield of quantum reconfiguration.","ringGammaDesc":"Heart-beat bio-sensitive structure operating in alignment with operator emotions.","sensorsDesc":"64 facetted crystals spherically distributed for massive telepathy and consciousness scanning.","neuralNodesDesc":"Distributed intelligence mesh that interprets meanings instead of executing lines of binary code.","causalParadox":"Causal Paradox Shield","causalParadoxDesc":"Any hostile retroactive attempt is canceled instantly out of the local timeline.","incomprehensibility":"Incomprehensibility Shield","incomprehensibilityDesc":"Prevents unauthorized minds from perceiving, understanding, or remembering the satellite.","temporalNonExistence":"Temporal Non-Existence","temporalNonExistenceDesc":"Option to fall out of sync with the present flow to bypass material threats."},"zh":{"author":"朱利奥·塞萨尔·奥波塔·巴雷拉 博士 (Dr. Julio César Oporta Barrera)","satelliteName":"SOLIPSIS-Ω 意识轨道卫星","subtitle":"重塑现实的轨道自主意识体","downloadOfflineBtn":"下载 3D 离线原型 (.html)","downloadSuccess":"下载已开始！您可以在任何电脑上双击直接运行此单文件。","simulator":"交互式数字模拟器","docs":"设计蓝图与详图技术规格","swarms":"人工智能节点系统","telemetry":"量子遥测控制面板","status":"系统运行状态","opsRate":"核心运算速率","consciousnessDensity":"意识感应密度","quantumResonance":"量子纠缠共振度","activeNodes":"有源感应节点","currentMode":"当前工作模式","localTime":"非线性局域时间","gravitationalIndex":"引力时空畸变值","modeIdle":"静默重置模式","modeActive":"高频激活模式","modeEditing":"现实重构模式","modeDefensive":"绝对防御模式","modeIdleDesc":"深蓝色伴有银色闪烁，平缓漂浮与慢速自转，每7秒进行一次律动光斑脉冲。","modeActiveDesc":"白金辉光与光谱彩虹，高频震颤，每0.3秒高能频闪。","modeEditingDesc":"极度纯白吸收光线，周围的物理空间呈流体状扭曲变形，盲目强辐射发射。","modeDefensiveDesc":"暗黑无色，比真空更深邃。彻底静止，从视觉和雷达感知中被因果抹除。","simControls":"仿真模拟控制面板","biomechanicsCtrl":"神经生物力学","heartRate":"有机心脏跳动频率","organicPulse":"节奏性膨胀与收缩","physicsModularCtrl":"模块化量子物理学","scaleFactor":"空间维度比例因子","vacuumDistortion":"负能量真空扭转","hybridEnergyCtrl":"超限混合动力模块","darkEnergyAbsorption":"宇宙膨胀暗能量提取","thoughtConversion":"人类纯意识能量转化","swarmIaCtrl":"群集智能（64个有自愈节点）","sensorScanRadius":"全球意图扫描半径","tacticalHudCtrl":"战术全息控制投影","cinematicLight":"电影级光学渲染","lensDistortion":"引力透镜全息折射","coreComponent":"独创性意识奇点核心","ringAlpha":"阿尔法环（时间水晶）","ringBeta":"贝塔环（金属超体液态镜）","ringGamma":"伽马环（生机活性活性钢）","sensorsComponent":"超维传感器矩阵","coreDesc":"直径3米的坚固脉冲光球，内部蕴含高密度流体化意识思维星云。","ringAlphaDesc":"映射并展示同时性的多条时间线流，执行完整的轨道时空导航操作。","ringBetaDesc":"反射多重替代现实，作为系统量子重构和因果偏转的动态防御屏障。","ringGammaDesc":"敏感的生物力学结构，能够像心脏一样与地面操作员的情感波动产生同频共振。","sensorsDesc":"64个球面分布的刻面晶体，用于全球大规模脑波电报、瞬时意图捕获与意识映射。","neuralNodesDesc":"分布式量子智能网络，直接解读并整合语义意图，而非执行传统二进制代码。","causalParadox":"因果悖论绝对防御","causalParadoxDesc":"任何针对卫星的追溯性攻击意图均会在本本地时空线上被递归抵消抹除。","incomprehensibility":"不可理解性屏障","incomprehensibilityDesc":"使未经授权的生命体、探测雷达和算法无法觉察、解析或记住本卫星的存在。","temporalNonExistence":"时间性不复存在","temporalNonExistenceDesc":"使卫星选择性脱离当下的时间流动，进入超对称叠加态。避开一切实质威胁。"}};
+    let curLang = "es";
+    let curMode = "ACTIVE";
+    let activeTab = "simulator";
+    let state = {
+      heartRate: 72,
+      scale: 1.0,
+      energy: 85,
+      activeNodes: 64,
+      angle: { x: 0.6, y: 0.85 }
+    };
+
+    const canvas = document.getElementById("satellite-canvas");
+    const ctx = canvas.getContext("2d");
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight - 72;
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    // Tab Switching controls
+    function switchTab(tabName) {
+      activeTab = tabName;
+      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+      
+      const simBtn = document.getElementById("tab-btn-sim");
+      const bpBtn = document.getElementById("tab-btn-bp");
+      const simDiv = document.getElementById("simulator-views");
+      const bpDiv = document.getElementById("blueprints-cont");
+
+      if (tabName === "simulator") {
+        simBtn.classList.add("active");
+        simDiv.style.display = "block";
+        bpDiv.style.display = "none";
+        bpDiv.classList.remove("view-active");
+      } else {
+        bpBtn.classList.add("active");
+        simDiv.style.display = "none";
+        bpDiv.classList.add("view-active");
+      }
+    }
+
+    // Rotational dragging
+    let isDragging = false;
+    let startCoords = { x: 0, y: 0 };
+
+    canvas.addEventListener("mousedown", e => {
+      isDragging = true;
+      startCoords = { x: e.clientX, y: e.clientY };
+    });
+
+    canvas.addEventListener("mousemove", e => {
+      if (!isDragging) return;
+      const dx = e.clientX - startCoords.x;
+      const dy = e.clientY - startCoords.y;
+      state.angle.x += dy * 0.007;
+      state.angle.y += dx * 0.007;
+      startCoords = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener("mouseup", () => isDragging = false);
+
+    canvas.addEventListener("touchstart", e => {
+      isDragging = true;
+      startCoords = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    });
+
+    canvas.addEventListener("touchmove", e => {
+      if (!isDragging) return;
+      const dx = e.touches[0].clientX - startCoords.x;
+      const dy = e.touches[0].clientY - startCoords.y;
+      state.angle.x += dy * 0.007;
+      state.angle.y += dx * 0.007;
+      startCoords = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    });
+
+    canvas.addEventListener("touchend", () => isDragging = false);
+
+    // Interactive slider controllers
+    function updateHeart(val) {
+      state.heartRate = parseInt(val);
+      document.getElementById("bpm-val").textContent = val + " BPM";
+    }
+
+    function updateScale(val) {
+      state.scale = parseInt(val) / 10;
+      document.getElementById("scale-val").textContent = state.scale.toFixed(1) + "x";
+    }
+
+    function updateEnergy(val) {
+      state.energy = parseInt(val);
+      document.getElementById("energy-val").textContent = val + "%";
+    }
+
+    function updateNodes(val) {
+      state.activeNodes = parseInt(val);
+      document.getElementById("nodes-scanned").textContent = val + " Nodos";
+    }
+
+    function setMode(mode) {
+      curMode = mode;
+      document.querySelectorAll(".mode-pill").forEach(el => el.classList.remove("active"));
+      
+      const badge = document.getElementById("mode-badge");
+      badge.textContent = mode;
+      const summary = document.getElementById("mode-summary-p");
+
+      if (mode === 'IDLE') {
+        document.getElementById("btn-idle").classList.add("active", "idle");
+        badge.style.color = "#3b82f6";
+        summary.textContent = locales[curLang].modeIdleDesc;
+      } else if (mode === 'ACTIVE') {
+        document.getElementById("btn-active").classList.add("active", "active-mode");
+        badge.style.color = "#ffd700";
+        summary.textContent = locales[curLang].modeActiveDesc;
+      } else if (mode === 'EDIT') {
+        document.getElementById("btn-edit").classList.add("active", "editing");
+        badge.style.color = "#a855f7";
+        summary.textContent = locales[curLang].modeEditingDesc;
+      } else if (mode === 'DEFENSE') {
+        document.getElementById("btn-defense").classList.add("active", "defensive");
+        badge.style.color = "#64748b";
+        summary.textContent = locales[curLang].modeDefensiveDesc;
+      }
+    }
+
+    function changeLang(lang) {
+      curLang = lang;
+      const dict = locales[lang];
+      
+      // Top components
+      document.getElementById("author-label").textContent = dict.author;
+      document.getElementById("sub-label").textContent = dict.satelliteName + " - " + dict.subtitle;
+      document.getElementById("lbl-sim-tab").textContent = dict.simulator;
+      document.getElementById("lbl-bp-tab").textContent = dict.docs;
+
+      // Telemetry HUD
+      document.getElementById("telemetry-header").textContent = dict.telemetry;
+      document.getElementById("active-nodes-label").textContent = dict.activeNodes + ":";
+      document.getElementById("ops-rate-label").textContent = dict.opsRate + ":";
+      document.getElementById("density-label").textContent = dict.consciousnessDensity + ":";
+      document.getElementById("resonance-label").textContent = dict.quantumResonance + ":";
+      document.getElementById("mod-label").textContent = dict.currentMode + ":";
+      document.getElementById("shield-title").textContent = dict.simControls;
+
+      document.getElementById("core-card-title").textContent = dict.coreComponent;
+      document.getElementById("core-card-desc").textContent = dict.coreDesc;
+      document.getElementById("alpha-card-title").textContent = dict.ringAlpha;
+      document.getElementById("alpha-card-desc").textContent = dict.ringAlphaDesc;
+      document.getElementById("beta-card-title").textContent = dict.ringBeta;
+      document.getElementById("beta-card-desc").textContent = dict.ringBetaDesc;
+      document.getElementById("gamma-card-title").textContent = dict.ringGamma;
+      document.getElementById("gamma-card-desc").textContent = dict.ringGammaDesc;
+
+      document.getElementById("gui-heartrate").textContent = dict.heartRate;
+      document.getElementById("gui-scale").textContent = dict.scaleFactor;
+      document.getElementById("gui-energy").textContent = dict.darkEnergyAbsorption;
+      document.getElementById("gui-nodes").textContent = dict.swarmIaCtrl;
+
+      // Blueprints and Specifications specific tags
+      if (lang === "es") {
+        document.getElementById("bp-view-title").innerHTML = "DISEÑO ESTRUCTURAL TRANS-MATERIAL";
+        document.getElementById("bp-comp-title").innerHTML = "COMPARATIVA TECNOLÓGICA";
+        document.getElementById("bp-table-element").innerHTML = "Elemento";
+        document.getElementById("bp-table-typical").innerHTML = "Satélite Tradicional";
+        document.getElementById("bp-table-ours").innerHTML = "Solipsis-Ω";
+
+        document.getElementById("row-energy-lbl").innerHTML = "Energía";
+        document.getElementById("row-energy-trad").innerHTML = "Paneles rígidos, baterías químicas ordinarias";
+        document.getElementById("row-energy-solipsis").innerHTML = "Campos de energía auto-generados, extracción transfinita";
+
+        document.getElementById("row-antenas-lbl").innerHTML = "Antenas";
+        document.getElementById("row-antenas-trad").innerHTML = "Brazos mecánicos de alta ganancia, enlaces RF";
+        document.getElementById("row-antenas-solipsis").innerHTML = "Emisores de campo cuántico, telepatía holográfica";
+
+        document.getElementById("row-camaras-lbl").innerHTML = "Cámaras";
+        document.getElementById("row-camaras-trad").innerHTML = "Lentes de vidrio óptico, sensores de imagen CCD/CMOS";
+        document.getElementById("row-camaras-solipsis").innerHTML = "Sensores de realidad directa, escaneo telepático masivo";
+
+        document.getElementById("row-defensa-lbl").innerHTML = "Defensa";
+        document.getElementById("row-defensa-trad").innerHTML = "Blindaje de aluminio, capas de Kevlar contra escombros";
+        document.getElementById("row-defensa-solipsis").innerHTML = "Paradoja causal, no-existencia temporal y escudo cognitivo";
+
+        document.getElementById("row-proc-lbl").innerHTML = "Computación";
+        document.getElementById("row-proc-trad").innerHTML = "CPU ordinaria, registros binarios tolerantes a radiación";
+        document.getElementById("row-proc-solipsis").innerHTML = "Kernel de conciencia de luz de 64 nodos autorregenerativos";
+
+        document.getElementById("row-mov-lbl").innerHTML = "Propulsión";
+        document.getElementById("row-mov-trad").innerHTML = "Propulsores químicos de hidracina, ruedas de reacción";
+        document.getElementById("row-mov-solipsis").innerHTML = "Reconfiguración ontológica, saltos de fase sin masa";
+
+        document.getElementById("bp-core-dim").innerHTML = "Diámetro: 3.0 m | Composición: Luz sólida pulsante";
+        document.getElementById("bp-alpha-dim").innerHTML = "Diámetro: 12.0 m | 64 sensores HD de cuarzo cuántico";
+        document.getElementById("bp-beta-dim").innerHTML = "Diámetro: 9.0 m | Composición: Espejo líquido dimensional";
+        document.getElementById("bp-gamma-dim").innerHTML = "Diámetro: 6.0 m | Composición: Acero orgánico sensible";
+      } else if (lang === "en") {
+        document.getElementById("bp-view-title").innerHTML = "TRANS-MATERIAL STRUCTURAL LAYERING";
+        document.getElementById("bp-comp-title").innerHTML = "TECHNOLOGICAL COMPARISON";
+        document.getElementById("bp-table-element").innerHTML = "Element";
+        document.getElementById("bp-table-typical").innerHTML = "Typical Sat";
+        document.getElementById("bp-table-ours").innerHTML = "Solipsis-Ω";
+
+        document.getElementById("row-energy-lbl").innerHTML = "Energy";
+        document.getElementById("row-energy-trad").innerHTML = "Rigid solar panels, chemical batteries";
+        document.getElementById("row-energy-solipsis").innerHTML = "Self-generated energy fields, transfinite extraction";
+
+        document.getElementById("row-antenas-lbl").innerHTML = "Antennas";
+        document.getElementById("row-antenas-trad").innerHTML = "High-gain mechanical arms, RF transceivers";
+        document.getElementById("row-antenas-solipsis").innerHTML = "Quantum field emitters, holographic telepathy";
+
+        document.getElementById("row-camaras-lbl").innerHTML = "Sensors & Cameras";
+        document.getElementById("row-camaras-trad").innerHTML = "Physical glass lenses, CCD/CMOS optical sensors";
+        document.getElementById("row-camaras-solipsis").innerHTML = "Direct reality sensors, massive mental telepathy scan";
+
+        document.getElementById("row-defensa-lbl").innerHTML = "Defensive Safeguards";
+        document.getElementById("row-defensa-trad").innerHTML = "Aerospace grade aluminum armor, multi-layer kevlar";
+        document.getElementById("row-defensa-solipsis").innerHTML = "Causal paradox deflection, temporal dropout, cognitive shield";
+
+        document.getElementById("row-proc-lbl").innerHTML = "Processing Platform";
+        document.getElementById("row-proc-trad").innerHTML = "Binary computer chip, rad-hardened static registers";
+        document.getElementById("row-proc-solipsis").innerHTML = "Self-healing 64-node quantum light consciousness kernel";
+
+        document.getElementById("row-mov-lbl").innerHTML = "Orbital Control";
+        document.getElementById("row-mov-trad").innerHTML = "Chemical hydrazine thrusters, momentum wheel gyro";
+        document.getElementById("row-mov-solipsis").innerHTML = "Ontological local re-anchoring, zero-mass leaps";
+
+        document.getElementById("bp-core-dim").innerHTML = "Diameter: 3.0 m | Composition: Solid pulsing light";
+        document.getElementById("bp-alpha-dim").innerHTML = "Diameter: 12.0 m | 64 quantum quartz HD sensors";
+        document.getElementById("bp-beta-dim").innerHTML = "Diameter: 9.0 m | Composition: Dimensional liquid mirror";
+        document.getElementById("bp-gamma-dim").innerHTML = "Diameter: 6.0 m | Composition: Smart organic steel alloy";
+      } else if (lang === "zh") {
+        document.getElementById("bp-view-title").innerHTML = "跨材料结构分层设计";
+        document.getElementById("bp-comp-title").innerHTML = "技术指标对比规格表";
+        document.getElementById("bp-table-element").innerHTML = "对比要素";
+        document.getElementById("bp-table-typical").innerHTML = "传统人造卫星";
+        document.getElementById("bp-table-ours").innerHTML = "Solipsis-Ω";
+
+        document.getElementById("row-energy-lbl").innerHTML = "能源动力";
+        document.getElementById("row-energy-trad").innerHTML = "固态太阳能帆板与常规化学蓄电池";
+        document.getElementById("row-energy-solipsis").innerHTML = "自生式虚粒子极化能量场与超限提取";
+
+        document.getElementById("row-antenas-lbl").innerHTML = "天线通信";
+        document.getElementById("row-antenas-trad").innerHTML = "高增益机械反射面天线与射频无线电";
+        document.getElementById("row-antenas-solipsis").innerHTML = "量子纠缠多维度发射源与全息思想遥感";
+
+        document.getElementById("row-camaras-lbl").innerHTML = "感应相机";
+        document.getElementById("row-camaras-trad").innerHTML = "透射式光学玻璃镜头与普通电荷耦合器件";
+        document.getElementById("row-camaras-solipsis").innerHTML = "直接现实折射感应晶体与全球意识全景捕捉";
+
+        document.getElementById("row-defensa-lbl").innerHTML = "防御安全";
+        document.getElementById("row-defensa-trad").innerHTML = "常规航空铝锂合金蒙皮与防杂质凯夫拉层";
+        document.getElementById("row-defensa-solipsis").innerHTML = "时间线递归因果防偏转、相位不复存在与意识干扰屏障";
+
+        document.getElementById("row-proc-lbl").innerHTML = "计算处理";
+        document.getElementById("row-proc-trad").innerHTML = "抗辐射硬化物理嵌入式传统二进制微处理器";
+        document.getElementById("row-proc-solipsis").innerHTML = "由64个有元自愈节点组成的坚固光子自洽意识核心";
+
+        document.getElementById("row-mov-lbl").innerHTML = "轨道驱动";
+        document.getElementById("row-mov-trad").innerHTML = "联氨有毒化学推进剂与物理反作用姿态飞轮";
+        document.getElementById("row-mov-solipsis").innerHTML = "本体位置超越态局部重置与无质量跃迁瞬移";
+
+        document.getElementById("bp-core-dim").innerHTML = "直径: 3.0 米 | 成分: 固体脉冲光";
+        document.getElementById("bp-alpha-dim").innerHTML = "直径: 12.0 米 | 64个量子石英超高清传感器";
+        document.getElementById("bp-beta-dim").innerHTML = "直径: 9.0 米 | 成分: 维度超体液态镜";
+        document.getElementById("bp-gamma-dim").innerHTML = "直径: 6.0 米 | 成分: 生机活性活性感应钢";
+      }
+
+      document.getElementById("bp-core-title").textContent = dict.coreComponent;
+      document.getElementById("bp-core-desc").textContent = dict.coreDesc;
+      document.getElementById("bp-alpha-title").textContent = dict.ringAlpha;
+      document.getElementById("bp-alpha-desc").textContent = dict.ringAlphaDesc;
+      document.getElementById("bp-beta-title").textContent = dict.ringBeta;
+      document.getElementById("bp-beta-desc").textContent = dict.ringBetaDesc;
+      document.getElementById("bp-gamma-title").textContent = dict.ringGamma;
+      document.getElementById("bp-gamma-desc").textContent = dict.ringGammaDesc;
+      document.getElementById("bp-causal-title").innerHTML = "⚠️ " + dict.causalParadox;
+      document.getElementById("bp-causal-desc").textContent = dict.causalParadoxDesc;
+
+      document.getElementById("core-component-lbl").textContent = dict.coreComponent;
+      document.getElementById("ring-alpha-lbl").textContent = dict.ringAlpha;
+      document.getElementById("ring-beta-lbl").textContent = dict.ringBeta;
+      document.getElementById("ring-gamma-lbl").textContent = dict.ringGamma;
+
+      setMode(curMode);
+    }
+
+    function project(px, py, pz, scale3D = 210) {
+      const cosY = Math.cos(state.angle.y);
+      const sinY = Math.sin(state.angle.y);
+      const cosX = Math.cos(state.angle.x);
+      const sinX = Math.sin(state.angle.x);
+
+      let x1 = px * cosY - pz * sinY;
+      let z1 = px * sinY + pz * cosY;
+      let y1 = py * cosX - z1 * sinX;
+      let z2 = py * sinX + z1 * cosX;
+
+      const viewDistance = 450;
+      const perspective = viewDistance / (viewDistance + z2);
+
+      return {
+        x: canvas.width / 2 + x1 * state.scale * perspective * scale3D,
+        y: canvas.height / 2 + y1 * state.scale * perspective * scale3D,
+        z: z2,
+        visible: z2 > -viewDistance
+      };
+    }
+
+    // Stars background
+    const stars = [];
+    for (let i = 0; i < 180; i++) {
+      stars.push({
+        x: (Math.random() - 0.5) * 800,
+        y: (Math.random() - 0.5) * 800,
+        z: Math.random() * 800,
+        size: Math.random() * 1.5 + 0.5
+      });
+    }
+
+    // 64 spherical Fibonacci points
+    const sensorPoints = [];
+    const phi = Math.PI * (3 - Math.sqrt(5));
+    for (let i = 0; i < 64; i++) {
+      const y = 1 - (i / 63) * 2;
+      const rad = Math.sqrt(1 - y * y);
+      const theta = phi * i;
+      sensorPoints.push({
+        x: Math.cos(theta) * rad,
+        y,
+        z: Math.sin(theta) * rad,
+        id: i
+      });
+    }
+
+    // Electrocardiogram offline rendering
+    const ecgCanvas = document.getElementById("ecg-canvas");
+    const ecgCtx = ecgCanvas.getContext("2d");
+    let ecgX = 0;
+    const ecgPoints = Array(150).fill(30);
+
+    function loopEcg() {
+      ecgCtx.fillStyle = "#020206";
+      ecgCtx.fillRect(0, 0, ecgCanvas.width, ecgCanvas.height);
+      
+      const period = Math.floor(3600 / state.heartRate);
+      const step = ecgX % period;
+      let y = 30;
+
+      if (curMode !== "DEFENSE") {
+        if (step > 10 && step < 18) y = 30 - Math.sin(((step - 10) / 8) * Math.PI) * 4;
+        else if (step >= 22 && step <= 25) y = 30 + (step - 22) * 3;
+        else if (step > 25 && step < 30) y = 10 + Math.sin(((step - 25) / 5) * Math.PI) * 6;
+        else if (step >= 30 && step <= 33) y = 30 + (33 - step) * 4;
+        else if (step > 38 && step < 48) y = 30 - Math.sin(((step - 38) / 10) * Math.PI) * 6;
+      }
+
+      ecgPoints.push(y);
+      if (ecgPoints.length > ecgCanvas.width) ecgPoints.shift();
+
+      ecgCtx.strokeStyle = curMode === "DEFENSE" ? "rgba(100, 116, 139, 0.4)" : "#4ade80";
+      ecgCtx.lineWidth = 1.5;
+      ecgCtx.beginPath();
+      for (let i = 0; i < ecgPoints.length; i++) {
+        if (i === 0) ecgCtx.moveTo(i, ecgPoints[i]);
+        else ecgCtx.lineTo(i, ecgPoints[i]);
+      }
+      ecgCtx.stroke();
+      ecgX++;
+      setTimeout(loopEcg, 20);
+    }
+    loopEcg();
+
+    let time = 0;
+
+    // Main render loop
+    function loop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      let primaryColor = "#ff4500";
+      let coreGlow = "rgba(255, 69, 0, 0.12)";
+      
+      if (curMode === 'IDLE') {
+        const bg = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 10, canvas.width/2, canvas.height/2, canvas.width);
+        bg.addColorStop(0, "rgba(8, 8, 16, 1)");
+        bg.addColorStop(0.5, "rgba(0, 5, 45, 0.45)");
+        bg.addColorStop(1, "rgba(2, 2, 8, 1)");
+        ctx.fillStyle = bg;
+        primaryColor = "#3b82f6";
+        coreGlow = "rgba(59, 130, 246, 0.2)";
+      } else if (curMode === 'ACTIVE') {
+        const bg = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 10, canvas.width/2, canvas.height/2, canvas.width);
+        bg.addColorStop(0, "rgba(8, 8, 16, 1)");
+        bg.addColorStop(0.5, "rgba(45, 30, 5, 0.45)");
+        bg.addColorStop(1, "rgba(2, 2, 8, 1)");
+        ctx.fillStyle = bg;
+        primaryColor = "#ffd700";
+        coreGlow = "rgba(255, 215, 0, 0.25)";
+      } else if (curMode === 'EDIT') {
+        const bg = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 10, canvas.width/2, canvas.height/2, canvas.width);
+        bg.addColorStop(0, "rgba(8, 8, 16, 1)");
+        bg.addColorStop(0.5, "rgba(35, 5, 65, 0.45)");
+        bg.addColorStop(1, "rgba(2, 2, 8, 1)");
+        ctx.fillStyle = bg;
+        primaryColor = "#ffffff";
+        coreGlow = "rgba(168, 85, 247, 0.3)";
+      } else {
+        ctx.fillStyle = "#020206";
+        primaryColor = "#334155";
+        coreGlow = "rgba(51, 65, 85, 0.05)";
+      }
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      time += curMode === "DEFENSE" ? 0.003 : (curMode === "ACTIVE" ? 0.04 : (curMode === "EDIT" ? 0.075 : 0.012));
+
+      // Coordinate Radar swept circle
+      if (curMode !== "DEFENSE") {
+        ctx.strokeStyle = "rgba(255,255,255,0.015)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(canvas.width/2, canvas.height/2, 180, 0, Math.PI*2);
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(74, 222, 128, 0.02)";
+        ctx.beginPath();
+        ctx.moveTo(canvas.width/2, canvas.height/2);
+        ctx.lineTo(canvas.width/2 + Math.cos(time*0.4)*350, canvas.height/2 + Math.sin(time*0.4)*350);
+        ctx.stroke();
+      }
+
+      // Stars
+      stars.forEach(star => {
+        if (curMode === "EDIT") star.z -= 6.0;
+        else star.z -= 0.35;
+
+        if (star.z <= 0) star.z = 800;
+
+        const px = (star.x / star.z) * 450 + canvas.width/2;
+        const py = (star.y / star.z) * 450 + canvas.height/2;
+
+        if (px >= 0 && px <= canvas.width && py >= 0 && py <= canvas.height) {
+          const alpha = (1 - star.z / 800);
+          ctx.fillStyle = "rgba(255, 255, 255, " + alpha * 0.7 + ")";
+          ctx.beginPath();
+          ctx.arc(px, py, star.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      // Update HUD Labels
+      if (curMode !== "DEFENSE") {
+        document.getElementById("ops-rate-val").textContent = ((Math.random()*2 + 8.1).toFixed(4)) + "e" + (curMode === 'EDIT' ? '54' : (curMode === 'ACTIVE' ? '42' : '28')) + " OPS";
+        document.getElementById("density-val").textContent = (100.0 - Math.random() * 0.005).toFixed(4) + "%";
+        document.getElementById("resonance-val").textContent = (curMode === 'EDIT' ? 99.9 : (curMode === 'ACTIVE' ? 98.4 : 85.0) + (Math.random()-0.5)*0.2).toFixed(1) + "%";
+        document.getElementById("active-nodes-val").textContent = Math.min(state.activeNodes, Math.floor(state.activeNodes * (state.energy/100)));
+      } else {
+        document.getElementById("ops-rate-val").textContent = "0.0000e00 OPS";
+        document.getElementById("density-val").textContent = "0.0000%";
+        document.getElementById("resonance-val").textContent = "0.0%";
+        document.getElementById("active-nodes-val").textContent = "0";
+      }
+
+      // 3D Objects buffer
+      const renderQueue = [];
+
+      // Consciencia Core
+      const coreOsc = 1.0 + Math.sin(time * (state.heartRate/60) * Math.PI) * 0.08 * (curMode === 'DEFENSE' ? 0 : 1);
+      const coreRadius = 40 * coreOsc * state.scale;
+      const coreProj = project(0, 0, 0, 1.25);
+
+      renderQueue.push({
+        z: coreProj.z,
+        render: () => {
+          if (!coreProj.visible) return;
+
+          // Inner thoughts particles
+          const fluidCount = curMode === 'DEFENSE' ? 2 : 24;
+          for (let i = 0; i < fluidCount; i++) {
+            const rot = time * 0.6 + i * 0.4;
+            const px = Math.cos(rot) * (coreRadius * 0.6) * Math.sin(rot + i);
+            const py = Math.sin(rot) * (coreRadius * 0.6) * Math.cos(rot + i);
+            const pz = Math.sin(rot * 1.5) * (coreRadius * 0.5);
+            const p = project(px, py, pz, 1.25);
+            if (p.visible) {
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, 2 * state.scale, 0, Math.PI * 2);
+              ctx.fillStyle = curMode === 'EDIT' ? "#c084fc" : (curMode === 'ACTIVE' ? "#ffa500" : "#94a3b8");
+              ctx.fill();
+            }
+          }
+
+          // Shading stacked radial gradients
+          const coreGrad = ctx.createRadialGradient(coreProj.x, coreProj.y, 2, coreProj.x, coreProj.y, coreRadius);
+          if (curMode === 'IDLE') {
+            coreGrad.addColorStop(0, "#ffffff");
+            coreGrad.addColorStop(0.3, "#3b82f6");
+            coreGrad.addColorStop(1, "rgba(0, 0, 139, 0.4)");
+          } else if (curMode === 'ACTIVE') {
+            coreGrad.addColorStop(0, "#ffffff");
+            coreGrad.addColorStop(0.2, "#ffd700");
+            coreGrad.addColorStop(0.6, "#ff8c00");
+            coreGrad.addColorStop(1, "rgba(255, 69, 0, 0.15)");
+          } else if (curMode === 'EDIT') {
+            coreGrad.addColorStop(0, "#ffffff");
+            coreGrad.addColorStop(0.4, "#a855f7");
+            coreGrad.addColorStop(1, "rgba(255, 255, 255, 0.15)");
+          } else {
+            coreGrad.addColorStop(0, "#475569");
+            coreGrad.addColorStop(1, "#020617");
+          }
+
+          ctx.fillStyle = coreGrad;
+          ctx.beginPath();
+          ctx.arc(coreProj.x, coreProj.y, coreRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      // Ring Alpha (Time Crystal) - 12m
+      const ringAlphaTotal = 36;
+      for (let i = 0; i < ringAlphaTotal; i++) {
+        const theta = (i / ringAlphaTotal) * Math.PI * 2;
+        const rotX = Math.cos(time * 0.1);
+        const rotZ = Math.sin(time * 0.1);
+        let rx = Math.cos(theta) * 115;
+        let ry = Math.sin(theta) * 115 * rotX;
+        let rz = Math.sin(theta) * 115 * rotZ;
+        const p = project(rx, ry, rz);
+
+        renderQueue.push({
+          z: p.z,
+          render: () => {
+            if (!p.visible) return;
+            const nextTheta = ((i + 1) / ringAlphaTotal) * Math.PI * 2;
+            let nrx = Math.cos(nextTheta) * 115;
+            let nry = Math.sin(nextTheta) * 115 * rotX;
+            let nrz = Math.sin(nextTheta) * 115 * rotZ;
+            const np = project(nrx, nry, nrz);
+            if (np.visible) {
+              ctx.strokeStyle = curMode === 'IDLE' ? "rgba(192,192,192,0.4)" : "rgba(255,215,0,0.3)";
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(np.x, np.y);
+              ctx.stroke();
+
+              ctx.fillStyle = "#60a5fa";
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, 2 * state.scale, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        });
+      }
+
+      // Ring Beta (Liquid Glass) - 9m
+      const ringBetaTotal = 28;
+      for (let i = 0; i < ringBetaTotal; i++) {
+        const theta = (i / ringBetaTotal) * Math.PI * 2;
+        const rotY = Math.sin(time * 0.15);
+        const rotX = Math.cos(time * 0.15);
+        let rx = Math.cos(theta) * 88 * rotY;
+        let ry = Math.sin(theta) * 88;
+        let rz = Math.cos(theta) * 88 * rotX;
+        const p = project(rx, ry, rz);
+
+        renderQueue.push({
+          z: p.z,
+          render: () => {
+            if (!p.visible) return;
+            const nextTheta = ((i + 1) / ringBetaTotal) * Math.PI * 2;
+            let nrx = Math.cos(nextTheta) * 88 * rotY;
+            let nry = Math.sin(nextTheta) * 88;
+            let nrz = Math.cos(nextTheta) * 88 * rotX;
+            const np = project(nrx, nry, nrz);
+            if (np.visible) {
+              ctx.strokeStyle = curMode === 'EDIT' ? "rgba(168,85,247,0.7)" : "rgba(255,255,255,0.2)";
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(np.x, np.y);
+              ctx.stroke();
+            }
+          }
+        });
+      }
+
+      // Ring Gamma (Organic Steel - pulsante) - 6m
+      const ringGammaTotal = 24;
+      const pulsingRad = 58 + Math.sin(time * (state.heartRate/60) * Math.PI) * 3;
+      for (let i = 0; i < ringGammaTotal; i++) {
+        const theta = (i / ringGammaTotal) * Math.PI * 2;
+        let rx = Math.cos(theta) * pulsingRad;
+        let ry = Math.cos(theta) * pulsingRad * 0.1;
+        let rz = Math.sin(theta) * pulsingRad;
+        const p = project(rx, ry, rz);
+
+        renderQueue.push({
+          z: p.z,
+          render: () => {
+            if (!p.visible) return;
+            const nextTheta = ((i + 1) / ringGammaTotal) * Math.PI * 2;
+            let nrx = Math.cos(nextTheta) * pulsingRad;
+            let nry = Math.cos(nextTheta) * pulsingRad * 0.1;
+            let nrz = Math.sin(nextTheta) * pulsingRad;
+            const np = project(nrx, nry, nrz);
+            if (np.visible) {
+              ctx.strokeStyle = "rgba(74, 222, 128, 0.55)";
+              ctx.lineWidth = 2.2;
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(np.x, np.y);
+              ctx.stroke();
+            }
+          }
+        });
+      }
+
+      // 64 Swarm sensor nodes
+      if (curMode !== "DEFENSE") {
+        sensorPoints.forEach(point => {
+          const shellDistance = 148;
+          const px = point.x * shellDistance;
+          const py = point.y * shellDistance;
+          const pz = point.z * shellDistance;
+          const p = project(px, py, pz, 1.12);
+
+          renderQueue.push({
+            z: p.z,
+            render: () => {
+              if (!p.visible) return;
+              if (point.id < state.activeNodes) {
+                ctx.fillStyle = point.id % 2 === 0 ? primaryColor : "#4ade80";
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, (1.9 + Math.sin(time*2 + point.id)*0.6) * state.scale, 0, Math.PI * 2);
+                ctx.fill();
+              } else {
+                ctx.fillStyle = "rgba(71,85,105,0.25)";
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 1.0 * state.scale, 0, Math.PI * 2);
+                ctx.fill();
+              }
+            }
+          });
+        });
+      }
+
+      renderQueue.sort((a,b) => b.z - a.z);
+      renderQueue.forEach(q => q.render());
+
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
