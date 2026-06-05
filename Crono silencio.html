@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRONO SILENCIO™ - Prototipo Conceptual 3D Autónomo</title>
+  <style>
+    /* Inter & JetBrains Mono Fonts loading from system or standard backups */
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #020617;
+      color: #cbd5e1;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow-x: hidden;
+      user-select: none;
+    }
+    
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #020617;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #06b6d4;
+    }
+
+    /* Core Layout Styles */
+    .hud-container {
+      display: grid;
+      grid-template-columns: 280px 1fr 340px;
+      grid-template-rows: auto 1fr auto;
+      height: 100vh;
+      box-sizing: border-box;
+      gap: 12px;
+      padding: 12px;
+      overflow: hidden;
+    }
+
+    @media (max-width: 1024px) {
+      .hud-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto auto;
+        height: auto;
+        overflow: auto;
+      }
+    }
+
+    /* Cyberpunk HUD Card Styling */
+    .hud-panel {
+      background: rgba(3, 7, 18, 0.85);
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5), inset 0 0 15px rgba(6, 182, 212, 0.05);
+    }
+
+    .hud-panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.5), transparent);
+    }
+
+    .hud-header {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: rgba(2, 6, 23, 0.9);
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.1);
+    }
+
+    .doctor-tag {
+      font-weight: 600;
+      color: #f8fafc;
+      letter-spacing: 0.5px;
+      font-size: 14px;
+    }
+
+    .doctor-tag span {
+      font-weight: 300;
+      color: #06b6d4;
+      font-size: 12px;
+      display: block;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      background: linear-gradient(135deg, #06b6d4, #3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Tabs and Lists */
+    .list-item {
+      padding: 10px;
+      margin: 4px 0;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.03);
+      background: rgba(255,255,255,0.01);
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .list-item.active {
+      border-color: #06b6d4;
+      background: rgba(6, 182, 212, 0.08);
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.15);
+    }
+
+    .list-item:hover:not(.active) {
+      background: rgba(255,255,255,0.04);
+      border-color: #334155;
+    }
+
+    .list-item-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .list-item.active .list-item-title {
+      color: #22d3ee;
+    }
+
+    .list-item-desc {
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    /* Visualization Center Viewport */
+    .viewport-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 100%;
+    }
+
+    .canvas-wrapper {
+      flex: 1;
+      border: 1px solid #1e293b;
+      background: radial-gradient(circle at center, #0b1528 0%, #030712 100%);
+      border-radius: 8px;
+      position: relative;
+      min-height: 380px;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Overlay Indicators / Shaders emulation */
+    .hud-overlay {
+      position: absolute;
+      pointer-events: none;
+      font-family: 'Courier New', Courier, monospace;
+      color: rgba(6, 182, 212, 0.85);
+      font-size: 10px;
+      text-shadow: 0 0 4px rgba(6, 182, 212, 0.5);
+    }
+    .hud-overlay-tl { top: 15px; left: 15px; }
+    .hud-overlay-tr { top: 15px; right: 15px; text-align: right; }
+    .hud-overlay-bl { bottom: 15px; left: 15px; }
+    .hud-overlay-br { bottom: 15px; right: 15px; text-align: right; }
+
+    /* Scanlines effect */
+    .scanlines {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+      background-size: 100% 4px;
+      z-index: 5;
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    /* Controller inputs */
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .form-label span {
+      color: #06b6d4;
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: #1e293b;
+      outline: none;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #0284c7;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.8);
+      transition: transform 0.1s;
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.3);
+    }
+
+    /* Buttons */
+    .btn {
+      background: rgba(6, 182, 212, 0.1);
+      border: 1px solid #06b6d4;
+      color: #22d3ee;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 1px;
+    }
+
+    .btn:hover {
+      background: #06b6d4;
+      color: #020617;
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+    }
+
+    .btn-group {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    /* Language Buttons */
+    .lang-container {
+      display: flex;
+      gap: 4px;
+    }
+
+    .btn-lang {
+      font-size: 10px;
+      padding: 4px 8px;
+      background: transparent;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+
+    .btn-lang.active {
+      border-color: #06b6d4;
+      color: #22d3ee;
+      background: rgba(6, 182, 212, 0.1);
+    }
+
+    /* Log Output terminal styled */
+    .terminal-logs {
+      background: rgba(2, 6, 23, 0.95);
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+      padding: 10px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      height: 100px;
+      overflow-y: auto;
+      margin-top: 10px;
+    }
+
+    .log-item {
+      margin-bottom: 4px;
+      line-height: 1.3;
+    }
+
+    .log-time { color: #64748b; }
+    .log-type-success { color: #4ade80; }
+    .log-type-info { color: #38bdf8; }
+    .log-type-warn { color: #facc15; }
+
+    /* Biomarkers indicators */
+    .biomarkers-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .biomarker-row {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .biomarker-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+
+    .biomarker-bar-bg {
+      height: 5px;
+      background: #1e293b;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .biomarker-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    /* Treatment Status Metrics Bar at Bottom of Visualizer */
+    .treatment-status-bar {
+      border: 1px solid #1e293b;
+      background: rgba(3, 7, 18, 0.9);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .status-metric {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .status-metric-label {
+      font-size: 9px;
+      color: #64748b;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .status-metric-value {
+      font-size: 16px;
+      font-weight: bold;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    /* Digital Twin view */
+    .twin-visual-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    .twin-visual-card {
+      background: rgba(255,255,255,0.01);
+      border: 1px solid rgba(255,255,255,0.03);
+      padding: 8px 4px;
+      border-radius: 4px;
+    }
+
+    .twin-visual-svg {
+      width: auto;
+      height: 70px;
+      margin: 4px 0;
+    }
+
+    .twin-visual-label {
+      font-size: 8px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+    }
+
+    /* View Mode selectors */
+    .view-mode-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .btn-view-mode {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid #1e293b;
+      color: #94a3b8;
+      padding: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .btn-view-mode.active {
+      border-color: #06b6d4;
+      color: #22d3ee;
+      background: rgba(6, 182, 212, 0.08);
+    }
+
+    /* Phase cycle bubbles */
+    .phase-bubbles {
+      display: flex;
+      justify-content: space-between;
+      gap: 4px;
+      margin-top: 10px;
+    }
+
+    .bubble {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 1px solid #334155;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .bubble.active {
+      border-color: #06b6d4;
+      background: rgba(6, 182, 212, 0.15);
+      color: #22d3ee;
+      box-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
+    }
+
+    .disclaimer-text {
+      grid-column: 1 / -1;
+      text-align: center;
+      font-size: 9px;
+      color: #475569;
+      letter-spacing: 0.5px;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- The Fully Self-Contained HUD Application -->
+  <div class="hud-container">
+
+    <!-- Header Panel -->
+    <header class="hud-header">
+      <div class="doctor-tag" id="doc_tag">
+        Dr. Julio César Oporta Barrera
+        <span id="patent_cycle_label">The Cycle of Targeted Epigenetic Intervention</span>
+      </div>
+      
+      <div class="brand-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" stroke-dasharray="4 2"/>
+          <path d="M12 2v20M2 12h20M12 6a6 6 0 1 1 0 12" />
+        </svg>
+        CRONO SILENCIO™
+      </div>
+
+      <div class="lang-container">
+        <button class="btn-lang active" onclick="setLang('ES')">ES</button>
+        <button class="btn-lang" onclick="setLang('EN')">EN</button>
+        <button class="btn-lang" onclick="setLang('ZH')">中文</button>
+      </div>
+    </header>
+
+    <!-- Column 1: Fases del Protocolo -->
+    <aside class="hud-panel">
+      <h3 style="font-size: 11px; font-weight: 700; border-bottom: 1px solid #1e293b; padding-bottom: 6px; margin: 0 0 10px 0; color: #22d3ee; letter-spacing: 1px;" id="phases_section_title">
+        FASES DEL PROTOCOLO
+      </h3>
+      <div style="flex: 1; display: flex; flex-direction: column; overflow-y: auto;" id="phases_list">
+        <!-- Rendered dynamically -->
+      </div>
+    </aside>
+
+    <!-- Column 2: 3D Visualization Visualizer -->
+    <main class="viewport-container">
+      
+      <div class="canvas-wrapper">
+        <div class="scanlines"></div>
+        <canvas id="simulationCanvas"></canvas>
+
+        <div class="hud-overlay hud-overlay-tl">
+          SYSTEM STATUS: <span style="color: #22d3ee">ACTIVE_FLOW</span><br>
+          BIOMECHANICS: SWARMING<br>
+          PHYSICS: MODULAR FORCE
+        </div>
+
+        <div class="hud-overlay hud-overlay-tr" id="overlay_mkt">
+          DR. JULIO CÉSAR OPORTA BARRERA<br>
+          SYSTEM SCALE: NANO-REVERSE<br>
+          SHADERS: CINEMATIC GLOW
+        </div>
+
+        <div class="hud-overlay hud-overlay-bl" id="status_active_reprogramming">
+          REPROGRAMACIÓN DE HISTONAS ACTIVA: ON<br>
+          p16INK4a: SILENCIANDO
+        </div>
+
+        <div class="hud-overlay hud-overlay-br">
+          WAVELENGTH: 430nm<br>
+          SYS INTEGRITY: 100%
+        </div>
+      </div>
+
+      <!-- Treatment Status Metrics Bar -->
+      <div class="treatment-status-bar">
+        <div class="status-metric">
+          <span class="status-metric-label" id="lbl_sim_time">TIEMPO SIMULADO</span>
+          <span class="status-metric-value" style="color: #38bdf8" id="val_sim_time">00:00:00</span>
+        </div>
+        <div class="status-metric">
+          <span class="status-metric-label" id="lbl_bio_age">EDAD BIOLÓGICA</span>
+          <span class="status-metric-value" style="color: #fb7185" id="val_bio_age">-18.7 años</span>
+        </div>
+        <div class="status-metric">
+          <span class="status-metric-label" id="lbl_global_eff">EFICACIA GLOBAL</span>
+          <span class="status-metric-value" style="color: #4ade80" id="val_global_eff">92.4%</span>
+        </div>
+        <div class="status-metric">
+          <span class="status-metric-label" id="lbl_active_particles">PARTÍCULAS ACTIVAS</span>
+          <span class="status-metric-value" style="color: #fbbf24" id="val_active_particles">2,430</span>
+        </div>
+
+        <!-- Treatment Progress bar with 1 to 8 buttons -->
+        <div style="grid-column: 1 / -1; margin-top: 4px;">
+          <div style="font-size: 8px; color: #64748b; letter-spacing: 0.5px; text-transform: uppercase;" id="lbl_treatment_phase_tracker">
+            Fase 8/8 - OPTIMIZACIÓN CONTINUA DEL SISTEMA
+          </div>
+          <div class="phase-bubbles" id="phase_bubbles_list">
+            <!-- Bubbles rendered dynamically -->
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Column 3: Stats, Twin, and Simulation Controls -->
+    <aside class="hud-panel" style="gap: 12px; overflow-y: auto;">
+      
+      <!-- Visualization selector -->
+      <div>
+        <span class="form-label" id="lbl_vis_mode_selector">MODO DE VISUALIZACIÓN</span>
+        <div class="view-mode-grid">
+          <button class="btn-view-mode active" onclick="setVisMode('macro')" id="btn_v_macro">Macro Celular</button>
+          <button class="btn-view-mode" onclick="setVisMode('micro')" id="btn_v_micro">Micro Molecular</button>
+          <button class="btn-view-mode" onclick="setVisMode('epigenetic')" id="btn_v_epigenetic">Epigenético</button>
+          <button class="btn-view-mode" onclick="setVisMode('network')" id="btn_v_network">Red IA</button>
+        </div>
+      </div>
+
+      <!-- Key Biomarkers and indicators panel -->
+      <div>
+        <span class="form-label" id="lbl_key_biomarkers">BIOMARCADORES CLAVE</span>
+        <div class="biomarkers-grid">
+          <div class="biomarker-row">
+            <div class="biomarker-header">
+              <span>p16INK4a</span>
+              <span id="bm_p16_val" style="color: #ef4444">78%</span>
+            </div>
+            <div class="biomarker-bar-bg">
+              <div class="biomarker-bar-fill" id="bm_p16_bar" style="width: 78%; background-color: #ef4444"></div>
+            </div>
+          </div>
+          <div class="biomarker-row">
+            <div class="biomarker-header">
+              <span>p21</span>
+              <span id="bm_p21_val" style="color: #f97316">66%</span>
+            </div>
+            <div class="biomarker-bar-bg">
+              <div class="biomarker-bar-fill" id="bm_p21_bar" style="width: 66%; background-color: #f97316"></div>
+            </div>
+          </div>
+          <div class="biomarker-row">
+            <div class="biomarker-header">
+              <span>SASP</span>
+              <span id="bm_sasp_val" style="color: #eab308">24%</span>
+            </div>
+            <div class="biomarker-bar-bg">
+              <div class="biomarker-bar-fill" id="bm_sasp_bar" style="width: 24%; background-color: #eab308"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Epigenetic Digital Twin -->
+      <div>
+        <span class="form-label" id="lbl_digital_twin">GEMELO DIGITAL EPIGENÉTICO</span>
+        <div class="twin-visual-grid">
+          <div class="twin-visual-card" id="twin_current_card">
+            <div class="twin-visual-label" style="color: #ef4444" id="twin_curr_lbl">ESTADO ACTUAL</div>
+            <svg class="twin-visual-svg" viewBox="0 0 40 100">
+              <path d="M20 10 C20 10, 15 20, 15 35 C15 50, 10 50, 10 70 M20 10 C20 10, 25 20, 25 35 C25 50, 30 50, 30 70 M10 70 L30 70 M20 35 L20 100" stroke="#ef4444" stroke-width="2" fill="none"/>
+              <circle cx="20" cy="15" r="4" fill="#ef4444" class="glow-point"/>
+            </svg>
+            <div style="font-size: 8px; color: #64748b; margin-top:2px;">Senescencia: <span style="color:#ef4444" id="twin_sens_c">90%</span></div>
+          </div>
+          <div class="twin-visual-card" id="twin_projected_card">
+            <div class="twin-visual-label" style="color: #eab308" id="twin_proj_lbl">PROYECTADO</div>
+            <svg class="twin-visual-svg" viewBox="0 0 40 100">
+              <path d="M20 10 C20 10, 15 20, 15 35 C15 50, 10 50, 10 70 M20 10 C20 10, 25 20, 25 35 C25 50, 30 50, 30 70 M10 70 L30 70 M20 35 L20 100" stroke="#eab308" stroke-width="2" fill="none"/>
+              <circle cx="20" cy="15" r="4" fill="#eab308"/>
+            </svg>
+            <div style="font-size: 8px; color: #64748b; margin-top:2px;">Senescencia: <span style="color:#eab308" id="twin_sens_p">35%</span></div>
+          </div>
+          <div class="twin-visual-card" id="twin_objective_card">
+            <div class="twin-visual-label" style="color: #22c55e" id="twin_obj_lbl">OBJETIVO</div>
+            <svg class="twin-visual-svg" viewBox="0 0 40 100">
+              <path d="M20 10 C20 10, 15 20, 15 35 C15 50, 10 50, 10 70 M20 10 C20 10, 25 20, 25 35 C25 50, 30 50, 30 70 M10 70 L30 70 M20 35 L20 100" stroke="#22c55e" stroke-width="2" fill="none"/>
+              <circle cx="20" cy="15" r="4" fill="#22c55e"/>
+            </svg>
+            <div style="font-size: 8px; color: #64748b; margin-top:2px;">Senescencia: <span style="color:#22c55e" id="twin_sens_o">12%</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Controllers (Simulation Sliders) -->
+      <div>
+        <span class="form-label" id="lbl_simulation_controls">CONTROLES DE SIMULACIÓN</span>
+        
+        <div class="form-group">
+          <label class="form-label"><span id="lbl_ia_intensity_ctrl">Intensidad IA</span> <span id="val_ia_intensity_ctrl">85%</span></label>
+          <input type="range" class="slider" min="0" max="100" value="85" id="slider_ia_intensity" oninput="updateControls()">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label"><span id="lbl_nanoparticles_ctrl">Cant. Anticuerpos IA</span> <span id="val_nanoparticles_ctrl">75%</span></label>
+          <input type="range" class="slider" min="0" max="100" value="75" id="slider_nanoparticles" oninput="updateControls()">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label"><span id="lbl_epigenetic_ctrl">Actividad Epigenética</span> <span id="val_epigenetic_ctrl">60%</span></label>
+          <input type="range" class="slider" min="0" max="100" value="60" id="slider_epigenetic" oninput="updateControls()">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label"><span id="lbl_senescence_ctrl">Nivel de Senescencia</span> <span id="val_senescence_ctrl">35%</span></label>
+          <input type="range" class="slider" min="0" max="100" value="35" id="slider_senescence" oninput="updateControls()">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label"><span id="lbl_repair_speed_ctrl">Velocidad de Reparación</span> <span id="val_repair_speed_ctrl">90%</span></label>
+          <input type="range" class="slider" min="0" max="100" value="90" id="slider_repair_speed" oninput="updateControls()">
+        </div>
+
+        <button class="btn" style="width: 100%; font-size: 10px;" onclick="applySimulationChanges()" id="btn_lock_params">
+          Aplicar Cambios
+        </button>
+      </div>
+
+      <!-- Real-Time Biomimetic Events Terminal -->
+      <div>
+        <span class="form-label" id="lbl_dynamic_events">EVENTOS DINÁMICOS</span>
+        <div class="terminal-logs" id="terminalLog">
+          <!-- Dynamically filled logs -->
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- Footer Disclaimer -->
+    <footer class="disclaimer-text" id="footer_disclaimer_text">
+      ESTE SIMULADOR ES UNA REPRESENTACIÓN CONCEPTUAL Y NO COMPORTA EVIDENCIA CIENTÍFICA CLÍNICA. APODERADO POR DR. JULIO CÉSAR OPORTA BARRERA © 2026.
+    </footer>
+
+  </div>
+
+  <script>
+    // Inlined translations database
+    const TRANSLATIONS = {"ES":{"appTitle":"CRONO SILENCIO™","appSubtitle":"Simulador Conceptual Interactivo 3D","techArch":"Arquitectura Tecnológica Avanzada","doctorName":"Dr. Julio César Oporta Barrera","patentCycle":"El Ciclo de la Intervención Epigenética Dirigida","phasesTitle":"FASES DEL PROTOCOLO","visModeTitle":"MODO DE VISUALIZACIÓN","tools3DTitle":"HERRAMIENTAS 3D","simSpeedTitle":"VELOCIDAD DE SIMULACIÓN","advSimulationTitle":"MÓDULO DE SIMULACIÓN AVANZADA","swarmTitle":"IA DE ENJAMBRE","eventsTitle":"EVENTOS DINÁMICOS","biomarkersTitle":"BIOMARCADORES CLAVE","aiPerformanceTitle":"RENDIMIENTO IA","systemStatusTitle":"SISTEMA","digitalTwinTitle":"GEMELO DIGITAL EPIGENÉTICO","simControlsTitle":"CONTROLES DE SIMULACIÓN","treatmentStatusTitle":"ESTADO DEL TRATAMIENTO","disclaimer":"ESTE SIMULADOR ES UNA REPRESENTACIÓN CONCEPTUAL Y NO CONSTITUYE EVIDENCIA CIENTÍFICA CLÍNICA.","downloadBtn":"Descargar Prototipo 3D Autónomo (.html)","phase1_name":"1. RECONOCIMIENTO","phase1_desc":"Epigenome Mapper ML","phase2_name":"2. DISEÑO IA","phase2_desc":"ProtDesign AI","phase3_name":"3. ENTREGA","phase3_desc":"PharmaKin AI","phase4_name":"4. ACCIÓN","phase4_desc":"Anticuerpos IA","phase5_name":"5. MONITOREO","phase5_desc":"FeedbackLoop AI","phase6_name":"6. RETROALIMENTACIÓN","phase6_desc":"Adaptación dinámica","phase7_name":"7. REJUVENECIMIENTO","phase7_desc":"Restauración celular","phase8_name":"8. ADAPTACIÓN EVOLUTIVA","phase8_desc":"Optimización continua","v_macro":"Macro Celular","v_micro":"Micro Molecular","v_epigenetic":"Epigenético","v_network":"Red IA","m_twin":"Gemelo Epigenético","m_biodistrib":"Biodistribución","m_molecular":"Dinámica Molecular","m_predictive":"Predicción Clínica","m_reversing_clock":"Reloj de Reversión","entropy_entropy":"Entropía del Epigenoma","entropy_resilience":"Resiliencia Celular","entropy_entropy_desc":"Nivel de desorden epigenético","entropy_resilience_desc":"Capacidad de reparación y vigor","hud_interactive_panel":"HUD DE SEGUIMIENTO INTERACTIVO","hud_pulse_btn":"Lanzar Pulso Molecular","hud_pulse_desc":"Sobrecarga de desmetilación terapéutica","hud_target_locked":"OBJETIVO FIJADO","hud_click_canvas":"Clic en canvas para fijar láser LSD1","twin_current":"ESTADO ACTUAL","twin_projected":"PROYECTADO","twin_objective":"OBJETIVO","twin_bio_age":"Edad Biológica","twin_senescence":"Senescencia","twin_integrity":"Integridad","biomarker_desc_p16":"Senescencia celular activa","biomarker_desc_p21":"Arresto ciclo celular","biomarker_desc_sasp":"Fase de secreción tóxica","recognition_acc":"Precisión de Reconocimiento","delivery_eff":"Eficiencia de Entrega","molecular_stab":"Estabilidad Molecular","predictive_cap":"Capacidad Predictiva","system_nodes":"Nodos IA Activos","system_comp":"Consumo Computacional","system_latency":"Latencia Simulada","system_integrity":"Integridad del Sistema","swarm_active":"Nanopartículas Activas","swarm_mode":"Modo","swarm_behavior":"Comportamiento","swarm_mode_coord":"Coordinado","swarm_mode_auto":"Autónomo","swarm_mode_target":"Objetivo Directo","swarm_beh_repair":"Reparación Epigenética","swarm_beh_neutralize":"Silenciamiento SASP","swarm_beh_scan":"Detección Epítopos","ctrl_ia":"Intensidad IA","ctrl_nanoparticles":"Cantidad Anticuerpos IA","ctrl_activity":"Actividad Epigenética","ctrl_senescence":"Nivel de Senescencia","ctrl_repair":"Velocidad de Reparación","ctrl_apply":"Aplicar Cambios","ctrl_clear_log":"Limpiar Log","ts_time":"TIEMPO SIMULADO","ts_age":"EDAD BIOLÓGICA","ts_efficacy":"EFICACIA GLOBAL","ts_active_particles":"NANOPARTÍCULAS ACTIVAS","ts_phase_title":"Fase 8/8 - OPTIMIZACIÓN CONTINUA DEL SISTEMA","cellular_senescent":"CÉLULA SENESCENTE","cellular_rejuvenated":"CÉLULA REJUVENECIDA","active_reprogramming":"Reprogramando Marcas Epigenéticas...","lps_inflammation":"Inflamación Tisular Alta","lps_oxidative":"Daño Oxidativo Detected","repaired_epitopes":"Epítopos Silenciados Correctamente","years":"años","help_title":"Manual de Operación de Crono Silencio","help_body":"Diseñado por el Dr. Julio César Oporta Barrera. Esta interfaz es un simulador táctico conceptual de reprogramación de histonas en epítopos de senescencia molecular como p16INK4a y p21. Ajuste los controles laterales para regular la biodistribución de las nanopartículas inteligentes.","settings_title":"Configuración del Simulador","settings_glow":"Habilitar Iluminación Cinematográfica","settings_nodes":"Habilitar Mapeador de Nodos IA","close":"Cerrar"},"EN":{"appTitle":"CRONO SILENCIO™","appSubtitle":"Conceptual Interactive 3D Simulator","techArch":"Advanced Technological Architecture","doctorName":"Dr. Julio César Oporta Barrera","patentCycle":"The Cycle of Targeted Epigenetic Intervention","phasesTitle":"PROTOCOL PHASES","visModeTitle":"VISUALIZATION MODE","tools3DTitle":"3D TOOLS","simSpeedTitle":"SIMULATION SPEED","advSimulationTitle":"ADVANCED SIMULATION MODULE","swarmTitle":"SWARM AI","eventsTitle":"DYNAMIC EVENTS","biomarkersTitle":"KEY BIOMARKERS","aiPerformanceTitle":"AI PERFORMANCE","systemStatusTitle":"SYSTEM","digitalTwinTitle":"EPIGENETIC DIGITAL TWIN","simControlsTitle":"SIMULATION CONTROLS","treatmentStatusTitle":"TREATMENT STATUS","disclaimer":"THIS SIMULATOR IS A CONCEPTUAL REPRESENTATION AND DOES NOT CONSTITUTE CLINICAL SCIENTIFIC EVIDENCE.","downloadBtn":"Download Standalone 3D Prototype (.html)","phase1_name":"1. RECOGNITION","phase1_desc":"Epigenome Mapper ML","phase2_name":"2. AI DESIGN","phase2_desc":"ProtDesign AI","phase3_name":"3. DELIVERY","phase3_desc":"PharmaKin AI","phase4_name":"4. ACTION","phase4_desc":"AI Antibodies","phase5_name":"5. MONITORING","phase5_desc":"FeedbackLoop AI","phase6_name":"6. FEEDBACK","phase6_desc":"Dynamic adaptation","phase7_name":"7. REJUVENATION","phase7_desc":"Cellular restoration","phase8_name":"8. EVOLUTIONARY ADAPTATION","phase8_desc":"Continuous optimization","v_macro":"Macro Cellular","v_micro":"Micro Molecular","v_epigenetic":"Epigenetic","v_network":"AI Network","m_twin":"Epigenetic Twin","m_biodistrib":"Biodistribution","m_molecular":"Molecular Dynamics","m_predictive":"Clinical Prediction","m_reversing_clock":"Reversal Clock","entropy_entropy":"Epigenome Entropy","entropy_resilience":"Cellular Resilience","entropy_entropy_desc":"Epigenetic disorganization index","entropy_resilience_desc":"Repair efficiency & cell vigor","hud_interactive_panel":"INTERACTIVE TRACKING HUD","hud_pulse_btn":"Trigger Molecular Pulse","hud_pulse_desc":"Therapeutic demethylation overload","hud_target_locked":"TARGET LOCKED","hud_click_canvas":"Click canvas to lock LSD1 laser","twin_current":"CURRENT STATE","twin_projected":"PROJECTED","twin_objective":"OBJECTIVE","twin_bio_age":"Biological Age","twin_senescence":"Senescence","twin_integrity":"Integrity","biomarker_desc_p16":"Active cellular senescence","biomarker_desc_p21":"Cell cycle arrest","biomarker_desc_sasp":"Toxic secretion phase","recognition_acc":"Recognition Accuracy","delivery_eff":"Delivery Efficiency","molecular_stab":"Molecular Stability","predictive_cap":"Predictive Capacity","system_nodes":"Active AI Nodes","system_comp":"Computational Overhead","system_latency":"Simulated Latency","system_integrity":"System Integrity","swarm_active":"Active Nanoparticles","swarm_mode":"Mode","swarm_behavior":"Behavior","swarm_mode_coord":"Coordinated","swarm_mode_auto":"Autonomous","swarm_mode_target":"Direct Target","swarm_beh_repair":"Epigenetic Repair","swarm_beh_neutralize":"SASP Silencing","swarm_beh_scan":"Epitope Detection","ctrl_ia":"AI Intensity","ctrl_nanoparticles":"AI Antibodies Qty","ctrl_activity":"Epigenetic Activity","ctrl_senescence":"Senescence Level","ctrl_repair":"Repair Speed","ctrl_apply":"Apply Changes","ctrl_clear_log":"Clear Log","ts_time":"SIMULATED TIME","ts_age":"BIOLOGICAL AGE","ts_efficacy":"GLOBAL EFFICACY","ts_active_particles":"ACTIVE NANOPARTICLES","ts_phase_title":"Phase 8/8 - SYSTEM CONTINUOUS OPTIMIZATION","cellular_senescent":"SENESCENT CELL","cellular_rejuvenated":"REJUVENATED CELL","active_reprogramming":"Reprogramming Epigenetic Marks...","lps_inflammation":"High Tissue Inflammation","lps_oxidative":"Oxidative Damage Detected","repaired_epitopes":"Epitopes Mapped & Silenced Successfully","years":"years","help_title":"Crono Silencio Operators Manual","help_body":"Designed by Dr. Julio César Oporta Barrera. This tactical simulation dashboard models histone reprogramming at high-senescence genomic markers like p16INK4a and p21. Fine-tune side controllers to balance target-bound nanoparticle distribution.","settings_title":"Simulator Settings","settings_glow":"Enable Cinematic Glow Shader","settings_nodes":"Enable AI Nodes Infrastructure","close":"Close"},"ZH":{"appTitle":"时空静默™ (CRONO SILENCIO)","appSubtitle":"三维概念交互模拟器","techArch":"前沿技术架构","doctorName":"胡里奥·塞萨尔·奥波尔塔·巴雷拉 博士","patentCycle":"靶向表观遗传干预循环体系","phasesTitle":"协议干预阶段","visModeTitle":"细胞观察模式","tools3DTitle":"三维观测工具","simSpeedTitle":"模拟运算速度","advSimulationTitle":"高级仿真沙盘模块","swarmTitle":"群控人工智能纳米系统","eventsTitle":"实时动能日志","biomarkersTitle":"核心生物标志物","aiPerformanceTitle":"AI 运行效能评定","systemStatusTitle":"系统运行指标","digitalTwinTitle":"表观遗传数字孪生人","simControlsTitle":"系统人工干预旋钮","treatmentStatusTitle":"基因干预治疗状态","disclaimer":"本模拟器为分子医学概念机制模型展示，不直接等同于人体临床诊疗数据。","downloadBtn":"下载离线版 3D 智慧终端 (.html)","phase1_name":"1. 靶向识别","phase1_desc":"表观基因组机器学习重测序 (Epigenome Mapper)","phase2_name":"2. 抗体设计","phase2_desc":"蛋白质网络生成 AI (ProtDesign)","phase3_name":"3. 载体转运","phase3_desc":"药代动力学智控释放 (PharmaKin)","phase4_name":"4. 分子机制干预","phase4_desc":"人工核靶抗体精确定位","phase5_name":"5. 反馈监测","phase5_desc":"闭环生物传感器实时回传 (FeedbackLoop)","phase6_name":"6. 动态适配","phase6_desc":"自适应稳态修正","phase7_name":"7. 细胞返幼","phase7_desc":"染色质组开合修护","phase8_name":"8. 演化自适应优化","phase8_desc":"稳态持续迭代","v_macro":"宏观组织结构","v_micro":"微观分子层面","v_epigenetic":"表观遗传开合","v_network":"AI 节点分布网","m_twin":"数字孪生体","m_biodistrib":"靶点生物分布","m_molecular":"分子稳态动力学","m_predictive":"衰老曲线预测","m_reversing_clock":"生理逆转时钟","entropy_entropy":"表观遗传信息熵值","entropy_resilience":"细胞代偿修复力","entropy_entropy_desc":"染色质无序配置度量","entropy_resilience_desc":"分子稳定机制与代偿效率","hud_interactive_panel":"全息物理交互星图 HUD Panel","hud_pulse_btn":"激发大分子表观重置脉冲","hud_pulse_desc":"中和去甲基化超负荷激活","hud_target_locked":"特异区段微靶位锁定成功","hud_click_canvas":"点击三维视口校准激活共焦 LSD1 激光束","twin_current":"当前生理状态","twin_projected":"干预演化投影","twin_objective":"目标逆转靶点","twin_bio_age":"生理受损生物年龄","twin_senescence":"细胞衰老饱和度","twin_integrity":"组蛋白分子完整度","biomarker_desc_p16":"活性分子衰老标定物","biomarker_desc_p21":"细胞周期阻滞标志","biomarker_desc_sasp":"毒性分泌表型释放","recognition_acc":"双靶向识别精度","delivery_eff":"核孔囊泡递送率","molecular_stab":"配体复合物稳定性","predictive_cap":"神经网络生存预测","system_nodes":"AI 干预活跃节点","system_comp":"AI 集群算力消耗","system_latency":"仿生阻尼延迟","system_integrity":"自适应稳态完整性","swarm_active":"活动中纳米抗体","swarm_mode":"运动战术","swarm_behavior":"作用机制","swarm_mode_coord":"集群同步协同","swarm_mode_auto":"自主巡航搜寻","swarm_mode_target":"特定靶位突破","swarm_beh_repair":"表观修饰重塑","swarm_beh_neutralize":"中和SASP消炎","swarm_beh_scan":"扫描特异抗原","ctrl_ia":"AI 计算场能量","ctrl_nanoparticles":"纳米抗体释放量","ctrl_activity":"表观核酸修饰强度","ctrl_senescence":"模拟起始衰老量","ctrl_repair":"干预逆转速率","ctrl_apply":"锁定重置参数","ctrl_clear_log":"清除事件池","ts_time":"累计模拟干预时间","ts_age":"生物学逆龄差值","ts_efficacy":"系统综合治疗率","ts_active_particles":"实时靶向抗体负荷","ts_phase_title":"第8/8阶段 - 系统持续代偿演化性动态寻优","cellular_senescent":"高度衰老僵尸细胞","cellular_rejuvenated":"去分化增敏健康细胞","active_reprogramming":"修复染色质活性修饰位点...","lps_inflammation":"局部组织炎症微环境高度浸润","lps_oxidative":"检测到组蛋白重度氧化损伤","repaired_epitopes":"修饰位点完美沉默","years":"岁","help_title":"Crono Silencio 时空静默 操作指令手册","help_body":"本成果由 Dr. Julio César Oporta Barrera 设计。本三维高维仿真终端通过集群AI配体自研技术，精确定向清除或分子重编p16INK4a和p21等衰老标志物的染色质活跃标志。调节两侧控制旋扭，实现最佳药物靶向递送。","settings_title":"仿真器精细控制选项","settings_glow":"开启全息多重散射辉光过滤","settings_nodes":"开启分子拓扑AI节点拓扑图","close":"关闭窗口"}};
+    let currentLanguage = 'ES';
+    let activePhase = 8;
+    let selectedVisMode = 'macro';
+
+    // Simulation global parameters that are read by the canvas rendering loop
+    let iaIntensityValue = 85;
+    let nanoparticlesCountValue = 75;
+    let epigeneticActivityValue = 60;
+    let senescenceValue = 35;
+    let repairSpeedValue = 90;
+
+    let timeSec = 46000; // Simulated time initializer
+
+    // Language configuration setter
+    function setLang(lang) {
+      currentLanguage = lang;
+      
+      // Update buttons style
+      const langBtns = document.querySelectorAll('.btn-lang');
+      langBtns.forEach(btn => {
+        if (btn.innerText.trim() === '中文' && lang === 'ZH') btn.classList.add('active');
+        else if (btn.innerText.trim() === lang) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+
+      // Update UI texts
+      const dict = TRANSLATIONS[lang];
+      document.getElementById('phases_section_title').innerText = dict.phasesTitle;
+      document.getElementById('patent_cycle_label').innerText = dict.patentCycle;
+      document.getElementById('lbl_sim_time').innerText = dict.ts_time;
+      document.getElementById('lbl_bio_age').innerText = dict.ts_bio_age || dict.ts_age;
+      document.getElementById('lbl_global_eff').innerText = dict.ts_efficacy;
+      document.getElementById('lbl_active_particles').innerText = dict.swarm_active || dict.ts_active_particles;
+      document.getElementById('lbl_vis_mode_selector').innerText = dict.visModeTitle;
+      document.getElementById('lbl_key_biomarkers').innerText = dict.biomarkersTitle;
+      document.getElementById('lbl_digital_twin').innerText = dict.digitalTwinTitle;
+      document.getElementById('lbl_simulation_controls').innerText = dict.simControlsTitle;
+      document.getElementById('lbl_dynamic_events').innerText = dict.eventsTitle;
+      document.getElementById('footer_disclaimer_text').innerText = dict.disclaimer + ' DR. JULIO CÉSAR OPORTA BARRERA © 2026';
+      
+      // Sliders labels
+      document.getElementById('lbl_ia_intensity_ctrl').innerText = dict.ctrl_ia;
+      document.getElementById('lbl_nanoparticles_ctrl').innerText = dict.ctrl_nanoparticles;
+      document.getElementById('lbl_epigenetic_ctrl').innerText = dict.ctrl_activity;
+      document.getElementById('lbl_senescence_ctrl').innerText = dict.ctrl_senescence;
+      document.getElementById('lbl_repair_speed_ctrl').innerText = dict.ctrl_repair;
+      document.getElementById('btn_lock_params').innerText = dict.ctrl_apply;
+
+      document.getElementById('btn_v_macro').innerText = dict.v_macro;
+      document.getElementById('btn_v_micro').innerText = dict.v_micro;
+      document.getElementById('btn_v_epigenetic').innerText = dict.v_epigenetic;
+      document.getElementById('btn_v_network').innerText = dict.v_network;
+
+      document.getElementById('twin_curr_lbl').innerText = dict.twin_current;
+      document.getElementById('twin_proj_lbl').innerText = dict.twin_projected;
+      document.getElementById('twin_obj_lbl').innerText = dict.twin_objective;
+
+      // Redraw list items and bubbles with correct translation
+      renderPhases();
+      renderPhaseBubbles();
+      updateOverlays();
+    }
+
+    // Dynamic rendering of Protocol Phases list with multi-language
+    function renderPhases() {
+      const parent = document.getElementById('phases_list');
+      parent.innerHTML = '';
+      const dict = TRANSLATIONS[currentLanguage];
+
+      for (let i = 1; i <= 8; i++) {
+        const item = document.createElement('div');
+        item.className = 'list-item' + (activePhase === i ? ' active' : '');
+        item.onclick = function() { selectPhase(i); };
+
+        const title = document.createElement('span');
+        title.className = 'list-item-title';
+        title.innerText = dict['phase' + i + '_name'];
+
+        const desc = document.createElement('span');
+        desc.className = 'list-item-desc';
+        desc.innerText = dict['phase' + i + '_desc'];
+
+        item.appendChild(title);
+        item.appendChild(desc);
+        parent.appendChild(item);
+      }
+    }
+
+    function renderPhaseBubbles() {
+      const parent = document.getElementById('phase_bubbles_list');
+      parent.innerHTML = '';
+      for (let i = 1; i <= 8; i++) {
+        const b = document.createElement('div');
+        b.className = 'bubble' + (activePhase === i ? ' active' : '');
+        b.innerText = i;
+        b.onclick = function() { selectPhase(i); };
+        parent.appendChild(b);
+      }
+    }
+
+    function selectPhase(phaseNum) {
+      activePhase = phaseNum;
+      renderPhases();
+      renderPhaseBubbles();
+      
+      const dict = TRANSLATIONS[currentLanguage];
+      const selectedName = dict['phase' + phaseNum + '_name'];
+      document.getElementById('lbl_treatment_phase_tracker').innerText = "FASE " + phaseNum + "/8 - " + selectedName;
+      
+      addLog("Fase seleccionada: " + selectedName, "info");
+      updateDynamicMetricsByPhase(phaseNum);
+    }
+
+    function updateDynamicMetricsByPhase(phaseNum) {
+      // Modulate some simulated parameters based on active phase
+      const bases = [0, -2.4, -5.1, -8.7, -11.3, -14.2, -16.5, -18.7];
+      const ageOff = bases[phaseNum - 1];
+      const effs = [12.4, 34.1, 55.6, 70.2, 81.3, 89.4, 91.1, 92.4];
+      const eff = effs[phaseNum - 1];
+
+      document.getElementById('val_bio_age').innerText = ageOff + " " + TRANSLATIONS[currentLanguage].years;
+      document.getElementById('val_global_eff').innerText = eff + "%";
+      
+      // Update Biomarkers bars with dynamic look based on phase
+      const factor = (9 - phaseNum) / 8;
+      const p16 = Math.max(10, Math.round(95 * factor));
+      const p21 = Math.max(12, Math.round(85 * factor));
+      const sasp = Math.max(5, Math.round(75 * factor - 10));
+
+      document.getElementById('bm_p16_val').innerText = p16 + "%";
+      document.getElementById('bm_p16_bar').style.width = p16 + "%";
+
+      document.getElementById('bm_p21_val').innerText = p21 + "%";
+      document.getElementById('bm_p21_bar').style.width = p21 + "%";
+
+      document.getElementById('bm_sasp_val').innerText = sasp + "%";
+      document.getElementById('bm_sasp_bar').style.width = sasp + "%";
+    }
+
+    function updateOverlays() {
+      const dict = TRANSLATIONS[currentLanguage];
+      document.getElementById('status_active_reprogramming').innerHTML = 
+        dict.active_reprogramming + " RUNNING<br>MODULAR FORCE: ACTIVE";
+    }
+
+    // Handles the selection of a visual mode
+    function setVisMode(mode) {
+      selectedVisMode = mode;
+      const modes = ['macro', 'micro', 'epigenetic', 'network'];
+      modes.forEach(m => {
+        const btn = document.getElementById('btn_v_' + m);
+        if (m === mode) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+      addLog("Modo de visualización cambiado a: " + TRANSLATIONS[currentLanguage]['v_' + mode], "info");
+    }
+
+    // Real-time Event Logger
+    function addLog(text, type = 'info') {
+      const term = document.getElementById('terminalLog');
+      const timeStr = new Date().toUTCString().split(' ')[4];
+      
+      const logRow = document.createElement('div');
+      logRow.className = 'log-item';
+      
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'log-time';
+      timeSpan.innerText = '[' + timeStr + '] ';
+
+      const bodySpan = document.createElement('span');
+      bodySpan.className = 'log-type-' + type;
+      bodySpan.innerText = text;
+
+      logRow.appendChild(timeSpan);
+      logRow.appendChild(bodySpan);
+      term.appendChild(logRow);
+      term.scrollTop = term.scrollHeight;
+    }
+
+    // Capture changes from sliders dynamically
+    function updateControls() {
+      iaIntensityValue = parseInt(document.getElementById('slider_ia_intensity').value);
+      document.getElementById('val_ia_intensity_ctrl').innerText = iaIntensityValue + '%';
+
+      nanoparticlesCountValue = parseInt(document.getElementById('slider_nanoparticles').value);
+      document.getElementById('val_nanoparticles_ctrl').innerText = nanoparticlesCountValue + '%';
+      
+      // Update active nanoparticles output value
+      const activeCount = Math.round(30 * nanoparticlesCountValue);
+      document.getElementById('val_active_particles').innerText = activeCount.toLocaleString();
+
+      epigeneticActivityValue = parseInt(document.getElementById('slider_epigenetic').value);
+      document.getElementById('val_epigenetic_ctrl').innerText = epigeneticActivityValue + '%';
+
+      senescenceValue = parseInt(document.getElementById('slider_senescence').value);
+      document.getElementById('val_senescence_ctrl').innerText = senescenceValue + '%';
+
+      repairSpeedValue = parseInt(document.getElementById('slider_repair_speed').value);
+      document.getElementById('val_repair_speed_ctrl').innerText = repairSpeedValue + '%';
+    }
+
+    function applySimulationChanges() {
+      addLog("Crono Silencio: Parámetros del simulador bloqueados.", "success");
+      addLog("Enjambre recalculado para " + Math.round(30 * nanoparticlesCountValue) + " nanopartículas.", "info");
+      
+      // Update digital twin labels based on senescence level
+      document.getElementById('twin_sens_c').innerText = (2 * senescenceValue) + '%';
+      document.getElementById('twin_sens_p').innerText = Math.round(senescenceValue / 1.5) + '%';
+      document.getElementById('twin_sens_o').innerText = Math.round(senescenceValue / 4) + '%';
+    }
+
+
+    /* ==========================================
+       HIGH PERFORMANCE 3D CANVAS RENDERING ENGINE
+       - Fully standalone, runs at 60 fps offline
+       - Cinematic biomimetic visuals
+       ========================================== */
+
+    const canvas = document.getElementById('simulationCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Track viewport bounds
+    let width = 0;
+    let height = 0;
+
+    function resizeCanvas() {
+      const parent = canvas.parentElement;
+      width = parent.clientWidth;
+      height = parent.clientHeight;
+      canvas.width = width;
+      canvas.height = height;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // 3D Point projecter helper
+    function project3D(x, y, z, rotX, rotY) {
+      // Rotating around X axis
+      let cosX = Math.cos(rotX);
+      let sinX = Math.sin(rotX);
+      let y1 = y * cosX - z * sinX;
+      let z1 = y * sinX + z * cosX;
+
+      // Rotating around Y axis
+      let cosY = Math.cos(rotY);
+      let sinY = Math.sin(rotY);
+      let x2 = x * cosY + z1 * sinY;
+      let z2 = -x * sinY + z1 * cosY;
+
+      // Camera focal projection multiplier
+      const fov = 400;
+      const scale = fov / (fov + z2 + 250);
+      const projX = (width / 2) + x2 * scale;
+      const projY = (height / 2) + y1 * scale;
+
+      return { x: projX, y: projY, scale: scale, depth: z2 };
+    }
+
+    // Nano-particle antibody objects
+    const nanoparticles = [];
+    for (let i = 0; i < 150; i++) {
+      nanoparticles.push({
+        x: (Math.random() - 0.5) * 50,
+        y: (Math.random() - 0.5) * 50,
+        z: (Math.random() - 0.5) * 50,
+        targetX: 0,
+        targetY: 0,
+        targetZ: 0,
+        speed: 0.02 + Math.random() * 0.03,
+        size: 1 + Math.random() * 1.8,
+        pulseOffset: Math.random() * Math.PI * 2,
+        state: 'searching',
+        charge: Math.random()
+      });
+    }
+
+    // Active visual burst particles (upon nano-antibody hitting senescent markers)
+    const sparks = [];
+
+    // Inflammatory cytokine SASP vesicles floating around senescent cell
+    const cytokines = [];
+    for (let i = 0; i < 30; i++) {
+      cytokines.push({
+        x: -160 + (Math.random() - 0.5) * 120,
+        y: (Math.random() - 0.5) * 120,
+        z: (Math.random() - 0.5) * 120,
+        phase: Math.random() * Math.PI * 2,
+        radius: 30 + Math.random() * 40,
+        speed: 0.01 + Math.random() * 0.02,
+        size: 1.5 + Math.random() * 2
+      });
+    }
+
+    // Interactive brackets overlay helper
+    function drawBracket(ctx, x, y, size, color, label, desc, align) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      
+      const offset = align === 'left' ? -size : size;
+      const bracketWidth = size * 0.4;
+      
+      ctx.moveTo(x + offset - bracketWidth, y - size);
+      ctx.lineTo(x + offset, y - size);
+      ctx.lineTo(x + offset, y + size);
+      ctx.lineTo(x + offset - bracketWidth, y + size);
+      ctx.stroke();
+
+      ctx.fillStyle = color;
+      ctx.font = 'bold 9px monospace';
+      const textX = align === 'left' ? x + offset - 120 : x + offset + 15;
+      ctx.fillText(label, textX, y - 10);
+      
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.font = '7px monospace';
+      ctx.fillText(desc, textX, y + 2);
+    }
+
+    // Particle Swarm objects configuration
+    const swarmParticles = [];
+    for (let i = 0; i < 120; i++) {
+      swarmParticles.push({
+        angle: Math.random() * Math.PI * 2,
+        radius: 80 + Math.random() * 90,
+        y: (Math.random() - 0.5) * 160,
+        speed: (0.01 + Math.random() * 0.02),
+        size: 1 + Math.random() * 2
+      });
+    }
+
+    // Dynamic rotation variables
+    let angleRotationX = 0;
+    let angleRotationY = 0;
+    let globalPulse = 0;
+
+    function renderLoop() {
+      // Dynamic time updates
+      timeSec++;
+      const hrs = Math.floor(timeSec / 3600).toString().padStart(2, '0');
+      const mins = Math.floor((timeSec % 3600) / 60).toString().padStart(2, '0');
+      const secs = (timeSec % 60).toString().padStart(2, '0');
+      document.getElementById('val_sim_time').innerText = hrs + ":" + mins + ":" + secs;
+
+      globalPulse += 0.03;
+
+      // Clear dark background
+      ctx.fillStyle = '#030712';
+      ctx.fillRect(0, 0, width, height);
+
+      // Render aesthetic futuristic grids backdropped
+      ctx.strokeStyle = 'rgba(6, 182, 212, 0.03)';
+      ctx.lineWidth = 1;
+      const gridCount = 20;
+      for (let i = 0; i < gridCount; i++) {
+        const xCoord = (width / gridCount) * i;
+        ctx.beginPath();
+        ctx.moveTo(xCoord, 0);
+        ctx.lineTo(xCoord, height);
+        ctx.stroke();
+
+        const yCoord = (height / gridCount) * i;
+        ctx.beginPath();
+        ctx.moveTo(0, yCoord);
+        ctx.lineTo(width, yCoord);
+        ctx.stroke();
+      }
+
+      // Physics variables driven by controls
+      const autoRotSpeed = 0.005 + (repairSpeedValue / 9000);
+      angleRotationX += autoRotSpeed;
+      angleRotationY += autoRotSpeed * 1.5;
+
+      // Render active sparks
+      for (let s = sparks.length - 1; s >= 0; s--) {
+        const sp = sparks[s];
+        sp.x += sp.vx;
+        sp.y += sp.vy;
+        sp.z += sp.vz;
+        sp.life--;
+        if (sp.life <= 0) {
+          sparks.splice(s, 1);
+          continue;
+        }
+        const proj = project3D(sp.x, sp.y, sp.z, angleRotationX * 0.5, angleRotationY);
+        ctx.fillStyle = sp.color;
+        ctx.globalAlpha = sp.life / sp.maxLife;
+        ctx.beginPath();
+        ctx.arc(proj.x, proj.y, 1.5 * proj.scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+      }
+
+      // 1. MACRO mode renders a large cinematic cellular organism with membranes and mitochondria
+      if (selectedVisMode === 'macro' || selectedVisMode === 'network') {
+        const cellLeftX = -130;
+        const cellLeftY = 0;
+        const cellLeftZ = 0;
+
+        const leftRadius = 55;
+        const leftPoints = [];
+        const segs = 14;
+
+        // Generate irregular spiky points representing cellular decay
+        for (let lat = 0; lat <= segs; lat++) {
+          const theta = (lat * Math.PI) / segs;
+          const sinTheta = Math.sin(theta);
+          const cosTheta = Math.cos(theta);
+
+          for (let lon = 0; lon <= segs; lon++) {
+            const phi = (lon * 2 * Math.PI) / segs;
+            const px = leftRadius * sinTheta * Math.cos(phi);
+            const py = leftRadius * sinTheta * Math.sin(phi);
+            const pz = leftRadius * cosTheta;
+
+            // Biological irregular noise factor for high-senescence cell
+            const noiseRatio = senescenceValue / 100;
+            const spikeFreq = 6;
+            const biologicalSpikyNoise = 1.0 + 
+              Math.sin(theta * spikeFreq + angleRotationY * 2) * 0.22 * noiseRatio +
+              Math.cos(phi * 4 - angleRotationX) * 0.15 * noiseRatio;
+
+            const finalX = cellLeftX + px * biologicalSpikyNoise;
+            const finalY = cellLeftY + py * biologicalSpikyNoise;
+            const finalZ = cellLeftZ + pz * biologicalSpikyNoise;
+
+            const proj = project3D(finalX, finalY, finalZ, angleRotationX * 0.5, angleRotationY);
+            leftPoints.push(proj);
+          }
+        }
+
+        // Draw senescent cell web topology
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i < leftPoints.length; i++) {
+          const p = leftPoints[i];
+          if (p.depth > 70) continue;
+
+          const senescenceIntensity = senescenceValue / 100;
+          ctx.strokeStyle = 'rgba(239, 68, 68, ' + (0.12 + p.scale * 0.22 * senescenceIntensity) + ')';
+
+          // Vertical mesh line
+          if (i + segs + 1 < leftPoints.length) {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(leftPoints[i + segs + 1].x, leftPoints[i + segs + 1].y);
+            ctx.stroke();
+          }
+          // Horizontal mesh line
+          if (i % (segs + 1) !== segs) {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(leftPoints[i + 1].x, leftPoints[i + 1].y);
+            ctx.stroke();
+          }
+
+          // Render active red receptors protruding
+          if (i % 18 === 0 && p.depth < -20) {
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 3 * p.scale, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        // Cytokine SASP Vesicles emission around senescent sphere
+        cytokines.forEach((cy) => {
+          cy.phase += cy.speed;
+          const amplitudeY = Math.sin(cy.phase) * cy.radius;
+          const amplitudeZ = Math.cos(cy.phase) * cy.radius;
+          const cyProj = project3D(cy.x, cy.y + amplitudeY, cy.z + amplitudeZ, angleRotationX * 0.5, angleRotationY);
+          
+          ctx.fillStyle = 'rgba(239, 68, 68, 0.55)';
+          ctx.beginPath();
+          ctx.arc(cyProj.x, cyProj.y, cy.size * cyProj.scale, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // --- RIGHT ELEMENT: CÉLULA REJUVENECIDA ---
+        const cellRightX = 130;
+        const cellRightY = 0;
+        const cellRightZ = 0;
+
+        const rightRadius = 55;
+        const rightPoints = [];
+
+        // Build a structurally flawless sphere
+        for (let lat = 0; lat <= segs; lat++) {
+          const theta = (lat * Math.PI) / segs;
+          const sinTheta = Math.sin(theta);
+          const cosTheta = Math.cos(theta);
+
+          for (let lon = 0; lon <= segs; lon++) {
+            const phi = (lon * 2 * Math.PI) / segs;
+            const px = rightRadius * sinTheta * Math.cos(phi);
+            const py = rightRadius * sinTheta * Math.sin(phi);
+            const pz = rightRadius * cosTheta;
+
+            const finalX = cellRightX + px;
+            const finalY = cellRightY + py;
+            const finalZ = cellRightZ + pz;
+
+            const proj = project3D(finalX, finalY, finalZ, angleRotationX * 0.5, angleRotationY);
+            rightPoints.push(proj);
+          }
+        }
+
+        // Draw rejuvenated cell mesh topology layout
+        for (let i = 0; i < rightPoints.length; i++) {
+          const p = rightPoints[i];
+          if (p.depth > 70) continue;
+
+          ctx.strokeStyle = 'rgba(6, 182, 212, ' + (0.1 + p.scale * 0.28) + ')';
+          
+          if (i + segs + 1 < rightPoints.length) {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(rightPoints[i + segs + 1].x, rightPoints[i + segs + 1].y);
+            ctx.stroke();
+          }
+          if (i % (segs + 1) !== segs) {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(rightPoints[i + 1].x, rightPoints[i + 1].y);
+            ctx.stroke();
+          }
+
+          if (i % 20 === 0 && p.depth < -15) {
+            ctx.fillStyle = '#22d3ee';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 2.5 * p.scale, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        // Inner glowing organic chromatin halo
+        const coreProj = project3D(cellRightX, cellRightY, cellRightZ, angleRotationX * 0.5, angleRotationY);
+        const gradient = ctx.createRadialGradient(
+          coreProj.x, coreProj.y, 0,
+          coreProj.x, coreProj.y, 45 * coreProj.scale
+        );
+        gradient.addColorStop(0, 'rgba(34, 197, 94, 0.3)');
+        gradient.addColorStop(0.5, 'rgba(6, 182, 212, 0.1)');
+        gradient.addColorStop(1, 'rgba(2, 6, 23, 0)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(coreProj.x, coreProj.y, 45 * coreProj.scale, 0, Math.PI * 2);
+        ctx.fill();
+
+        // --- HUD OVERLAY BRACKETS ---
+        const projLeftCenter = project3D(cellLeftX, cellLeftY, cellLeftZ, angleRotationX * 0.5, angleRotationY);
+        const projRightCenter = project3D(cellRightX, cellRightY, cellRightZ, angleRotationX * 0.5, angleRotationY);
+
+        drawBracket(ctx, projLeftCenter.x, projLeftCenter.y, 75 * projLeftCenter.scale, '#ef4444', 'CÉLULA SENESCENTE', 'Daño Epigenético p16INK4a / p21', 'left');
+        drawBracket(ctx, projRightCenter.x, projRightCenter.y, 75 * projRightCenter.scale, '#10b981', 'CÉLULA REJUVENECIDA', 'Histonas Reprogramadas Activas', 'right');
+      }
+
+      // 2. MICRO Molecular: spinning 3D DNA Double-Helix model
+      if (selectedVisMode === 'micro' || selectedVisMode === 'epigenetic') {
+        const dnaPoints = 26;
+        const dnaWaveAmplitude = 60;
+        ctx.lineWidth = 1.5;
+
+        for (let i = 0; i < dnaPoints; i++) {
+          const t = i / dnaPoints;
+          const y = (t - 0.5) * 260;
+          
+          // Strand A
+          const angleA = t * Math.PI * 4 + angleRotationY * 1.5;
+          const xA = Math.cos(angleA) * dnaWaveAmplitude;
+          const zA = Math.sin(angleA) * dnaWaveAmplitude;
+          const projA = project3D(xA, y, zA, 0.1, angleRotationY * 0.5);
+
+          // Strand B (opposite phase 180 degrees)
+          const angleB = angleA + Math.PI;
+          const xB = Math.cos(angleB) * dnaWaveAmplitude;
+          const zB = Math.sin(angleB) * dnaWaveAmplitude;
+          const projB = project3D(xB, y, zB, 0.1, angleRotationY * 0.5);
+
+          // Connect base-pairs
+          const pairFactor = i / dnaPoints;
+          ctx.strokeStyle = pairFactor < 0.5 ? 'rgba(6, 182, 212, 0.2)' : 'rgba(34, 197, 94, 0.2)';
+          ctx.beginPath();
+          ctx.moveTo(projA.x, projA.y);
+          ctx.lineTo(projB.x, projB.y);
+          ctx.stroke();
+
+          // Anchor core dots
+          ctx.fillStyle = '#06b6d4';
+          ctx.beginPath();
+          ctx.arc(projA.x, projA.y, 4 * projA.scale, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#10b981';
+          ctx.beginPath();
+          ctx.arc(projB.x, projB.y, 4 * projB.scale, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // 3. IA de Enjambre nodes overlaying everything
+      if (nanoparticlesCountValue > 0) {
+        nanoparticles.forEach((p, idx) => {
+          const pulseFactor = Math.sin(globalPulse + p.pulseOffset);
+
+          if (p.state === 'searching') {
+            const noiseX = Math.sin(globalPulse * 2 + idx) * 15;
+            const noiseY = Math.cos(globalPulse * 1.5 + idx) * 15;
+            p.targetX = -130 + (Math.random() - 0.5) * 55 + noiseX;
+            p.targetY = (Math.random() - 0.5) * 55 + noiseY;
+            p.targetZ = (Math.random() - 0.5) * 55;
+
+            if (Math.random() < 0.02) p.state = 'docked';
+          } else if (p.state === 'docked') {
+            p.targetX = -130 - 30 + Math.sin(globalPulse * 2 + idx) * 12;
+            p.targetY = Math.cos(globalPulse * 1.5 + idx) * 12;
+            p.targetZ = (Math.random() - 0.5) * 15;
+
+            if (Math.random() < 0.05) {
+              p.state = 'returning';
+              sparks.push({
+                x: p.x,
+                y: p.y,
+                z: p.z,
+                vx: (Math.random() - 0.5) * 5 + 3,
+                vy: (Math.random() - 0.5) * 4,
+                vz: (Math.random() - 0.5) * 4,
+                life: 15 + Math.round(Math.random() * 10),
+                maxLife: 25,
+                color: '#22d3ee'
+              });
+            }
+          } else if (p.state === 'returning') {
+            p.targetX = 130 + pulseFactor * 10;
+            p.targetY = Math.sin(globalPulse + idx) * 15;
+            p.targetZ = Math.cos(globalPulse + idx) * 15;
+
+            if (Math.random() < 0.03) p.state = 'searching';
+          }
+
+          const speedFact = (0.01 + p.speed) * (iaIntensityValue / 100 + 0.3);
+          p.x += (p.targetX - p.x) * speedFact;
+          p.y += (p.targetY - p.y) * speedFact;
+          p.z += (p.targetZ - p.z) * speedFact;
+
+          const proj = project3D(p.x, p.y, p.z, angleRotationX * 0.5, angleRotationY);
+
+          if (proj.scale > 0 && proj.depth < 150) {
+            ctx.fillStyle = p.state === 'returning' ? '#10b981' : p.state === 'docked' ? '#fb7185' : '#22d3ee';
+            ctx.beginPath();
+            ctx.arc(proj.x, proj.y, p.size * proj.scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (selectedVisMode === 'network' && idx < nanoparticles.length - 1 && idx % 12 === 0) {
+              const nextProj = project3D(nanoparticles[idx+1].x, nanoparticles[idx+1].y, nanoparticles[idx+1].z, angleRotationX * 0.5, angleRotationY);
+              ctx.strokeStyle = 'rgba(6, 182, 212, 0.12)';
+              ctx.lineWidth = 0.5;
+              ctx.beginPath();
+              ctx.moveTo(proj.x, proj.y);
+              ctx.lineTo(nextProj.x, nextProj.y);
+              ctx.stroke();
+            }
+          }
+        });
+      }
+
+      requestAnimationFrame(renderLoop);
+    }
+
+    // Set initial simulation states and spawn loop
+    setTimeout(() => {
+      setLang('ES');
+      selectPhase(8);
+      renderLoop();
+      addLog("Crono Silencio: Inicializando plataforma táctica...", "success");
+      addLog("Modelo epigenético mapeado por Dr. Julio César Oporta Barrera.", "info");
+    }, 100);
+
+  </script>
+</body>
+</html>
