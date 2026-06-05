@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SaludRoots AI - Prototipo 3D Autónomo</title>
+  <style>
+    :root {
+      --primary: #06b6d4;
+      --bg: #020a13;
+      --panel: rgba(4, 18, 38, 0.9);
+      --border: rgba(6, 182, 212, 0.3);
+      --accent: rgb(6, 182, 212);
+      --font-sans: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: #e2e8f0;
+      font-family: var(--font-sans);
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Cyber grid overlay */
+    body::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(rgba(18, 32, 54, 0.1) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(18, 32, 54, 0.1) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    header {
+      background: rgba(3, 11, 23, 0.85);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      z-index: 10;
+      backdrop-filter: blur(10px);
+    }
+
+    .author-badge {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .author-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    .author-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+      text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+    }
+
+    .project-title {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: #ffffff;
+      text-align: right;
+    }
+
+    .subtitle {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    /* main content layout */
+    .dashboard {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 320px 1fr 340px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    @media (max-width: 1024px) {
+      .dashboard {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+        overflow-y: auto;
+      }
+      body {
+        overflow-y: auto;
+      }
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      margin: 12px;
+      border-radius: 12px;
+      padding: 16px;
+      z-index: 5;
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+      overflow-y: auto;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--primary);
+      border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+      padding-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      font-weight: bold;
+    }
+
+    /* 3D viewport canvas */
+    .viewport-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 2;
+      cursor: grab;
+    }
+
+    canvas:active {
+      cursor: grabbing;
+    }
+
+    /* Controls inputs */
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field-label {
+      font-size: 11px;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .field-value {
+      font-family: monospace;
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(6, 182, 212, 0.15);
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      box-shadow: 0 0 10px var(--primary);
+      transition: transform 0.1s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .btn-group {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .btn {
+      background: rgba(6, 182, 212, 0.1);
+      border: 1px solid var(--border);
+      color: #ffffff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: bold;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    .btn:hover {
+      background: rgba(6, 182, 212, 0.25);
+      border-color: var(--primary);
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+    }
+
+    .btn.active {
+      background: var(--primary);
+      color: #020a13;
+      border-color: var(--primary);
+      box-shadow: 0 0 15px var(--accent);
+    }
+
+    /* HUD overlay */
+    .hud-overlay {
+      position: absolute;
+      top: 16px; left: 16px; right: 16px;
+      pointer-events: none;
+      z-index: 3;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .hud-card {
+      background: rgba(4, 18, 38, 0.7);
+      border: 1px solid rgba(6, 182, 212, 0.25);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-family: monospace;
+      font-size: 11px;
+      color: var(--primary);
+      backdrop-filter: blur(5px);
+    }
+
+    .hud-card-title {
+      font-weight: bold;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .hud-glow-red {
+      color: #ef4444;
+      text-shadow: 0 0 8px #ef4444;
+    }
+
+    /* Console logs */
+    .console-logs {
+      background: rgba(2, 6, 12, 0.85);
+      border: 1px solid rgba(6, 182, 212, 0.15);
+      padding: 10px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 10px;
+      color: #38bdf8;
+      height: 120px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 4px;
+    }
+
+    .log-line {
+      display: flex;
+      gap: 8px;
+    }
+
+    .log-time {
+      color: #64748b;
+    }
+
+    /* Language selector */
+    .lang-selector {
+      display: flex;
+      gap: 6px;
+    }
+
+    .lang-selector span {
+      padding: 4px 8px;
+      font-size: 11px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      cursor: pointer;
+      color: #94a3b8;
+    }
+
+    .lang-selector span.active {
+      background: rgba(6, 182, 212, 0.2);
+      border-color: var(--primary);
+      color: #ffffff;
+      font-weight: bold;
+    }
+
+    /* Status dot */
+    .dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background-color: #22c55e;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #22c55e;
+      margin-right: 6px;
+    }
+
+    .dot.warning {
+      background-color: #f59e0b;
+      box-shadow: 0 0 8px #f59e0b;
+    }
+
+    .dot.critical {
+      background-color: #ef4444;
+      box-shadow: 0 0 8px #ef4444;
+      animation: blink 1s infinite alternate;
+    }
+
+    @keyframes blink {
+      0% { opacity: 0.3; }
+      100% { opacity: 1; }
+    }
+
+    /* Waveform simulation on Canvas */
+    .waveform-container {
+      height: 50px;
+      border: 1px solid rgba(6, 182, 212, 0.15);
+      border-radius: 6px;
+      background: rgba(3, 11, 23, 0.4);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .graph-canvas {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="author-badge">
+      <span class="author-title" id="lbl-doctor">AUTOR / DIRECTED BY</span>
+      <span class="author-name">Dr. Julio César Oporta Barrera</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 20px;">
+      <div class="lang-selector">
+        <span class="lang-btn active" onclick="setLang('es')">ES</span>
+        <span class="lang-btn" onclick="setLang('en')">EN</span>
+        <span class="lang-btn" onclick="setLang('zh')">中文</span>
+      </div>
+      <div style="text-align: right;">
+        <span class="project-title">Project SaludRoots AI</span>
+        <div class="subtitle" id="lbl-subtitle">Predictive Community Health Network</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="dashboard">
+
+    <!-- Left Controls Panel -->
+    <div class="panel">
+      <div>
+        <div class="panel-title">
+          <span id="lbl-control-title">SIMULADOR INTERACTIVO</span>
+          <span class="dot"></span>
+        </div>
+        <p style="font-size:11px; color:#64748b; margin-top:6px;" id="lbl-control-desc">Use los controles para modificar el prototipo 3D y la biometría en tiempo real.</p>
+      </div>
+
+      <!-- DISPOSITIVO WEARABLE FAMILIAR INTEGRADO 24/7 -->
+      <div style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.15) 0%, rgba(30, 41, 59, 0.45) 100%); border: 1px solid rgba(99, 102, 241, 0.35); padding: 12px; border-radius: 8px; margin-bottom: 2px; display: flex; flex-direction: column; gap: 4px; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.25);">
+        <div style="position: absolute; top: 10px; right: 10px; display: flex; align-items: center; gap: 4px; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 4px; padding: 2px 6px;">
+          <span style="display: inline-block; width: 5px; height: 5px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 4px #22c55e;"></span>
+          <span style="font-size: 7.5px; color: #4ade80; font-family: monospace; font-weight: bold; tracking-spacing: 0.5px;">LIVE 24/7</span>
+        </div>
+        <div style="font-size: 8px; font-weight: bold; color: #a5b4fc; font-family: monospace; letter-spacing: 1px;">PULSERA FAMILIAR SMART</div>
+        <div style="font-size: 11px; font-weight: bold; color: white;">Wearable de Ultra Bajo Consumo</div>
+        <p style="font-size: 10px; color: #94a3b8; line-height: 1.45; margin-top: 2px;">
+          Registra y transmite vitales continuamente vía micro-enlaces <b>LoRaWAN Mesh</b> redundantes al Solar Hub.
+        </p>
+        <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px; margin-top: 4px; font-size: 9px; font-family: monospace; color: #64748b;">
+          <div>VITALES: <span id="custom-wearable-vitales" style="color: #67e8f9; font-weight: bold;">💓72 · 🩸98% · 🔥36.6°</span></div>
+          <div style="color: #a78bfa; font-weight: bold;">Kinética 24/7</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-label">
+          <span id="p-heart">Ritmo Cardíaco (LPM)</span>
+          <span class="field-value" id="val-heart">72</span>
+        </div>
+        <input type="range" id="inp-heart" min="40" max="180" value="72" oninput="updateVal('heart', this.value)">
+      </div>
+
+      <div class="field">
+        <div class="field-label">
+          <span id="p-spo2">Saturación (SpO2 %)</span>
+          <span class="field-value" id="val-spo2">98</span>
+        </div>
+        <input type="range" id="inp-spo2" min="80" max="100" value="98" oninput="updateVal('spo2', this.value)">
+      </div>
+
+      <div class="field">
+        <div class="field-label">
+          <span id="p-temp">Temperatura (°C)</span>
+          <span class="field-value" id="val-temp">36.6</span>
+        </div>
+        <input type="range" id="inp-temp" min="34" max="42" step="0.1" value="36.6" oninput="updateVal('temp', this.value)">
+      </div>
+
+      <div class="field">
+        <div class="field-label">
+          <span id="p-wind">Velocidad del Viento</span>
+          <span class="field-value" id="val-wind">12 kph</span>
+        </div>
+        <input type="range" id="inp-wind" min="0" max="80" value="12" oninput="updateVal('wind', this.value)">
+      </div>
+
+      <div class="field">
+        <div class="field-label">
+          <span id="p-solar">Irradiación Solar</span>
+          <span class="field-value" id="val-solar">85%</span>
+        </div>
+        <input type="range" id="inp-solar" min="0" max="100" value="85" oninput="updateVal('solar', this.value)">
+      </div>
+
+      <div class="field">
+        <div class="field-label">
+          <span id="p-rot">Velocidad de Rotación 3D</span>
+          <span class="field-value" id="val-rot">1.0x</span>
+        </div>
+        <input type="range" id="inp-rot" min="0" max="3" step="0.1" value="1.0" oninput="updateVal('rot', this.value)">
+      </div>
+
+      <div class="field">
+        <span class="field-label" id="lbl-presets">Ajuste Iluminación Cinematográfica</span>
+        <div class="btn-group">
+          <button class="btn active" id="p-preset-cyan" onclick="setPreset('cyan_matrix')">Cyan Matrix</button>
+          <button class="btn" id="p-preset-solar" onclick="setPreset('solar_dusk')">Solar Dusk</button>
+          <button class="btn" id="p-preset-crimson" onclick="setPreset('crimson_alert')">Crimson Alert</button>
+          <button class="btn" id="p-preset-violet" onclick="setPreset('neon_violet')">Bioluminiscencia</button>
+        </div>
+      </div>
+
+      <!-- Sandbox / Advanced Simulation Module Selector & Sliders -->
+      <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(6, 182, 212, 0.2); display: flex; flex-direction: column; gap: 10px;">
+        <span class="field-label" style="font-weight: bold; color: #a78bfa;" id="lbl-sandbox-opt">MÓDULO DE SIMULACIÓN AVANZADA</span>
+        <div class="btn-group" style="margin-top: 2px;">
+          <button class="btn active" id="btn-mod-cough" onclick="setSimModule('cough_analyzer')">🎙️ TOS</button>
+          <button class="btn" id="btn-mod-water" onclick="setSimModule('water_quality')">🧪 AGUA</button>
+          <button class="btn" id="btn-mod-swarm" onclick="setSimModule('swarm_telemetry')">🛰️ EMISIÓN</button>
+        </div>
+
+        <div id="panel-mod-cough" class="field" style="display: flex;">
+          <div class="field-label">
+            <span id="p-cough">Riesgo Patológico (Esputo)</span>
+            <span class="field-value" id="val-cough">45%</span>
+          </div>
+          <input type="range" id="inp-cough" min="0" max="100" value="45" oninput="updateVal('acousticSputum', this.value)">
+        </div>
+
+        <div id="panel-mod-water" class="field" style="display: none; flex-direction: column; gap: 8px;">
+          <div class="field" style="width: 100%;">
+            <div class="field-label">
+              <span id="p-ph">Nivel de pH de Pozos</span>
+              <span class="field-value" id="val-ph">7.2</span>
+            </div>
+            <input type="range" id="inp-ph" min="5.0" max="9.0" step="0.1" value="7.2" oninput="updateVal('phWater', this.value)">
+          </div>
+          <div class="field" style="width: 100%;">
+            <div class="field-label">
+              <span id="p-turb">Turbidez del Reservorio</span>
+              <span class="field-value" id="val-turb">1.5 NTU</span>
+            </div>
+            <input type="range" id="inp-turb" min="0.0" max="20.0" step="0.1" value="1.5" oninput="updateVal('turbidityWater', this.value)">
+          </div>
+        </div>
+
+        <!-- Sandbox Action Triggers Block -->
+        <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 5px;">
+          <span class="field-label" id="lbl-sandbox-triggers" style="font-size: 10px; font-weight: bold; color: #94a3b8;">INYECCIONES INTERACTIVAS (SANDBOX)</span>
+          <button class="btn" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); font-size: 9px;" onclick="triggerSandbox('outbreak')">🚨 Epidemia d Dengue (LSTM)</button>
+          <button class="btn" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3); font-size: 9px;" onclick="triggerSandbox('rain')">🌧️ Lluvia y Turbidez Acuática</button>
+          <button class="btn" style="background: rgba(6, 182, 212, 0.15); border-color: rgba(6, 182, 212, 0.3); font-size: 9px;" onclick="triggerSandbox('recalibrate')">🎛️ Re-Calibrar Red Neural</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center 3D viewport -->
+    <div class="viewport-container" style="flex: 1; min-height: 380px;">
+      
+      <!-- Tactical HUD indicators -->
+      <div class="hud-overlay">
+        <div class="hud-card">
+          <div class="hud-card-title">GPS TELEMETRY</div>
+          <div>LAT: 12.1364° N</div>
+          <div>LON: 86.2513° W</div>
+          <div>STATUS: <span id="hud-status" style="color:#22c55e;">FINE SENTINEL</span></div>
+        </div>
+
+        <div class="hud-card" style="text-align: right;">
+          <div class="hud-card-title">SOLAR HUB BATT</div>
+          <div style="font-size:14px; font-weight:bold; color:#eab308;" id="hud-battery">98% (LiFePO4)</div>
+          <div>LOAD: 420W / 1600W</div>
+          <div>RO PURE WATER: <span style="color:#22d3ee;">ACTIVE</span></div>
+        </div>
+      </div>
+
+      <!-- Live 3D projection Canvas -->
+      <canvas id="canvas3d"></canvas>
+
+    </div>
+
+    <!-- Right HUD Panel / Telemetry & AI system -->
+    <div class="panel">
+      <div>
+        <div class="panel-title">
+          <span id="lbl-ai-title">Nodos de Inteligencia Artificial</span>
+          <span class="dot warning"></span>
+        </div>
+        <p style="font-size: 11px; color: #64748b; margin-top: 6px;" id="lbl-ai-desc">Visualizador de re-pesado neural del Autoencoder local y Predicciones de Brotes.</p>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <span class="field-label" id="lbl-stages">Cambiar Fase de Red</span>
+        <div class="btn-group">
+          <button class="btn active" id="p-ph-0" onclick="setPhase(0)">Fase 0 MVP</button>
+          <button class="btn" id="p-ph-1" onclick="setPhase(1)">Fase 1 Piloto</button>
+          <button class="btn" id="p-ph-2" onclick="setPhase(2)">Fase 2 Mente</button>
+          <button class="btn" id="p-ph-3" onclick="setPhase(3)">Fase 3 Global</button>
+        </div>
+      </div>
+
+      <!-- ECG Waveform Animation -->
+      <div class="field">
+        <span class="field-label" id="lbl-ecg">Señal de ECG / Biomecánica PPG</span>
+        <div class="waveform-container">
+          <canvas id="wavecanvas" class="graph-canvas"></canvas>
+        </div>
+      </div>
+
+      <!-- AI learning weights mockup -->
+      <div class="hud-card" style="background: rgba(2, 6, 12, 0.5); font-family: monospace; display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-weight:bold; color:#a78bfa; margin-bottom: 2px;" id="lbl-weights">Pesos Neurales TinyML:</div>
+        <div style="display:flex; justify-content:space-between;"><span>• Input SpO2 [w0]:</span><span id="w0" style="color:#34d399;">0.842</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>• Input Temp [w1]:</span><span id="w1" style="color:#34d399;">0.912</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>• Cough Microphone [w2]:</span><span id="w2" style="color:#f43f5e;">0.125</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>• Sentinel-2 Water Index:</span><span id="w3" style="color:#34d399;">0.749</span></div>
+        <div style="display:flex; justify-content:space-between; font-weight:bold; border-top:1px solid rgba(255,255,255,0.1); margin-top:2px; padding-top:2px;">
+          <span id="lbl-outbreak">Riesgo Epidémico (LSTM):</span><span id="outbreak-p" style="color:#10b981;">12.4%</span>
+        </div>
+      </div>
+
+      <!-- Dynamic Diagnostic Sub-Panel for Sandbox module -->
+      <div id="hud-sandbox-details" class="hud-card" style="background: rgba(167, 139, 250, 0.05); border-color: rgba(167, 139, 250, 0.25); display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-weight:bold; color:#a78bfa; font-size: 10px;" id="det-title">MICRO-ESPECTROGRAMA [TOS]</div>
+        <div id="det-value" style="font-size: 9px; line-height: 14px;">Evaluando tos activa: <span style="font-weight:bold; color:#a78bfa;">45% de riesgo patológico</span></div>
+        <div style="height: 32px; border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 4px; overflow:hidden; position:relative; background: #02060c;">
+          <canvas id="microwavecanvas" style="width: 100%; height: 100%; position: absolute; pointer-events: none;"></canvas>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel-title">
+          <span id="lbl-terminal">CONSOLA DE TELEMETRÍA</span>
+        </div>
+        <div class="console-logs" id="logs-container">
+          <!-- Logs populate here -->
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Internationalization dictionary
+    const DICT = {
+      es: {
+        subtitle: "Plataforma Predictiva Comunitaria de Salud",
+        controlTitle: "SIMULADOR INTERACTIVO 3D",
+        controlDesc: "Use los controles para modificar el prototipo 3D y la biometría.",
+        heart: "Ritmo Cardíaco (LPM)",
+        spo2: "Saturación (SpO2 %)",
+        temp: "Temperatura (°C)",
+        wind: "Velocidad del Viento",
+        solar: "Irradiación Solar",
+        rot: "Velocidad de Rotación 3D",
+        presets: "Luz Cinematográfica",
+        stages: "Cambiar Fase de Red",
+        ecg: "Señal de ECG / Biomecánica PPG",
+        weights: "Pesos Neurales TinyML:",
+        terminal: "CONSOLA DE TELEMETRÍA",
+        doctor: "Dr. Julio César Oporta Barrera",
+        aiTitle: "Nodos de Inteligencia Artificial",
+        aiDesc: "Visualizador de pesos neurales en el borde y algoritmo LSTM de dengue.",
+        outbreak: "Riesgo de Dengue (LSTM):",
+        phaseNames: ["Fase 0: MVP", "Fase 1: Piloto", "Fase 2: Mente", "Fase 3: Global"]
+      },
+      en: {
+        subtitle: "Predictive Community Health Platform",
+        controlTitle: "3D INTERACTIVE SIMULATOR",
+        controlDesc: "Adjust variables to modify 3D rendering and biomechanics.",
+        heart: "Heart Rate (BPM)",
+        spo2: "Oxygen Level (SpO2 %)",
+        temp: "Temperature (°C)",
+        wind: "Wind Velocity",
+        solar: "Solar Irradiation",
+        rot: "3D Rotation Rate",
+        presets: "Cinematic Lights Preset",
+        stages: "Shift Project Phase",
+        ecg: "ECG / PPG Biomechanics Signal",
+        weights: "TinyML Neural Weights:",
+        terminal: "TELEMETRY LOGS CONSOLE",
+        doctor: "Dr. Julio César Oporta Barrera",
+        aiTitle: "Artificial Intelligence Nodes",
+        aiDesc: "Realtime weights visualization of local autoencoder & dengue forecasting.",
+        outbreak: "LSTM Epidemic Outbreak:",
+        phaseNames: ["Phase 0: MVP", "Phase 1: Pilot", "Phase 2: Mind", "Phase 3: Global"]
+      },
+      zh: {
+        subtitle: "自主预测性社区健康网关平台",
+        controlTitle: "3D 交互式仿真盘",
+        controlDesc: "调节滑块可即时修改 3D 渲染及体征遥测规律。",
+        heart: "脉搏心率 (BPM)",
+        spo2: "血氧饱和度 (SpO2 %)",
+        temp: "腋下核心体温 (°C)",
+        wind: "区域瞬时风速",
+        solar: "光伏太阳辐照强度",
+        rot: "3D 渲染自转因子",
+        presets: "电影级多维灯光预置",
+        stages: "切换演进生命阶段",
+        ecg: "心电图 (ECG) / 柔性 PPG 特征波",
+        weights: "TinyML 边缘分类权重值:",
+        terminal: "共享遥测虚拟控制台日志",
+        doctor: "Dr. Julio César Oporta Barrera (朱利奥·塞萨尔 博士)",
+        aiTitle: "AI 异构神经网络节点",
+        aiDesc: "自抗干扰型多级网络权重分布及 LSTM 数据流。",
+        outbreak: "登革热流体爆发系数 (LSTM):",
+        phaseNames: ["阶段 0: MVP", "阶段 1: 村庄部署", "阶段 2: 集群大脑", "阶段 3: 全球联邦"]
+      }
+    };
+
+    let curLang = 'es';
+    let simulation = {
+      heart: 72,
+      spo2: 98,
+      temp: 36.6,
+      wind: 12,
+      solar: 85,
+      rot: 1.0,
+      preset: 'cyan_matrix',
+      phase: 2,
+      acousticSputum: 45,
+      phWater: 7.2,
+      turbidityWater: 1.5,
+      activeSimulationModule: 'cough_analyzer'
+    };
+
+    function setLang(lang) {
+      curLang = lang;
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.innerText.toLowerCase().includes(lang === 'zh' ? '中文' : lang));
+      });
+      refreshUI();
+      addLog("Set language to: " + lang.toUpperCase());
+    }
+
+    function refreshUI() {
+      const d = DICT[curLang];
+      document.getElementById('lbl-subtitle').innerText = d.subtitle;
+      document.getElementById('lbl-control-title').innerText = d.controlTitle;
+      document.getElementById('lbl-control-desc').innerText = d.controlDesc;
+      document.getElementById('p-heart').innerText = d.heart;
+      document.getElementById('p-spo2').innerText = d.spo2;
+      document.getElementById('p-temp').innerText = d.temp;
+      document.getElementById('p-wind').innerText = d.wind;
+      document.getElementById('p-solar').innerText = d.solar;
+      document.getElementById('p-rot').innerText = d.rot;
+      document.getElementById('lbl-presets').innerText = d.presets;
+      document.getElementById('lbl-stages').innerText = d.stages;
+      document.getElementById('lbl-ecg').innerText = d.ecg;
+      document.getElementById('lbl-weights').innerText = d.weights;
+      document.getElementById('lbl-terminal').innerText = d.terminal;
+      document.getElementById('lbl-ai-title').innerText = d.aiTitle;
+      document.getElementById('lbl-ai-desc').innerText = d.aiDesc;
+      document.getElementById('lbl-outbreak').innerText = d.outbreak;
+
+      // Stage names
+      document.getElementById('p-ph-0').innerText = d.phaseNames[0];
+      document.getElementById('p-ph-1').innerText = d.phaseNames[1];
+      document.getElementById('p-ph-2').innerText = d.phaseNames[2];
+      document.getElementById('p-ph-3').innerText = d.phaseNames[3];
+
+      updateLabels();
+    }
+
+    function setSimModule(mod) {
+      simulation.activeSimulationModule = mod;
+      document.getElementById('btn-mod-cough').classList.toggle('active', mod === 'cough_analyzer');
+      document.getElementById('btn-mod-water').classList.toggle('active', mod === 'water_quality');
+      document.getElementById('btn-mod-swarm').classList.toggle('active', mod === 'swarm_telemetry');
+      
+      document.getElementById('panel-mod-cough').style.display = mod === 'cough_analyzer' ? 'flex' : 'none';
+      document.getElementById('panel-mod-water').style.display = mod === 'water_quality' ? 'flex' : 'none';
+      
+      addLog("Active Simulation Module changed to: " + mod.toUpperCase());
+      updateLabels();
+    }
+
+    function triggerSandbox(type) {
+      if (type === 'outbreak') {
+        document.getElementById('inp-temp').value = '39.4';
+        document.getElementById('inp-heart').value = '112';
+        document.getElementById('inp-spo2').value = '91';
+        updateVal('temp', 39.4);
+        updateVal('heart', 112);
+        updateVal('spo2', 91);
+        document.getElementById('inp-cough').value = 85;
+        updateVal('acousticSputum', 85);
+        setPreset('crimson_alert');
+        addLog("🚨 SANDBOX: Epidemia inducida! Anomalías detectadas en todo el borde.");
+      } else if (type === 'rain') {
+        document.getElementById('inp-wind').value = '62';
+        document.getElementById('inp-solar').value = '5';
+        updateVal('wind', 62);
+        updateVal('solar', 5);
+        document.getElementById('inp-ph').value = 5.9;
+        document.getElementById('inp-turb').value = 18.2;
+        updateVal('phWater', 5.9);
+        updateVal('turbidityWater', 18.2);
+        setPreset('solar_dusk');
+        addLog("🌧️ SANDBOX: Simulación de lluvia activa. pH disminuido y turbidez elevada en pozos.");
+      } else if (type === 'recalibrate') {
+        addLog("🎛️ SANDBOX: Re-calibrando pesos neuronales en micro-redes de SaludRoots...");
+        setTimeout(() => {
+          addLog("✓ Calibración completa. Tolerancias del enjambre equilibradas.");
+        }, 1200);
+      }
+    }
+
+    function updateVal(key, val) {
+      simulation[key] = parseFloat(val);
+      updateLabels();
+      if (key === 'heart') {
+        addLog("💓 Wearable [Familia #012]: Registro de pulso 24/7 en " + val + " LPM (Bajo Consumo/Estable).");
+      } else if (key === 'spo2') {
+        addLog("🩸 Wearable [Familia #012]: Nivel SpO2 actual en " + val + "%. Transmisión LoRa Mesh activa.");
+        if (parseFloat(val) < 92) {
+          addLog("🚨 ALERT: SpO2 familiar cayó por debajo del límite de seguridad!");
+        }
+      } else if (key === 'temp') {
+        addLog("🔥 Wearable [Familia #012]: Registro térmico continuo en " + val + " °C. Sensor activo en red LoRa.");
+      } else if (key === 'acousticSputum') {
+        addLog("Acoustic update: sputum score changed to " + val + "%.");
+      } else if (key === 'phWater') {
+        addLog("Groundwater ph check: ph set to " + val);
+      } else if (key === 'turbidityWater') {
+        addLog("Groundwater turbidity check: turbidity set to " + val + " NTU.");
+      }
+    }
+
+    function updateLabels() {
+      document.getElementById('val-heart').innerText = simulation.heart;
+      document.getElementById('val-spo2').innerText = simulation.spo2 + ' %';
+      document.getElementById('val-temp').innerText = simulation.temp + ' °C';
+
+      if (document.getElementById('custom-wearable-vitales')) {
+        document.getElementById('custom-wearable-vitales').innerHTML = '💓' + simulation.heart + ' · 🩸' + simulation.spo2 + '% · 🔥' + simulation.temp.toFixed(1) + '°';
+      }
+      document.getElementById('val-wind').innerText = simulation.wind + ' kph';
+      document.getElementById('val-solar').innerText = simulation.solar + ' %';
+      document.getElementById('val-rot').innerText = simulation.rot + 'x';
+
+      if (document.getElementById('val-cough')) {
+        document.getElementById('val-cough').innerText = simulation.acousticSputum + ' %';
+      }
+      if (document.getElementById('val-ph')) {
+        document.getElementById('val-ph').innerText = simulation.phWater.toFixed(1);
+      }
+      if (document.getElementById('val-turb')) {
+        document.getElementById('val-turb').innerText = simulation.turbidityWater.toFixed(1) + ' NTU';
+      }
+
+      const detTitle = document.getElementById('det-title');
+      const detVal = document.getElementById('det-value');
+      if (detTitle && detVal) {
+        if (simulation.activeSimulationModule === 'cough_analyzer') {
+          detTitle.innerText = "MICRO-ESPECTROGRAMA [TOS]";
+          detTitle.style.color = "#a78bfa";
+          detVal.innerHTML = 'Frecuencia Tos: <span style="font-weight:bold; color:#a78bfa;">Activa (Sputum ' + simulation.acousticSputum + '%)</span>';
+        } else if (simulation.activeSimulationModule === 'water_quality') {
+          detTitle.innerText = "CALIDAD DE AGUA DE POZOS";
+          detTitle.style.color = "#f59e0b";
+          let chemicalStatus = (simulation.phWater < 6.5) ? '<span style="color:#ef4444; font-weight:bold;">ÁCIDO CRÍTICO</span>' : (simulation.phWater > 8.0 ? '<span style="color:#f59e0b; font-weight:bold;">ALCALINO</span>' : '<span style="color:#10b981; font-weight:bold;">MINERAL ÓPTIMO</span>');
+          detVal.innerHTML = 'pH: ' + simulation.phWater.toFixed(1) + ' • Turbidez: ' + simulation.turbidityWater.toFixed(1) + ' NTU (' + chemicalStatus + ')';
+        } else if (simulation.activeSimulationModule === 'swarm_telemetry') {
+          detTitle.innerText = "TELEMETRÍA SATELITAL DE ENJAMBRE";
+          detTitle.style.color = "#06b6d4";
+          detVal.innerHTML = 'Enlace LoRaWAN: <span style="color:#10b981; font-weight:bold;">ESTABLE (99.8%)</span> • Mesh: Satélite Puente';
+        }
+      }
+
+      // Dynamically calculate and display AI Node values and risk % based on sliders
+      let feverFactor = (simulation.temp > 37.5) ? (simulation.temp - 37.5) * 45 : 0;
+      let respFactor = (simulation.spo2 < 95) ? (95 - simulation.spo2) * 15 : 0;
+      let heartFactor = (simulation.heart > 90) ? (simulation.heart - 90) * 1.5 : 0;
+      
+      let sputumFactor = (simulation.acousticSputum > 50) ? (simulation.acousticSputum - 50) * 0.4 : 0;
+      let badPhFactor = (simulation.phWater < 6.5 || simulation.phWater > 8.0) ? 15 : 0;
+      let badTurbFactor = (simulation.turbidityWater > 5) ? (simulation.turbidityWater - 5) * 1.5 : 0;
+      let waterFactor = (100 - simulation.solar) * 0.25 + badPhFactor + badTurbFactor;
+      
+      let totalRisk = Math.min(100, Math.max(1.2, feverFactor + respFactor + heartFactor + waterFactor + sputumFactor));
+      document.getElementById('outbreak-p').innerText = totalRisk.toFixed(1) + '%';
+      if (totalRisk > 35) {
+        document.getElementById('outbreak-p').style.color = '#ef4444';
+        document.getElementById('hud-status').innerText = (curLang === 'es') ? 'ADVERTENCIA EN CASCADA' : (curLang === 'zh' ? '疫情高度警振' : 'CASCADE OUTBREAK WARNING');
+        document.getElementById('hud-status').style.color = '#ef4444';
+      } else {
+        document.getElementById('outbreak-p').style.color = '#10b981';
+        document.getElementById('hud-status').innerText = (curLang === 'es') ? 'SISTEMA SEGURO' : (curLang === 'zh' ? '标准哨兵常态' : 'SYSTEM SENTINEL FINE');
+        document.getElementById('hud-status').style.color = '#22c55e';
+      }
+
+      // Sync weights values with slight variances to look fully dynamic
+      document.getElementById('w0').innerText = (simulation.spo2 / 100).toFixed(3);
+      document.getElementById('w1').innerText = (Math.min(1, simulation.temp / 36.6)).toFixed(3);
+      document.getElementById('w2').innerText = ((totalRisk / 100) * 0.8 + 0.1).toFixed(3);
+      document.getElementById('w3').innerText = (simulation.solar / 100).toFixed(3);
+
+      // Sync solar hub battery
+      let chargeRatio = simulation.solar * 1.2;
+      let finalBatt = Math.min(100, Math.max(5, Math.round(75 + chargeRatio * 0.25)));
+      document.getElementById('hud-battery').innerText = finalBatt + '% (LiFePO4)';
+    }
+
+    function setPreset(preset) {
+      simulation.preset = preset;
+      document.querySelectorAll('.btn-group [id^="p-preset"]').forEach(btn => {
+        btn.classList.toggle('active', btn.id.includes(preset.split('_')[0]));
+      });
+
+      // Shaders coloring mapping
+      const root = document.querySelector(':root');
+      if (preset === 'cyan_matrix') {
+        root.style.setProperty('--primary', '#06b6d4');
+        root.style.setProperty('--accent', 'rgb(6, 182, 212)');
+        root.style.setProperty('--border', 'rgba(6, 182, 212, 0.3)');
+        addLog("Visual theme changed to CYAN MATRIX.");
+      } else if (preset === 'solar_dusk') {
+        root.style.setProperty('--primary', '#f59e0b');
+        root.style.setProperty('--accent', 'rgb(245, 158, 11)');
+        root.style.setProperty('--border', 'rgba(245, 158, 11, 0.3)');
+        addLog("Visual theme changed to SOLAR DUSK.");
+      } else if (preset === 'crimson_alert') {
+        root.style.setProperty('--primary', '#ef4444');
+        root.style.setProperty('--accent', 'rgb(239, 68, 68)');
+        root.style.setProperty('--border', 'rgba(239, 68, 68, 0.3)');
+        addLog("SYSTEM DANGER TRIGGERED: CRIMSON ALERT PRESENCE ACTIVATED.");
+      } else if (preset === 'neon_violet') {
+        root.style.setProperty('--primary', '#8b5cf6');
+        root.style.setProperty('--accent', 'rgb(139, 92, 246)');
+        root.style.setProperty('--border', 'rgba(139, 92, 246, 0.3)');
+        addLog("Visual theme changed to NEON BIOLUMINESCENCE.");
+      }
+    }
+
+    function setPhase(ph) {
+      simulation.phase = ph;
+      document.querySelectorAll('.btn-group [id^="p-ph"]').forEach(btn => {
+        btn.classList.toggle('active', btn.id.includes(ph));
+      });
+      addLog("System redeployed to Phase " + ph + ": " + (ph === 0 ? 'Urban MVP' : ph === 1 ? 'Rural Pilot' : ph === 2 ? 'Collective Brain' : 'Global Flower Network'));
+    }
+
+    // Interactive logs feed
+    function addLog(text) {
+      const container = document.getElementById('logs-container');
+      const row = document.createElement('div');
+      row.className = 'log-line';
+      const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
+      row.innerHTML = '<span class="log-time">['+timeStr+']</span> <span>' + text + '</span>';
+      container.insertBefore(row, container.firstChild);
+    }
+
+    // Base engine logs on startup
+    setTimeout(() => { addLog("SaludRoots AI boot complete."); }, 100);
+    setTimeout(() => { addLog("3D Projection context initialized on Edge/Chrome canvas."); }, 400);
+    setTimeout(() => { addLog("Dr. Julio César Oporta Barrera - Patent verification successful."); }, 700);
+
+    // Dynamic ECG Simulation using HTML5 Canvas
+    const waveCanvas = document.getElementById("wavecanvas");
+    const wg = waveCanvas.getContext("2d");
+    let waveX = 0;
+
+    // Dynamic Micro dynamics canvas render for active sandbox details
+    const microCanvas = document.getElementById("microwavecanvas");
+    const mctx = microCanvas ? microCanvas.getContext("2d") : null;
+    let microX = 0;
+    
+    function drawMicroDynamics() {
+      if (!microCanvas || !mctx) return;
+      
+      const width = microCanvas.width = microCanvas.parentElement.clientWidth;
+      const height = microCanvas.height = 32;
+      
+      mctx.clearRect(0, 0, width, height);
+      
+      mctx.strokeStyle = simulation.activeSimulationModule === 'cough_analyzer' ? '#a78bfa' : (simulation.activeSimulationModule === 'water_quality' ? '#f59e0b' : '#06b6d4');
+      mctx.lineWidth = 1.5;
+      mctx.beginPath();
+      
+      microX += 1.8;
+      if (microX > width) microX = 0;
+      
+      for (let x = 0; x < width; x++) {
+        let y = height / 2;
+        if (simulation.activeSimulationModule === 'cough_analyzer') {
+          let pulse = Math.sin((x - microX) * 0.15) * (simulation.acousticSputum * 0.12);
+          y += pulse * Math.cos(x * 0.05);
+        } else if (simulation.activeSimulationModule === 'water_quality') {
+          y += Math.sin((x - microX) * 0.08) * (simulation.turbidityWater * 0.5 + 1);
+        } else {
+          let step = Math.floor((x - microX) / 15) % 2;
+          y += step === 0 ? 3 : -3;
+        }
+        
+        if (x === 0) mctx.moveTo(x, y);
+        else mctx.lineTo(x, y);
+      }
+      mctx.stroke();
+      requestAnimationFrame(drawMicroDynamics);
+    }
+    setTimeout(drawMicroDynamics, 600);
+    
+    function drawECG() {
+      if(!waveCanvas) return;
+      
+      const width = waveCanvas.width = waveCanvas.parentElement.clientWidth;
+      const height = waveCanvas.height = 50;
+
+      // We shift graph pixels to the left dynamically
+      let hrRatio = simulation.heart / 72;
+      waveX += 2.5 * hrRatio;
+      if (waveX > width) waveX = 0;
+
+      // Draw active background grid
+      wg.strokeStyle = "rgba(6,182,212,0.05)";
+      wg.lineWidth = 1;
+      for (let i = 0; i < width; i += 15) {
+        wg.beginPath(); wg.moveTo(i, 0); wg.lineTo(i, height); wg.stroke();
+      }
+      for (let j = 0; j < height; j += 15) {
+        wg.beginPath(); wg.moveTo(0, j); wg.lineTo(width, j); wg.stroke();
+      }
+
+      // Draw ECG pulse line
+      wg.strokeStyle = document.querySelector(':root').style.getPropertyValue('--primary') || '#06b6d4';
+      wg.shadowBlur = 4;
+      wg.shadowColor = wg.strokeStyle;
+      wg.lineWidth = 1.8;
+      wg.beginPath();
+      
+      for (let x = 0; x < width; x++) {
+        let cycle = (x - waveX) * 0.08 * hrRatio;
+        let sinVal = Math.sin(cycle);
+        let y = height / 2;
+
+        // Custom mathematical mapping to match realistic QRS complex of ECG wave
+        let pulsePoint = Math.abs((x - waveX) % (120 / hrRatio));
+        if (pulsePoint < 10) {
+          y -= Math.sin(pulsePoint * 0.3) * 6; // P wave
+        } else if (pulsePoint >= 15 && pulsePoint < 22) {
+          y += 4; // Q decline
+        } else if (pulsePoint >= 22 && pulsePoint < 28) {
+          y -= 22; // R spike
+        } else if (pulsePoint >= 28 && pulsePoint < 34) {
+          y += 12; // S dip
+        } else if (pulsePoint >= 45 && pulsePoint < 65) {
+          y -= Math.sin((pulsePoint - 45) * 0.15) * 5; // T wave
+        }
+
+        if (x === 0) wg.moveTo(x, y);
+        else wg.lineTo(x, y);
+      }
+      wg.stroke();
+      wg.shadowBlur = 0;
+
+      requestAnimationFrame(drawECG);
+    }
+    setTimeout(drawECG, 500);
+
+
+    // ==========================================
+    // MAGNIFICENT CUSTOM HTML5 CANVA-3D ENGINE!
+    // ==========================================
+    const canvas = document.getElementById("canvas3d");
+    const ctx = canvas.getContext("2d");
+    
+    let yaw = -0.4;
+    let pitch = -0.3;
+    let isDragging = false;
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+
+    // Mouse control bindings
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+    });
+
+    window.addEventListener('mouseup', () => { isDragging = false; });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if(!isDragging) return;
+      let dx = e.clientX - lastMouseX;
+      let dy = e.clientY - lastMouseY;
+      yaw += dx * 0.007;
+      pitch += dy * 0.007;
+      
+      // Limit vertical pitch to avoid flipping over
+      pitch = Math.max(-1.2, Math.min(1.2, pitch));
+      
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+    });
+
+    // Touch support for mobile layouts viewports
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        lastMouseX = e.touches[0].clientX;
+        lastMouseY = e.touches[0].clientY;
+      }
+    });
+
+    canvas.addEventListener('touchend', () => { isDragging = false; });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (!isDragging || e.touches.length !== 1) return;
+      let dx = e.touches[0].clientX - lastMouseX;
+      let dy = e.touches[0].clientY - lastMouseY;
+      yaw += dx * 0.007;
+      pitch += dy * 0.007;
+      pitch = Math.max(-1.2, Math.min(1.2, pitch));
+      lastMouseX = e.touches[0].clientX;
+      lastMouseY = e.touches[0].clientY;
+    });
+
+    let autoRotAngle = 0;
+
+    function render3D() {
+      const width = canvas.width = canvas.parentElement.clientWidth;
+      const height = canvas.height = canvas.parentElement.clientHeight;
+      ctx.clearRect(0, 0, width, height);
+
+      // Render styles based on current preset
+      let activeColor = document.querySelector(':root').style.getPropertyValue('--primary') || '#06b6d4';
+
+      // Global coordinates mapping
+      const cx = width / 2;
+      const cy = height / 2 + 30;
+      const scale = Math.min(width, height) * 0.38;
+
+      autoRotAngle += 0.005 * simulation.rot;
+      let totalYaw = yaw + autoRotAngle;
+
+      // Point projection function (Pitch, Yaw, 3D position)
+      function project(x, y, z) {
+        // Yaw rotation
+        let x1 = x * Math.cos(totalYaw) - z * Math.sin(totalYaw);
+        let z1 = x * Math.sin(totalYaw) + z * Math.cos(totalYaw);
+        
+        // Pitch rotation
+        let y2 = y * Math.cos(pitch) - z1 * Math.sin(pitch);
+        let z2 = y * Math.sin(pitch) + z1 * Math.cos(pitch);
+
+        // Perspective division
+        let depthPerspective = 400 / (400 + z2);
+        return {
+          x: cx + x1 * scale * depthPerspective,
+          y: cy + y2 * scale * depthPerspective,
+          depth: z2
+        };
+      }
+
+      // Draw futuristic hologram ground grid lines
+      ctx.strokeStyle = activeColor === '#ef4444' ? 'rgba(239, 68, 68, 0.07)' : 'rgba(6, 182, 212, 0.07)';
+      ctx.lineWidth = 1;
+      for (let g = -1.5; g <= 1.5; g += 0.3) {
+        ctx.beginPath();
+        for (let t = -1.5; t <= 1.5; t += 0.1) {
+          let p = project(t, 0.6, g);
+          if (t === -1.5) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+
+        ctx.beginPath();
+        for (let t = -1.5; t <= 1.5; t += 0.1) {
+          let p = project(g, 0.6, t);
+          if (t === -1.5) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+      }
+
+      // Draw Central Biomimetic Solar Hub (Central Cube)
+      let centralHeight = -0.15;
+      let hubPoints = [
+        project(-0.25, 0.15, -0.25), project(0.25, 0.15, -0.25), project(0.25, 0.15, 0.25), project(-0.25, 0.15, 0.25),
+        project(-0.25, centralHeight, -0.25), project(0.25, centralHeight, -0.25), project(0.25, centralHeight, 0.25), project(-0.25, centralHeight, 0.25)
+      ];
+
+      // Render core lines
+      ctx.strokeStyle = activeColor;
+      ctx.lineWidth = 2.5;
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = activeColor;
+      
+      // Bottom face
+      ctx.beginPath();
+      ctx.moveTo(hubPoints[0].x, hubPoints[0].y);
+      for (let i = 1; i <= 3; i++) ctx.lineTo(hubPoints[i].x, hubPoints[i].y);
+      ctx.closePath(); ctx.stroke();
+
+      // Top face
+      ctx.beginPath();
+      ctx.moveTo(hubPoints[4].x, hubPoints[4].y);
+      for (let i = 5; i <= 7; i++) ctx.lineTo(hubPoints[i].x, hubPoints[i].y);
+      ctx.closePath(); ctx.stroke();
+
+      // Verticals pillars
+      for (let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        ctx.moveTo(hubPoints[i].x, hubPoints[i].y);
+        ctx.lineTo(hubPoints[i+4].x, hubPoints[i+4].y);
+        ctx.stroke();
+      }
+      ctx.shadowBlur = 0;
+
+      // Drew Solar Panel arrays attached to the body
+      ctx.fillStyle = activeColor === '#ef4444' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(6, 182, 212, 0.25)';
+      ctx.strokeStyle = activeColor;
+      ctx.lineWidth = 1;
+
+      let leftPanel = [project(-0.25, -0.05, -0.1), project(-0.6, -0.15, -0.1), project(-0.6, -0.15, 0.1), project(-0.25, -0.05, 0.1)];
+      ctx.beginPath();
+      ctx.moveTo(leftPanel[0].x, leftPanel[0].y);
+      for(let i=1;i<4;i++) ctx.lineTo(leftPanel[i].x, leftPanel[i].y);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      
+      let rightPanel = [project(0.25, -0.05, -0.1), project(0.6, -0.15, -0.1), project(0.6, -0.15, 0.1), project(0.25, -0.05, 0.1)];
+      ctx.beginPath();
+      ctx.moveTo(rightPanel[0].x, rightPanel[0].y);
+      for(let i=1;i<4;i++) ctx.lineTo(rightPanel[i].x, rightPanel[i].y);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+
+      // Draw Antenna towers radiating pulses
+      let antTop = project(0, -0.5, 0);
+      let antBase = project(0, centralHeight, 0);
+      ctx.strokeStyle = activeColor;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(antBase.x, antBase.y);
+      ctx.lineTo(antTop.x, antTop.y);
+      ctx.stroke();
+
+      // Radiating ring effect
+      let radiusPulse = (Date.now() % 1500) / 1500;
+      ctx.strokeStyle = activeColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(antTop.x, antTop.y, radiusPulse * 38, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Draw Orbiting Satellite (in Phase 2 & 3)
+      if (simulation.phase >= 2) {
+        let satAngle = Date.now() * 0.001;
+        let satX = Math.cos(satAngle) * 1.1;
+        let satZ = Math.sin(satAngle) * 1.1;
+        let satY = -0.8;
+        
+        let satPos = project(satX, satY, satZ);
+        
+        // Orbit line
+        ctx.strokeStyle = "rgba(139, 92, 246, 0.15)";
+        ctx.beginPath();
+        for (let a = 0; a < Math.PI * 2; a += 0.1) {
+          let oP = project(Math.cos(a) * 1.1, satY, Math.sin(a) * 1.1);
+          if (a === 0) ctx.moveTo(oP.x, oP.y);
+          else ctx.lineTo(oP.x, oP.y);
+        }
+        ctx.closePath(); ctx.stroke();
+
+        // draw satellites node
+        ctx.fillStyle = "#a78bfa";
+        ctx.beginPath();
+        ctx.arc(satPos.x, satPos.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Satellite link line to solar hub center
+        ctx.strokeStyle = "rgba(167, 139, 250, 0.35)";
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(satPos.x, satPos.y);
+        ctx.lineTo(antTop.x, antTop.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Draw Drone (in Phase 1, 2, 3)
+      if (simulation.phase >= 1) {
+        let hoverAngle = Date.now() * 0.003;
+        let droneY = -0.45 + Math.sin(hoverAngle) * 0.05;
+        let droneX = 0.5 * Math.cos(hoverAngle * 0.5);
+        let droneZ = 0.5 * Math.sin(hoverAngle * 0.5);
+
+        let dronePos = project(droneX, droneY, droneZ);
+
+        ctx.fillStyle = "#fbbf24";
+        ctx.beginPath();
+        ctx.arc(dronePos.x, dronePos.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Drone propellers line
+        ctx.strokeStyle = "#eab308";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(dronePos.x - 10, dronePos.y);
+        ctx.lineTo(dronePos.x + 10, dronePos.y);
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(251, 191, 36, 0.25)";
+        ctx.beginPath();
+        ctx.moveTo(dronePos.x, dronePos.y);
+        ctx.lineTo(cx, cy + 30);
+        ctx.stroke();
+      }
+
+      // 5.5 DRAW CUSTOM 3D SMART WEARABLE PULSERA 24/7 (Connected to Central Console/Hub offline)
+      let wx = -0.72; 
+      let wy = -0.25; 
+      let wz = 0.5;
+      
+      // Calculate 3D points for the circular strap
+      let strapPoints = [];
+      let steps = 18;
+      let strapRadius = 0.12;
+      for (let s = 0; s <= steps; s++) {
+        let theta = (s * Math.PI * 2) / steps;
+        // Vertically oriented torus-like loop that rotates nicely
+        let sx = wx + Math.cos(theta) * 0.04;
+        let sy = wy + Math.sin(theta) * strapRadius;
+        let sz = wz + Math.cos(theta) * strapRadius;
+        strapPoints.push(project(sx, sy, sz));
+        }
+
+      // Draw strap lines
+      ctx.strokeStyle = '#818cf8';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(strapPoints[0].x, strapPoints[0].y);
+      for (let s = 1; s < strapPoints.length; s++) {
+        ctx.lineTo(strapPoints[s].x, strapPoints[s].y);
+      }
+      ctx.stroke();
+
+      // Screen Module on top of the strap
+      let screenPos = project(wx - 0.02, wy - strapRadius, wz);
+      ctx.fillStyle = '#1e1b4b'; // dark blue purple
+      ctx.strokeStyle = '#c084fc'; // glowing purple
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(screenPos.x, screenPos.y, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Pulsing screen heart
+      let isAnomalous = simulation.heart > 100 || simulation.spo2 < 93 || parseFloat(simulation.temp) > 38.0;
+      let heartPulse = 1 + Math.sin(Date.now() * 0.008) * 0.15;
+      ctx.fillStyle = isAnomalous ? '#ef4444' : '#10b981';
+      ctx.beginPath();
+      ctx.arc(screenPos.x, screenPos.y, 3 * heartPulse, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Dotted Connection Beam to Hub top antenna (antTop)
+      ctx.strokeStyle = isAnomalous ? 'rgba(239, 68, 68, 0.4)' : 'rgba(129, 140, 248, 0.4)';
+      ctx.lineWidth = 1.4;
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath();
+      ctx.moveTo(screenPos.x, screenPos.y);
+      ctx.lineTo(antTop.x, antTop.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Little floating animated telemetry packets along the connection beam
+      let pctOffset = (Date.now() % 1600) / 1600;
+      let px = (wx - 0.02) + (0 - (wx - 0.02)) * pctOffset;
+      let py = (wy - strapRadius) + (-0.5 - (wy - strapRadius)) * pctOffset; // antTop is at -0.5
+      let pz = wz + (0 - wz) * pctOffset;
+      let packetProj = project(px, py, pz);
+
+      ctx.fillStyle = isAnomalous ? '#f87171' : '#60a5fa';
+      ctx.beginPath();
+      ctx.arc(packetProj.x, packetProj.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw secondary data packet
+      let pctOffset2 = ((Date.now() + 800) % 1600) / 1600;
+      let px2 = (wx - 0.02) + (0 - (wx - 0.02)) * pctOffset2;
+      let py2 = (wy - strapRadius) + (-0.5 - (wy - strapRadius)) * pctOffset2;
+      let pz2 = wz + (0 - wz) * pctOffset2;
+      let packetProj2 = project(px2, py2, pz2);
+
+      ctx.fillStyle = '#eedc5d';
+      ctx.beginPath();
+      ctx.arc(packetProj2.x, packetProj2.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Floating beautiful text box above the Wearable
+      let textPos = project(wx, wy - strapRadius - 0.18, wz);
+      
+      // Draw background panel for typography
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+      ctx.strokeStyle = isAnomalous ? 'rgba(239, 68, 68, 0.65)' : 'rgba(99, 102, 241, 0.55)';
+      ctx.lineWidth = 1;
+      
+      let boxW = 155;
+      let boxH = 48;
+      let boxX = textPos.x - boxW / 2;
+      let boxY = textPos.y - boxH / 2;
+      
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+      // Text inside panel
+      ctx.font = 'bold 8px monospace';
+      ctx.fillStyle = '#a5b4fc';
+      ctx.fillText('📡 PULSERA WEARABLE 24/7', boxX + 6, boxY + 12);
+      
+      ctx.font = '7.5px sans-serif';
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText('💓 Frec.: ' + simulation.heart + ' LPM', boxX + 6, boxY + 23);
+      ctx.fillText('🩸 SpO2: ' + simulation.spo2 + '%  🔥 Temp: ' + parseFloat(simulation.temp).toFixed(1) + '°C', boxX + 6, boxY + 32);
+
+      ctx.font = 'bold 7px sans-serif';
+      ctx.fillStyle = isAnomalous ? '#ef4444' : '#10b981';
+      ctx.fillText(isAnomalous ? '⚠️ ALERTA: RESPUESTA CRÍTICA' : '⚡ LORAWAN SECURE: LIVE', boxX + 6, boxY + 41);
+
+      // 3D Wearables Nodes surrounding the hub based on phases and slider count
+      let currentNodes = simulation.phase === 0 ? 6 : (simulation.phase === 1 ? 14 : 26);
+      for (let k = 0; k < currentNodes; k++) {
+        let nodeAngle = (k * (Math.PI * 2) / currentNodes) + (Date.now() * 0.0001);
+        let dist = 0.55 + (k % 3) * 0.12;
+        let nX = Math.cos(nodeAngle) * dist;
+        let nZ = Math.sin(nodeAngle) * dist;
+        let nY = 0.45; // Close to ground level
+
+        let nodePos = project(nX, nY, nZ);
+
+        // Render point
+        ctx.fillStyle = activeColor;
+        ctx.shadowBlur = 4;
+        ctx.shadowColor = activeColor;
+        ctx.beginPath();
+        ctx.arc(nodePos.x, nodePos.y, k === 2 ? 5 : 3.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Pulsing line if heart rate is elevated
+        if (simulation.heart > 95 && k === 2) {
+          ctx.strokeStyle = "#ef4444";
+          ctx.lineWidth = 2.0;
+          ctx.beginPath();
+          ctx.arc(nodePos.x, nodePos.y, 8 + (Date.now() % 500) * 0.03, 0, Math.PI*2);
+          ctx.stroke();
+        }
+
+        // Draw LoRaWAN communications linkage mesh lines to neighbors
+        if (k > 0 && k % 3 === 0) {
+          let prevPoint = project(Math.cos(nodeAngle - 0.5) * dist, nY, Math.sin(nodeAngle - 0.5) * dist);
+          ctx.strokeStyle = activeColor === '#ef4444' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(6, 182, 212, 0.25)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(nodePos.x, nodePos.y);
+          ctx.lineTo(prevPoint.x, prevPoint.y);
+          ctx.stroke();
+        }
+
+        // Connect directly to antennas
+        ctx.strokeStyle = activeColor === '#ef4444' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(6, 182, 212, 0.15)';
+        ctx.beginPath();
+        ctx.moveTo(nodePos.x, nodePos.y);
+        ctx.lineTo(antBase.x, antBase.y);
+        ctx.stroke();
+      }
+
+      requestAnimationFrame(render3D);
+    }
+    setTimeout(render3D, 500);
+
+    // Initial load call
+    refreshUI();
+  </script>
+</body>
+</html>
