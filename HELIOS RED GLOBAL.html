@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HELIOS - Red Global Soberana de Alta Disponibilidad</title>
+    <!-- Tailwind CSS para la interfaz HUD Táctica -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Biblioteca Principal Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@500;600;700&display=swap');
+        
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #020208;
+            overflow: hidden;
+            user-select: none;
+        }
+        .orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+        /* Efecto de cristal templado holográfico */
+        .glass-panel {
+            background: rgba(6, 10, 26, 0.65);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 242, 254, 0.2);
+            box-shadow: 0 0 25px rgba(0, 242, 254, 0.05);
+        }
+        .neon-text-cyan {
+            text-shadow: 0 0 10px rgba(0, 242, 254, 0.6);
+        }
+        .neon-text-amber {
+            text-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+        }
+        .neon-border-cyan {
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
+            border-color: rgba(0, 242, 254, 0.5);
+        }
+        /* Personalización de barra de scroll */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(6, 10, 26, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 242, 254, 0.3);
+            border-radius: 2px;
+        }
+        /* Animación de pulso táctico */
+        @keyframes pulse-fast {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+        .pulse-active {
+            animation: pulse-fast 1.5s infinite;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen text-slate-100 flex flex-col justify-between">
+
+    <!-- CANVAS 3D PRINCIPAL -->
+    <div id="canvas-container" class="absolute inset-0 z-0"></div>
+
+    <!-- HUD SUPERIOR: IDENTIFICACIÓN Y MODOS -->
+    <header class="relative z-10 w-full p-4 flex flex-col md:flex-row justify-between items-start md:items-center pointer-events-none gap-4">
+        <!-- Izquierda: Firma del Autor -->
+        <div class="glass-panel p-3 rounded-lg flex items-center gap-3 pointer-events-auto border-l-4 border-l-[#00f2fe]">
+            <div class="w-3 h-3 bg-[#00f2fe] rounded-full pulse-active shadow-[0_0_10px_#00f2fe]"></div>
+            <div>
+                <div class="text-xs text-[#00f2fe] tracking-widest font-bold orbitron">PATENTE REGISTRADA</div>
+                <div class="text-lg font-black tracking-wide text-white orbitron">Dr. Julio César Oporta Barrera</div>
+            </div>
+        </div>
+
+        <!-- Título Central de Proyecto -->
+        <div class="hidden lg:flex flex-col items-center glass-panel px-6 py-2 rounded-xl border border-cyan-500/30">
+            <h1 class="text-2xl font-black tracking-[0.3em] text-white orbitron neon-text-cyan flex items-center gap-2">
+                HELIOS <span class="text-xs font-medium px-2 py-0.5 bg-cyan-500/20 text-[#00f2fe] rounded border border-cyan-500/40">V1.0</span>
+            </h1>
+            <p class="text-[10px] tracking-[0.4em] text-slate-400 font-bold uppercase" id="lblSubtitle">Soberanía de Alta Disponibilidad</p>
+        </div>
+
+        <!-- Derecha: Selector de Idioma e Indicadores de Sistema -->
+        <div class="flex items-center gap-2 pointer-events-auto self-end md:self-auto">
+            <!-- Selector de Idiomas -->
+            <div class="glass-panel p-1 rounded-lg flex gap-1 text-xs font-bold border border-cyan-500/20">
+                <button onclick="setLanguage('es')" id="btn-es" class="px-2.5 py-1 rounded bg-[#00f2fe] text-[#020208] transition-all">ES</button>
+                <button onclick="setLanguage('en')" id="btn-en" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">EN</button>
+                <button onclick="setLanguage('zh')" id="btn-zh" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">ZH</button>
+            </div>
+
+            <!-- Selector de Modos de Operación -->
+            <div class="glass-panel p-1 rounded-lg flex gap-1 text-xs font-bold border border-cyan-500/20">
+                <select id="op-mode" onchange="changeOpMode(this.value)" class="bg-[#060a1a] text-xs font-bold text-slate-100 border-none outline-none p-1.5 rounded cursor-pointer orbitron">
+                    <option value="normal" id="optNormal">⚡ MODO NORMAL</option>
+                    <option value="crisis" id="optCrisis">🚨 CRISIS AMBIENTAL</option>
+                    <option value="soberano" id="optSovereign">🛡️ RESPALDO SOBERANO</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <!-- INTERFAZ PRINCIPAL LADO IZQUIERDO: TELEMETRÍA Y CONTROL DE CAPAS -->
+    <main class="relative z-10 flex-1 w-full max-w-full px-4 flex flex-col lg:flex-row gap-4 pointer-events-none mb-4 overflow-hidden">
+        
+        <!-- PANEL DE CONTROL IZQUIERDO: SECTORES Y CAPAS -->
+        <section class="w-full lg:w-1/4 flex flex-col gap-3 pointer-events-auto overflow-y-auto max-h-[80vh] lg:max-h-full">
+            
+            <!-- Panel 1: Monitor de Capas -->
+            <div class="glass-panel p-4 rounded-xl flex flex-col gap-3">
+                <div class="flex justify-between items-center border-b border-cyan-500/20 pb-2">
+                    <h2 class="text-sm font-bold tracking-widest text-[#00f2fe] orbitron flex items-center gap-2" id="lblLayerMonitor">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 114 0v2m-4 0h4m-4 0H3m12 0h4M12 7V5m0 2h4" /></svg>
+                        MONITOR MULTICAPA
+                    </h2>
+                    <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 orbitron pulse-active">ONLINE</span>
+                </div>
+                
+                <!-- Capa Espacial -->
+                <div class="flex items-center justify-between p-2 rounded bg-cyan-950/20 border border-cyan-500/10 hover:border-cyan-500/30 transition-all cursor-pointer" onclick="toggleLayer('space')">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="chkSpace" checked class="accent-cyan-400 pointer-events-none">
+                        <div>
+                            <div class="text-xs font-black orbitron text-white" id="lblCapaSpace">CAPA ESPACIAL (LEO)</div>
+                            <div class="text-[9px] text-slate-400" id="lblCapaSpaceDesc">384 Satélites - Enlaces Láser</div>
+                        </div>
+                    </div>
+                    <span class="text-xs font-bold text-cyan-400 orbitron">30 ms</span>
+                </div>
+
+                <!-- Capa Aérea -->
+                <div class="flex items-center justify-between p-2 rounded bg-cyan-950/20 border border-cyan-500/10 hover:border-cyan-500/30 transition-all cursor-pointer" onclick="toggleLayer('aerial')">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="chkAerial" checked class="accent-cyan-400 pointer-events-none">
+                        <div>
+                            <div class="text-xs font-black orbitron text-white" id="lblCapaAerial">CAPA AÉREA (HAPS)</div>
+                            <div class="text-[9px] text-slate-400" id="lblCapaAerialDesc">Drones Estratosféricos > 20km</div>
+                        </div>
+                    </div>
+                    <span class="text-xs font-bold text-amber-400 orbitron">>30d Aut.</span>
+                </div>
+
+                <!-- Capa Terrestre -->
+                <div class="flex items-center justify-between p-2 rounded bg-cyan-950/20 border border-cyan-500/10 hover:border-cyan-500/30 transition-all cursor-pointer" onclick="toggleLayer('terrestrial')">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="chkTerra" checked class="accent-cyan-400 pointer-events-none">
+                        <div>
+                            <div class="text-xs font-black orbitron text-white" id="lblCapaTerra">CAPA TERRESTRE</div>
+                            <div class="text-[9px] text-slate-400" id="lblCapaTerraDesc">Fibra Óptica + Nodos Comunitarios</div>
+                        </div>
+                    </div>
+                    <span class="text-xs font-bold text-[#00f2fe] orbitron">10 Tbps</span>
+                </div>
+
+                <!-- Capa Usuario -->
+                <div class="flex items-center justify-between p-2 rounded bg-cyan-950/20 border border-cyan-500/10 hover:border-cyan-500/30 transition-all cursor-pointer" onclick="toggleLayer('user')">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="chkUser" checked class="accent-cyan-400 pointer-events-none">
+                        <div>
+                            <div class="text-xs font-black orbitron text-white" id="lblCapaUser">CAPA USUARIO</div>
+                            <div class="text-[9px] text-slate-400" id="lblCapaUserDesc">Interfaz Neuro-Adaptativa BCI</div>
+                        </div>
+                    </div>
+                    <span class="text-xs font-bold text-purple-400 orbitron">Soberano</span>
+                </div>
+            </div>
+
+            <!-- Panel 2: Telemetría de Alta Disponibilidad -->
+            <div class="glass-panel p-4 rounded-xl flex flex-col gap-3">
+                <h2 class="text-sm font-bold tracking-widest text-[#00f2fe] orbitron border-b border-cyan-500/20 pb-2 flex items-center gap-2" id="lblTelemetry">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                    TELEMETRÍA EN VIVO
+                </h2>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-[#060a1a]/50 p-2 rounded border border-cyan-500/10">
+                        <div class="text-[10px] text-slate-400" id="lblMetricAvailability">DISPONIBILIDAD</div>
+                        <div class="text-xl font-bold text-white orbitron tracking-tight" id="valAvailability">99.999%</div>
+                    </div>
+                    <div class="bg-[#060a1a]/50 p-2 rounded border border-cyan-500/10">
+                        <div class="text-[10px] text-slate-400" id="lblMetricLat">LATENCIA RED</div>
+                        <div class="text-xl font-bold text-[#00f2fe] orbitron tracking-tight" id="valLatency">18.5 ms</div>
+                    </div>
+                    <div class="bg-[#060a1a]/50 p-2 rounded border border-cyan-500/10">
+                        <div class="text-[10px] text-slate-400" id="lblMetricEnergy">AUTO-SUFICIENCIA</div>
+                        <div class="text-xl font-bold text-emerald-400 orbitron tracking-tight" id="valEnergy">94.2%</div>
+                    </div>
+                    <div class="bg-[#060a1a]/50 p-2 rounded border border-cyan-500/10">
+                        <div class="text-[10px] text-slate-400" id="lblMetricRecover">FALLBACK TIEMPO</div>
+                        <div class="text-xl font-bold text-amber-500 orbitron tracking-tight">&lt; 3.0s</div>
+                    </div>
+                </div>
+
+                <!-- Gráfico de Carga en Canvas 2D -->
+                <div class="mt-2">
+                    <div class="flex justify-between items-center text-[10px] mb-1">
+                        <span class="text-slate-400" id="lblFlowData">FLUJO DE DATOS DEL ENJAMBRE</span>
+                        <span class="text-cyan-400 font-bold orbitron" id="valThroughput">54.8 Gb/s</span>
+                    </div>
+                    <canvas id="chart-telemetry" class="w-full h-16 bg-[#030611] rounded border border-cyan-500/20"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- ESPACIO CENTRAL VACÍO PARA VISUALIZACIÓN 3D -->
+        <section class="flex-1"></section>
+
+        <!-- PANEL DE SIMULACIÓN DERECHO: INTERACCIONES AVANZADAS -->
+        <section class="w-full lg:w-1/4 flex flex-col gap-3 pointer-events-auto overflow-y-auto max-h-[80vh] lg:max-h-full">
+            
+            <!-- Panel 3: Simulador de Interacciones Avanzadas -->
+            <div class="glass-panel p-4 rounded-xl flex flex-col gap-3">
+                <h2 class="text-sm font-bold tracking-widest text-[#00f2fe] orbitron border-b border-cyan-500/20 pb-2 flex items-center gap-2" id="lblSimulator">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+                    SIMULADOR INTERACTIVO
+                </h2>
+
+                <!-- Control 1: Física Modular (Constelación LEO) -->
+                <div>
+                    <div class="flex justify-between text-xs font-bold text-slate-300 mb-1">
+                        <span id="lblSimLEO">FÍSICA MODULAR: ALTURA ÓRBITA</span>
+                        <span class="text-cyan-400 orbitron" id="valOrbit">720 km</span>
+                    </div>
+                    <input type="range" min="400" max="1500" value="720" oninput="adjustOrbitHeight(this.value)" class="w-full h-1 bg-[#060a1a] rounded-lg appearance-none cursor-pointer accent-[#00f2fe]">
+                    <div class="flex justify-between text-[9px] text-slate-500 mt-0.5">
+                        <span>400 km</span>
+                        <span>1500 km</span>
+                    </div>
+                </div>
+
+                <!-- Control 2: Energía Híbrida Inteligente -->
+                <div>
+                    <div class="flex justify-between text-xs font-bold text-slate-300 mb-1">
+                        <span id="lblSimEnergy">PROPORCIÓN SOLAR / PIEZO</span>
+                        <span class="text-emerald-400 orbitron" id="valEnergyProp">75/25</span>
+                    </div>
+                    <input type="range" min="10" max="90" value="75" oninput="adjustEnergyProp(this.value)" class="w-full h-1 bg-[#060a1a] rounded-lg appearance-none cursor-pointer accent-emerald-400">
+                    <div class="flex justify-between text-[9px] text-slate-500 mt-0.5">
+                        <span id="lblSolar">SÓLO SOLAR</span>
+                        <span id="lblPiezo">SÓLO PIEZO</span>
+                    </div>
+                </div>
+
+                <!-- Control 3: Biomecánica BCI (Neurolink) -->
+                <div class="bg-purple-950/20 p-3 rounded border border-purple-500/20">
+                    <div class="flex justify-between items-center text-xs font-bold text-purple-300 mb-2">
+                        <span id="lblBCISync font-bold">INTEGRACIÓN BIOMECÁNICA (BCI)</span>
+                        <span class="text-purple-400 orbitron tracking-widest pulse-active" id="valBCISync">SYNC ON</span>
+                    </div>
+                    <button onclick="triggerNeuralPulse()" class="w-full py-2 bg-purple-500/20 hover:bg-purple-500/40 border border-purple-500/40 rounded text-xs font-bold text-white transition-all orbitron uppercase tracking-widest" id="btnNeural">
+                        FORZAR IMPULSO NEURONAL
+                    </button>
+                </div>
+
+                <!-- Control 4: Sistema de Autoreparación por IA de Enjambre -->
+                <div class="bg-cyan-950/20 p-3 rounded border border-cyan-500/20">
+                    <div class="flex justify-between items-center text-xs font-bold text-[#00f2fe] mb-2">
+                        <span id="lblSwarmRepair">SISTEMA NODOS IA: AUTO-REPARACIÓN</span>
+                        <span class="text-emerald-400 orbitron font-bold" id="lblStable">ÓPTIMO</span>
+                    </div>
+                    <button onclick="triggerFalloSimulado()" class="w-full py-2 bg-red-500/20 hover:bg-red-500/40 border border-red-500/40 rounded text-xs font-bold text-white transition-all orbitron uppercase tracking-widest" id="btnAnomaly">
+                        PROVOCAR CORTE (AUTOREPARACIÓN INMEDIATA)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Panel 4: Información de Gobernanza y Modelo -->
+            <div class="glass-panel p-4 rounded-xl flex flex-col gap-3">
+                <h2 class="text-sm font-bold tracking-widest text-[#00f2fe] orbitron border-b border-cyan-500/20 pb-2 flex items-center gap-2" id="lblGovernance">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 009 11.5V9m1.277-3.061A3 3 0 0011 3.07M9.75 3h.008V3h-.008zm.37 8.07a14.218 14.218 0 002.83 4.074" /></svg>
+                    ESTRUCTURA DE SOBERANÍA
+                </h2>
+                <div class="text-[11px] text-slate-300 leading-relaxed" id="lblGovernanceText">
+                    El modelo se rige de manera descentralizada con participación del Estado, la Academia y la Comunidad. La trazabilidad se realiza con encriptación cuántica y registro en red local soberana. No depende de corporaciones transnacionales ni cables bajo control externo.
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- HUD INFERIOR: LOGS Y ALERTAS TÁCTICAS -->
+    <footer class="relative z-10 w-full p-4 pointer-events-none">
+        <div class="glass-panel p-3 rounded-xl flex flex-col md:flex-row justify-between items-center gap-4 pointer-events-auto">
+            <!-- Event Log / Terminal -->
+            <div class="w-full md:w-2/3 flex items-center gap-3">
+                <div class="text-xs font-bold text-[#00f2fe] orbitron tracking-widest uppercase" id="lblTerminal">REGISTRO_HELIOS&gt;</div>
+                <div class="text-xs font-bold text-slate-300 font-mono w-full truncate" id="log-text">Sincronizando 384 satélites con capa de Drones HAPS... Red Estable.</div>
+            </div>
+            <!-- Botón para Descargar Código Completo / Patente -->
+            <button onclick="copiarAlPortapapeles()" class="w-full md:w-auto px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 rounded-lg text-xs font-extrabold orbitron tracking-widest text-[#020208] shadow-[0_0_15px_rgba(0,242,254,0.3)] transition-all uppercase" id="btnShare">
+                COMPARTIR PROTOTIPO SOBERANO
+            </button>
+        </div>
+    </footer>
+
+    <!-- MODAL DE NOTIFICACIÓN CUSTOM (No alerts) -->
+    <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 glass-panel border-cyan-400 border py-2 px-6 rounded-xl text-xs font-bold orbitron text-white opacity-0 transition-opacity duration-300 pointer-events-none">
+        PROTOTIPO COPIADO AL PORTAPAPELES
+    </div>
+
+    <!-- CÓDIGO JS PRINCIPAL: MOTOR 3D Y GESTIÓN DE EVENTOS -->
+    <script>
+        // --- DICCIONARIO INTERNACIONAL (MULTILENGUAJE) ---
+        const dictionary = {
+            es: {
+                lblSubtitle: "Soberanía de Alta Disponibilidad",
+                lblLayerMonitor: "MONITOR MULTICAPA",
+                lblCapaSpace: "CAPA ESPACIAL (LEO)",
+                lblCapaSpaceDesc: "384 Satélites - Enlaces Láser",
+                lblCapaAerial: "CAPA AÉREA (HAPS)",
+                lblCapaAerialDesc: "Drones Estratosféricos > 20km",
+                lblCapaTerra: "CAPA TERRESTRE",
+                lblCapaTerraDesc: "Fibra Óptica + Nodos Comunitarios",
+                lblCapaUser: "CAPA USUARIO",
+                lblCapaUserDesc: "Interfaz Neuro-Adaptativa BCI",
+                lblTelemetry: "TELEMETRÍA EN VIVO",
+                lblMetricAvailability: "DISPONIBILIDAD",
+                lblMetricLat: "LATENCIA RED",
+                lblMetricEnergy: "AUTO-SUFICIENCIA",
+                lblMetricRecover: "FALLBACK TIEMPO",
+                lblFlowData: "FLUJO DE DATOS DEL ENJAMBRE",
+                lblSimulator: "SIMULADOR INTERACTIVO",
+                lblSimLEO: "FÍSICA MODULAR: ALTURA ÓRBITA",
+                lblSimEnergy: "PROPORCIÓN SOLAR / PIEZO",
+                lblSolar: "SÓLO SOLAR",
+                lblPiezo: "SÓLO PIEZO",
+                lblBCISync: "SYNC ON",
+                btnNeural: "FORZAR IMPULSO NEURONAL",
+                lblSwarmRepair: "SISTEMA NODOS IA: AUTO-REPARACIÓN",
+                lblStable: "ÓPTIMO",
+                btnAnomaly: "PROVOCAR CORTE (AUTOREPARACIÓN)",
+                lblGovernance: "ESTRUCTURA DE SOBERANÍA",
+                lblGovernanceText: "El modelo se rige de manera descentralizada con participación del Estado, la Academia y la Comunidad. La trazabilidad se realiza con encriptación cuántica y registro en red local soberana. No depende de corporaciones transnacionales ni cables bajo control externo.",
+                lblTerminal: "REGISTRO_HELIOS>",
+                btnShare: "COMPARTIR PROTOTIPO SOBERANO",
+                toastCopy: "PROTOTIPO COPIADO AL PORTAPAPELES",
+                optNormal: "⚡ MODO NORMAL",
+                optCrisis: "🚨 CRISIS AMBIENTAL",
+                optSovereign: "🛡️ RESPALDO SOBERANO",
+                logNormal: "Sincronizando 384 satélites con capa de Drones HAPS... Red Estable.",
+                logCrisis: "¡Alerta Meteorológica! Nodos costeros sufren interrupción parcial de fibra terrestre. Swarm AI activado.",
+                logSovereign: "Cifrado cuántico activado. Enrutamiento regional restringido a fronteras soberanas nicaragüenses.",
+                logFalloSimulado: "Corte detectado en nodo secundario. IA de enjambre recalculando rutas de contingencia...",
+                logFalloReparado: "Nueva ruta láser orbital establecida en 1.8 segundos. Disponibilidad restablecida al 99.999%.",
+                logPulse: "Impulso cerebro-computadora sincronizado con éxito. Ancho de banda de capa de usuario ampliado."
+            },
+            en: {
+                lblSubtitle: "High Availability Sovereign Network",
+                lblLayerMonitor: "MULTILAYER MONITOR",
+                lblCapaSpace: "SPACE LAYER (LEO)",
+                lblCapaSpaceDesc: "384 Satellites - Laser Inter-links",
+                lblCapaAerial: "AERIAL LAYER (HAPS)",
+                lblCapaAerialDesc: "Stratospheric Drones > 20km",
+                lblCapaTerra: "TERRESTRIAL LAYER",
+                lblCapaTerraDesc: "Fiber Optics + Community Nodes",
+                lblCapaUser: "USER LAYER",
+                lblCapaUserDesc: "Neuro-Adaptive BCI Interface",
+                lblTelemetry: "LIVE TELEMETRY",
+                lblMetricAvailability: "AVAILABILITY",
+                lblMetricLat: "NETWORK LATENCY",
+                lblMetricEnergy: "SELF-SUFFICIENCY",
+                lblMetricRecover: "FALLBACK TIME",
+                lblFlowData: "SWARM DATA FLOW RATE",
+                lblSimulator: "INTERACTIVE SIMULATOR",
+                lblSimLEO: "MODULAR PHYSICS: ORBITAL HEIGHT",
+                lblSimEnergy: "SOLAR / PIEZO PROPORTION",
+                lblSolar: "SOLAR ONLY",
+                lblPiezo: "PIEZO ONLY",
+                lblBCISync: "SYNC ON",
+                btnNeural: "FORCE NEURAL PULSE",
+                lblSwarmRepair: "AI NODE SYSTEM: SELF-HEALING",
+                lblStable: "OPTIMAL",
+                btnAnomaly: "TRIGGER CORTE (SELF-HEAL)",
+                lblGovernance: "SOVEREIGNTY STRUCTURE",
+                lblGovernanceText: "The model is managed in a decentralized manner with participation from Government, Academia, and Community. Traceability is executed via quantum encryption and local sovereign network registration. No corporate reliance.",
+                lblTerminal: "HELIOS_LOG>",
+                btnShare: "SHARE SOVEREIGN PROTOTYPE",
+                toastCopy: "PROTOTYPE COPIED TO CLIPBOARD",
+                optNormal: "⚡ NORMAL MODE",
+                optCrisis: "🚨 CLIMATE CRISIS",
+                optSovereign: "🛡️ SOVEREIGN BACKUP",
+                logNormal: "Synchronizing 384 satellites with HAPS Drones layer... Network Stable.",
+                logCrisis: "Weather Warning! Coastal nodes experienced fiber cut. Swarm AI route optimization active.",
+                logSovereign: "Quantum encryption activated. Regional routing locked inside sovereign frontiers.",
+                logFalloSimulado: "Link failure simulated. AI Swarm actively recalculating redundant paths...",
+                logFalloReparado: "New orbital laser routing established in 1.8 seconds. Network restored to 99.999% availability.",
+                logPulse: "Brain-Computer pulse synchronized. User Layer bandwidth dynamically adapted."
+            },
+            zh: {
+                lblSubtitle: "主权高可用性全球网络",
+                lblLayerMonitor: "多层网络监控器",
+                lblCapaSpace: "空间层 (LEO)",
+                lblCapaSpaceDesc: "384 卫星 - 激光星间链路",
+                lblCapaAerial: "航空层 (HAPS)",
+                lblCapaAerialDesc: "平流层无人机 > 20km",
+                lblCapaTerra: "地面层",
+                lblCapaTerraDesc: "光纤 + 社区核心节点",
+                lblCapaUser: "用户层",
+                lblCapaUserDesc: "脑机接口 (BCI) 神经自适应",
+                lblTelemetry: "实时遥测数据",
+                lblMetricAvailability: "可用性",
+                lblMetricLat: "网络延迟",
+                lblMetricEnergy: "能源自足率",
+                lblMetricRecover: "故障自愈时间",
+                lblFlowData: "集群智能数据流速率",
+                lblSimulator: "高级交互式模拟器",
+                lblSimLEO: "模块化物理：轨道高度调整",
+                lblSimEnergy: "太阳能 / 压电能比例调整",
+                lblSolar: "仅太阳能",
+                lblPiezo: "仅压电能",
+                lblBCISync: "同步激活",
+                btnNeural: "强制施加神经脉冲",
+                lblSwarmRepair: "AI节点系统：智能自愈",
+                lblStable: "最佳运行",
+                btnAnomaly: "触发断开 (自动愈合系统)",
+                lblGovernance: "主权治理模式结构",
+                lblGovernanceText: "该模型采用去中心化模式，由国家、学术界 and 社区共同参与管理。通过量子加密 and 主权本地网络实现高安全性数据追溯，完全摆脱对外部跨国企业的依赖。",
+                lblTerminal: "海利奥斯日志>",
+                btnShare: "共享主权项目原型",
+                toastCopy: "项目源码及原型已成功复制到剪贴板",
+                optNormal: "⚡ 正常运行模式",
+                optCrisis: "🚨 环境危机防御模式",
+                optSovereign: "🛡️ 主权备份模式",
+                logNormal: "正在同步384颗LEO卫星与HAPS无人机层... 系统稳定运行。",
+                logCrisis: "气象灾害警报！沿海节点光纤受损。集群智能算法正重定向数据通道。",
+                logSovereign: "量子加密通信已激活。网络数据包限制在国内主权范围内流转。",
+                logFalloSimulado: "模拟节点信号中断。群智能算法正在计算冗余路由链路...",
+                logFalloReparado: "全新空间激光链路在 1.8 秒内建立完毕。可用性完全恢复至 99.999%。",
+                logPulse: "脑机接口信号同步成功。用户层带宽资源已自适应扩大。"
+            }
+        };
+
+        let currentLang = 'es';
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            
+            // Actualizar botones de selector
+            ['es', 'en', 'zh'].forEach(l => {
+                const btn = document.getElementById(`btn-${l}`);
+                if (l === lang) {
+                    btn.classList.add('bg-[#00f2fe]', 'text-[#020208]');
+                    btn.classList.remove('text-slate-400');
+                } else {
+                    btn.classList.remove('bg-[#00f2fe]', 'text-[#020208]');
+                    btn.classList.add('text-slate-400');
+                }
+            });
+
+            // Reemplazar textos
+            const trans = dictionary[lang];
+            Object.keys(trans).forEach(key => {
+                const elem = document.getElementById(key);
+                if (elem) {
+                    // Si es el selector de modos, cambiar el texto interno de los options
+                    if (key === 'optNormal') elem.text = trans.optNormal;
+                    else if (key === 'optCrisis') elem.text = trans.optCrisis;
+                    else if (key === 'optSovereign') elem.text = trans.optSovereign;
+                    else elem.innerHTML = trans[key];
+                }
+            });
+
+            // Actualizar logs actuales basados en el modo actual
+            const mode = document.getElementById('op-mode').value;
+            changeOpMode(mode);
+        }
+
+        // --- SISTEMA DE LOGS Y NOTIFICACIONES LOCALES (No alerts) ---
+        function writeLog(text) {
+            document.getElementById('log-text').innerHTML = text;
+        }
+
+        function showToast(text) {
+            const toast = document.getElementById('toast');
+            toast.innerHTML = text;
+            toast.classList.remove('opacity-0');
+            toast.classList.add('opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0');
+            }, 3000);
+        }
+
+        // --- MOTOR DE CONTROL DE CAPAS 3D ---
+        const activeLayers = {
+            space: true,
+            aerial: true,
+            terrestrial: true,
+            user: true
+        };
+
+        function toggleLayer(layer) {
+            activeLayers[layer] = !activeLayers[layer];
+            
+            // Actualizar Checkbox visual
+            if (layer === 'space') document.getElementById('chkSpace').checked = activeLayers.space;
+            if (layer === 'aerial') document.getElementById('chkAerial').checked = activeLayers.aerial;
+            if (layer === 'terrestrial') document.getElementById('chkTerra').checked = activeLayers.terrestrial;
+            if (layer === 'user') document.getElementById('chkUser').checked = activeLayers.user;
+
+            // Transición suave de visibilidad en el motor 3D
+            if (layer === 'space' && spaceGroup) spaceGroup.visible = activeLayers.space;
+            if (layer === 'aerial' && aerialGroup) aerialGroup.visible = activeLayers.aerial;
+            if (layer === 'terrestrial' && terrestrialGroup) terrestrialGroup.visible = activeLayers.terrestrial;
+            if (layer === 'user' && userGroup) userGroup.visible = activeLayers.user;
+
+            // Recalcular métricas de simulación basadas en capas activas
+            recalcMetrics();
+        }
+
+        function recalcMetrics() {
+            let activeCount = Object.values(activeLayers).filter(v => v).length;
+            let availability = 50 + activeCount * 12.499;
+            if (activeCount === 4) availability = 99.999;
+            document.getElementById('valAvailability').innerText = availability.toFixed(3) + "%";
+
+            let baseLat = 12.5 + (4 - activeCount) * 15;
+            document.getElementById('valLatency').innerText = baseLat.toFixed(1) + " ms";
+        }
+
+
+        // --- INICIALIZACIÓN DEL MOTOR GRÁFICO 3D (THREE.JS COMPLETO) ---
+        let scene, camera, renderer, container;
+        let earth, cloudMesh, atmosphere;
+        let spaceGroup, aerialGroup, terrestrialGroup, userGroup;
+        let satellites = [], satelliteLinks = [];
+        let hapsDrones = [];
+        let lasers = [];
+        let customTime = 0;
+        let brainParticles;
+        let hapsRadius = 4.8; // DECLARACIÓN EN EL ÁMBITO GLOBAL PARA SOLUCIONAR EL ERROR DE REFERENCIA
+        let particleCount = 200; // DECLARACIÓN EN EL ÁMBITO GLOBAL PARA SOLUCIONAR EL ERROR DE REFERENCIA
+        let rimLight; // DECLARACIÓN EN EL ÁMBITO GLOBAL PARA SOLUCIONAR EL ERROR DE REFERENCIA
+
+        // Variables de interacción orbital hechas a medida (Soporte offline total sin dependencias de OrbitControls)
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let rotationSpeed = 0.003;
+        let targetRotationX = 0, targetRotationY = 0;
+        let currentRotationX = 0, currentRotationY = 0;
+        let cameraDistance = 16;
+
+        function init3D() {
+            container = document.getElementById('canvas-container');
+            
+            // Crear Escena Cinemática
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x020208, 0.015);
+
+            // Crear Cámara de Perspectiva
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 0, cameraDistance);
+
+            // Renderizador WebGL de Alta Definición con sombras cinemáticas
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // --- DISEÑO DE ILUMINACIÓN CINEMATOGRÁFICA ---
+            // Luz de ambiente espacial profunda (azul-púrpura)
+            const ambientLight = new THREE.AmbientLight(0x0e0e33, 1.2);
+            scene.add(ambientLight);
+
+            // Luz solar directa con proyección de sombra para realismo espacial
+            const sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
+            sunLight.position.set(20, 10, 10);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 1024;
+            sunLight.shadow.mapSize.height = 1024;
+            scene.add(sunLight);
+
+            // Luz de fondo atmosférica fría (ASIGNADA SIN RE-DECLARAR DE FORMA LOCAL)
+            rimLight = new THREE.DirectionalLight(0x00f2fe, 1.5);
+            rimLight.position.set(-20, -10, -10);
+            scene.add(rimLight);
+
+            // --- GRUPOS PARA GESTIÓN DE CAPAS SOBERANAS ---
+            spaceGroup = new THREE.Group();
+            aerialGroup = new THREE.Group();
+            terrestrialGroup = new THREE.Group();
+            userGroup = new THREE.Group();
+
+            scene.add(spaceGroup);
+            scene.add(aerialGroup);
+            scene.add(terrestrialGroup);
+            scene.add(userGroup);
+
+            // --- CREACIÓN DEL GLOBO TERRÁQUEO BIOMIMÉTICO HOLOGRÁFICO ---
+            // El planeta se genera proceduralmente con un sombreador táctico futurista
+            const earthGeo = new THREE.SphereGeometry(4, 64, 64);
+            
+            // Material personalizado para simular océanos y continentes cibernéticos mediante un patrón de cuadrícula de alta calidad
+            const earthMat = new THREE.MeshPhongMaterial({
+                color: 0x050f2b,
+                emissive: 0x01081a,
+                specular: 0x112244,
+                shininess: 25,
+                wireframe: false,
+                bumpScale: 0.1
+            });
+            earth = new THREE.Mesh(earthGeo, earthMat);
+            scene.add(earth);
+
+            // Capa de relieve o cuadrícula biomimética para representar la geografía hiperconectada
+            const gridGeo = new THREE.SphereGeometry(4.02, 48, 48);
+            const gridMat = new THREE.MeshBasicMaterial({
+                color: 0x00f2fe,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.08
+            });
+            const earthGrid = new THREE.Mesh(gridGeo, gridMat);
+            earth.add(earthGrid);
+
+            // Atmósfera luminiscente con efecto Fresnel mediante shader básico
+            const atmosphereGeo = new THREE.SphereGeometry(4.15, 32, 32);
+            const atmosphereMat = new THREE.MeshBasicMaterial({
+                color: 0x00f2fe,
+                transparent: true,
+                opacity: 0.15,
+                blending: THREE.AdditiveBlending,
+                side: THREE.BackSide
+            });
+            atmosphere = new THREE.Mesh(atmosphereGeo, atmosphereMat);
+            earth.add(atmosphere);
+
+            // --- CAPA ESPACIAL (384 Satélites en Órbitas LEO Multi-plano) ---
+            // Representamos los planos orbitales mediante finos anillos luminiscentes
+            const orbitalPlanesCount = 12;
+            const satsPerPlane = 8; // Escalado de rendimiento óptimo para tiempo de render suave
+            const orbitRadius = 6.2; // Escala proporcional al radio de la tierra (720km de altura simulada)
+
+            for (let i = 0; i < orbitalPlanesCount; i++) {
+                const angleX = (i / orbitalPlanesCount) * Math.PI;
+                const angleY = (i / orbitalPlanesCount) * Math.PI * 0.5;
+
+                // Anillo orbital visual
+                const ringGeo = new THREE.RingGeometry(orbitRadius - 0.01, orbitRadius + 0.01, 64);
+                const ringMat = new THREE.MeshBasicMaterial({
+                    color: 0x00f2fe,
+                    transparent: true,
+                    opacity: 0.06,
+                    side: THREE.DoubleSide
+                });
+                const orbitRing = new THREE.Mesh(ringGeo, ringMat);
+                orbitRing.rotation.x = angleX;
+                orbitRing.rotation.y = angleY;
+                spaceGroup.add(orbitRing);
+
+                // Crear satélites para este plano orbital
+                for (let j = 0; j < satsPerPlane; j++) {
+                    const satAngle = (j / satsPerPlane) * Math.PI * 2;
+                    
+                    // Diseño biomimético de satélite: cuerpo con paneles solares extendidos
+                    const satMainGroup = new THREE.Group();
+                    
+                    const bodyGeo = new THREE.BoxGeometry(0.12, 0.12, 0.18);
+                    const bodyMat = new THREE.MeshPhongMaterial({ color: 0x00f2fe, emissive: 0x001a33 });
+                    const body = new THREE.Mesh(bodyGeo, bodyMat);
+                    satMainGroup.add(body);
+
+                    // Paneles solares (alas laterales extendidas)
+                    const panelGeo = new THREE.BoxGeometry(0.4, 0.02, 0.08);
+                    const panelMat = new THREE.MeshPhongMaterial({ color: 0x3b82f6, emissive: 0x1d4ed8 });
+                    const panelL = new THREE.Mesh(panelGeo, panelMat);
+                    panelL.position.x = 0.28;
+                    const panelR = panelL.clone();
+                    panelR.position.x = -0.28;
+                    satMainGroup.add(panelL);
+                    satMainGroup.add(panelR);
+
+                    // Guardar propiedades dinámicas de órbita física
+                    satellites.push({
+                        mesh: satMainGroup,
+                        planeIndex: i,
+                        satIndex: j,
+                        angleX: angleX,
+                        angleY: angleY,
+                        currentAngle: satAngle,
+                        speed: 0.02 + (i * 0.002) // Velocidad variada para dinámicas hermosas
+                    });
+
+                    spaceGroup.add(satMainGroup);
+                }
+            }
+
+            // --- CAPA AÉREA (Drones Estratosféricos HAPS) ---
+            const dronesCount = 15;
+            for (let d = 0; d < dronesCount; d++) {
+                const droneGroup = new THREE.Group();
+                // Ala delta biomimética aerodinámica de los HAPS
+                const wingGeo = new THREE.ConeGeometry(0.2, 0.5, 3);
+                wingGeo.rotateX(Math.PI / 2);
+                const wingMat = new THREE.MeshPhongMaterial({ color: 0xf59e0b, emissive: 0x78350f });
+                const wing = new THREE.Mesh(wingGeo, wingMat);
+                droneGroup.add(wing);
+
+                // Ángulo de posicionamiento esférico
+                const u = Math.random();
+                const v = Math.random();
+                const theta = u * 2.0 * Math.PI;
+                const phi = Math.acos(2.0 * v - 1.0);
+
+                hapsDrones.push({
+                    mesh: droneGroup,
+                    theta: theta,
+                    phi: phi,
+                    speed: 0.01 + Math.random() * 0.015
+                });
+                aerialGroup.add(droneGroup);
+            }
+
+            // --- CAPA TERRESTRE (Estaciones Gateway y Red Troncal) ---
+            // Ubicamos nodos luminosos en puntos específicos de la superficie
+            const gatewayCoordinates = [
+                { lat: 12.1364, lon: -86.2514, name: "Managua" },
+                { lat: 12.4355, lon: -86.8794, name: "León" },
+                { lat: 12.0131, lon: -83.7635, name: "Bluefields" },
+                { lat: 8.9824, lon: -79.5199, name: "Panamá" },
+                { lat: 19.4326, lon: -99.1332, name: "México" },
+                { lat: -23.5505, lon: -46.6333, name: "São Paulo" },
+                { lat: -33.9249, lon: 18.4241, name: "Sudáfrica" },
+                { lat: 20.5937, lon: 78.9629, name: "India" },
+                { lat: 14.5995, lon: 120.9842, name: "Filipinas" }
+            ];
+
+            gatewayCoordinates.forEach(coord => {
+                const nodeGroup = new THREE.Group();
+                
+                // Base del nodo
+                const nodeGeo = new THREE.CylinderGeometry(0.04, 0.08, 0.15, 6);
+                const nodeMat = new THREE.MeshPhongMaterial({ color: 0x00f2fe, emissive: 0x00334d });
+                const base = new THREE.Mesh(nodeGeo, nodeMat);
+                nodeGroup.add(base);
+
+                // Cúpula o haz de luz vertical
+                const beamGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.8, 4);
+                beamGeo.translate(0, 0.4, 0); // Desplazar centro para escalar desde la base
+                const beamMat = new THREE.MeshBasicMaterial({
+                    color: 0x00f2fe,
+                    transparent: true,
+                    opacity: 0.4,
+                    blending: THREE.AdditiveBlending
+                });
+                const beam = new THREE.Mesh(beamGeo, beamMat);
+                nodeGroup.add(beam);
+
+                // Convertir latitud/longitud a coordenadas cartesianas 3D de la esfera terrestre (Radio 4)
+                const latRad = (90 - coord.lat) * (Math.PI / 180);
+                const lonRad = (coord.lon + 180) * (Math.PI / 180);
+
+                const r = 4.0;
+                nodeGroup.position.x = -(r * Math.sin(latRad) * Math.sin(lonRad));
+                nodeGroup.position.y = r * Math.cos(latRad);
+                nodeGroup.position.z = r * Math.sin(latRad) * Math.cos(lonRad);
+
+                // Alinear orientación con la perpendicular al centro de la tierra
+                const targetVec = nodeGroup.position.clone().normalize();
+                nodeGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), targetVec);
+
+                terrestrialGroup.add(nodeGroup);
+            });
+
+            // --- CAPA USUARIO: INTERFAZ CEREBRO-NET (Nube de Partículas de Red Neuronal BCI) ---
+            // Nube de puntos biomimética que simula la red neuro-cognitiva flotando arriba de la atmósfera
+            const brainGeo = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const sizes = new Float32Array(particleCount);
+
+            for(let p=0; p<particleCount; p++) {
+                // Generar forma abstracta de cerebro (dos lóbulos) a base de coordenadas polares
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                const r = 4.2 + Math.random() * 0.3; // Flota sobre la atmósfera terrestre
+
+                positions[p*3] = r * Math.sin(phi) * Math.sin(theta);
+                positions[p*3+1] = r * Math.cos(phi) * 1.2; // Alargar lóbulo
+                positions[p*3+2] = r * Math.sin(phi) * Math.cos(theta);
+                sizes[p] = Math.random() * 0.08 + 0.02;
+            }
+
+            brainGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            
+            const brainMat = new THREE.PointsMaterial({
+                color: 0xa855f7, // Púrpura BCI
+                size: 0.1,
+                transparent: true,
+                opacity: 0.6,
+                blending: THREE.AdditiveBlending
+            });
+
+            brainParticles = new THREE.Points(brainGeo, brainMat);
+            userGroup.add(brainParticles);
+
+
+            // --- SUSCRIPCIÓN DE EVENTOS DE ENTRADA / RATÓN ---
+            container.addEventListener('mousedown', onMouseDown);
+            container.addEventListener('mousemove', onMouseMove);
+            container.addEventListener('mouseup', onMouseUp);
+            container.addEventListener('wheel', onWheel);
+
+            // Soporte para gestos táctiles (Móviles / Tablets)
+            container.addEventListener('touchstart', onTouchStart);
+            container.addEventListener('touchmove', onTouchMove);
+            container.addEventListener('touchend', onTouchEnd);
+
+            window.addEventListener('resize', onWindowResize);
+
+            // Iniciar Bucle del Motor Gráfico
+            animateLoop();
+        }
+
+        // Ajustar tamaño del canvas cuando se redimensiona la ventana
+        function onWindowResize() {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        // --- MANEJADORES DE ROTACIÓN DE ESCENA EN 3D (Offline Safe) ---
+        function onMouseDown(e) {
+            isDragging = true;
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        }
+
+        function onMouseMove(e) {
+            if (!isDragging) return;
+            const deltaMove = {
+                x: e.clientX - previousMousePosition.x,
+                y: e.clientY - previousMousePosition.y
+            };
+
+            targetRotationY += deltaMove.x * rotationSpeed;
+            targetRotationX += deltaMove.y * rotationSpeed;
+
+            // Limitar rotación vertical
+            targetRotationX = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, targetRotationX));
+
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        }
+
+        function onMouseUp() {
+            isDragging = false;
+        }
+
+        function onWheel(e) {
+            cameraDistance += e.deltaY * 0.01;
+            cameraDistance = Math.max(8, Math.min(30, cameraDistance));
+            camera.position.z = cameraDistance;
+        }
+
+        // Manejadores Táctiles para Dispositivos Móviles
+        let touchStartPos = { x: 0, y: 0 };
+        function onTouchStart(e) {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+        }
+
+        function onTouchMove(e) {
+            if (!isDragging || e.touches.length !== 1) return;
+            const deltaMove = {
+                x: e.touches[0].clientX - touchStartPos.x,
+                y: e.touches[0].clientY - touchStartPos.y
+            };
+
+            targetRotationY += deltaMove.x * rotationSpeed * 1.5;
+            targetRotationX += deltaMove.y * rotationSpeed * 1.5;
+
+            targetRotationX = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, targetRotationX));
+            touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }
+
+        function onTouchEnd() {
+            isDragging = false;
+        }
+
+        // --- SISTEMA DE SIMULACIONES FÍSICAS EN TIEMPO REAL ---
+        
+        // Simulación 1: Física Modular - Modificar Altura Orbital LEO
+        let scaleOrbitSpeedMultiplier = 1.0;
+        function adjustOrbitHeight(heightValue) {
+            document.getElementById('valOrbit').innerText = heightValue + " km";
+            
+            // Convertir altura real (400 a 1500km) a escala de visualización en el motor 3D
+            const relativeScale = 4.0 + (heightValue / 1500) * 3.5;
+            
+            // Modificar de manera fluida y física la órbita de los satélites
+            satellites.forEach(sat => {
+                sat.mesh.scale.setScalar(1.0); // Reset scale
+            });
+
+            // Ajustar visualización de los anillos orbitales en el grupo espacial
+            spaceGroup.children.forEach(child => {
+                if (child instanceof THREE.Mesh && child.geometry instanceof THREE.RingGeometry) {
+                    child.scale.setScalar(relativeScale / 6.2);
+                }
+            });
+
+            // Actualizar el factor multiplicador de velocidad Kepleriana (órbitas más bajas = mayor velocidad)
+            scaleOrbitSpeedMultiplier = 1500 / heightValue;
+        }
+
+        // Simulación 2: Proporción de Energía Híbrida
+        function adjustEnergyProp(val) {
+            const solar = val;
+            const piezo = 100 - val;
+            document.getElementById('valEnergyProp').innerText = `${solar}/${piezo}`;
+            
+            // Afectar consumo y auto-suficiencia según proporción
+            const selfSufficiency = 80.0 + (solar * 0.15) + (piezo * 0.05);
+            document.getElementById('valEnergy').innerText = selfSufficiency.toFixed(1) + "%";
+        }
+
+        // Simulación 3: Impulso Cerebro-Computadora (BCI)
+        function triggerNeuralPulse() {
+            // Animar un destello púrpura en la nube de partículas neuronales
+            const origColor = brainParticles.material.color.clone();
+            brainParticles.material.color.setHex(0xff00ff);
+            brainParticles.material.size = 0.25;
+
+            // Emitir pulso de datos masivo
+            document.getElementById('valThroughput').innerText = "184.2 Gb/s";
+
+            writeLog(dictionary[currentLang].logPulse);
+
+            setTimeout(() => {
+                brainParticles.material.color.copy(origColor);
+                brainParticles.material.size = 0.1;
+                document.getElementById('valThroughput').innerText = "54.8 Gb/s";
+            }, 1800);
+        }
+
+        // Simulación 4: Swarm AI - Simulación de Fallo de Nodos y Autoreparación Inmediata
+        let anomalyActive = false;
+        let recoveryTimer = null;
+
+        function triggerFalloSimulado() {
+            if (anomalyActive) return;
+            anomalyActive = true;
+
+            // Modificar la interfaz táctica para alertar al usuario del incidente
+            const alertLabel = document.getElementById('lblStable');
+            alertLabel.innerText = "ALERTA: FALLO";
+            alertLabel.classList.remove('text-emerald-400');
+            alertLabel.classList.add('text-red-500', 'pulse-active');
+
+            // Bajar métricas en vivo drásticamente
+            document.getElementById('valAvailability').innerText = "94.103%";
+            document.getElementById('valLatency').innerText = "48.2 ms";
+
+            // Registrar incidente en terminal soberana
+            writeLog(dictionary[currentLang].logFalloSimulado);
+
+            // Romper visualmente los enlaces de satélites en 3D tiñéndolos de rojo
+            lasers.forEach(laser => {
+                laser.material.color.setHex(0xef4444);
+                laser.material.opacity = 0.7;
+            });
+
+            // Desencadenar la autoreparación por inteligencia de enjambre en menos de 3 segundos (como exige el diseño técnico)
+            recoveryTimer = setTimeout(() => {
+                alertLabel.innerText = "AUTOREPARADO";
+                alertLabel.classList.remove('text-red-500', 'pulse-active');
+                alertLabel.classList.add('text-amber-400');
+
+                // Volver a enrutar mediante satélites adyacentes (Color dorado)
+                lasers.forEach(laser => {
+                    laser.material.color.setHex(0xf59e0b);
+                    laser.material.opacity = 0.55;
+                });
+
+                writeLog(dictionary[currentLang].logFalloReparado);
+
+                // Normalización de sistema completo después de reparación
+                setTimeout(() => {
+                    alertLabel.innerText = dictionary[currentLang].lblStable;
+                    alertLabel.classList.remove('text-amber-400');
+                    alertLabel.classList.add('text-emerald-400');
+                    recalcMetrics();
+                    anomalyActive = false;
+                }, 3000);
+
+            }, 2200); // 2.2 Segundos de reacción robótica autolimpiable
+        }
+
+        // --- SELECCIÓN DE MODOS DE OPERACIÓN GENERALES ---
+        function changeOpMode(mode) {
+            if (!rimLight) return; // Salvaguarda en caso de inicialización asíncrona
+            if (mode === "normal") {
+                writeLog(dictionary[currentLang].logNormal);
+                earth.material.color.setHex(0x050f2b);
+                rimLight.color.setHex(0x00f2fe);
+                if (brainParticles) brainParticles.material.color.setHex(0xa855f7);
+            } else if (mode === "crisis") {
+                writeLog(dictionary[currentLang].logCrisis);
+                // Iluminación táctica de emergencia (Ámbar intenso)
+                earth.material.color.setHex(0x1a1205);
+                rimLight.color.setHex(0xf59e0b);
+                if (brainParticles) brainParticles.material.color.setHex(0xf59e0b);
+            } else if (mode === "soberano") {
+                writeLog(dictionary[currentLang].logSovereign);
+                // Modo ultra defensivo hermético (Azul cian eléctrico)
+                earth.material.color.setHex(0x011c1e);
+                rimLight.color.setHex(0x10b981);
+                if (brainParticles) brainParticles.material.color.setHex(0x10b981);
+            }
+        }
+
+
+        // --- BUCLE DE ANIMACIÓN Y RENDERIZADO PRINCIPAL (3D LOOP) ---
+        function animateLoop() {
+            requestAnimationFrame(animateLoop);
+            customTime += 0.015;
+
+            // Interpolación suavizada (Lerp) para movimiento orbital de cámara táctica
+            currentRotationX += (targetRotationX - currentRotationX) * 0.08;
+            currentRotationY += (targetRotationY - currentRotationY) * 0.08;
+
+            // Aplicar matriz de rotación al globo terrestre
+            earth.rotation.y = customTime * 0.05 + currentRotationY;
+            earth.rotation.x = currentRotationX;
+
+            // Sincronizar grupos de capas terrestres y usuarios con la rotación del planeta
+            terrestrialGroup.rotation.y = earth.rotation.y;
+            terrestrialGroup.rotation.x = earth.rotation.x;
+
+            userGroup.rotation.y = earth.rotation.y;
+            userGroup.rotation.x = earth.rotation.x;
+
+            // Actualizar Física de Satélites (Capa Espacial LEO)
+            satellites.forEach(sat => {
+                // Modificar ángulo actual de Kepler basado en reguladores físicos de enjambre
+                sat.currentAngle += sat.speed * scaleOrbitSpeedMultiplier * 0.3;
+
+                // Calcular posición matemática en órbita inclinada
+                const currentOrbitRadius = 6.2 * (document.getElementById('op-mode').value === 'crisis' ? 0.95 : 1.0); // Ajustar por crisis climática
+                const cosAngle = Math.cos(sat.currentAngle);
+                const sinAngle = Math.sin(sat.currentAngle);
+
+                // Rotación tridimensional de matrices orbitales combinadas
+                const posX = currentOrbitRadius * cosAngle;
+                const posY = currentOrbitRadius * sinAngle * Math.sin(sat.angleX);
+                const posZ = currentOrbitRadius * sinAngle * Math.cos(sat.angleX);
+
+                sat.mesh.position.set(posX, posY, posZ);
+                // Apuntar cara al centro del planeta para alineación de antenas
+                sat.mesh.lookAt(earth.position);
+            });
+
+            // Actualizar trayectoria de Drones HAPS (Capa Aérea)
+            hapsDrones.forEach((drone, idx) => {
+                drone.theta += drone.speed * 0.2;
+                
+                // Calcular coordenadas esféricas polares de HAPS
+                const posX = hapsRadius * Math.sin(drone.phi) * Math.sin(drone.theta);
+                const posY = hapsRadius * Math.cos(drone.phi);
+                const posZ = hapsRadius * Math.sin(drone.phi) * Math.cos(drone.theta);
+
+                drone.mesh.position.set(posX, posY, posZ);
+
+                // Pequeño bamboleo biomimético de las alas
+                drone.mesh.rotation.y = Math.sin(customTime + idx) * 0.1;
+                drone.mesh.rotation.z = Math.cos(customTime + idx * 0.5) * 0.05;
+            });
+
+            // --- SISTEMA DINÁMICO DE ENLACES DE COMUNICACIÓN LÁSER (Swarm AI) ---
+            // Dibujar dinámicamente haces de luz láser interconectados entre satélites adyacentes
+            clearLasers();
+
+            if (activeLayers.space) {
+                // Conectar cada satélite con su adyacente para ilustrar la Red de Enjambre
+                const linksLimit = satellites.length;
+                const step = 4; // Filtrado de enlaces para conservar rendimiento de render fluido
+                
+                for (let i = 0; i < linksLimit; i += step) {
+                    const nextIdx = (i + step) % linksLimit;
+                    const satA = satellites[i];
+                    const satB = satellites[nextIdx];
+
+                    createLaserLink(satA.mesh.position, satB.mesh.position);
+                }
+            }
+
+            // Animar un sutil centelleo dinámico en la nube de interfaces neuroadaptativas (Usuario BCI)
+            if (brainParticles) {
+                const posArr = brainParticles.geometry.attributes.position.array;
+                for(let i=0; i<particleCount; i++) {
+                    posArr[i*3+1] += Math.sin(customTime * 2 + i) * 0.002; // Vibración armónica
+                }
+                brainParticles.geometry.attributes.position.needsUpdate = true;
+            }
+
+            // Renderizar la escena final procesada
+            renderer.render(scene, camera);
+        }
+
+        // Crear enlace visual láser 3D
+        function createLaserLink(vectorStart, vectorEnd) {
+            const points = [vectorStart, vectorEnd];
+            const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+            
+            // Variar el color del láser según el modo de operación
+            let laserColor = 0x00f2fe; // Cian normal
+            const mode = document.getElementById('op-mode').value;
+            if (mode === 'crisis') laserColor = 0xf59e0b; // Alerta ámbar
+            if (mode === 'soberano') laserColor = 0x10b981; // Autonomía verde
+
+            const lineMat = new THREE.LineBasicMaterial({
+                color: laserColor,
+                transparent: true,
+                opacity: 0.35,
+                blending: THREE.AdditiveBlending
+            });
+            const line = new THREE.Line(lineGeo, lineMat);
+            scene.add(line);
+            lasers.push(line);
+        }
+
+        // Limpiar trazadores de láser de la escena anterior
+        function clearLasers() {
+            lasers.forEach(laser => scene.remove(laser));
+            lasers = [];
+        }
+
+
+        // --- GRÁFICO 2D REAL-TIME DE ANCHO DE BANDA ---
+        const canvasChart = document.getElementById('chart-telemetry');
+        const ctxChart = canvasChart.getContext('2d');
+        let chartData = Array(40).fill(30);
+
+        function updateChart2D() {
+            // Añadir nuevo punto de telemetría fluctuante
+            const baseValue = document.getElementById('op-mode').value === 'soberano' ? 45 : 30;
+            const fluctuation = Math.random() * 12 - 6;
+            chartData.push(baseValue + fluctuation);
+            chartData.shift();
+
+            // Dibujar gráfico en Canvas 2D
+            ctxChart.clearRect(0, 0, canvasChart.width, canvasChart.height);
+            ctxChart.beginPath();
+            ctxChart.strokeStyle = '#00f2fe';
+            ctxChart.lineWidth = 1.5;
+
+            const stepX = canvasChart.width / (chartData.length - 1);
+            for (let i = 0; i < chartData.length; i++) {
+                const x = i * stepX;
+                const y = canvasChart.height - (chartData[i] / 60) * canvasChart.height;
+                if (i === 0) ctxChart.moveTo(x, y);
+                else ctxChart.lineTo(x, y);
+            }
+            ctxChart.stroke();
+
+            // Relleno degradado holográfico debajo de la línea
+            ctxChart.lineTo(canvasChart.width, canvasChart.height);
+            ctxChart.lineTo(0, canvasChart.height);
+            const gradient = ctxChart.createLinearGradient(0, 0, 0, canvasChart.height);
+            gradient.addColorStop(0, 'rgba(0, 242, 254, 0.15)');
+            gradient.addColorStop(1, 'rgba(0, 242, 254, 0.0)');
+            ctxChart.fillStyle = gradient;
+            ctxChart.fill();
+
+            // Actualizar número en vivo
+            const currentVal = chartData[chartData.length - 1].toFixed(1);
+            document.getElementById('valThroughput').innerText = `${currentVal} Gb/s`;
+        }
+
+
+        // --- ACCIÓN DE COPIAR AL PORTAPAPELES (Exportación del código autónomo de la patente) ---
+        function copiarAlPortapapeles() {
+            // Se realiza la copia autónoma empleando el comando tradicional de alta compatibilidad en iframe
+            const el = document.createElement('textarea');
+            el.value = document.documentElement.outerHTML;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+
+            showToast(dictionary[currentLang].toastCopy);
+        }
+
+
+        // --- CARGAR SISTEMAS AL INICIAR LA VENTANA ---
+        window.onload = function() {
+            init3D();
+            setLanguage('es');
+
+            // Intervalo de actualización de telemetría y gráficos tácticos
+            setInterval(updateChart2D, 150);
+        };
+    </script>
+</body>
+</html>
