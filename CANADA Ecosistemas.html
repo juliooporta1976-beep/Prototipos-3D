@@ -1,0 +1,2083 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canadá 6.0 - Prototipo 3D Interactivo y Simulador Avanzado</title>
+  <style>
+    :root {
+      --bg-color: #020509;
+      --panel-bg: rgba(5, 10, 18, 0.94);
+      --accent-color: #00f0ff;
+      --accent-glow: rgba(0, 240, 255, 0.4);
+      --border-color: #0d3447;
+      --text-main: #d1f4ff;
+      --text-muted: #62a3b8;
+      --font-mono: 'Courier New', Courier, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      font-size: 12px;
+    }
+
+    /* Cyber scanlines & grid visual effects */
+    body::before {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%), 
+                  linear-gradient(90deg, rgba(0, 240, 255, 0.02), rgba(0,0,0,0), rgba(0, 240, 255, 0.02));
+      z-index: 999;
+      background-size: 100% 4px, 4px 100%;
+      pointer-events: none;
+    }
+
+    /* Floating Header branding */
+    .header-panel {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      z-index: 10;
+      background: var(--panel-bg);
+      padding: 12px 18px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 0 15px var(--accent-glow);
+      clip-path: polygon(0 0, 100% 0, 100% 85%, 95% 100%, 0 100%);
+      min-width: 280px;
+    }
+
+    .header-panel h1 {
+      font-size: 18px;
+      color: #fff;
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-shadow: 0 0 8px var(--accent-glow);
+      margin-bottom: 2px;
+    }
+
+    .header-panel h2 {
+      font-size: 10px;
+      color: var(--accent-color);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .header-panel .author {
+      font-size: 11px;
+      color: #fff;
+      font-weight: bold;
+      border-top: 1px solid rgba(0, 240, 255, 0.2);
+      padding-top: 5px;
+      margin-top: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-panel .badge {
+      background: var(--accent-color);
+      color: #000;
+      font-size: 8px;
+      padding: 1px 4px;
+      border-radius: 2px;
+      font-weight: 900;
+    }
+
+    /* Language Switcher */
+    .lang-switcher {
+      position: absolute;
+      top: 15px;
+      left: 315px;
+      z-index: 9999;
+      background: var(--panel-bg);
+      border: 1px solid var(--accent-color);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+      display: flex;
+      padding: 3px;
+      border-radius: 4px;
+    }
+
+    .lang-switcher button {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 5px 10px;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-weight: bold;
+      font-size: 10px;
+      transition: all 0.2s;
+    }
+
+    .lang-switcher button.active {
+      color: #000;
+      background: var(--accent-color);
+      text-shadow: none;
+    }
+
+    /* Left Parameters Sidebar panel */
+    .sidebar-panel {
+      position: absolute;
+      left: 15px;
+      top: 100px;
+      width: 320px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 0 20px rgba(0,0,0,0.6);
+      padding: 15px;
+      z-index: 10;
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-color) transparent;
+    }
+
+    .section-title {
+      font-size: 10px;
+      color: var(--accent-color);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 4px;
+      margin-bottom: 12px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      font-weight: bold;
+    }
+
+    .control-container {
+      margin-bottom: 12px;
+      background: rgba(10, 34, 51, 0.2);
+      border: 1px solid rgba(13, 52, 71, 0.5);
+      padding: 8px 12px;
+      border-radius: 2px;
+    }
+
+    .control-label-row {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-muted);
+      font-size: 10px;
+      margin-bottom: 4px;
+    }
+
+    .control-label-row span.val {
+      color: var(--accent-color);
+      font-weight: bold;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 3px;
+      background: #05111b;
+      border: none;
+      outline: none;
+      appearance: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 10px;
+      height: 10px;
+      background: var(--accent-color);
+      cursor: pointer;
+      box-shadow: 0 0 8px var(--accent-color);
+    }
+
+    /* Tab modes selector */
+    .mode-tab-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+
+    .mode-tab-grid.row-2 {
+      grid-template-columns: repeat(2, 1fr);
+      margin-bottom: 14px;
+    }
+
+    .mode-btn {
+      background: rgba(10, 37, 51, 0.4);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 6px 3px;
+      font-size: 9px;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      transition: all 0.2s ease-in-out;
+      text-align: center;
+    }
+
+    .mode-btn:hover {
+      border-color: var(--accent-color);
+      color: #fff;
+    }
+
+    .mode-btn.active {
+      background: var(--accent-color);
+      border-color: var(--accent-color);
+      color: #000;
+      font-weight: bold;
+    }
+
+    /* Switch settings toggles */
+    .switch-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding: 3px 5px;
+    }
+
+    .switch-control {
+      position: relative;
+      display: inline-block;
+      width: 34px;
+      height: 18px;
+    }
+
+    .switch-control input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider-toggle {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #05111b;
+      transition: .2s;
+      border: 1px solid var(--border-color);
+    }
+
+    .slider-toggle:before {
+      position: absolute;
+      content: "";
+      height: 10px;
+      width: 10px;
+      left: 3px;
+      bottom: 3px;
+      background-color: var(--text-muted);
+      transition: .2s;
+    }
+
+    input:checked + .slider-toggle {
+      background-color: rgba(0, 240, 255, 0.15);
+      border-color: var(--accent-color);
+    }
+
+    input:checked + .slider-toggle:before {
+      transform: translateX(16px);
+      background-color: var(--accent-color);
+      box-shadow: 0 0 6px var(--accent-color);
+    }
+
+    /* Bottom left diagnostics oscilloscope HUD */
+    .diagnostic-panel {
+      position: absolute;
+      bottom: 15px;
+      left: 15px;
+      width: 320px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      padding: 12px 16px;
+      z-index: 10;
+      box-shadow: 0 0 15px rgba(0,0,0,0.5);
+    }
+
+    .hud-title-bar {
+      font-size: 10px;
+      color: var(--accent-color);
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 4px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .diagnostic-metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .diag-metric-box {
+      background: rgba(4, 8, 12, 0.6);
+      border: 1px solid rgba(13, 52, 71, 0.4);
+      padding: 6px;
+    }
+
+    .diag-metric-box .label {
+      font-size: 8px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .diag-metric-box .val-text {
+      font-size: 11px;
+      font-weight: bold;
+      color: #fff;
+      margin-top: 2px;
+    }
+
+    .diag-metric-box.full-span {
+      grid-column: span 2;
+    }
+
+    /* Realtime Seismic wave canvas */
+    #seismicCanvas {
+      width: 100%;
+      height: 40px;
+      background: #02070e;
+      margin-top: 6px;
+      border: 1px solid rgba(13, 52, 71, 0.6);
+    }
+
+    /* Right Metrics & Log panel */
+    .right-info-panel {
+      position: absolute;
+      right: 15px;
+      top: 15px;
+      width: 340px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      padding: 15px;
+      z-index: 10;
+      max-height: calc(100vh - 30px);
+      overflow-y: auto;
+      box-shadow: 0 0 20px rgba(0,0,0,0.7);
+    }
+
+    .stats-card {
+      background: rgba(10, 34, 51, 0.1);
+      border: 1px solid rgba(13, 52, 71, 0.5);
+      padding: 8px;
+      margin-bottom: 8px;
+    }
+
+    .stats-card-val {
+      font-size: 16px;
+      font-weight: bold;
+      color: #fff;
+      margin: 3px 0;
+      text-shadow: 0 0 6px var(--accent-glow);
+    }
+
+    .stats-card-lbl {
+      font-size: 8px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Node Status Hologram diagnostic Overlay */
+    .focused-node-window {
+      background: rgba(1, 10, 18, 0.95);
+      border: 1px solid var(--accent-color);
+      box-shadow: 0 0 15px var(--accent-glow);
+      padding: 10px;
+      margin-top: 12px;
+      border-radius: 2px;
+      display: none;
+    }
+
+    .focus-title {
+      font-size: 11px;
+      color: var(--accent-color);
+      font-weight: bold;
+      margin-bottom: 6px;
+      border-bottom: 1px dotted var(--border-color);
+      padding-bottom: 3px;
+    }
+
+    .focus-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      margin-bottom: 3.5px;
+    }
+
+    .focus-row .v {
+      color: #fff;
+      font-weight: bold;
+    }
+
+    /* Background 3D scene */
+    #scene-container {
+      position: absolute;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      z-index: 2;
+    }
+
+    canvas#simCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* High tech crosshairs & camera widgets */
+    .viewport-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .orbit-controllers {
+      position: absolute;
+      bottom: 20px;
+      right: 375px;
+      z-index: 10;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 6px;
+    }
+
+    .orbit-btn {
+      background: rgba(10, 37, 51, 0.6);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      width: 32px;
+      height: 32px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+
+    .orbit-btn:hover {
+      background: var(--accent-color);
+      color: #000;
+      border-color: var(--accent-color);
+    }
+
+    .orbit-btn.active {
+      background: #00ff88;
+      color: #000;
+      border-color: #00ff88;
+    }
+
+    /* Sound toggler */
+    .voice-feedback-bar {
+      position: absolute;
+      bottom: 20px;
+      right: 430px;
+      z-index: 10;
+    }
+
+    .action-badge {
+      background: rgba(255, 60, 60, 0.15);
+      border: 1px dashed #ff3c3c;
+      color: #ff3c3c;
+      font-size: 9px;
+      padding: 5px 10px;
+      border-radius: 2px;
+      animation: alert-blink 2s infinite;
+      display: none;
+    }
+
+    @keyframes alert-blink {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+
+    /* Core console alerts pulse */
+    .danger-override {
+      animation: danger-pulse 1s infinite alternate;
+    }
+
+    @keyframes danger-pulse {
+      0% { box-shadow: 0 0 10px rgba(0,240,255,0.2); }
+      100% { box-shadow: 0 0 25px rgba(255,60,60,0.6); border-color: #ff3c3c; }
+    }
+
+    /* Scrollbars customization */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.1);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent-color);
+    }
+  </style>
+</head>
+<body id="core-body">
+
+  <div class="viewport-overlay"></div>
+
+  <!-- Branding Dr. Julio César Oporta Barrera Header -->
+  <div class="header-panel">
+    <h2>PROYECTO FEDERAL CANADÁ 6.0</h2>
+    <h1 id="lbl-title">CANADA 6.0</h1>
+    <div class="author">
+      <span>Dr. Julio César Oporta Barrera</span>
+      <span class="badge">PATENTADO</span>
+    </div>
+  </div>
+
+  <!-- Interactive Language Selector -->
+  <div class="lang-switcher">
+    <button onclick="setLanguage('es')" class="active" id="btn-es">Español</button>
+    <button onclick="setLanguage('en')" id="btn-en">Inglés</button>
+    <button onclick="setLanguage('zh')" id="btn-zh">Mandarín</button>
+  </div>
+
+  <!-- Floating Orbital Manual Controllers -->
+  <div class="orbit-controllers">
+    <button class="orbit-btn" onclick="triggerOrbit('left')" title="Girar Izquierda">◀</button>
+    <button class="orbit-btn" onclick="triggerOrbit('right')" title="Girar Derecha">▶</button>
+    <button class="orbit-btn" onclick="triggerOrbit('up')" title="Inclinación Arriba">▲</button>
+    <button class="orbit-btn" onclick="triggerOrbit('down')" title="Inclinación Abajo">▼</button>
+    <button class="orbit-btn" onclick="triggerOrbit('zoomin')" title="Acercar">+</button>
+    <button class="orbit-btn" onclick="triggerOrbit('zoomout')" title="Alejar">-</button>
+    <button class="orbit-btn" id="btn-autoorbit" onclick="toggleAutoOrbit()" title="Giro Automático" style="font-size:9px;">SPIN</button>
+  </div>
+
+  <!-- Sidebar parameters controllers -->
+  <div class="sidebar-panel">
+    <div class="section-title" id="lbl-modes">MODOS OPERATIVOS DILATADOS</div>
+    <div class="mode-tab-grid">
+      <button class="mode-btn active" onclick="setOpMode('normal')" id="m-normal">NORMAL</button>
+      <button class="mode-btn" onclick="setOpMode('resilient')" id="m-resilient">RESILIENTE</button>
+      <button class="mode-btn" onclick="setOpMode('eco')" id="m-eco">ECO POOLED</button>
+    </div>
+    <div class="mode-tab-grid row-2">
+      <button class="mode-btn" onclick="setOpMode('tactical')" id="m-tactical">STEALTH FRAME</button>
+      <button class="mode-btn" onclick="setOpMode('arctic')" id="m-arctic" style="color: #c9a4ff; border-color: #8352ce;">GLACIAR ÁRTICO</button>
+    </div>
+
+    <!-- Interactive sliders -->
+    <div class="section-title" id="lbl-sim-params">SIMULACIÓN BIOMIMÉTICA</div>
+
+    <div class="control-container">
+      <div class="control-label-row">
+        <span id="lbl-biomech">BIOMECÁNICA ESTRUCTURAL</span>
+        <span class="val" id="v-biomech">1.0x</span>
+      </div>
+      <input type="range" id="p-biomech" min="0.3" max="2.0" step="0.1" value="1.0" oninput="updateRange('biomech', this.value)">
+    </div>
+
+    <div class="control-container">
+      <div class="control-label-row">
+        <span id="lbl-physics">SISMICIDAD DE FÍSICA MODULAR</span>
+        <span class="val" id="v-physics">0.0 Hz</span>
+      </div>
+      <input type="range" id="p-physics" min="0" max="5" step="0.5" value="0" oninput="updateRange('physics', this.value)">
+    </div>
+
+    <div class="control-container">
+      <div class="control-label-row">
+        <span id="lbl-energy">ENERGÍA HÍBRIDA ELECTROMAGNÉTICA</span>
+        <span class="val" id="v-energy">1.0x</span>
+      </div>
+      <input type="range" id="p-energy" min="0.2" max="2.5" step="0.1" value="1.0" oninput="updateRange('energy', this.value)">
+    </div>
+
+    <div class="control-container">
+      <div class="control-label-row">
+        <span id="lbl-swarm">IA DE ENJAMBRE SENSORIAL</span>
+        <span class="val" id="v-swarm">100 u</span>
+      </div>
+      <input type="range" id="p-swarm" min="10" max="150" step="10" value="100" oninput="updateRange('swarm', this.value)">
+    </div>
+
+    <!-- Direct additions for "anexes módulos nuevos de simulación" -->
+    <div class="control-container" style="border-color: #00ff88;">
+      <div class="control-label-row">
+        <span id="lbl-clima" style="color:#00ff88;">ESCUDO REGULADOR TÉRMICO</span>
+        <span class="val" id="v-clima" style="color:#00ff88;">50%</span>
+      </div>
+      <input type="range" id="p-clima" min="0" max="100" step="5" value="50" oninput="updateRange('clima', this.value)">
+    </div>
+
+    <div class="control-container" style="border-color: #00f0ff;">
+      <div class="control-label-row">
+        <span id="lbl-water" style="color:#00f0ff;">DEPOSITOS HÍDRICOS DE CIRCUITO</span>
+        <span class="val" id="v-water" style="color:#00f0ff;">60%</span>
+      </div>
+      <input type="range" id="p-water" min="0" max="100" step="5" value="60" oninput="updateRange('water', this.value)">
+    </div>
+
+    <div class="control-container" style="border-color: #a855f7;">
+      <div class="control-label-row">
+        <span id="lbl-quantum" style="color:#a855f7;">Alineación de Red Cuántica</span>
+        <span class="val" id="v-quantum" style="color:#a855f7;">50%</span>
+      </div>
+      <input type="range" id="p-quantum" min="0" max="100" step="5" value="50" oninput="updateRange('quantum', this.value)">
+    </div>
+
+    <div class="control-container" style="border-color: #10b981;">
+      <div class="control-label-row">
+        <span id="lbl-bioregen" style="color:#10b981;">Absorción Biolítica de Carbono</span>
+        <span class="val" id="v-bioregen" style="color:#10b981;">40%</span>
+      </div>
+      <input type="range" id="p-bioregen" min="0" max="100" step="5" value="40" oninput="updateRange('bioregen', this.value)">
+    </div>
+
+    <div class="section-title" id="lbl-toggles">CONMUTADORES DE PROTOCOLO</div>
+
+    <div class="switch-row">
+      <span id="sw-nodes">SISTEMA NODOS SOCIO-ECONOMICOS</span>
+      <label class="switch-control">
+        <input type="checkbox" id="chk-nodes" checked onchange="toggleSetting('nodes', this.checked)">
+        <span class="slider-toggle"></span>
+      </label>
+    </div>
+
+    <div class="switch-row">
+      <span id="sw-hud">COMPASS TÁCTICO FLOTANTE HUD</span>
+      <label class="switch-control">
+        <input type="checkbox" id="chk-hud" checked onchange="toggleSetting('hud', this.checked)">
+        <span class="slider-toggle"></span>
+      </label>
+    </div>
+
+    <div class="switch-row">
+      <span id="sw-weather">PRECIPITACIÓN DE CLIMAX</span>
+      <label class="switch-control">
+        <input type="checkbox" id="chk-weather" checked onchange="toggleSetting('weather', this.checked)">
+        <span class="slider-toggle"></span>
+      </label>
+    </div>
+
+    <div class="switch-row">
+      <span id="sw-sound">AUDIBLE HUM DE CONTROLADOR</span>
+      <label class="switch-control">
+        <input type="checkbox" id="chk-sound" onchange="toggleAudioSetting(this.checked)">
+        <span class="slider-toggle"></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Left Bottom diagnostic display (oscilloscope + logs) -->
+  <div class="diagnostic-panel" id="diag-panel">
+    <div class="hud-title-bar">
+      <span id="lbl-diag-title">SYSTEM COMPONENT RESPONSIVENESS</span>
+      <span style="font-size:7px; color:#ff3c3c; animation:alert-blink 1s infinite;">● REALTIME</span>
+    </div>
+    <div class="diagnostic-metrics-grid">
+      <div class="diag-metric-box">
+        <div class="label" id="diag-load">CARGA CONECTA</div>
+        <div class="val-text" id="val-diag-load">42.8 GigaFLOPS</div>
+      </div>
+      <div class="diag-metric-box">
+        <div class="label" id="diag-temp">ESTADO CODES</div>
+        <div class="val-text" id="val-diag-temp">OK (37.2°C)</div>
+      </div>
+      <div class="diag-metric-box full-span">
+        <div class="label" id="diag-seismic">HISTORIAL RESISTENCIA SÍSMICA</div>
+        <canvas id="seismicCanvas"></canvas>
+        <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+          <button id="btn-shockwave" onclick="triggerShockwaveOffline()" style="background:rgba(255, 60, 60, 0.12); border:1px solid rgb(255, 60, 60); color:rgb(255, 60, 60); font-size:9.5px; padding:3px 8px; text-transform:uppercase; font-family:monospace; font-weight:bold; cursor:pointer; border-radius:3px; outline:none; transition: all 0.3s; width:55%;">Trigger Shockwave</button>
+          <span style="font-size: 9px; color: var(--text-muted);" id="lbl-physics-val">0.0 Hz</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Offline Realtime scrolling Terminal console logs panel (additional HUD) -->
+    <div style="border-top:1px solid rgba(168,85,247,0.3); margin-top:12px; padding-top:10px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#a855f7; font-weight:bold; margin-bottom: 6px; font-family:monospace;">
+        <span id="lbl-log-title">REALTIME HUD CONSOLE</span>
+        <span style="font-size:7px; border:1px solid #a855f7; padding:0 3px; border-radius:2px; animation: alert-blink 1.2s infinite;">SYS LOGS</span>
+      </div>
+      <div id="offline-terminal-logs" style="background:rgba(2,5,9,0.95); border:1px solid rgba(168,85,247,0.25); border-radius:3px; padding:6px; height:85px; overflow-y:auto; font-size:9px; line-height:1.3; color:#c084fc; font-family:monospace; display:flex; flex-direction:column; gap:3px;">
+        <div>[SYSTEM] CANADA 6.0 OFFLINE SIMULATION LAUNCHED.</div>
+        <div>[STATUS] Tripartite networks loaded perfectly: 100% OK.</div>
+        <div>[MONITOR] Double click mesh plane to instantiate biosphere domes.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Voice warning active alert label -->
+  <div class="voice-feedback-bar">
+    <div class="action-badge" id="warn-badge">CRITICAL WINTER GLACIAL SHIELD DEFENSE ACTIVE</div>
+  </div>
+
+  <!-- Right panel: impact metrics and click detail diagnostic panel -->
+  <div class="right-info-panel">
+    <div class="section-title" id="lbl-metrics">MÉTRICAS COLECTIVAS DE IMPACTO</div>
+
+    <div class="stats-card">
+      <div class="stats-card-lbl" id="m-housing">EFICIENCIA DE CONSTRUCCIÓN EN 12 MESES</div>
+      <div class="stats-card-val" id="m-housing-val">800 Uds.</div>
+      <div style="font-size:9px; color:#88ff88;" id="m-housing-sub">+80% CONSTRUCCIÓN CON CLT ALTA RESISTENCIA</div>
+    </div>
+
+    <div class="stats-card">
+      <div class="stats-card-lbl" id="m-commute">REDUCCIÓN DE TIEMPO DE TRASLADO LABORAL</div>
+      <div class="stats-card-val" id="m-commute-val">-89% MINUTOS</div>
+      <div style="font-size:9px; color:#00f0ff;" id="m-commute-sub">DISTRITOS TRIPARTITOS AUTO-SOSTENIDOS (5-MIN)</div>
+    </div>
+
+    <div class="stats-card">
+      <div class="stats-card-lbl" id="m-carbon">REDUCCIÓN DE HUELLA DE CARBONO GLOBAL</div>
+      <div class="stats-card-val" style="color:#ffae19;" id="m-carbon-val">-67% CO₂ ANUAL</div>
+      <div style="font-size:9px; color:var(--text-muted);" id="m-carbon-sub">SISTEMAS HÍBRIDOS FOTOVOLTAICOS COMPARTIDOS</div>
+    </div>
+
+    <div class="stats-card">
+      <div class="stats-card-lbl" id="m-stress">ALIVIO DE ESTRÉS COMUNITARIO (SALUD MENTAL)</div>
+      <div class="stats-card-val" style="color:#88ff88;" id="m-stress-val">+42% BIENESTAR</div>
+      <div style="font-size:9px; color:#88ff88;" id="m-stress-sub">INTEGRACIÓN BIOFÍLICA CON BOSQUES VERTICALES</div>
+    </div>
+
+    <div class="stats-card">
+      <div class="stats-card-lbl" id="m-roi">RETORNO SOCIAL DE INVERSIÓN (SROI)</div>
+      <div class="stats-card-val" style="color:#00ffff;" id="m-roi-val">3.2x ROI (10 AÑOS) / 14.8% TIR</div>
+      <div style="font-size:9px; color:#88ff88;" id="m-roi-sub">FONDO TRIPARTITO REINVERTIBLE</div>
+    </div>
+
+    <!-- ADVANCED INTERACTIVE NODE DETAIL HOVER WINDOW -->
+    <div class="focused-node-window" id="node-window">
+      <div class="focus-title" id="focus-elem-name">COMPONENTE SELECCIONADO</div>
+      <div class="focus-row">
+        <span id="focus-p1">Suministro Eléctrico</span>
+        <span class="v" id="focus-p1-v">98.4% Activo</span>
+      </div>
+      <div class="focus-row">
+        <span id="focus-p2">Salud de Enlace IA</span>
+        <span class="v" id="focus-p2-v">Fluida (0.003ms)</span>
+      </div>
+      <div class="focus-row">
+        <span id="focus-p3">Ciudadanos Conectados</span>
+        <span class="v" id="focus-p3-v">1,200 Pobladores</span>
+      </div>
+      <div class="focus-row">
+        <span id="focus-p4">Resiliencia Térmica</span>
+        <span class="v" id="focus-p4-v" style="color:#00ff88;">Estable</span>
+      </div>
+      <div style="font-size:7.5px; color:#62a3b8; text-align:right; margin-top:5px; border-top:1px dotted #0d3447; padding-top:4px;" id="focus-tip">
+        CLIC FUERA PARA CERRAR DETALLES
+      </div>
+    </div>
+
+    <!-- Double click hint -->
+    <div style="margin-top:15px; border:1px dashed rgba(0,240,255,0.2); padding:10px; color:var(--text-muted); font-size:9.5px; text-align:center; line-height:1.4;" id="lbl-interaction-tip">
+      💡 TIP AVANZADO DE SIMULACIÓN:<br>
+      <span style="color:#00f0ff;">Doble clic</span> en el plano para plantar un Domo Bioluminiscente Ecológico en esas coordenadas 3D de terreno.
+    </div>
+  </div>
+
+  <!-- Interactive 3D Canvas Container -->
+  <div id="scene-container">
+    <canvas id="simCanvas"></canvas>
+  </div>
+
+  <script>
+    // System Translations
+    const dictionary = {
+      es: {
+        title: "CANADÁ 6.0: ECOSISTEMAS INDUSTRIALES",
+        modes: "MODOS OPERATIVOS DILATADOS",
+        simParams: "SIMULACIÓN BIOMIMÉTICA",
+        biomech: "BIOMECÁNICA ESTRUCTURAL",
+        physics: "SISMICIDAD DE FÍSICA MODULAR",
+        energy: "ENERGÍA HÍBRIDA ELECTROMAGNÉTICA",
+        swarm: "IA DE ENJAMBRE SENSORIAL",
+        clima: "ESCUDO REGULADOR TÉRMICO",
+        water: "DEPOSITOS HÍDRICOS DE CIRCUITO",
+        toggles: "CONMUTADORES DE PROTOCOLO",
+        swNodes: "SISTEMA NODOS SOCIO-ECONOMICOS",
+        swHud: "COMPASS TÁCTICO FLOTANTE HUD",
+        swWeather: "PRECIPITACIÓN DE CLIMAX",
+        swSound: "AUDIBLE HUM DE CONTROLADOR",
+        diagTitle: "ESTADO DE COMPONENTES DEL SISTEMA",
+        diagLoad: "CARGA CONECTA",
+        diagTemp: "ESTADO CODES",
+        diagSeis: "HISTORIAL DE RESISTENCIA SÍSMICA",
+        metrics: "MÉTRICAS COLECTIVAS DE IMPACTO",
+        housing: "EFICIENCIA DE CONSTRUCCIÓN EN 12 MESES",
+        commute: "REDUCCIÓN DE TIEMPO DE TRASLADO LABORAL",
+        carbon: "REDUCCIÓN DE HUELLA DE CARBONO GLOBAL",
+        stress: "ALIVIO DE ESTRÉS COMUNITARIO",
+        roi: "RETORNO SOCIAL DE INVERSIÓN (SROI)",
+        interactionTip: "💡 TIP AVANZADO DE SIMULACIÓN:<br><span style='color:#00f0ff;'>Doble clic</span> en el plano para plantar un Domo Bioluminiscente Ecológico en esas coordenadas 3D de terreno.",
+        lblTip: "CLIC FUERA PARA CERRAR DETALLES",
+        lblClickFocus: "ESTRUCTURA DE SIMULACIÓN ENFOQUE",
+        clicToFocus: "CLIC PARA SELECCIONAR NODO | DOBLE CLIC PARA INOCULAR BIODOMO",
+        p1Name: "Capacidad de Red",
+        p2Name: "Latencia de Célula",
+        p3Name: "Econ-Sostenibilidad",
+        p4Name: "Resistencia",
+        mNormal: "NORMAL",
+        mResilient: "RESILIENTE",
+        mEco: "ECO PLANIFICADO",
+        mTactical: "MARCO TÁCTICO",
+        mArctic: "GLACIAR ÁRTICO",
+        warnBadge: "DEFENSA ACTIVA: ESCUDO TÉRMICO GLACIAR ÁRTICO",
+        mHousingVal: "800 Uds.",
+        mHousingSub: "+80% CONSTRUCCIÓN CON CLT ALTA RESISTENCIA",
+        mCommuteVal: "-89% MINUTOS",
+        mCommuteSub: "DISTRITOS TRIPARTITOS AUTO-SOSTENIDOS (5-MIN)",
+        mCarbonVal: "-67% CO₂ ANUAL",
+        mCarbonSub: "SISTEMAS HÍBRIDOS FOTOVOLTAICOS COMPARTIDOS",
+        mStressVal: "+42% BIENESTAR",
+        mStressSub: "INTEGRACIÓN BIOFÍLICA CON BOSQUES VERTICALES",
+        mRoiVal: "3.2x ROI (10 AÑOS) / 14.8% TIR",
+        mRoiSub: "FONDO TRIPARTITO REINVERTIBLE",
+        quantumGrid: "Alineación de Red Cuántica",
+        carbonAbsorption: "Absorción Biolítica de Carbono",
+        liveLogPanel: "Consola de Telemetría Real-Time",
+        shockwaveBtn: "Inyectar Sobrecarga Sísmica"
+      },
+      en: {
+        title: "CANADA 6.0: STRUCTURAL ECOSYSTEMS",
+        modes: "EXTENDED OPERATIONAL MODES",
+        simParams: "BIOMIMETIC SIMULATION",
+        biomech: "STRUCTURAL BIOMECHANICS",
+        physics: "MODULAR PHYSICS SEISMICITY",
+        energy: "HYBRID ELECTROMAGNETIC ENERGY",
+        swarm: "SENSORIAL SWARM AI DENSITY",
+        clima: "THERMAL EMISSION CLIMATE SHIELD",
+        water: "CLOSED LOOP WATER DEPOSITS",
+        toggles: "PROTOCOL CONMUTATORS",
+        swNodes: "SOCIO-ECONOMIC NODE SYSTEM",
+        swHud: "COMPASS FLOATING TACTICAL HUD",
+        swWeather: "ACTIVE CLIMATIC PRECIPITATION",
+        swSound: "CONTROLLER AUDIBLE AMBIENT HUM",
+        diagTitle: "SYSTEM COMPONENT RESPONSIVENESS",
+        diagLoad: "GRID CONNECT LOAD",
+        diagTemp: "CORE STATE TEMP",
+        diagSeis: "SEISMIC STABILITY RECORD HISTORY",
+        metrics: "COLLECTIVE IMPACT METRICS",
+        housing: "12-MONTH MODULAR BUILD CAPACITY",
+        commute: "LABOR COMMUTE DECONGESTION",
+        carbon: "TOTAL GLOBAL CARBON SHIELD SAVINGS",
+        stress: "COMMUNITY STRESS COGNITION RELIEF",
+        roi: "SOCIAL RETURN ON INVESTMENT (SROI)",
+        interactionTip: "💡 ADVANCED SIMULATION TIP:<br><span style='color:#00f0ff;'>Double click</span> on any grid intersection target to plant an ecological high-tech Bio-Dome.",
+        lblTip: "CLICK OUTSIDE TO CLOSE METRICS",
+        lblClickFocus: "FOCUSED COMPONENT COGNITIVE DECK",
+        clicToFocus: "CLICK TO FOCUS NODE | DOUBLE CLICK TO PLANT BIODOME",
+        p1Name: "Grid Power Output",
+        p2Name: "Cell Link Latency",
+        p3Name: "Econ Sustainability",
+        p4Name: "Resistance Rank",
+        mNormal: "NORMAL SYSTEM",
+        mResilient: "RESILIENT SHIELD",
+        mEco: "ECO SAVINGS",
+        mTactical: "TACTICAL FRAME",
+        mArctic: "ARCTIC COLD GLACIAR",
+        warnBadge: "ACTIVE DEFENSE: WINTER ARCTIC THERMAL SHIELD",
+        mHousingVal: "800 Units",
+        mHousingSub: "+80% DECARBONIZED CERTIFIED MASS TIMBER CONSTR.",
+        mCommuteVal: "-89% MINUTES",
+        mCommuteSub: "TRIPARTITE SELF-SUSTAINED DISTRICTS (5-MIN)",
+        mCarbonVal: "-67% CO2 ANNUALLY",
+        mCarbonSub: "CO-OWNED SHARED HYBRID RENEWABLE GRIDS",
+        mStressVal: "+42% WELLNESS",
+        mStressSub: "BIOPHILIC URBAN DENSE FORESTRY INTEGRATION",
+        mRoiVal: "3.2x ROI (10 YEARS) / 14.8% IRR",
+        mRoiSub: "REINVESTIBLE CO-OP COMMUNITY TRUST FUND",
+        quantumGrid: "Quantum Grid Alignment",
+        carbonAbsorption: "Biolithic Carbon Absorption",
+        liveLogPanel: "Real-Time Telemetry HUD",
+        shockwaveBtn: "Trigger Seismic Overload"
+      },
+      zh: {
+        title: "加拿大 6.0: 综合网络模拟器",
+        modes: "核心运行模式选择",
+        simParams: "粒子系统与力学阻尼机制",
+        biomech: "生物木结构建筑物理压缩度",
+        physics: "模块化物理高抗震等级机制",
+        energy: "清洁混合电网电力核心效能",
+        swarm: "智脑巡林交通粒子移动流速",
+        clima: "气候保暖及高热吸收系统",
+        water: "水自循环净化收集回收率",
+        toggles: "主轴交互协议总控制阀",
+        swNodes: "激活三方控股关键物理节点",
+        swHud: "激活流线战术偏心旋转指南针",
+        swWeather: "激活寒带冷气流降雪粒子效用",
+        swSound: "核心电平超低空心重力正弦音",
+        diagTitle: "电控面板即时通讯指令与反馈",
+        diagLoad: "中央处理电容能耗",
+        diagTemp: "核心热量控制区",
+        diagSeis: "连续自振微动频谱记录仪",
+        metrics: "多维社会环境价值评估",
+        housing: "12个月内可持续胶合木保障房",
+        commute: "通勤负荷降低与五分钟辐射圈",
+        carbon: "全周期综合运营碳足迹降低值",
+        stress: "森林疗愈舒缓压力综合心率检测",
+        roi: "社会和股权联合资本总投资报酬",
+        interactionTip: "💡 全息操作贴士:<br>在物理栅格内<span style='color:#00f0ff;'>双击鼠标</span>，将会在该3D高度生成绿色光合穹顶。",
+        lblTip: "单击外面即可关闭节点监控",
+        lblClickFocus: "高亮节点实时数据核心舱",
+        clicToFocus: "单击聚焦选中节点 | 双击种植绿色生物穹顶",
+        p1Name: "综合供网能力",
+        p2Name: "基站微端延迟",
+        p3Name: "生态绿色评价",
+        p4Name: "骨架坚固韧性",
+        mNormal: "常规状态",
+        mResilient: "物理抗震",
+        mEco: "超低能耗",
+        mTactical: "隐伏合金",
+        mArctic: "极寒极地",
+        warnBadge: "极地自适应热力屏蔽罩防护已全面启动",
+        mHousingVal: "800 套",
+        mHousingSub: "+80 % 环保高强度胶合木和装配式模块化技术交付",
+        mCommuteVal: "-89 % 分钟",
+        mCommuteSub: "三方共建完全自给自足的5分钟社区生活圈",
+        mCarbonVal: "-67 % 碳减排",
+        mCarbonSub: "三方合伙共同持有的清洁微电网系统",
+        mStressVal: "+42 % 减压指数",
+        mStressSub: "大面积立体绿化与垂直森林双重降噪净化",
+        mRoiVal: "3.2倍社会回报 (10年期) / 14.8 % 内部收益率",
+        mRoiSub: "可流转增值的社区共治托管信托基金",
+        quantumGrid: "量子电网结构对齐度",
+        carbonAbsorption: "生物质二氧化碳吸附效率",
+        liveLogPanel: "实时网络运营与温熵事件终端",
+        shockwaveBtn: "启动地壳物理冲击测试"
+      }
+    };
+
+    let currentLang = "es";
+
+    const safeText = (id, val, isHtml = false) => {
+      const el = document.getElementById(id);
+      if (el) {
+        if (isHtml) el.innerHTML = val;
+        else el.innerText = val;
+      }
+    };
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      document.querySelectorAll(".lang-switcher button").forEach(btn => btn.classList.remove("active"));
+      const activeBtn = document.getElementById("btn-" + lang);
+      if (activeBtn) activeBtn.classList.add("active");
+
+      const d = dictionary[lang];
+      if (!d) return;
+
+      safeText("lbl-title", d.title);
+      safeText("lbl-modes", d.modes);
+      safeText("lbl-sim-params", d.simParams);
+      safeText("lbl-biomech", d.biomech);
+      safeText("lbl-physics", d.physics);
+      safeText("lbl-energy", d.energy);
+      safeText("lbl-swarm", d.swarm);
+      safeText("lbl-clima", d.clima);
+      safeText("lbl-water", d.water);
+      safeText("lbl-quantum", d.quantumGrid);
+      safeText("lbl-bioregen", d.carbonAbsorption);
+      safeText("lbl-log-title", d.liveLogPanel);
+      safeText("btn-shockwave", d.shockwaveBtn);
+      safeText("lbl-toggles", d.toggles);
+      safeText("sw-nodes", d.swNodes);
+      safeText("sw-hud", d.swHud);
+      safeText("sw-weather", d.swWeather);
+      safeText("sw-sound", d.swSound);
+      safeText("lbl-diag-title", d.diagTitle);
+      safeText("diag-load", d.diagLoad);
+      safeText("diag-temp", d.diagTemp);
+      safeText("diag-seismic", d.diagSeis);
+      safeText("lbl-metrics", d.metrics);
+      safeText("m-housing", d.housing);
+      safeText("m-commute", d.commute);
+      safeText("m-carbon", d.carbon);
+      safeText("m-stress", d.stress);
+      safeText("m-roi", d.roi);
+      safeText("lbl-interaction-tip", d.interactionTip, true);
+      safeText("focus-tip", d.lblTip);
+
+      // Translate newly added elements (modes & warning labels & stats values)
+      safeText("m-normal", d.mNormal);
+      safeText("m-resilient", d.mResilient);
+      safeText("m-eco", d.mEco);
+      safeText("m-tactical", d.mTactical);
+      safeText("m-arctic", d.mArctic);
+      safeText("warn-badge", d.warnBadge || "CRITICAL WINTER GLACIAL SHIELD DEFENSE ACTIVE");
+
+      safeText("m-housing-val", d.mHousingVal);
+      safeText("m-housing-sub", d.mHousingSub);
+      safeText("m-commute-val", d.mCommuteVal);
+      safeText("m-commute-sub", d.mCommuteSub);
+      safeText("m-carbon-val", d.mCarbonVal);
+      safeText("m-carbon-sub", d.mCarbonSub);
+      safeText("m-stress-val", d.mStressVal);
+      safeText("m-stress-sub", d.mStressSub);
+      safeText("m-roi-val", d.mRoiVal);
+      safeText("m-roi-sub", d.mRoiSub);
+
+      playBeep(800, 0.05);
+    }
+
+    // Parameters Global Object
+    const params = {
+      biomech: 1.0,
+      physics: 0.0,
+      energy: 1.0,
+      swarm: 100,
+      clima: 50,
+      water: 60,
+      quantum: 50,
+      bioregen: 40,
+      nodes: true,
+      hud: true,
+      weather: true,
+      sound: false,
+      opMode: "normal"
+    };
+
+    function updateRange(id, val) {
+      params[id] = parseFloat(val);
+      let suffix = "x";
+      if (id === "physics") suffix = " Hz";
+      else if (id === "swarm") suffix = " u";
+      else if (id === "clima" || id === "water" || id === "quantum" || id === "bioregen") suffix = "%";
+      
+      document.getElementById("v-" + id).innerText = val + suffix;
+      playBeep(400 + params[id] * 80, 0.08);
+
+      // Mutate Diagnostic loads based on simulation values
+      if (id === 'physics') {
+        seismicFreq = parseFloat(val);
+      }
+    }
+
+    function toggleSetting(id, checked) {
+      params[id] = checked;
+      playBeep(checked ? 900 : 300, 0.15);
+    }
+
+    // Offline event logging database
+    let offlineLogs = [
+      "[SYSTEM] CANADA 6.0 OFFLINE SIMULATION ENGAGED.",
+      "[STATUS] Mass timber multi-layer frameworks synchronized.",
+      "[MONITOR] Double click anywhere to select coords and plant biospheres."
+    ];
+
+    function appendOfflineLog(msg) {
+      offlineLogs.push(msg);
+      if (offlineLogs.length > 5) offlineLogs.shift();
+      const terminal = document.getElementById("offline-terminal-logs");
+      if (terminal) {
+        terminal.innerHTML = offlineLogs.map(logMsg => {
+          let styleColor = "#c084fc";
+          if (logMsg.includes("ALERT") || logMsg.includes("WARN") || logMsg.includes("ALERTA") || logMsg.includes("警告")) {
+            styleColor = "#f87171";
+          } else if (logMsg.includes("SYSTEM") || logMsg.includes("SISTEMA") || logMsg.includes("智脑")) {
+            styleColor = "#34d399";
+          }
+          return "<div style='margin-bottom:3px; color:" + styleColor + ";'>" + logMsg + "</div>";
+        }).join("");
+        terminal.scrollTop = terminal.scrollHeight;
+      }
+    }
+
+    // Trigger physical shockwaves
+    let isShockwaveOffline = false;
+    let shockwaveRadiusOffline = 0;
+
+    function triggerShockwaveOffline() {
+      if (isShockwaveOffline) return;
+      playBeep(210, 0.7);
+      isShockwaveOffline = true;
+      shockwaveRadiusOffline = 0;
+
+      const shockES = "[ALERTA] TEST SÍSMICO ACTIVO: Induciendo onda de sobrecarga superficial...";
+      const shockEN = "[ALERT] SEISMIC TEST ACTIVE: Injecting surface strain wave overload...";
+      const shockZH = "[警告] 地振动力学负载测试已启动：正在地表注入波动负载力...";
+      appendOfflineLog(currentLang === 'es' ? shockES : (currentLang === 'en' ? shockEN : shockZH));
+
+      const shockBtn = document.getElementById("btn-shockwave");
+      if (shockBtn) {
+        shockBtn.disabled = true;
+        shockBtn.style.background = "#ff3c3c30";
+        shockBtn.style.animation = "alert-blink 0.8s infinite";
+      }
+
+      const timerId = setInterval(() => {
+        shockwaveRadiusOffline += 13;
+        if (shockwaveRadiusOffline > 400) {
+          clearInterval(timerId);
+          isShockwaveOffline = false;
+          
+          const doneES = "[SISTEMA] Onda disipada. Estructuras mantuvieron robustez al 100%.";
+          const doneEN = "[SYSTEM] Wave stress dispersed. Mass timber systems held 100% integrity.";
+          const doneZH = "[智脑] 冲击应力波已完全消减。100%胶合装配结构保持稳健。";
+          appendOfflineLog(currentLang === 'es' ? doneES : (currentLang === 'en' ? doneEN : doneZH));
+
+          if (shockBtn) {
+            shockBtn.disabled = false;
+            shockBtn.style.background = "rgba(255, 60, 60, 0.12)";
+            shockBtn.style.animation = "none";
+          }
+        }
+      }, 40);
+    }
+
+    // Dynamic telemetry updates periodic interval
+    setInterval(() => {
+      const phrasesEs = [
+        "[SISTEMA] Blindaje de Red Cuántica alineado al " + (params.quantum || 50) + "%.",
+        "[BIOM] Capacidad CLT estructural al " + (90 + params.biomech * 4).toFixed(1) + "%.",
+        "[SISM] Absorción sísmica operando a " + params.physics + " Hz.",
+        "[ENERG] Flujo de energía electromagnética a " + (params.energy * 100).toFixed(0) + "% potencia.",
+        "[ECO] Captura de carbono biológico rindiendo al " + (params.bioregen || 40) + "%.",
+        "[AGUA] Depósitos cíclicos de agua circulando a " + (params.water * 12).toFixed(0) + " L/min.",
+        "[IA] Enjambre IA coordinando un total de " + params.swarm + " micro-drones.",
+        "[CLIMA] Eficiencia del escudo térmico climático: " + params.clima + "%."
+      ];
+      const phrasesEn = [
+        "[SYSTEM] Quantum Grid Shield aligned at " + (params.quantum || 50) + "%.",
+        "[BIOM] Structural CLT health verified at " + (90 + params.biomech * 4).toFixed(1) + "%.",
+        "[SEISM] Adaptive dampening operating at " + params.physics + " Hz.",
+        "[ENERGY] Electromagnetic flux pulsing at " + (params.energy * 100).toFixed(0) + "% output.",
+        "[ECO] Biolithic carbon sequester rates peaked at " + (params.bioregen || 40) + "%.",
+        "[WATER] Closed-loop water circulating at " + (params.water * 12).toFixed(0) + " L/min.",
+        "[AI] Swarm intelligence syncing " + params.swarm + " micro-nodes.",
+        "[WEATHER] Protective climate shielding efficiency: " + params.clima + "%."
+      ];
+      const phrasesZh = [
+        "[智脑] 量子格状护盾已对鹗 " + (params.quantum || 50) + "%。",
+        "[结构] 港湾多维胶合木性能刚度： " + (90 + params.biomech * 4).toFixed(1) + "%。",
+        "[阻尼] 自适应抗震动物理波： " + params.physics + " 赫兹。",
+        "[能源] 当前电磁能量回流效率： " + (params.energy * 100).toFixed(0) + "%。",
+        "[碳汇] 新增生物质二氧化碳物理吸附率： " + (params.bioregen || 40) + "%。",
+        "[自循环] 主净化水管回收排量： " + (params.water * 12).toFixed(0) + " 升毅分。",
+        "[智云] 智能粒子系统活跃分量： " + params.swarm + " 微型颗粒。",
+        "[气候] 气温阻热保护屏蔽效能： " + params.clima + "%。"
+      ];
+
+      const chosenPhrases = currentLang === 'es' ? phrasesEs : (currentLang === 'en' ? phrasesEn : phrasesZh);
+      const randPhrase = chosenPhrases[Math.floor(Math.random() * chosenPhrases.length)];
+      appendOfflineLog(randPhrase);
+    }, 2800);
+
+    // Audio Web Synth using specialized Web Audio API
+    let audioCtx = null;
+    let humOsc = null;
+    let humGain = null;
+
+    function initAudioContext() {
+      if (audioCtx) return;
+      try {
+        const AudioClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioClass();
+        humGain = audioCtx.createGain();
+        humGain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+        humGain.connect(audioCtx.destination);
+      } catch (err) {
+        console.warn("Web Audio API not supported", err);
+      }
+    }
+
+    function toggleAudioSetting(checked) {
+      params.sound = checked;
+      initAudioContext();
+      if (!audioCtx) return;
+
+      if (checked) {
+        humOsc = audioCtx.createOscillator();
+        humOsc.type = "sine";
+        // deep cyber frequency hum
+        let baseFreq = params.opMode === 'resilient' ? 88 : (params.opMode === 'arctic' ? 65 : 110);
+        humOsc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
+        humOsc.connect(humGain);
+        humOsc.start();
+        playBeep(1200, 0.25);
+      } else {
+        if (humOsc) {
+          humOsc.stop();
+          humOsc = null;
+        }
+      }
+    }
+
+    function playBeep(frequency, duration) {
+      if (!params.sound || !audioCtx) return;
+      try {
+        const bOsc = audioCtx.createOscillator();
+        const bGain = audioCtx.createGain();
+        bOsc.connect(bGain);
+        bGain.connect(audioCtx.destination);
+        bOsc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+        bGain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+        bGain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        bOsc.start();
+        bOsc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    // Dynamic Tone Modulator based on op-modes
+    function adjustHumFrequency() {
+      if (!params.sound || !humOsc || !audioCtx) return;
+      let targetF = 110;
+      if (params.opMode === 'resilient') targetF = 75;
+      else if (params.opMode === 'eco') targetF = 125;
+      else if (params.opMode === 'tactical') targetF = 90;
+      else if (params.opMode === 'arctic') targetF = 55; // ultra-low glacial cold hum
+
+      // add sliders modifiers
+      targetF += params.biomech * 8 + params.energy * 5;
+      humOsc.frequency.setValueAtTime(targetF, audioCtx.currentTime);
+    }
+
+    // Operating Modes Handler
+    function setOpMode(mode) {
+      params.opMode = mode;
+      document.querySelectorAll(".mode-btn").forEach(btn => btn.classList.remove("active"));
+      
+      const targetBtn = document.getElementById("m-" + mode);
+      if (targetBtn) targetBtn.classList.add("active");
+
+      const body = document.getElementById("core-body");
+      body.className = "";
+      document.getElementById("warn-badge").style.display = "none";
+
+      if (mode === "normal") {
+        document.documentElement.style.setProperty("--accent-color", "#00f0ff");
+        document.documentElement.style.setProperty("--accent-glow", "rgba(0, 240, 255, 0.4)");
+        document.documentElement.style.setProperty("--bg-color", "#020509");
+      } else if (mode === "resilient") {
+        document.documentElement.style.setProperty("--accent-color", "#ff3c3c");
+        document.documentElement.style.setProperty("--accent-glow", "rgba(255, 60, 60, 0.5)");
+        document.documentElement.style.setProperty("--bg-color", "#0f0505");
+        body.className = "danger-override";
+      } else if (mode === "eco") {
+        document.documentElement.style.setProperty("--accent-color", "#00ff88");
+        document.documentElement.style.setProperty("--accent-glow", "rgba(0, 255, 136, 0.4)");
+        document.documentElement.style.setProperty("--bg-color", "#020905");
+      } else if (mode === "tactical") {
+        document.documentElement.style.setProperty("--accent-color", "#4a75a0");
+        document.documentElement.style.setProperty("--accent-glow", "rgba(74, 117, 160, 0.3)");
+        document.documentElement.style.setProperty("--bg-color", "#05070a");
+      } else if (mode === "arctic") {
+        // Ultra realistic glacier mode
+        document.documentElement.style.setProperty("--accent-color", "#b77eff");
+        document.documentElement.style.setProperty("--accent-glow", "rgba(183, 126, 255, 0.4)");
+        document.documentElement.style.setProperty("--bg-color", "#05040f");
+        document.getElementById("warn-badge").style.display = "block";
+      }
+
+      adjustHumFrequency();
+      playBeep(mode === "resilient" ? 220 : 600, 0.3);
+    }
+
+    /* SOLID AND MULTIDIMENSIONAL 3D GRAPHICAL PROJECTION RADAR */
+    const canvas = document.getElementById("simCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Live Oscilloscope Seismic Graph Configuration
+    const mCanvas = document.getElementById("seismicCanvas");
+    const mCtx = mCanvas.getContext("2d");
+    let seismicHistory = [];
+    let seismicFreq = 0.0;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      mCanvas.width = mCanvas.clientWidth;
+      mCanvas.height = mCanvas.clientHeight;
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    // 3D Matrix camera configuration variables
+    let yaw = 0.52;
+    let pitch = 0.38;
+    let targetYaw = 0.52;
+    let targetPitch = 0.38;
+    let zoom = 1.7;
+    let isDragging = false;
+    let isAutoOrbit = true;
+    let dragStartX = 0, dragStartY = 0;
+
+    // UI Orbit interaction buttons
+    function triggerOrbit(direction) {
+      if (direction === "left") targetYaw += 0.25;
+      else if (direction === "right") targetYaw -= 0.25;
+      else if (direction === "up") targetPitch = Math.min(1.2, targetPitch + 0.15);
+      else if (direction === "down") targetPitch = Math.max(0.1, targetPitch - 0.15);
+      else if (direction === "zoomin") zoom = Math.min(4.0, zoom + 0.2);
+      else if (direction === "zoomout") zoom = Math.max(0.5, zoom - 0.2);
+      playBeep(900, 0.05);
+    }
+
+    function toggleAutoOrbit() {
+      isAutoOrbit = !isAutoOrbit;
+      document.getElementById("btn-autoorbit").className = isAutoOrbit ? "orbit-btn active" : "orbit-btn";
+      playBeep(isAutoOrbit ? 950 : 350, 0.1);
+    }
+
+    // Register canvas drag input handlers
+    canvas.addEventListener("mousedown", (e) => {
+      isDragging = true;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - dragStartX;
+      const dy = e.clientY - dragStartY;
+      targetYaw += dx * 0.005;
+      targetPitch += dy * 0.005;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+    });
+
+    window.addEventListener("mouseup", () => { isDragging = false; });
+
+    canvas.addEventListener("wheel", (e) => {
+      zoom -= e.deltaY * 0.0015;
+      zoom = Math.max(0.4, Math.min(zoom, 4.2));
+    });
+
+    // 3D Point Projection mathematical transformation with perspective
+    function project(x, y, z) {
+      const cosY = Math.cos(yaw);
+      const sinY = Math.sin(yaw);
+      const cosP = Math.cos(pitch);
+      const sinP = Math.sin(pitch);
+
+      let x1 = x * cosY - z * sinY;
+      let z1 = x * sinY + z * cosY;
+
+      let y1 = y * cosP - z1 * sinP;
+      let z2 = y * sinP + z1 * cosP;
+
+      const focalLength = 360;
+      const pScale = (focalLength / (focalLength + z2)) * zoom;
+
+      return {
+        x: (canvas.width / 2) + x1 * pScale,
+        y: (canvas.height / 2) + y1 * pScale,
+        z: z2,
+        scale: pScale
+      };
+    }
+
+    // Hex color to RGB utility for filling polygons
+    function hexToRgb(hex) {
+      hex = hex.replace("#", "");
+      if (hex.length === 3) {
+        hex = hex.split("").map(c => c+c).join("");
+      }
+      const num = parseInt(hex, 16);
+      return {
+        r: (num >> 16) & 255,
+        g: (num >> 8) & 255,
+        b: num & 255
+      };
+    }
+
+    // Geometry arrays for the 3 cyber towers and bipartite modules
+    const towerPoints = 6;
+    const tRadius = 24;
+
+    function createTowerData(offsetX, offsetZ, levelHeight) {
+      const vertices = [];
+      for (let l = 0; l <= towerPoints; l++) {
+        const ring = [];
+        const yCoord = -l * levelHeight;
+        for (let s = 0; s < 8; s++) {
+          const angle = (s / 8) * Math.PI * 2;
+          ring.push({
+            x: offsetX + tRadius * Math.cos(angle),
+            y: yCoord,
+            z: offsetZ + tRadius * Math.sin(angle)
+          });
+        }
+        vertices.push(ring);
+      }
+      return vertices;
+    }
+
+    const t1 = createTowerData(-130, -60, 20);
+    const t2 = createTowerData(130, -60, 20);
+    const t3 = createTowerData(0, 130, 20);
+
+    // Interactive clickable structures definition
+    const clickTargets = [
+      { id: "tower1", label: "Módulo Industrial CLT OESTE", nameEn: "CLT West Industrial Section", nameZh: "西区CLT模块化大楼", cx: -130, cz: -60, h: 120, col: "#00f0ff" },
+      { id: "tower2", label: "Módulo de Investigación ESTE", nameEn: "East Research Complex", nameZh: "东区科学研究集群", cx: 130, cz: -60, h: 120, col: "#00f0ff" },
+      { id: "tower3", label: "Módulo de Vivienda y Comunitario SUR", nameEn: "South Community Housing", nameZh: "南区生物环保生活社区", cx: 0, cz: 130, h: 120, col: "#00f0ff" },
+      { id: "dome", label: "Domo Central de Gobernanza Tripartita", nameEn: "Tripartite Governance Central Dome", nameZh: "中央三方共治全息核", cx: 0, cz: 0, h: 40, col: "#ffae19" },
+      { id: "node_pub", label: "Sector Público (35%)", nameEn: "Public Governance Node (35%)", nameZh: "政府公共治理端 (35%)", cx: -150, cz: -80, h: 10, col: "#00f0ff" },
+      { id: "node_priv", label: "Sector Privado (40%)", nameEn: "Private Enterprise Node (40%)", nameZh: "私营企业智融端 (40%)", cx: 150, cz: -80, h: 10, col: "#ffae19" },
+      { id: "node_comm", label: "Sector Comunitario (25%)", nameEn: "Local Community Node (25%)", nameZh: "地方社区自组织端 (25%)", cx: 0, cz: 155, h: 10, col: "#88ff88" }
+    ];
+
+    let selectedStructureId = null;
+
+    // Spawnable Biome-glowing Green Domes planted via double click
+    const plantedDomes = [];
+
+    // Interaction double click on Canvas setup
+    canvas.addEventListener("dblclick", (e) => {
+      // Find ground intersection by math or click approximation
+      const cRect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - cRect.left;
+      const clickY = e.clientY - cRect.top;
+
+      // Unproject close to flat plane (y=0)
+      const cosY = Math.cos(yaw);
+      const sinY = Math.sin(yaw);
+      const cX = canvas.width / 2;
+      const cY = canvas.height / 2;
+
+      // Estimate 3D plane coordinate
+      const relativeX = (clickX - cX) / zoom;
+      const relativeY = (clickY - cY) / zoom;
+
+      // Project onto the ground coordinates plane
+      const seedX = relativeX * cosY + relativeY * sinY;
+      const seedZ = -relativeX * sinY + relativeY * cosY;
+
+      if (plantedDomes.length < 8) {
+        plantedDomes.push({
+          x: seedX * 0.4,
+          z: seedZ * 0.4,
+          r: 15 + Math.random() * 10,
+          growth: 0
+        });
+        playBeep(1000, 0.4);
+      } else {
+        plantedDomes.shift(); // keep maximum 8 to avoid lag
+        plantedDomes.push({
+          x: seedX * 0.4,
+          z: seedZ * 0.4,
+          r: 15 + Math.random() * 10,
+          growth: 0
+        });
+        playBeep(1000, 0.4);
+      }
+    });
+
+    // Proximity checking for single click focusing
+    canvas.addEventListener("click", (e) => {
+      const cRect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - cRect.left;
+      const clickY = e.clientY - cRect.top;
+
+      let found = null;
+      let minDist = 35; // tap threshold radius
+
+      clickTargets.forEach(target => {
+        // Project center of target in 3D
+        const proj = project(target.cx, -target.h / 2, target.cz);
+        const dist = Math.hypot(clickX - proj.x, clickY - proj.y);
+        if (dist < minDist) {
+          minDist = dist;
+          found = target;
+        }
+      });
+
+      if (found) {
+        selectedStructureId = found.id;
+        playBeep(650, 0.15);
+        displayNodeInfo(found);
+      } else {
+        selectedStructureId = null;
+        document.getElementById("node-window").style.display = "none";
+      }
+    });
+
+    // Populate holographic hover details window
+    function displayNodeInfo(target) {
+      const w = document.getElementById("node-window");
+      w.style.display = "block";
+
+      const d = dictionary[currentLang];
+      
+      const titleLabel = currentLang === 'es' ? target.label : (currentLang === 'en' ? target.nameEn : target.nameZh);
+      document.getElementById("focus-elem-name").innerText = titleLabel;
+
+      let p1_v = target.id.startsWith("node") ? "Enlace Operativo" : "Energía Central";
+      let p2_v = target.id.startsWith("node") ? "Latencia Digital" : "Eficiencia Estructural";
+      let p3_v = target.id.startsWith("node") ? "Participación" : "Población Máxima";
+
+      if (currentLang === 'en') {
+        p1_v = target.id.startsWith("node") ? "Transit Link" : "Core Power Matrix";
+        p2_v = target.id.startsWith("node") ? "Digital Latency" : "Timber Rigidity";
+        p3_v = target.id.startsWith("node") ? "Socio Share Ratio" : "Active Population";
+      } else if (currentLang === 'zh') {
+        p1_v = target.id.startsWith("node") ? "智脑边缘带宽" : "核心供能占比";
+        p2_v = target.id.startsWith("node") ? "数据传输毫秒" : "胶合木架抗阻";
+        p3_v = target.id.startsWith("node") ? "共治占股配比" : "核定负荷负荷";
+      }
+
+      document.getElementById("focus-p1").innerText = p1_v + ":";
+      document.getElementById("focus-p2").innerText = p2_v + ":";
+      document.getElementById("focus-p3").innerText = p3_v + ":";
+
+      const val1 = target.id.startsWith("node") ? "98.4%" : (90 + params.energy * 2.5).toFixed(1) + "%";
+      const val2 = target.id.startsWith("node") ? "0.003 ms" : (85 + params.biomech * 5).toFixed(1) + "%";
+      const val3 = target.id.startsWith("node") ? (target.id === 'node_pub' ? '35%' : (target.id === 'node_priv'? '40%' : '25%')) : "1,200 Pobladores";
+
+      document.getElementById("focus-p1-v").innerText = val1;
+      document.getElementById("focus-p2-v").innerText = val2;
+      document.getElementById("focus-p3-v").innerText = val3;
+      document.getElementById("focus-p4-v").innerText = "MODO: " + params.opMode.toUpperCase();
+    }
+
+    // Particle streams arrays - Swarm AI Particles
+    const swarm = [];
+    for (let s = 0; s < 120; s++) {
+      swarm.push({
+        angle: Math.random() * Math.PI * 2,
+        speed: 0.008 + Math.random() * 0.015,
+        route: Math.floor(Math.random() * 3), // different orbit tracks
+        radius: 65 + Math.random() * 90,
+        heightOffset: -10 - Math.random() * 50
+      });
+    }
+
+    // Rain and snow environmental particles for realistic climate
+    const climateSnow = [];
+    for (let c = 0; c < 150; c++) {
+      climateSnow.push({
+        x: (Math.random() - 0.5) * 500,
+        y: -150 - Math.random() * 100,
+        z: (Math.random() - 0.5) * 500,
+        speedY: 1.2 + Math.random() * 1.5,
+        speedX: (Math.random() - 0.5) * 0.5
+      });
+    }
+
+    // Dynamic central radar grid sweep angle
+    let scanSweepSweep = 0;
+
+    // Draw solid 3D faces cylinders for highly realistic looking!
+    function drawTowerSolidPrism(tower, biomechVal, physicsVibe, towerIdx) {
+      const activeColor = getComputedStyle(document.documentElement).getPropertyValue("--accent-color").trim();
+      const rgb = hexToRgb(activeColor);
+
+      ctx.strokeStyle = params.opMode === 'resilient' ? "rgba(255, 60, 60, 0.4)" : "rgba(" + rgb.r + "," + rgb.g + "," + rgb.b + ", 0.28)";
+      ctx.lineWidth = 1;
+
+      // We render tower segments as interlocking vertical panels
+      for (let l = 0; l < towerPoints; l++) {
+        for (let r = 0; r < 8; r++) {
+          const ptA = tower[l][r];
+          const ptB = tower[l][(r + 1) % 8];
+          const ptC = tower[l + 1][(r + 1) % 8];
+          const ptD = tower[l + 1][r];
+
+          // Compute biomechanical modifiers & modular seismology offsets
+          const yA = ptA.y * biomechVal + (physicsVibe * (l / towerPoints));
+          const yB = ptB.y * biomechVal + (physicsVibe * (l / towerPoints));
+          const yC = ptC.y * biomechVal + (physicsVibe * ((l + 1) / towerPoints));
+          const yD = ptD.y * biomechVal + (physicsVibe * ((l + 1) / towerPoints));
+
+          const pA = project(ptA.x, yA, ptA.z);
+          const pB = project(ptB.x, yB, ptB.z);
+          const pC = project(ptC.x, yC, ptC.z);
+          const pD = project(ptD.x, yD, ptD.z);
+
+          // depth sorting approximation: average depth
+          const avgZ = (pA.z + pB.z + pC.z + pD.z) / 4;
+
+          // Only render facing facets to create a realistic solid 3D structure!
+          // We can use simple cross-product of projected lines to determine winding order (back-face culling)
+          const winding = (pB.x - pA.x) * (pC.y - pB.y) - (pB.y - pA.y) * (pC.x - pB.x);
+          
+          if (winding < 0) {
+            ctx.beginPath();
+            ctx.moveTo(pA.x, pA.y);
+            ctx.lineTo(pB.x, pB.y);
+            ctx.lineTo(pC.x, pC.y);
+            ctx.lineTo(pD.x, pD.y);
+            ctx.closePath();
+
+            // color depth gradient matching the environment theme
+            let shade = Math.min(0.2, 0.05 + (l / towerPoints) * 0.1);
+            if (params.opMode === 'tactical') shade *= 0.5;
+
+            ctx.fillStyle = "rgba(" + rgb.r + "," + rgb.g + "," + rgb.b + "," + shade + ")";
+            ctx.fill();
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    // Animation frames execution ticking
+    let frameTick = 0;
+
+    function drawScene() {
+      frameTick++;
+
+      // auto-rotate camera
+      if (isAutoOrbit && !isDragging) {
+        targetYaw += params.opMode === 'ecopooled' ? 0.001 : 0.0018;
+      }
+
+      // smooth interpolation of camera angles
+      yaw += (targetYaw - yaw) * 0.08;
+      pitch += (targetPitch - pitch) * 0.08;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Extract colors from the root document properties
+      const activeColor = getComputedStyle(document.documentElement).getPropertyValue("--accent-color").trim();
+      const rgb = hexToRgb(activeColor);
+
+      // Radar visual grid sweep scan line lines
+      scanSweepSweep = (scanSweepSweep + 0.0035) % (Math.PI * 2);
+
+      // Render coordinates floor grid
+      ctx.lineWidth = 1;
+      const gridSize = 250;
+      const steps = 18;
+
+      // Concentric circles compass HUD layer on ground
+      if (params.hud) {
+        ctx.strokeStyle = "rgba(" + rgb.r + "," + rgb.g + "," + rgb.b + ", 0.08)";
+        ctx.lineWidth = 1.5;
+        for (let rad = 50; rad <= 300; rad += 50) {
+          const radarRingProj = [];
+          ctx.beginPath();
+          for (let a = 0; a <= 64; a++) {
+            const angle = (a / 64) * Math.PI * 2;
+            const p = project(rad * Math.cos(angle), 0, rad * Math.sin(angle));
+            if (a === 0) ctx.moveTo(p.x, p.y);
+            else ctx.lineTo(p.x, p.y);
+          }
+          ctx.stroke();
+        }
+
+        // Compass degree notches marks around the boundary
+        ctx.strokeStyle = "rgba(" + rgb.r + "," + rgb.g + "," + rgb.b + ", 0.2)";
+        ctx.fillStyle = "rgba(" + rgb.r + "," + rgb.g + "," + rgb.b + ", 0.6)";
+        ctx.font = "8px 'Courier New'";
+        for (let a = 0; a < 8; a++) {
+          const angle = (a / 8) * Math.PI * 2;
+          const labelAngle = (a / 8) * 360;
+          const p1 = project(260 * Math.cos(angle), 0, 260 * Math.sin(angle));
+          const p2 = project(272 * Math.cos(angle), 0, 272 * Math.sin(angle));
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+          
+          let text = labelAngle + "°";
+          if (labelAngle === 0) text = "N [0°]";
+          else if (labelAngle === 90) text = "E [90°]";
+          else if (labelAngle === 180) text = "S [180°]";
+          else if (labelAngle === 270) text = "W [270°]";
+
+          ctx.fillText(text, p2.x + 6, p2.y + 3);
+        }
+      }
+
+      // Base grid lines on floor
+      ctx.strokeStyle = params.opMode === 'resilient' ? "rgba(255, 60, 60, 0.07)" : "rgba(" + rgb.r + "," + rgb.g + "," + rgb.b + ", 0.05)";
+      ctx.lineWidth = 1;
+      for (let i = -steps; i <= steps; i++) {
+        let p1 = project(i * (gridSize / steps), 0, -gridSize);
+        let p2 = project(i * (gridSize / steps), 0, gridSize);
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+
+        p1 = project(-gridSize, 0, i * (gridSize / steps));
+        p2 = project(gridSize, 0, i * (gridSize / steps));
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+      }
+
+      // Physics Modifiers & Biomechanics heights
+      const physicsVibe = params.physics > 0 ? Math.sin(frameTick * params.physics * 0.7) * params.physics * 2.8 : 0;
+      const biomechHeightMod = params.biomech;
+
+      // Draw the 3 massive Towers using SOLID cylindrical shading
+      drawTowerSolidPrism(t1, biomechHeightMod, physicsVibe, 0);
+      drawTowerSolidPrism(t2, biomechHeightMod, physicsVibe, 1);
+      drawTowerSolidPrism(t3, biomechHeightMod, physicsVibe, 2);
+
+      // Draw highlighted focused structure bounding ring
+      if (selectedStructureId) {
+        const selectedTarget = clickTargets.find(t => t.id === selectedStructureId);
+        if (selectedTarget) {
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([6, 4]);
+          
+          let circleRadius =selectedTarget.id.startsWith("node") ? 20 : tRadius * 1.5;
+          ctx.beginPath();
+          for (let a = 0; a <= 24; a++) {
+            const angle = (a / 24) * Math.PI * 2;
+            const p = project(
+              selectedTarget.cx + circleRadius * Math.cos(angle), 
+              0, 
+              selectedTarget.cz + circleRadius * Math.sin(angle)
+            );
+            if (a === 0) ctx.moveTo(p.x, p.y);
+            else ctx.lineTo(p.x, p.y);
+          }
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+
+      // Draw central high tech Geodesic Dome (Tripartite system core nucleus)
+      ctx.strokeStyle = activeColor;
+      ctx.lineWidth = 1.8;
+      const centerNodeProj = project(0, 0 + physicsVibe, 0);
+      const domeRadius = 45;
+
+      const sectorsNum = 8;
+      const ringsNum = 5;
+
+      // Calculate coordinates of geodesic hemisphere vertices
+      const domeVertices = [];
+      for (let ri = 0; ri <= ringsNum; ri++) {
+        const phi = (ri / ringsNum) * (Math.PI / 2);
+        const yCoord = -Math.sin(phi) * domeRadius * biomechHeightMod + (physicsVibe * 0.3);
+        const ringRad = Math.cos(phi) * domeRadius;
+        
+        const ringPoints = [];
+        for (let se = 0; se < sectorsNum; se++) {
+          const theta = (se / sectorsNum) * Math.PI * 2;
+          ringPoints.push({
+            x: ringRad * Math.cos(theta),
+            y: yCoord,
+            z: ringRad * Math.sin(theta)
+          });
+        }
+        domeVertices.push(ringPoints);
+      }
+
+      // Fill in Geodesic facet polygons for visual futuristic realism!
+      for (let ri = 0; ri < ringsNum; ri++) {
+        for (let se = 0; se < sectorsNum; se++) {
+          const pA = project(domeVertices[ri][se].x, domeVertices[ri][se].y, domeVertices[ri][se].z);
+          const pB = project(domeVertices[ri][(se + 1) % sectorsNum].x, domeVertices[ri][(se + 1) % sectorsNum].y, domeVertices[ri][(se + 1) % sectorsNum].z);
+          const pC = project(domeVertices[ri + 1][(se + 1) % sectorsNum].x, domeVertices[ri + 1][(se + 1) % sectorsNum].y, domeVertices[ri + 1][(se + 1) % sectorsNum].z);
+          const pD = project(domeVertices[ri + 1][se].x, domeVertices[ri + 1][se].y, domeVertices[ri + 1][se].z);
+
+          // Winding culling
+          const winding = (pB.x - pA.x) * (pC.y - pB.y) - (pB.y - pA.y) * (pC.x - pB.x);
+          if (winding < 0) {
+            ctx.beginPath();
+            ctx.moveTo(pA.x, pA.y);
+            ctx.lineTo(pB.x, pB.y);
+            ctx.lineTo(pC.x, pC.y);
+            ctx.lineTo(pD.x, pD.y);
+            ctx.closePath();
+
+            let fillShade = 0.08 + (ri / ringsNum) * 0.15;
+            if (params.opMode === 'arctic') fillShade = 0.28; // colder frosty coating in ice age
+            ctx.fillStyle = "rgba(" + rgb.r + "," + rgb.g + "," + rgb.b + "," + fillShade + ")";
+            ctx.fill();
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Draw Walkable horizontal connective structural pathways
+      ctx.strokeStyle = activeColor;
+      ctx.lineWidth = 1.5;
+      const tCenters = [
+        project(-130, 0, -60),
+        project(130, 0, -60),
+        project(0, 0, 130)
+      ];
+
+      tCenters.forEach(tNode => {
+        ctx.beginPath();
+        ctx.moveTo(centerNodeProj.x, centerNodeProj.y);
+        ctx.lineTo(tNode.x, tNode.y);
+        ctx.stroke();
+      });
+
+      // Animated Water Self-Sufficiency flow streams inside pathways (water parameter slider)
+      if (params.water > 0) {
+        const waterProgress = (frameTick * 0.015) % 1.0;
+        ctx.fillStyle = "#00ffff"; // bioluminescent water cyan hued
+        const waterDropCount = Math.floor(params.water / 20);
+
+        tCenters.forEach(tNode => {
+          for (let d = 0; d < waterDropCount; d++) {
+            const fraction = (waterProgress + (d / waterDropCount)) % 1.0;
+            const flowX = centerNodeProj.x + (tNode.x - centerNodeProj.x) * fraction;
+            const flowY = centerNodeProj.y + (tNode.y - centerNodeProj.y) * fraction;
+            
+            ctx.beginPath();
+            ctx.arc(flowX, flowY, 4, 0, Math.PI*2);
+            ctx.fill();
+          }
+        });
+      }
+
+      // Electromagnetic energy streams pulsing
+      const energyPulseRatio = (frameTick * 0.038 * params.energy) % 1.0;
+      ctx.fillStyle = params.opMode === "resilient" ? "#ff3c3c" : "#ffd429";
+      tCenters.forEach(tNode => {
+        const pX = centerNodeProj.x + (tNode.x - centerNodeProj.x) * energyPulseRatio;
+        const pY = centerNodeProj.y + (tNode.y - centerNodeProj.y) * energyPulseRatio;
+        ctx.beginPath();
+        ctx.arc(pX, pY, 5, 0, Math.PI*2);
+        ctx.fill();
+      });
+
+      // Bi-dome interactive newly planted structures rendering
+      plantedDomes.forEach(bd => {
+        // grow animation
+        if (bd.growth < 1.0) bd.growth += 0.01;
+
+        const currentR = bd.r * bd.growth * (1.0 + (params.bioregen - 40) / 100.0);
+        const bdProj = project(bd.x, 0, bd.z);
+
+        // draw spherical segments
+        ctx.strokeStyle = "#88ff88"; // biome green dome
+        ctx.lineWidth = 1.2;
+        ctx.fillStyle = "rgba(136, 255, 136, 0.12)";
+
+        ctx.beginPath();
+        for (let a = 0; a <= 12; a++) {
+          const angle = (a / 12) * Math.PI * 2;
+          const p = project(bd.x + currentR * Math.cos(angle), -Math.sin(angle)*currentR/2, bd.z + currentR * Math.sin(angle));
+          if (a === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // spawn bubble particle escaping
+        if (frameTick % 20 === 0 && Math.random() > 0.4) {
+          ctx.fillStyle = "rgba(136, 255, 136, 0.8)";
+          const bProj = project(bd.x + (Math.random()-0.5)*currentR, -Math.random()*currentR*0.8, bd.z + (Math.random()-0.5)*currentR);
+          ctx.beginPath();
+          ctx.arc(bProj.x, bProj.y, 2, 0, Math.PI*2);
+          ctx.fill();
+        }
+      });
+
+      // Render Climate Thermal Reguladora force field dome
+      if (params.clima > 0) {
+        ctx.strokeStyle = "rgba(255, 174, 25, " + (params.clima / 400).toFixed(2) + ")"; // warm heat orange
+        ctx.lineWidth = 2.5;
+
+        const fieldRadius = domeRadius * 1.6;
+        ctx.beginPath();
+        for (let a = 0; a <= 32; a++) {
+          const angle = (a / 32) * Math.PI * 2;
+          const heatY = -Math.sin(frameTick * 0.02) * 5 - (fieldRadius * 0.2);
+          const p = project(fieldRadius * Math.cos(angle), heatY, fieldRadius * Math.sin(angle));
+          if (a === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+      }
+
+      // Render Swarm AI interactive transit vector particles
+      const activePCount = Math.min(params.swarm, swarm.length);
+      ctx.fillStyle = activeColor;
+      for (let s = 0; s < activePCount; s++) {
+        const agent = swarm[s];
+        
+        let speedM = 1.0;
+        if (params.opMode === 'eco') speedM = 0.4;
+        else if (params.opMode === 'tactical') speedM = 0.15;
+        else if (params.opMode === 'arctic') speedM = 1.8; // blizzard high-speed drift
+
+        agent.angle += agent.speed * speedM;
+
+        let radius = agent.radius;
+        if (params.opMode === 'eco') radius *= 0.85; // group closely around dome
+        let sX = Math.cos(agent.angle) * radius;
+        let sZ = Math.sin(agent.angle) * radius;
+        
+        if (agent.route === 1) sX -= 50;
+        else if (agent.route === 2) sX += 50;
+
+        let sY = agent.heightOffset + (physicsVibe * 0.4);
+
+        const aProj = project(sX, sY, sZ);
+        
+        ctx.beginPath();
+        ctx.arc(aProj.x, aProj.y, Math.max(1.2, 3.2 * aProj.scale), 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      // Draw Floating AI Socio-Economics Governance sphere Nodes (If checked)
+      if (params.nodes) {
+        const socioNodes = [
+          { name: currentLang === 'es' ? "SECTOR PÚBLICO (35%)" : (currentLang === 'en' ? "PUBLIC SECTOR (35%)" : "公共部门 (35%)"), x: -150, y: -130, z: -80, col: "#00f0ff" },
+          { name: currentLang === 'es' ? "SECTOR PRIVADO (40%)" : (currentLang === 'en' ? "PRIVATE SECTOR (40%)" : "私营企业 (40%)"), x: 150, y: -130, z: -80, col: "#ffae19" },
+          { name: currentLang === 'es' ? "SECTOR COMUNITARIO (25%)" : (currentLang === 'en' ? "COMMUNITY SECTOR (25%)" : "地方社区 (25%)"), x: 0, y: -130, z: 155, col: "#88ff88" }
+        ];
+
+        socioNodes.forEach(sn => {
+          const proj = project(sn.x, sn.y + (physicsVibe * 0.15), sn.z);
+          const baseProj = project(sn.x, 0, sn.z);
+
+          // bottom coordinate indicator track
+          ctx.strokeStyle = "rgba(255,255,255,0.14)";
+          ctx.beginPath();
+          ctx.moveTo(proj.x, proj.y);
+          ctx.lineTo(baseProj.x, baseProj.y);
+          ctx.stroke();
+
+          // sphere capsule bulb
+          ctx.fillStyle = sn.col;
+          ctx.beginPath();
+          ctx.arc(proj.x, proj.y, Math.max(3, 9 * proj.scale), 0, Math.PI*2);
+          ctx.fill();
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          // Text labels
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 9px var(--font-mono)";
+          ctx.fillText(sn.name, proj.x + 12 * proj.scale, proj.y + 3);
+        });
+      }
+
+      // Climate Precipitación Overlays (Weathers snow storms)
+      if (params.weather) {
+        ctx.fillStyle = params.opMode === 'arctic' ? "rgba(183, 126, 255, 0.4)" : "rgba(255, 255, 255, 0.4)";
+        const snowLimit = params.opMode === 'arctic' ? climateSnow.length : 60; // thicker snowfall in winter mode
+        
+        for (let s = 0; s < snowLimit; s++) {
+          const flake = climateSnow[s];
+          flake.y += flake.speedY;
+          flake.x += flake.speedX;
+
+          // bottom bounds recycling
+          if (flake.y > 10) {
+            flake.y = -180;
+            flake.x = (Math.random() - 0.5) * 500;
+          }
+
+          const slProj = project(flake.x, flake.y, flake.z);
+          
+          if (slProj.x >= 0 && slProj.x <= canvas.width && slProj.y >= 0 && slProj.y <= canvas.height) {
+            ctx.beginPath();
+            ctx.arc(slProj.x, slProj.y, Math.max(0.6, 1.8 * slProj.scale), 0, Math.PI*2);
+            ctx.fill();
+          }
+        }
+      }
+
+      // Draw spinning quantum grid lines with glowing orbital beams
+      if (params.quantum > 0) {
+        const spinAngle = frameTick * 0.015;
+        const qRadius = 18 + (params.quantum / 100) * 18;
+        ctx.strokeStyle = "rgba(0, 240, 255, " + (0.08 + (params.quantum / 100) * 0.3).toFixed(2) + ")";
+        ctx.lineWidth = 1.3;
+        
+        const towerCoords = [
+          { cx: -130, cz: -60 },
+          { cx: 130, cz: -60 },
+          { cx: 0, cz: 130 }
+        ];
+
+        towerCoords.forEach(tNode => {
+          ctx.beginPath();
+          for (let a = 0; a <= 16; a++) {
+            const angle = (a / 16) * Math.PI * 2 + spinAngle;
+            const p = project(tNode.cx + qRadius * Math.cos(angle), -55 * params.biomech, tNode.cz + qRadius * Math.sin(angle));
+            if (a === 0) ctx.moveTo(p.x, p.y);
+            else ctx.lineTo(p.x, p.y);
+          }
+          ctx.stroke();
+        });
+      }
+
+      // Draw Expanding test shockwave wave
+      if (isShockwaveOffline) {
+        ctx.strokeStyle = "rgba(255, 60, 60, " + ((1.0 - shockwaveRadiusOffline / 400) * 0.9).toFixed(2) + ")";
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        for (let a = 0; a <= 40; a++) {
+          const angle = (a / 40) * Math.PI * 2;
+          const p = project(shockwaveRadiusOffline * Math.cos(angle), 0, shockwaveRadiusOffline * Math.sin(angle));
+          if (a === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+      }
+
+      // Custom SCANLINES sweeps effect (advanced shaders)
+      ctx.fillStyle = "rgba(0, 240, 255, 0.03)";
+      const rowY = (frameTick * 2) % canvas.height;
+      ctx.fillRect(0, rowY, canvas.width, 2.5);
+
+      // Recursive drawing callback
+      requestAnimationFrame(drawScene);
+    }
+
+    // Live Seismic wave oscilloscope loop drawing
+    function drawSeismicOscilloscope() {
+      mCtx.clearRect(0, 0, mCanvas.width, mCanvas.height);
+      
+      // append history
+      let wave = Math.sin(frameTick * 0.15) * seismicFreq * 4;
+      if (params.opMode === 'resilient') wave += (Math.random() - 0.5) * 8; // jitter alert
+      
+      seismicHistory.push(wave);
+      if (seismicHistory.length > mCanvas.width) {
+        seismicHistory.shift();
+      }
+
+      mCtx.strokeStyle = params.opMode === 'resilient' ? "#ff3c3c" : "#00f0ff";
+      mCtx.lineWidth = 1.5;
+      mCtx.beginPath();
+      for (let i = 0; i < seismicHistory.length; i++) {
+        const xCoord = i;
+        const yCoord = (mCanvas.height / 2) + seismicHistory[i];
+        if (i === 0) mCtx.moveTo(xCoord, yCoord);
+        else mCtx.lineTo(xCoord, yCoord);
+      }
+      mCtx.stroke();
+
+      // update diagnostic gigaflopping metrics in HUD
+      if (frameTick % 45 === 0) {
+        const mockGiga = (38 + (params.energy * 3) + Math.random() * 2).toFixed(1);
+        document.getElementById("val-diag-load").innerText = mockGiga + " GigaFLOPS";
+        
+        let prefixSt = "OPERATIVO (37.2°C)";
+        if (params.opMode === 'resilient') prefixSt = "SOBRECARGA ALTA (78.9°C)";
+        else if (params.opMode === 'arctic') prefixSt = "SHIELD CONGELADO (-112.5°C)";
+        document.getElementById("val-diag-temp").innerText = prefixSt;
+      }
+
+      requestAnimationFrame(drawSeismicOscilloscope);
+    }
+
+    // Initiate Simulator Loops
+    drawScene();
+    drawSeismicOscilloscope();
+    setLanguage('es'); // default language
+  </script>
+
+</body>
+</html>
