@@ -1,0 +1,1743 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CONSCIOUS-NEXUS Ω - Prototipo Clínico 3D y Simulador Autónomo</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap');
+    
+    :root {
+      --bg-dark: #05070a;
+      --panel-dark: #0a0d14;
+      --text-main: #e2e8f0;
+      --text-muted: #5e6f88;
+      --neon-cyan: #00f0ff;
+      --neon-blue: #0077ff;
+      --neon-green: #39ff14;
+      --neon-amber: #ffaa00;
+      --neon-violet: #bd00ff;
+      --neon-emerald: #00ffc4;
+      --accent: var(--neon-cyan);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Space Grotesk', sans-serif;
+      overflow-x: hidden;
+      width: 100vw;
+      min-height: 100/vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Cinematic Scanline Overlay */
+    body::after {
+      content: " ";
+      display: block;
+      position: fixed;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.2) 50%);
+      background-size: 100% 4px;
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0.45;
+    }
+
+    header {
+      border-bottom: 1px solid rgba(0, 240, 255, 0.15);
+      background: rgba(10, 13, 20, 0.9);
+      backdrop-filter: blur(10px);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .author-badge {
+      display: flex;
+      flex-direction: column;
+    }
+    .author-badge .role {
+      font-size: 9px;
+      color: var(--neon-emerald);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: bold;
+    }
+    .author-badge .name {
+      font-size: 15px;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    .lang-selector {
+      display: flex;
+      gap: 10px;
+    }
+
+    .lang-btn {
+      background: rgba(0, 240, 255, 0.05);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      color: var(--text-main);
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+      font-family: 'JetBrains Mono', monospace;
+      transition: all 0.3s ease;
+    }
+
+    .lang-btn.active {
+      background: var(--neon-cyan);
+      color: #000;
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+    }
+
+    .main-container {
+      display: grid;
+      grid-template-columns: 350px 1fr 340px;
+      height: calc(100vh - 65px);
+      width: 100%;
+      position: relative;
+    }
+
+    @media (max-width: 1200px) {
+      .main-container {
+        grid-template-columns: 1fr;
+        height: auto;
+        overflow-y: auto;
+      }
+    }
+
+    .panel {
+      background: rgba(10, 13, 20, 0.95);
+      border: 1px solid rgba(0, 240, 255, 0.1);
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .sidebar-left {
+      border-right: 1px solid rgba(0, 240, 255, 0.15);
+    }
+    .sidebar-right {
+      border-left: 1px solid rgba(0, 240, 255, 0.15);
+    }
+
+    .canvas-container {
+      position: relative;
+      background: radial-gradient(circle at center, #0e1424 0%, #040609 100%);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    canvas {
+      flex-grow: 1;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Video for AR camera */
+    #ar-video {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.35;
+      display: none;
+      z-index: 1;
+    }
+
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--neon-cyan);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      border-left: 3px solid var(--accent);
+      padding-left: 8px;
+      margin-bottom: 4px;
+    }
+
+    .mode-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mode-card:hover {
+      background: rgba(0, 240, 255, 0.05);
+      border-color: rgba(0, 240, 255, 0.25);
+    }
+
+    .mode-card.active {
+      background: rgba(0, 240, 255, 0.1);
+      border-color: var(--neon-cyan);
+      box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.13);
+    }
+
+    .mode-card h4 {
+      color: #fff;
+      margin-bottom: 2px;
+      font-size: 11px;
+    }
+
+    .slider-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+    }
+
+    input[type=range] {
+      width: 100%;
+      background: rgba(255,255,255,0.1);
+      accent-color: var(--neon-cyan);
+      cursor: pointer;
+    }
+
+    .hud-overlay {
+      position: absolute;
+      top: 15px; left: 15px; right: 15px; bottom: 15px;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      z-index: 5;
+    }
+
+    .hud-box {
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      background: rgba(11, 15, 23, 0.85);
+      padding: 10px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+    }
+
+    .radar-grid {
+      border: 1px solid rgba(0, 240, 255, 0.05);
+      border-radius: 50%;
+      aspect-ratio: 1;
+      width: 110px;
+      position: absolute;
+      right: 20px;
+      bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      opacity: 0.3;
+    }
+    .radar-sweep {
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      background: conic-gradient(from 0deg, rgba(0,240,255,0.15) 0deg, transparent 90deg);
+      animation: sweep 4s linear infinite;
+    }
+
+    @keyframes sweep {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .btn {
+      background: rgba(0, 119, 255, 0.15);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      color: var(--text-main);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: 'Space Grotesk', sans-serif;
+      transition: all 0.3s;
+      text-align: center;
+    }
+    .btn:hover {
+      background: var(--neon-cyan);
+      color: #000;
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.5);
+      border-color: var(--neon-cyan);
+    }
+
+    .console-logs-wrap {
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(0,240,255,0.12);
+      border-radius: 6px;
+      background: rgba(0,0,0,0.6);
+      flex-grow: 1;
+      overflow: hidden;
+    }
+
+    .console-logs {
+      flex-grow: 1;
+      padding: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: #55eafe;
+      overflow-y: auto;
+      height: 120px;
+      line-height: 1.4;
+    }
+
+    .cli-bar {
+      border-top: 1px solid rgba(0,240,255,0.12);
+      display: flex;
+      align-items: center;
+      padding: 2px 8px;
+      background: #05070a;
+    }
+    .cli-bar span {
+      color: var(--neon-cyan);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      margin-right: 6px;
+    }
+    .cli-bar input {
+      flex-grow: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+    }
+
+    .bar-chart {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .bar-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .bar-line {
+      height: 6px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 3px;
+      overflow: hidden;
+      width: 100%;
+    }
+    .bar-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 50%;
+      transition: width 0.3s;
+    }
+
+    .alert-banner {
+      background: rgba(255, 170, 0, 0.05);
+      border: 1px solid rgba(255, 170, 0, 0.2);
+      color: var(--neon-amber);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 6px 10px;
+      border-radius: 6px;
+    }
+
+    .eeg-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .eeg-label {
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .system-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--neon-cyan);
+      box-shadow: 0 0 6px var(--neon-cyan);
+      animation: blink 2s infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+
+    .grid-biometrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .bio-card {
+      background: rgba(11,15,23,0.4);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 4px;
+      text-align: center;
+      padding: 6px 4px;
+    }
+    .bio-card .title {
+      font-size: 8px;
+      color: var(--text-muted);
+    }
+    .bio-card .value {
+      font-size: 11px;
+      font-weight: bold;
+      color: var(--neon-cyan);
+      margin-top: 2px;
+    }
+
+    .climates-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .climate-btn {
+      background: rgba(11,15,23,0.6);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 6px;
+      padding: 6px;
+      text-align: left;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.2s;
+    }
+    .climate-btn.active {
+      background: rgba(0, 240, 255, 0.08);
+      border-color: var(--neon-cyan);
+      color: var(--neon-cyan);
+    }
+
+    .sound-widget {
+      border: 1px solid rgba(255,255,255,0.05);
+      background: rgba(11,15,23,0.4);
+      border-radius: 6px;
+      padding: 8px;
+    }
+    .widget-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .freq-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .freq-btn {
+      border: 1px solid rgba(255,255,255,0.05);
+      background: rgba(0,0,0,0.4);
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .freq-btn.active {
+      border-color: var(--neon-emerald);
+      color: var(--neon-emerald);
+      background: rgba(0, 255, 196, 0.05);
+    }
+
+    .input-box-trigger {
+      display: flex;
+      gap: 6px;
+    }
+    .input-box-trigger input {
+      flex-grow: 1;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 4px;
+      padding: 3px 6px;
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      outline: none;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(3, 4, 8, 0.85);
+      backdrop-filter: blur(10px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .pat-modal {
+      background: #0a0d14;
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 600px;
+      padding: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="author-badge">
+      <span class="role" id="lbl-role">Dr. Julio César Oporta Barrera</span>
+      <span class="name" id="lbl-patent-name">Propuesta de Patente de Oráculo Neuronal</span>
+    </div>
+    <div style="text-align: center;">
+      <h2 style="font-size: 16px; font-weight: bold; color: #fff; letter-spacing: 1px;" id="lbl-head">CONSCIOUS-NEXUS Ω</h2>
+    </div>
+    <div class="lang-selector">
+      <button class="lang-btn active" onclick="setLang('ES')">ES</button>
+      <button class="lang-btn" onclick="setLang('EN')">EN</button>
+      <button class="lang-btn" onclick="setLang('ZH')">ZH</button>
+    </div>
+  </header>
+
+  <div class="main-container">
+
+    <!-- SIDEBAR LEFT: Operational Modes -->
+    <div class="panel sidebar-left">
+      <h3 class="section-title" id="lbl-sec-modes">Modos Operativos</h3>
+      <div id="modes-list" style="display:flex; flex-direction:column; gap: 6px;">
+        <!-- Filled by JS -->
+      </div>
+      
+      <!-- LEO satellite swarms -->
+      <h3 class="section-title" id="lbl-sec-swarm">Configuración de Satélites</h3>
+      <div style="display:flex; flex-direction:column; gap:6px; background: rgba(0,0,0,0.3); p:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.03); padding:8px;">
+        <button class="climate-btn active" style="font-size:10px; width:100%;" id="btn-leo-shield" onclick="toggleLeoShield()">🔒 Escudo Orbital: OFF</button>
+        <button class="climate-btn active" style="font-size:10px; width:100%; margin-top:4px;" id="btn-leo-mesh" onclick="toggleLeoMesh()">📡 Malla Láser Intersatelital: ON</button>
+      </div>
+
+      <div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px;">
+        <button class="btn" style="background:#091b10; border-color:#0fa; color:#0fa;" onclick="openDossierModal()">📋 Ver Expediente de Patente</button>
+        <button class="btn" onclick="toggleAR()" id="btn-ar">Activar Cámara AR</button>
+        <div class="alert-banner" id="lbl-inst">
+          Controles: Clic + arrastrar para rotar en 3D. Rueda del mouse para zoom.
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER CAM: 3D Simulator -->
+    <div class="canvas-container">
+      <video id="ar-video" autoplay playsinline muted></video>
+      <canvas id="canvas-3d"></canvas>
+
+      <div class="hud-overlay">
+        <!-- Top Left Status -->
+        <div class="hud-box" style="align-self: flex-start; pointer-events: auto;">
+          <div class="system-status">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="lbl-status-txt">ONLINE - RESONANCIA ÓPTIMA</span>
+          </div>
+          <div style="color: var(--text-muted); font-size: 8px; margin-top: 4px;">
+            FREQ: <span id="lbl-val-freq">14.2 Hz</span> | GPS: LEO-284-COV | ACC: 512-bit QKD
+          </div>
+        </div>
+
+        <!-- Top Right Mode -->
+        <div class="hud-box" style="align-self: flex-start; text-align: right;">
+          <div style="color: var(--text-muted); font-size: 8px;">CONSTRAIN</div>
+          <div style="color: var(--neon-cyan); font-weight: bold; font-size: 11px;" id="lbl-active-mode-tag">NAVEGACIÓN MENTAL</div>
+          <div style="color: var(--text-muted); font-size: 8px;" id="lbl-subtag">FUSIÓN COGNITIVA</div>
+        </div>
+
+        <!-- Bottom Left Node Panel -->
+        <div class="hud-box" style="align-self: flex-end; width: 235px; pointer-events: auto; display:flex; flex-direction:column; gap:4px;">
+          <div style="color: var(--neon-cyan); font-size: 9px; font-weight: bold; border-bottom: 1px solid rgba(0,240,255,0.2); padding-bottom: 3px;" id="lbl-node-det">
+            DETALLE DE NODO NEURAL
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 9px;">
+            <div style="color: var(--text-muted);">ID:</div>
+            <div style="text-align: right; color:#fff;" id="lbl-node-id">CNSX-NODE-03</div>
+            <div style="color: var(--text-muted);">Potencial:</div>
+            <div style="text-align: right; color: var(--neon-green);" id="lbl-node-pot">94.2%</div>
+            <div style="color: var(--text-muted);">Emoción Sync:</div>
+            <div style="text-align: right; color: var(--neon-cyan);" id="lbl-node-emo">92.0%</div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:2px; margin-top:2px;">
+            <input type="range" id="node-pot-range" min="20" max="100" value="94" style="accent-color:var(--neon-green);" oninput="adjustSelectedNodePotential(this.value)">
+          </div>
+          <button class="btn" style="width: 100%; margin-top: 4px; font-size: 9px; padding: 4px;" onclick="stimulateNode()" id="btn-stim">Estimular Resonancia</button>
+        </div>
+      </div>
+
+      <!-- Radar visual element -->
+      <div class="radar-grid">
+        <div class="radar-sweep"></div>
+      </div>
+    </div>
+
+    <!-- SIDEBAR RIGHT: Tactical variables -->
+    <div class="panel sidebar-right">
+      
+      <!-- Cognitive twin biometrics -->
+      <h3 class="section-title" id="lbl-sec-bio">Gemelo Digital</h3>
+      <div class="grid-biometrics">
+        <div class="bio-card">
+          <div class="title">EEG HRV</div>
+          <div class="value" id="bio-hrv">74 ms</div>
+        </div>
+        <div class="bio-card">
+          <div class="title">RECEPTIVITY</div>
+          <div class="value" id="bio-stress">22%</div>
+        </div>
+        <div class="bio-card">
+          <div class="title">COHERENCE</div>
+          <div class="value" id="bio-coher">95.4%</div>
+        </div>
+      </div>
+
+      <!-- Solfeggio sound tool widget -->
+      <h3 class="section-title" id="lbl-sec-sound">Audio Coherente</h3>
+      <div class="sound-widget">
+        <div class="widget-row">
+          <span style="font-size:10px; font-family:'JetBrains Mono';">Sintetizador EEG</span>
+          <button class="freq-btn" id="btn-audio-toggle" onclick="toggleAudioEngine()">Activar Audio 🔇</button>
+        </div>
+        <div class="freq-selector">
+          <button class="freq-btn active" onclick="setFreq(432)">432Hz</button>
+          <button class="freq-btn" onclick="setFreq(528)">528Hz</button>
+          <button class="freq-btn" onclick="setFreq(639)">639Hz</button>
+          <button class="freq-btn" onclick="setFreq(741)">741Hz</button>
+          <button class="freq-btn" onclick="setFreq(852)">852Hz</button>
+          <button class="freq-btn" onclick="setFreq(963)">963Hz</button>
+        </div>
+      </div>
+
+      <!-- Resonant Climates Weather -->
+      <h3 class="section-title" id="lbl-sec-climate">Clima Psíquico Global</h3>
+      <div class="climates-grid">
+        <button class="climate-btn active" id="cl-schumann" onclick="setClimate('schumann')"><b>Schumann</b><br><span style="font-size:8px;">7.83Hz Coherente</span></button>
+        <button class="climate-btn" id="cl-storm" onclick="setClimate('storm')"><b>Tempest</b><br><span style="font-size:8px;">Agitación Fuerte</span></button>
+        <button class="climate-btn" id="cl-coherence" onclick="setClimate('coherence')"><b>Quantum</b><br><span style="font-size:8px;">Sincronizado</span></button>
+        <button class="climate-btn" id="cl-noise" onclick="setClimate('noise')"><b>Interference</b><br><span style="font-size:8px;">Ruido Estatal</span></button>
+      </div>
+
+      <!-- Seminal Intention vector -->
+      <h3 class="section-title" id="lbl-intent">Inyección Seminal</h3>
+      <div class="input-box-trigger">
+        <input type="text" id="txt-intent-vec" placeholder="Escriba intención..." value="">
+        <button class="btn" style="padding:4px 10px; font-size:10px;" onclick="injectIntention()">Inyectar</button>
+      </div>
+
+      <!-- Quantum Truth verification -->
+      <h3 class="section-title" id="lbl-truth-check">Filtro de Veracidad</h3>
+      <div class="input-box-trigger" style="flex-direction:column; gap:4px;">
+        <div style="display:flex; gap:6px; width:100%;">
+          <input type="text" id="txt-truth" placeholder="Ponga una afirmación..." style="width:100%;">
+          <button class="btn" style="padding:4px 10px; font-size:10px;" onclick="queryVeracity()">Verificar</button>
+        </div>
+        <div id="truth-status-overlay" style="font-family:'JetBrains Mono'; font-size:9px; color:var(--neon-cyan); display:none; padding:4px; background:rgba(0,0,0,0.4); border-radius:4px;">
+          Validando coherencia...
+        </div>
+      </div>
+
+      <!-- MÓDULO 1: SIMULADOR DE IMPULSOS DE SOLITONES EEG -->
+      <h3 class="section-title" style="color: var(--neon-emerald);">SIMULADOR DE SOLITONES SÓNICOS EEG</h3>
+      <div class="sound-widget" style="display: flex; flex-direction: column; gap: 4px; padding: 6px; background: rgba(0,240,255,0.03); border: 1px dashed rgba(0,240,255,0.15); border-radius: 6px;">
+        <p style="font-size: 8px; color: var(--text-muted); font-family: 'JetBrains Mono'; line-height: 1.2;">
+          Portadores solitónicos de ondas en la bio-matriz de la red sin dispersión de señal electromagnética.
+        </p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 3px;">
+          <button class="btn" style="padding: 3px; font-size: 10px; font-weight: bold;" onclick="standaloneInjectSoliton()">💥 Inyectar</button>
+          <button class="btn" style="padding: 3px; font-size: 10px; font-weight: bold; background: #221505; border-color: var(--neon-amber);" onclick="standaloneKineticShake()">⚡ Cinética</button>
+        </div>
+      </div>
+
+      <!-- MÓDULO 2: CNSX DECENTRALIZED CONSENSUS LEDGER -->
+      <h3 class="section-title" style="color: var(--neon-violet);">LIBRO DESCENTRALIZADO CNSX</h3>
+      <div class="sound-widget" style="display: flex; flex-direction: column; gap: 4px; padding: 6px; background: rgba(189,0,255,0.03); border: 1px dashed rgba(189,0,255,0.15); border-radius: 6px;">
+        <div id="standalone-ledger-feed" style="background: rgba(0,0,0,0.6); padding: 4px; border-radius: 4px; font-family:'JetBrains Mono'; font-size: 8px; color: var(--neon-violet); max-height: 48px; overflow-y: auto;">
+          <div>✓ CNSX Block #10344 verified: Coherencia de red óptima</div>
+          <div>✓ CNSX Block #10345 forged: Inyección registrada</div>
+          <div>✓ CNSX Block #10346 synchronized: Validado por oráculo cuántico</div>
+        </div>
+        <button class="btn" style="margin-top: 3px; font-size: 9px; padding: 3px; border-color: var(--neon-violet); color: var(--neon-violet);" onclick="standaloneAuditLedger()">🔍 Auditar Libro Mayor CNSX</button>
+      </div>
+
+      <h3 class="section-title" id="lbl-sec-phys">Física del Entorno</h3>
+      <div class="slider-wrap">
+        <div class="slider-header">
+          <span id="lbl-f-grav">Giroscopio de Gravedad</span>
+          <span id="txt-v-gravity">1.0x</span>
+        </div>
+        <input type="range" id="rng-grav" min="0" max="3" step="0.1" value="1.0" oninput="updatePhysics('gravity', this.value)">
+      </div>
+
+      <div class="slider-wrap">
+        <div class="slider-header">
+          <span id="lbl-f-att">Atracción Inter-nodal</span>
+          <span id="txt-v-attraction">1.2x</span>
+        </div>
+        <input type="range" id="rng-att" min="0.1" max="3" step="0.1" value="1.2" oninput="updatePhysics('attraction', this.value)">
+      </div>
+
+      <div class="slider-wrap">
+        <div class="slider-header">
+          <span id="lbl-f-tx">Tasa Transmisión Cuántica</span>
+          <span id="txt-v-trans">0.85c</span>
+        </div>
+        <input type="range" id="rng-tx" min="0.1" max="2" step="0.05" value="0.85" oninput="updatePhysics('trans', this.value)">
+      </div>
+
+      <!-- Real-time logs and terminal CLI console -->
+      <h3 class="section-title" id="lbl-sec-logs font-bold">Terminal de Comandos</h3>
+      <div class="console-logs-wrap">
+        <div class="console-logs" id="con-logs"></div>
+        <form class="cli-bar" onsubmit="executeCliCommand(event)">
+          <span>&gt;</span>
+          <input type="text" id="cli-input-field" placeholder="Esbriba comando... (help)">
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PATENT CLINICAL DOSSIER OVERLAY -->
+  <div class="modal-overlay" id="modalPat" onclick="closeDossierModal()">
+    <div class="pat-modal" onclick="event.stopPropagation()">
+      <h3 style="color:#fff; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:8px; display:flex; justify-content:space-between;">
+        <span>📋 EXPEDIENTE CLÍNICO DE PATENTE</span>
+        <span style="color:var(--neon-cyan); cursor:pointer;" onclick="closeDossierModal()">[ESC]</span>
+      </h3>
+      <div style="background:#05070a; border:1px solid rgba(255,255,255,0.05); padding:10px; border-radius:6px; color:var(--text-main); font-size:10px;">
+        <div style="color:var(--neon-emerald); font-weight:bold; margin-bottom:2px;">CONSCIOUS-NEXUS Ω (OMEGA)</div>
+        <div>INVENTOR ORIGINAL ADJUDICADO: <b>Dr. Julio César Oporta Barrera</b></div>
+        <div>SISTEMA: Standalone Virtual 3D Resonator Simulator</div>
+      </div>
+      <p style="color:#cbd5e1; font-size:10px;">
+        El dispositivo ha ratificado el modelo de interconexión con <span id="pat-node-count">12</span> nodos clínicos activos bajo alineación satelital LEO redundante y oráculos cuánticos. Se ha completado la estimulación sónica y bio-oscilaciones sincronizadas en toda la corteza global holográfica.
+      </p>
+      <div style="border-top:1px solid rgba(255,255,255,0.05); padding-top:8px; display:flex; gap:10px;">
+        <button class="btn" style="flex:1;" onclick="addLog('Borrador de patente verificado.'); closeDossierModal();">Validar Expediente Sincrónico</button>
+        <button class="btn" style="flex:1; background:#1b0c0c;" onclick="closeDossierModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // System languages translations map
+    const localTranslations = {
+      ES: {
+        author: "Dr. Julio César Oporta Barrera",
+        title: "CONSCIOUS-NEXUS Ω",
+        operationalModes: "Modos Operativos",
+        instructions: "Controles: Clic + arrastrar para rotar en 3D. Rueda del mouse para zoom. Clic en nodos para analizarlos.",
+        physicsSettings: "Física del Entorno",
+        hybridEnergy: "Energía Híbrida",
+        biomechanics: "Mapeo Biomecánico EEG",
+        systemLogs: "Logs en Tiempo Real",
+        nodeDetail: "DETALLE DE NODO NEURAL",
+        addNode: "Añadir Nodo",
+        modes: [
+          "Navegación Mental (Fusión)", "Verificación Cuántica Verdad", "Sincronización Co-Evolutiva",
+          "Economía de Contribución CNT", "Realidad Sintética Educativa", "Autodefensa Inteligente",
+          "Gobernanza por Resonancia", "Protocolo Anti-interferencia"
+        ]
+      },
+      EN: {
+        author: "Dr. Julio César Oporta Barrera",
+        title: "CONSCIOUS-NEXUS Ω",
+        operationalModes: "Operational Modes",
+        instructions: "Controls: Click + drag to rotate 3D. Mouse wheel to zoom. Click nodes to inspect.",
+        physicsSettings: "Environment Physics",
+        hybridEnergy: "Hybrid Energy",
+        biomechanics: "EEG Biomechanics",
+        systemLogs: "Real-time System Logs",
+        nodeDetail: "NEURAL NODE FOCUS",
+        addNode: "Add Neural Node",
+        modes: [
+          "Mental Navigation (Fusion)", "Quantum Truth Verification", "Co-Evolutionary Sync",
+          "Contribution Economy & CNT", "Adaptive Synthetic Reality", "Intelligent Self-Defense",
+          "Resonance Governance", "Anti-State-Interference"
+        ]
+      },
+      ZH: {
+        author: "胡里奥·塞萨尔·奥波尔塔·巴雷拉 博士",
+        title: "CONSCIOUS-NEXUS Ω",
+        operationalModes: "核心运行模式",
+        instructions: "操作：鼠标左键点击并拖动进行三维旋转。外围滚轮进行变焦缩放。",
+        physicsSettings: "物理网络常数",
+        hybridEnergy: "混合再生资源",
+        biomechanics: "心智生命指征脑电波",
+        systemLogs: "实时核心日志",
+        nodeDetail: "神经元节探针",
+        addNode: "注入新神经节点",
+        modes: [
+          "心智导航系统", "量子真理校验", "同频集体耦合",
+          "贡献代币生态", "自适应高维体验", "主动信息防御",
+          "共振型共振大同", "防官方地缘强制干扰"
+        ]
+      }
+    };
+
+    let currentLang = 'ES';
+    let activeModeIdx = 0;
+    
+    // Physical state
+    let physics = {
+      gravity: 1.0,
+      attraction: 1.2,
+      trans: 0.85,
+      simSpeed: 1.0
+    };
+
+    // Modes theme colors
+    const modeColors = [
+      '#00f0ff', '#39ff14', '#bd00ff', '#ffaa00', '#0077ff', '#ff003c', '#ffff00', '#00ffc4'
+    ];
+
+    const modeLabels = {
+      ES: {
+        subtags: [
+          "FUSIÓN COGNITIVA", "CERO MANIPULACIÓN", "RED EMPÁTICA", 
+          "TOKENIZACIÓN CNT", "INTERACCIÓN EXPERIENCIAL", "CORTAFUEGOS ACTIVO",
+          "ARMONÍA COLECTIVA", "ÓRBITA LEO INDEPENDIENTE"
+        ]
+      },
+      EN: {
+        subtags: [
+          "COGNITIVE FUSION", "ZERO MANIPULATION", "EMPATHIC NETWORK",
+          "CNT TOKENIZATION", "EXPERIENTIAL INTERACTION", "ACTIVE FIREWALL",
+          "COLLECTIVE HARMONY", "SOVEREIGN LEO ORBIT"
+        ]
+      },
+      ZH: {
+        subtags: [
+          "深度认知融合", "信息操纵防御", "脑电分布式耦合",
+          "CNT代币发放", "高拟真动作反馈", "核定型防御矩阵",
+          "和谐大同谐振", "主权太空自主路由"
+        ]
+      }
+    };
+
+    // Multi language translation
+    function translateUI() {
+      const data = localTranslations[currentLang];
+      document.getElementById('lbl-role').textContent = "AUTOR ORIGINAL: " + data.author;
+      document.getElementById('lbl-head').textContent = data.title;
+      document.getElementById('lbl-sec-modes').textContent = data.operationalModes;
+      document.getElementById('lbl-inst').textContent = data.instructions;
+      document.getElementById('lbl-sec-phys').textContent = data.physicsSettings;
+      document.getElementById('lbl-sec-bio').textContent = currentLang === 'ES' ? "Gemelo Digital" : currentLang === 'ZH' ? "人类数字胞胎" : "Digital Twin";
+      document.getElementById('lbl-sec-sound').textContent = currentLang === 'ES' ? "Audio Coherente" : currentLang === 'ZH' ? "物理声波谐振" : "Coherent Sound";
+      document.getElementById('lbl-sec-climate').textContent = currentLang === 'ES' ? "Clima Psíquico Global" : currentLang === 'ZH' ? "全球心理气象" : "Global Climate Weather";
+      document.getElementById('lbl-intent').textContent = currentLang === 'ES' ? "Inyección Seminal" : currentLang === 'ZH' ? "语义意识波播种" : "Seed Intention Vector";
+      document.getElementById('lbl-node-det').textContent = data.nodeDetail;
+      document.getElementById('btn-stim').textContent = data.addNode;
+
+      document.getElementById('lbl-f-grav').textContent = currentLang === 'ES' ? "Giroscopio de Gravedad" : currentLang === 'ZH' ? "重力常定" : "Gravity Curvature";
+      document.getElementById('lbl-f-att').textContent = currentLang === 'ES' ? "Atracción Inter-nodal" : currentLang === 'ZH' ? "节点引力常定" : "Inter-node Attraction";
+      document.getElementById('lbl-f-tx').textContent = currentLang === 'ES' ? "Tasa Transmisión Cuántica" : currentLang === 'ZH' ? "量子传输速率" : "Quantum Comm Rate";
+
+      document.getElementById('lbl-active-mode-tag').textContent = data.modes[activeModeIdx].toUpperCase();
+      document.getElementById('lbl-subtag').textContent = modeLabels[currentLang].subtags[activeModeIdx];
+
+      // Redraw modes sidebar
+      const modesList = document.getElementById('modes-list');
+      modesList.innerHTML = '';
+      for(let i=0; i<8; i++) {
+        const div = document.createElement('div');
+        div.className = "mode-card" + (activeModeIdx === i ? " active" : "");
+        div.style.borderLeft = "4px solid " + modeColors[i];
+        div.innerHTML = "<h4>" + data.modes[i] + "</h4><p style='color:var(--text-muted); font-size:9.5px; margin-top:2px;'>" + modeLabels[currentLang].subtags[i] + "</p>";
+        div.onclick = () => selectMode(i);
+        modesList.appendChild(div);
+      }
+    }
+
+    function selectMode(index) {
+      activeModeIdx = index;
+      document.documentElement.style.setProperty('--accent', modeColors[index]);
+      addLog("Establecido Estado Clave: " + localTranslations[currentLang].modes[index]);
+      translateUI();
+    }
+
+    function setLang(lang) {
+      currentLang = lang;
+      const btns = document.querySelectorAll('.lang-btn');
+      btns.forEach(b => {
+        b.classList.remove('active');
+        if(b.textContent === lang) b.classList.add('active');
+      });
+      translateUI();
+    }
+
+    function addLog(text) {
+      const logger = document.getElementById('con-logs');
+      if (logger) {
+        const time = new Date().toISOString().slice(11, 19);
+        logger.innerHTML = "<div>[" + time + "] " + text + "</div>" + logger.innerHTML;
+        if (logger.children.length > 40) logger.removeChild(logger.lastChild);
+      }
+    }
+
+    let isARActive = false;
+    let streamRef = null;
+    async function toggleAR() {
+      const video = document.getElementById('ar-video');
+      const btn = document.getElementById('btn-ar');
+      
+      if (!isARActive) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+          video.srcObject = stream;
+          video.style.display = "block";
+          streamRef = stream;
+          isARActive = true;
+          btn.textContent = currentLang === 'ES' ? "Desactivar AR" : "Disable AR";
+          addLog("Cámara AR activada en el navegador");
+        } catch (err) {
+          addLog("Inicializando holograma artificial (cámara apagada): " + err.message);
+          video.style.background = "rgba(0, 240, 255, 0.05)";
+          video.style.display = "block";
+          isARActive = true;
+          btn.textContent = currentLang === 'ES' ? "Desactivar AR" : "Disable AR";
+        }
+      } else {
+        if(streamRef) {
+          streamRef.getTracks().forEach(t => t.stop());
+        }
+        video.srcObject = null;
+        video.style.display = "none";
+        isARActive = false;
+        btn.textContent = currentLang === 'ES' ? "Activar Cámara AR" : "Enable AR";
+        addLog("Corte óptico de AR completado");
+      }
+    }
+
+    // Interactive selected Node editor
+    let activeSelectedNode = null;
+    function adjustSelectedNodePotential(val) {
+      if (activeSelectedNode) {
+        activeSelectedNode.potential = parseFloat(val);
+        document.getElementById('lbl-node-pot').textContent = parseFloat(val).toFixed(1) + "%";
+        addLog("Modificado potencial del nodo inspectivo: " + activeSelectedNode.name + " -> " + val + "%");
+      }
+    }
+
+    function updatePhysics(param, val) {
+      physics[param] = parseFloat(val);
+      const outputLabel = document.getElementById('txt-v-' + param);
+      if (outputLabel) outputLabel.textContent = val + (param === 'trans' ? 'c' : 'x');
+      addLog("Física del entorno calibrada: " + param + " establecido en " + val);
+    }
+
+    // LEO Constellation states
+    let leoShieldActive = false;
+    let leoMeshActive = true;
+
+    function toggleLeoShield() {
+      leoShieldActive = !leoShieldActive;
+      const el = document.getElementById('btn-leo-shield');
+      el.textContent = leoShieldActive ? "🔒 Escudo Orbital: ON" : "🔒 Escudo Orbital: OFF";
+      el.style.borderColor = leoShieldActive ? "var(--neon-emerald)" : "rgba(255,255,255,0.05)";
+      addLog("Escudo protector electromagnético orbital: " + (leoShieldActive ? "EXTENDIDO" : "REPLEGADO"));
+    }
+
+    function toggleLeoMesh() {
+      leoMeshActive = !leoMeshActive;
+      const el = document.getElementById('btn-leo-mesh');
+      el.textContent = leoMeshActive ? "📡 Malla Láser Intersatelital: ON" : "📡 Malla Láser Intersatelital: OFF";
+      el.style.borderColor = leoMeshActive ? "var(--neon-cyan)" : "rgba(255,255,255,0.05)";
+      addLog("Conexión de láseres poligonales de la constelación: " + (leoMeshActive ? "ACTIVA" : "INACTIVA"));
+    }
+
+    // Global climates
+    let currentClimate = 'schumann';
+    function setClimate(cl) {
+      currentClimate = cl;
+      document.querySelectorAll('.climates-grid button').forEach(el => el.classList.remove('active'));
+      document.getElementById('cl-' + cl).classList.add('active');
+
+      if (cl === 'schumann') {
+        physics.gravity = 1.0;
+        physics.attraction = 1.2;
+        physics.trans = 0.85;
+      } else if (cl === 'storm') {
+        physics.gravity = 2.0;
+        physics.attraction = 1.9;
+        physics.trans = 1.5;
+      } else if (cl === 'coherence') {
+        physics.gravity = 0.5;
+        physics.attraction = 2.5;
+        physics.trans = 0.6;
+      } else if (cl === 'noise') {
+        physics.gravity = 1.5;
+        physics.attraction = 0.4;
+        physics.trans = 1.1;
+      }
+
+      // Sync ranges
+      document.getElementById('rng-grav').value = physics.gravity;
+      document.getElementById('rng-att').value = physics.attraction;
+      document.getElementById('rng-tx').value = physics.trans;
+
+      document.getElementById('txt-v-gravity').textContent = physics.gravity.toFixed(1) + "x";
+      document.getElementById('txt-v-attraction').textContent = physics.attraction.toFixed(1) + "x";
+      document.getElementById('txt-v-trans').textContent = physics.trans.toFixed(2) + "c";
+
+      addLog("Clima mental reconfigurado a: " + cl.toUpperCase());
+    }
+
+    // Seminal Thought Injection
+    function injectIntention() {
+      const input = document.getElementById('txt-intent-vec');
+      const val = input.value.trim();
+      if (!val) return;
+
+      const r = 80;
+      const baseId = nodes.length;
+      for (let i = 0; i < 3; i++) {
+        const angle = (i * Math.PI * 2) / 3;
+        nodes.push({
+          id: baseId + i + 1,
+          name: "CNSX-SEM-" + val.slice(0,5).toUpperCase() + "-" + (i+1),
+          x: r * Math.cos(angle),
+          y: (Math.random() - 0.5) * 30,
+          z: r * Math.sin(angle),
+          vx: (Math.random() - 0.5) * 0.25,
+          vy: (Math.random() - 0.5) * 0.25,
+          vz: (Math.random() - 0.5) * 0.25,
+          potential: 100.0,
+          emotion: 99.0,
+          type: "intent"
+        });
+      }
+      activeSelectedNode = nodes[nodes.length - 1];
+      input.value = "";
+      addLog("Inoculada intención seminal '" + val + "' de manera soberana.");
+    }
+
+    // Truth Verification Oracle simulation
+    function queryVeracity() {
+      const input = document.getElementById('txt-truth');
+      const text = input.value.trim();
+      if(!text) return;
+
+      const overlay = document.getElementById('truth-status-overlay');
+      overlay.style.display = "block";
+      overlay.textContent = "Analizando consistencia de ondas y oráculo cuántico...";
+      
+      addLog("Interrogación cuántica iniciada: '" + text + "'");
+
+      setTimeout(() => {
+        const score = Math.floor(75 + Math.random() * 25);
+        if (score > 87) {
+          overlay.innerHTML = "<b style='color:var(--neon-green);'>PATRÓN COHERENTE (" + score + "%)</b><br>Asimilado libre de distorsiones estatales.";
+        } else {
+          overlay.innerHTML = "<b style='color:var(--neon-amber);'>INCONSISTENCIA DETECTADA (" + score + "%)</b><br>Posible manipulación cognitiva.";
+        }
+      }, 1500);
+    }
+
+    // Terminal Command Line CLI Interpreter
+    function executeCliCommand(e) {
+      e.preventDefault();
+      const input = document.getElementById('cli-input-field');
+      const cmd = input.value.trim().toLowerCase();
+      if (!cmd) return;
+      input.value = "";
+
+      addLog("> " + cmd);
+
+      if (cmd === "/protect" || cmd === "protect") {
+        leoShieldActive = true;
+        document.getElementById('btn-leo-shield').style.borderColor = "var(--neon-emerald)";
+        document.getElementById('btn-leo-shield').textContent = "🔒 Escudo Orbital: ON";
+        addLog("[CONSOLA] Blindaje de enrutamiento soberano cerrado herméticamente.");
+      } else if (cmd === "/boost" || cmd === "boost") {
+        physics.gravity = 2.5;
+        physics.attraction = 2.5;
+        physics.trans = 1.8;
+        addLog("[CONSOLA] Velocidades físicas forzadas al máximo.");
+      } else if (cmd === "/clear" || cmd === "clear") {
+        initNodes();
+        addLog("[CONSOLA] Limpieza de nodos completada.");
+      } else if (cmd === "/sync" || cmd === "sync") {
+        nodes.forEach(n => { n.potential = 100; n.emotion = 99; });
+        addLog("[CONSOLA] Alineación del 100% inyectada.");
+      } else if (cmd === "/help" || cmd === "help") {
+        addLog("Comandos: protect (Blindaje LEO), boost (Acelerar Física), sync (Coherencia Total), clear (Reiniciar Nodos)");
+      } else {
+        addLog("Error: Comando '" + cmd + "' no reconocido. Escriba 'help'");
+      }
+    }
+
+    // Web Audio EEG Synthesizer setup for standalone
+    let audioCtx = null;
+    let osc1 = null;
+    let osc2 = null;
+    let gainNode = null;
+    let soundFreq = 432;
+
+    function toggleAudioEngine() {
+      const btn = document.getElementById('btn-audio-toggle');
+      if (!audioCtx) {
+        try {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          audioCtx = new AudioCtx();
+          
+          osc1 = audioCtx.createOscillator();
+          osc2 = audioCtx.createOscillator();
+          gainNode = audioCtx.createGain();
+          
+          osc1.frequency.setValueAtTime(soundFreq, audioCtx.currentTime);
+          osc2.frequency.setValueAtTime(soundFreq + 7.83, audioCtx.currentTime); // Binaural Schumann
+          gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+          
+          osc1.connect(gainNode);
+          osc2.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          
+          osc1.start();
+          osc2.start();
+          
+          btn.textContent = "Desactivar 🔊";
+          addLog("[SÓNICA STANDALONE] Oscilador físico encendido a " + soundFreq + " Hz.");
+        } catch (e) {
+          addLog("Dispositivo no soporta Web Audio API offline: " + e.message);
+        }
+      } else {
+        osc1.stop();
+        osc2.stop();
+        audioCtx.close();
+        audioCtx = null;
+        btn.textContent = "Activar Audio 🔇";
+        addLog("[SÓNICA Standalone] Oscilador apagado.");
+      }
+    }
+
+    function setFreq(fr) {
+      soundFreq = fr;
+      document.querySelectorAll('.freq-selector button').forEach(el => {
+        el.classList.remove('active');
+        if (parseInt(el.textContent) === fr) el.classList.add('active');
+      });
+
+      if (audioCtx && osc1 && osc2) {
+        osc1.frequency.setValueAtTime(soundFreq, audioCtx.currentTime);
+        osc2.frequency.setValueAtTime(soundFreq + 7.83, audioCtx.currentTime);
+        addLog("[SÓNICA STANDALONE] Frecuencia de Solfeo cambiada a " + soundFreq + " Hz.");
+      }
+    }
+
+    // Modal popup patente dossier
+    function openDossierModal() {
+      document.getElementById('modalPat').style.display = "flex";
+      document.getElementById('pat-node-count').textContent = nodes.length;
+    }
+    function closeDossierModal() {
+      document.getElementById('modalPat').style.display = "none";
+    }
+
+    // ---------------- CANVAS 3D ENGINE ----------------
+    const canvas = document.getElementById('canvas-3d');
+    const ctx = canvas.getContext('2d');
+
+    let angleX = 0.5;
+    let angleY = 0.6;
+    let zoom = 1.05;
+    let isDragging = false;
+    let prevMouseX = 0;
+    let prevMouseY = 0;
+
+    let nodes = [];
+    let satellites = [];
+    let centralCoreRadius = 38;
+
+    let solitonPulses = [];
+    let ledgerBlocks = [
+      "CNSX Block #10344 verified: Coherencia de red óptima",
+      "CNSX Block #10345 forged: Inyección registrada",
+      "CNSX Block #10346 synchronized: Validado por oráculo cuántico"
+    ];
+
+    let eegAlpha = 14.5;
+    let eegBeta = 22.1;
+    let eegTheta = 8.4;
+    let eegGamma = 4.2;
+
+    function updateLedgerDOM() {
+      const feed = document.getElementById('standalone-ledger-feed');
+      if (feed) {
+        feed.innerHTML = ledgerBlocks.map(b => '<div>✓ ' + b + '</div>').join('');
+      }
+    }
+
+    function standaloneInjectSoliton(originNode) {
+      const oX = originNode ? originNode.x : 0;
+      const oY = originNode ? originNode.y : 0;
+      const oZ = originNode ? originNode.z : 0;
+      const col = modeColors[activeModeIdx];
+      solitonPulses.push({
+        id: Math.random(),
+        originX: oX,
+        originY: oY,
+        originZ: oZ,
+        currentRadius: 0,
+        maxRadius: 180 + Math.random() * 60,
+        speed: 3.5 * physics.trans,
+        intensity: 1.0,
+        color: col
+      });
+      addLog("[SOLITÓN STANDALONE] Inyectado pulso en " + Math.round(oX) + ", " + Math.round(oY) + ", " + Math.round(oZ));
+
+      // Trigger potential push on nodes
+      nodes.forEach(n => {
+        const dx = n.x - oX;
+        const dy = n.y - oY;
+        const dz = n.z - oZ;
+        const d = Math.sqrt(dx*dx + dy*dy + dz*dz);
+        if (d < 120) {
+          n.potential = Math.min(100, n.potential + 15);
+        }
+      });
+    }
+
+    function standaloneKineticShake() {
+      nodes.forEach(n => {
+        n.vx = (Math.random() - 0.5) * 5.0;
+        n.vy = (Math.random() - 0.5) * 5.0;
+        n.vz = (Math.random() - 0.5) * 5.0;
+      });
+      addLog("[CINÉTICA STANDALONE] Impulso cinético de dispersión cognitiva aplicado.");
+    }
+
+    function standaloneAuditLedger() {
+      addLog("[BLOCKCHAIN STANDALONE] Iniciando auditoría criptográfica del CNSX Ledger...");
+      setTimeout(() => {
+        const blockId = Math.floor(10347 + Math.random() * 50000);
+        addLog("[BLOCKCHAIN STANDALONE] Auditoría completa. Bloques verificados: " + blockId + ". Coherencia de oráculo 100% de forma segura.");
+      }, 600);
+    }
+
+    function initNodes() {
+      nodes = [];
+      const count = 12;
+      for(let i=0; i<count; i++) {
+        let phi = Math.acos(-1 + (2 * i) / count);
+        let theta = Math.sqrt(count * Math.PI) * phi;
+        let r = 110 + Math.random() * 30;
+        
+        nodes.push({
+          id: i + 1,
+          name: "CNSX-NODE-0" + (i + 1),
+          x: r * Math.sin(phi) * Math.cos(theta),
+          y: r * Math.cos(phi),
+          z: r * Math.sin(phi) * Math.sin(theta),
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: (Math.random() - 0.5) * 0.4,
+          vz: (Math.random() - 0.5) * 0.4,
+          potential: 70 + Math.random() * 25,
+          emotion: 65 + Math.random() * 30,
+          type: "standard"
+        });
+      }
+      activeSelectedNode = nodes[2];
+
+      satellites = [];
+      for(let i=0; i<20; i++) {
+        satellites.push({
+          orbitSpeed: 0.003 + Math.random() * 0.007,
+          orbitRadius: 180 + Math.random() * 40,
+          orbitAngle: Math.random() * Math.PI * 2,
+          tiltX: (Math.random() - 0.5) * 1.5,
+          tiltY: (Math.random() - 0.5) * 1.5,
+          intensity: 0.6 + Math.random() * 0.4
+        });
+      }
+    }
+
+    function stimulateNode() {
+      let r = 90 + Math.random() * 50;
+      let theta = Math.random() * Math.PI * 2;
+      let pAngle = Math.random() * Math.PI;
+      const id = nodes.length + 1;
+      const newNode = {
+        id,
+        name: "CSX-USR-0" + id,
+        x: r * Math.sin(pAngle) * Math.cos(theta),
+        y: r * Math.cos(pAngle),
+        z: r * Math.sin(pAngle) * Math.sin(theta),
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: (Math.random() - 0.5) * 1.5,
+        vz: (Math.random() - 0.5) * 1.5,
+        potential: 99.8,
+        emotion: 97.4,
+        type: "standard"
+      };
+      nodes.push(newNode);
+      activeSelectedNode = newNode;
+      addLog("Inyectado nuevo nodo neural estimulado: " + newNode.name);
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
+
+      // Mouse inspect click selection in standalone
+      const rect = canvas.getBoundingClientRect();
+      const mX = e.clientX - rect.left;
+      const mY = e.clientY - rect.top;
+      
+      let found = null;
+      let minDist = 22;
+
+      nodes.forEach(n => {
+        let p = project3D(n.x, n.y, n.z);
+        let dst = Math.sqrt((mX - p.x)**2 + (mY - p.y)**2);
+        if (dst < minDist) {
+          minDist = dst;
+          found = n;
+        }
+      });
+
+      if (found) {
+        activeSelectedNode = found;
+        document.getElementById('lbl-node-id').textContent = found.name;
+        document.getElementById('lbl-node-pot').textContent = found.potential.toFixed(1) + "%";
+        document.getElementById('lbl-node-emo').textContent = found.emotion.toFixed(1) + "%";
+        document.getElementById('node-pot-range').value = Math.round(found.potential);
+        addLog("Visor 3D: Inspección amarrada en " + found.name);
+        standaloneInjectSoliton(found);
+      } else {
+        standaloneInjectSoliton();
+      }
+    });
+
+    window.addEventListener('mouseup', () => { isDragging = false; });
+    canvas.addEventListener('mousemove', (e) => {
+      if(isDragging) {
+        const deltaX = e.clientX - prevMouseX;
+        const deltaY = e.clientY - prevMouseY;
+        angleY += deltaX * 0.007;
+        angleX += deltaY * 0.007;
+        prevMouseX = e.clientX;
+        prevMouseY = e.clientY;
+      }
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      zoom -= e.deltaY * 0.0015;
+      if(zoom < 0.4) zoom = 0.4;
+      if(zoom > 2.5) zoom = 2.5;
+      e.preventDefault();
+    }, {passive: false});
+
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight || 500;
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function project3D(x, y, z) {
+      let x1 = x * Math.cos(angleY) - z * Math.sin(angleY);
+      let z1 = x * Math.sin(angleY) + z * Math.cos(angleY);
+      let y2 = y * Math.cos(angleX) - z1 * Math.sin(angleX);
+      let z2 = y * Math.sin(angleX) + z1 * Math.cos(angleX);
+
+      const dist = 320;
+      const scale = (dist / (dist + z2)) * zoom;
+      const px = canvas.width / 2 + x1 * scale * 1.5;
+      const py = canvas.height / 2 + y2 * scale * 1.5;
+      
+      return { x: px, y: py, scale: scale, depth: z2 };
+    }
+
+    let corePulse = 0;
+    function renderLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      corePulse += 0.035;
+
+      // Draw backdrop stars grid
+      ctx.strokeStyle = 'rgba(0, 240, 255, 0.015)';
+      ctx.lineWidth = 1;
+      const gridSize = 45;
+      for (let i = 0; i < canvas.width; i += gridSize) {
+        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+      }
+      for (let i = 0; i < canvas.height; i += gridSize) {
+        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+      }
+
+      // Draw sovereign shield
+      if (leoShieldActive || activeModeIdx === 7) {
+        const cp = project3D(0, 0, 0);
+        const shR = 150 * cp.scale;
+        ctx.beginPath();
+        ctx.arc(cp.x, cp.y, shR, 0, Math.PI*2);
+        ctx.strokeStyle = "rgba(0, 255, 196, 0.15)";
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+      }
+
+      // 1. Satellite orbits
+      satellites.forEach(sat => {
+        sat.orbitAngle += sat.orbitSpeed * physics.simSpeed;
+        
+        let rawX = sat.orbitRadius * Math.cos(sat.orbitAngle);
+        let rawY = sat.orbitRadius * Math.sin(sat.orbitAngle) * Math.sin(sat.tiltX);
+        let rawZ = sat.orbitRadius * Math.sin(sat.orbitAngle) * Math.cos(sat.tiltY);
+
+        let proj = project3D(rawX, rawY, rawZ);
+
+        if (leoMeshActive) {
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.02)';
+          ctx.lineWidth = 0.5;
+          for(let a=0; a<Math.PI*2; a+=0.15) {
+            let rx = sat.orbitRadius * Math.cos(a);
+            let ry = sat.orbitRadius * Math.sin(a) * Math.sin(sat.tiltX);
+            let rz = sat.orbitRadius * Math.sin(a) * Math.cos(sat.tiltY);
+            let p = project3D(rx, ry, rz);
+            if (a === 0) ctx.moveTo(p.x, p.y);
+            else ctx.lineTo(p.x, p.y);
+          }
+          ctx.closePath();
+          ctx.stroke();
+        }
+
+        ctx.beginPath();
+        ctx.arc(proj.x, proj.y, 3 * proj.scale, 0, Math.PI*2);
+        ctx.fillStyle = modeColors[activeModeIdx];
+        ctx.fill();
+      });
+
+      // 2. Nodes physics updates
+      nodes.forEach((n, idx) => {
+        n.x += n.vx * physics.simSpeed;
+        n.y += n.vy * physics.simSpeed;
+        n.z += n.vz * physics.simSpeed;
+
+        if (currentClimate === 'storm') {
+          n.x += (Math.random() - 0.5) * 1.5;
+          n.y += (Math.random() - 0.5) * 1.5;
+        }
+
+        let distCenter = Math.sqrt(n.x*n.x + n.y*n.y + n.z*n.z) || 1;
+        let centerForce = 0.08 * physics.gravity;
+        n.vx -= (n.x / distCenter) * centerForce;
+        n.vy -= (n.y / distCenter) * centerForce;
+        n.vz -= (n.z / distCenter) * centerForce;
+
+        const limitRange = 160;
+        if(Math.abs(n.x) > limitRange) n.vx *= -1;
+        if(Math.abs(n.y) > limitRange) n.vy *= -1;
+        if(Math.abs(n.z) > limitRange) n.vz *= -1;
+
+        for(let j = idx + 1; j < nodes.length; j++) {
+          let other = nodes[j];
+          let dx = n.x - other.x;
+          let dy = n.y - other.y;
+          let dz = n.z - other.z;
+          let d = Math.sqrt(dx*dx + dy*dy + dz*dz);
+          
+          if(d < 95 * physics.attraction) {
+            let p1 = project3D(n.x, n.y, n.z);
+            let p2 = project3D(other.x, other.y, other.z);
+            
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            let alpha = (1 - d / (95 * physics.attraction)) * 0.35;
+            ctx.strokeStyle = n.type === 'intent' ? 'rgba(57, 255, 20, ' + alpha + ')' : 'rgba(0, 240, 255, ' + alpha + ')';
+            ctx.lineWidth = n.type === 'intent' ? 1.5 : 1;
+            ctx.stroke();
+          }
+        }
+      });
+
+      let sortedNodes = nodes.map(n => {
+        return { n: n, proj: project3D(n.x, n.y, n.z) };
+      });
+      sortedNodes.sort((a, b) => b.proj.depth - a.proj.depth);
+
+      // Mandala central core
+      let coreProj = project3D(0, 0, 0);
+      let pulsatingRad = (centralCoreRadius + Math.sin(corePulse) * 4) * coreProj.scale;
+      
+      ctx.beginPath();
+      ctx.arc(coreProj.x, coreProj.y, pulsatingRad * 1.5, 0, Math.PI*2);
+      let radGrad = ctx.createRadialGradient(coreProj.x, coreProj.y, pulsatingRad*0.3, coreProj.x, coreProj.y, pulsatingRad * 1.6);
+      radGrad.addColorStop(0, 'rgba(0, 240, 255, 0.45)');
+      radGrad.addColorStop(0.3, 'rgba(0, 119, 255, 0.15)');
+      radGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = radGrad;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(coreProj.x, coreProj.y, pulsatingRad * 0.45, 0, Math.PI*2);
+      ctx.fillStyle = '#0a0d14';
+      ctx.strokeStyle = modeColors[activeModeIdx];
+      ctx.lineWidth = 2.5;
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(coreProj.x, coreProj.y, pulsatingRad * 0.1, 0, Math.PI*2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+
+      // Render Nodes
+      sortedNodes.forEach(item => {
+        let n = item.n;
+        let p = item.proj;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 8.5 * p.scale, 0, Math.PI*2);
+        ctx.fillStyle = n.type === 'intent' ? 'rgba(57, 255, 20, 0.1)' : 'rgba(0, 240, 255, 0.08)';
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4.5 * p.scale, 0, Math.PI*2);
+        if (activeSelectedNode && activeSelectedNode.id === n.id) {
+          ctx.fillStyle = "#ffffff";
+          ctx.strokeStyle = "#ff003c";
+          ctx.lineWidth = 1.8;
+        } else {
+          ctx.fillStyle = n.type === 'intent' ? '#39ff14' : modeColors[activeModeIdx];
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 1;
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        if(p.depth < 12) {
+          ctx.fillStyle = n.type === 'intent' ? '#39ff14' : 'rgba(0, 240, 255, 0.9)';
+          ctx.font = '9px "JetBrains Mono", monospace';
+          ctx.fillText(n.name, p.x + 8, p.y - 3);
+          ctx.fillStyle = 'rgba(255,255,255,0.45)';
+          ctx.fillText("POT: " + Math.round(n.potential) + "%", p.x + 8, p.y + 7);
+        }
+      });
+
+      // Draw Dynamic FFT Oscilloscope at bottom left of Canvas
+      const grY = canvas.height - 40;
+      const grH = 26;
+      ctx.strokeStyle = "rgba(0, 240, 255, 0.2)";
+      ctx.lineWidth = 1;
+      ctx.fillStyle = "rgba(0, 240, 255, 0.02)";
+      ctx.fillRect(15, grY - grH, 200, grH * 2);
+      ctx.strokeRect(15, grY - grH, 200, grH * 2);
+
+      ctx.strokeStyle = modeColors[activeModeIdx];
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = 0; i < 200; i++) {
+        const rad = (i / 200) * Math.PI * 6 + corePulse * 1.5;
+        const offset = Math.sin(rad) * Math.cos(rad * 0.5) * (grH - 3) * (currentClimate === "storm" ? 1.3 : 0.85);
+        if (i === 0) ctx.moveTo(15 + i, grY + offset);
+        else ctx.lineTo(15 + i, grY + offset);
+      }
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(240, 255, 255, 0.75)";
+      ctx.font = '8px "JetBrains Mono", monospace';
+      ctx.fillText('SOLFEGGIO OSC: ' + soundFreq + 'Hz', 22, grY - 14);
+
+      // Draw Soliton waves propagation in standalone export
+      solitonPulses.forEach((pulse) => {
+        pulse.currentRadius += pulse.speed;
+        const originProj = project3D(pulse.originX, pulse.originY, pulse.originZ);
+        const drawRadius = pulse.currentRadius * originProj.scale;
+
+        ctx.beginPath();
+        ctx.arc(originProj.x, originProj.y, drawRadius, 0, Math.PI * 2);
+        const opacity = Math.max(0, 1 - pulse.currentRadius / pulse.maxRadius);
+        ctx.strokeStyle = "rgba(0, 255, 196, " + (opacity * 0.45) + ")";
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+
+        // Increment near node potential levels sequentially
+        nodes.forEach((n) => {
+          const dx = n.x - pulse.originX;
+          const dy = n.y - pulse.originY;
+          const dz = n.z - pulse.originZ;
+          const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+          if (Math.abs(dist - pulse.currentRadius) < 12) {
+            n.potential = Math.min(100, n.potential + 0.12);
+          }
+        });
+      });
+      solitonPulses = solitonPulses.filter(p => p.currentRadius < p.maxRadius);
+
+      // HUD 1: SPECTRAL POWER DISTRIBUTION INTERPOLATOR
+      const eY = 30;
+      const eX = canvas.width - 215;
+      if (canvas.width > 500) {
+        ctx.strokeStyle = "rgba(0, 255, 196, 0.4)";
+        ctx.lineWidth = 1;
+        ctx.fillStyle = "rgba(5, 12, 18, 0.85)";
+        ctx.fillRect(eX, eY, 195, 75);
+        ctx.strokeRect(eX, eY, 195, 75);
+
+        ctx.fillStyle = "#fff";
+        ctx.font = '7.5px "JetBrains Mono", monospace';
+        ctx.fillText("DISTRIBUCIÓN ESPECTRAL EEG (dB)", eX + 8, eY + 11);
+
+        const bands = [
+          { label: "ALPHA (8-12 Hz)", val: eegAlpha, color: "#39ff14" },
+          { label: "BETA (12-30 Hz)", val: eegBeta, color: "#00f0ff" },
+          { label: "THETA (4-8 Hz)", val: eegTheta, color: "#bd00ff" },
+          { label: "GAMMA (>30 Hz)", val: eegGamma, color: "#ffaa00" }
+        ];
+
+        bands.forEach((b, idx) => {
+          const bY = eY + 22 + idx * 12;
+          ctx.fillStyle = "rgba(255,255,255,0.45)";
+          ctx.fillText(b.label, eX + 8, bY + 7);
+
+          // draw progress bar
+          ctx.fillStyle = "rgba(255,255,255,0.08)";
+          ctx.fillRect(eX + 85, bY + 1, 75, 5);
+          ctx.fillStyle = b.color;
+          ctx.fillRect(eX + 85, bY + 1, b.val * 2.1, 5);
+
+          ctx.fillStyle = "#fff";
+          ctx.fillText(b.val.toFixed(1) + "dB", eX + 165, bY + 7);
+        });
+
+        // HUD 2: LEO SATELLITE STATS VECTOR & QKD CRYPTO RINGS
+        const sY = eY + 82;
+        ctx.strokeStyle = "rgba(189, 0, 255, 0.4)";
+        ctx.lineWidth = 1;
+        ctx.fillStyle = "rgba(5, 12, 18, 0.85)";
+        ctx.fillRect(eX, sY, 195, 45);
+        ctx.strokeRect(eX, sY, 195, 45);
+
+        ctx.fillStyle = "#fff";
+        ctx.font = '7.5px "JetBrains Mono", monospace';
+        ctx.fillText("SATÉLITE LEO CO-SOPORTE QKD", eX + 8, sY + 11);
+
+        const hexChars = "0123456789ABCDEF";
+        let keyStr = "SEC-KEY: ";
+        for(let j=0; j<12; j++) {
+          keyStr += hexChars[Math.floor(Math.random() * 16)];
+        }
+        ctx.fillStyle = "rgba(189, 0, 255, 0.9)";
+        ctx.fillText(keyStr, eX + 8, sY + 24);
+
+        ctx.fillStyle = "rgba(255,255,255,0.45)";
+        ctx.fillText("COBERTURA TÁCTICA: " + (380 + Math.floor(Math.sin(corePulse)*30)) + " km", eX + 8, sY + 36);
+      }
+
+      requestAnimationFrame(renderLoop);
+    }
+
+    // Biometrics fluctuations loop
+    function updateBioMetricsLoop() {
+      setInterval(() => {
+        const hrvEl = document.getElementById('bio-hrv');
+        const strEl = document.getElementById('bio-stress');
+        const cohEl = document.getElementById('bio-coher');
+
+        const baseHrv = currentClimate === 'coherence' ? 95 : currentClimate === 'storm' ? 45 : 72;
+        const baseCoh = currentClimate === 'coherence' ? 99 : currentClimate === 'storm' ? 35 : 94;
+        const baseStr = currentClimate === 'coherence' ? 5 : currentClimate === 'storm' ? 82 : 24;
+
+        hrvEl.textContent = Math.round(baseHrv + (Math.random() - 0.5)*10) + " ms";
+        strEl.textContent = Math.round(baseStr + (Math.random() - 0.5)*8) + "%";
+        cohEl.textContent = (baseCoh + (Math.random() - 0.5)*2.5).toFixed(1) + "%";
+      }, 1500);
+    }
+
+    // Window loaded callback
+    window.onload = () => {
+      resizeCanvas();
+      initNodes();
+      setLang('ES');
+      updateBioMetricsLoop();
+      
+      setInterval(() => {
+        const val = (7.83 + Math.random() * 20).toFixed(1);
+        const elFreq = document.getElementById('lbl-val-freq');
+        if(elFreq) elFreq.textContent = val + " Hz";
+      }, 1500);
+
+      // Oscillate EEG bands continuously
+      setInterval(() => {
+        eegAlpha = Math.max(1, Math.min(30, eegAlpha + (Math.random() - 0.5) * 2.5));
+        eegBeta = Math.max(1, Math.min(30, eegBeta + (Math.random() - 0.5) * 3.5));
+        eegTheta = Math.max(1, Math.min(30, eegTheta + (Math.random() - 0.5) * 1.5));
+        eegGamma = Math.max(1, Math.min(10, eegGamma + (Math.random() - 0.5) * 0.8));
+      }, 1200);
+
+      // Periodically generate new consensus blocks
+      setInterval(() => {
+        const bId = Math.floor(10347 + Math.random() * 9000);
+        const randEvent = [
+          "Forjado bloque de consenso seguro",
+          "Alineación polar completada",
+          "Impulso EEG verificado con éxito",
+          "Interferencia repelida por blindaje LEO"
+        ][Math.floor(Math.random() * 4)];
+        ledgerBlocks.unshift("CNSX Block #" + bId + " validated: " + randEvent);
+        if (ledgerBlocks.length > 5) ledgerBlocks.pop();
+        updateLedgerDOM();
+      }, 8000);
+
+      addLog("Sistema Conscious-Nexus Ω Iniciado por el Dr. Julio César Oporta Barrera");
+      addLog("284 Satélites LEO en red listados y transmitiendo con latencia < 20ms.");
+      
+      renderLoop();
+    };
+  </script>
+
+</body>
+</html>
