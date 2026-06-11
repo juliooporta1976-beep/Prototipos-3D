@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PERFECT CALL - Prototipo 3D</title>
+    <style>
+        /* ESTÉTICA: Stealth Táctico, Azul Neón, Negro Titanio, Acentos Ámbar (Blockchain) */
+        :root {
+            --titanium-black: #050505;
+            --neon-blue: #00f3ff;
+            --alert-red: #ff003c;
+            --amber-gold: #ffb700;
+            --emerald-green: #00ffaa;
+            --glass-bg: rgba(5, 5, 5, 0.75);
+            --font-tactical: 'Courier New', Courier, monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+
+        body, html {
+            width: 100%; height: 100%;
+            background-color: var(--titanium-black);
+            color: var(--neon-blue);
+            font-family: var(--font-tactical);
+            overflow: hidden;
+        }
+
+        /* Capa de video Realidad Aumentada */
+        #ar-video {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; z-index: -2; display: none;
+        }
+
+        /* Scanlines / Biomimética */
+        .scanlines {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.4) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 4px, 3px 100%;
+            z-index: -1; pointer-events: none;
+        }
+
+        /* Viñeta Cinematográfica */
+        .vignette {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 40%, #000000 130%);
+            z-index: 1; pointer-events: none;
+        }
+
+        /* Canvas del Motor 3D */
+        #renderCanvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 2; cursor: crosshair;
+        }
+
+        /* HUD OVERLAYS AVANZADOS */
+        .hud-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 3; pointer-events: none; padding: 15px;
+            display: grid;
+            grid-template-areas: 
+                "header header header"
+                "left center right"
+                "bottom_left bottom_center bottom_right"
+                "footer footer footer";
+            grid-template-rows: auto 1fr auto auto;
+            grid-template-columns: 280px 1fr 280px;
+            gap: 10px;
+        }
+
+        .header { grid-area: header; display: flex; justify-content: space-between; align-items: flex-start; }
+        
+        .author-box {
+            border-left: 3px solid var(--neon-blue); padding-left: 10px;
+            background: var(--glass-bg); backdrop-filter: blur(5px);
+            border-bottom: 1px solid rgba(0, 243, 255, 0.2);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .author-name { font-size: 1.2rem; font-weight: bold; text-transform: uppercase; text-shadow: 0 0 8px var(--neon-blue); }
+        .project-title { font-size: 0.85rem; opacity: 0.9; margin-top: 2px; }
+
+        .controls { pointer-events: auto; display: flex; gap: 5px; }
+
+        .btn {
+            background: rgba(10, 10, 10, 0.8); border: 1px solid var(--neon-blue);
+            color: var(--neon-blue); padding: 6px 10px; font-family: var(--font-tactical);
+            font-size: 0.75rem; cursor: pointer; text-transform: uppercase;
+            transition: all 0.2s; box-shadow: 0 0 5px rgba(0, 243, 255, 0.1) inset;
+        }
+        .btn:hover, .btn.active { background: var(--neon-blue); color: var(--titanium-black); box-shadow: 0 0 10px var(--neon-blue); }
+        .btn-lang.active { background: var(--amber-gold); border-color: var(--amber-gold); color: #000; box-shadow: 0 0 10px var(--amber-gold); }
+
+        /* Paneles Laterales Dinámicos */
+        .panel { 
+            background: var(--glass-bg); border: 1px solid rgba(0, 243, 255, 0.3); 
+            padding: 12px; backdrop-filter: blur(5px); font-size: 0.7rem; 
+            line-height: 1.5; display: flex; flex-direction: column; gap: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); pointer-events: auto;
+        }
+        .hud-left { grid-area: left; border-left: 2px solid var(--neon-blue); align-self: flex-start; }
+        .hud-right { grid-area: right; border-right: 2px solid var(--neon-blue); align-self: flex-start; text-align: right; }
+        
+        /* NUEVO HUD: Target Lock */
+        .hud-target { 
+            grid-area: bottom_left; border-left: 2px solid var(--alert-red); 
+            border-bottom: 2px solid var(--alert-red); align-self: flex-end;
+            display: none; /* Se activa con interacciones */
+        }
+        
+        .panel-title { color: #fff; font-weight: bold; border-bottom: 1px dotted var(--neon-blue); padding-bottom: 4px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }
+        .panel-title.alert { border-bottom-color: var(--alert-red); color: var(--alert-red); }
+        .data-row { display: flex; justify-content: space-between; }
+        .data-label { opacity: 0.8; }
+        .data-value { color: #fff; text-shadow: 0 0 5px var(--neon-blue); text-align: right; }
+        .data-value.amber { color: var(--amber-gold); text-shadow: 0 0 5px var(--amber-gold); }
+        .data-value.green { color: var(--emerald-green); text-shadow: 0 0 5px var(--emerald-green); }
+        .data-value.red { color: var(--alert-red); text-shadow: 0 0 5px var(--alert-red); }
+
+        /* Ticker Central */
+        .ticker-container {
+            grid-area: bottom_center; align-self: flex-end; justify-self: center;
+            background: rgba(0,0,0,0.8); border: 1px solid var(--emerald-green);
+            padding: 5px 15px; font-size: 0.75rem; color: var(--emerald-green);
+            width: 80%; text-align: center; border-radius: 20px;
+            box-shadow: 0 0 10px rgba(0, 255, 170, 0.2);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        .footer { grid-area: footer; display: flex; justify-content: space-between; align-items: flex-end; }
+
+        .telemetry { font-size: 0.7rem; line-height: 1.4; background: var(--glass-bg); padding: 8px; border-left: 2px solid var(--amber-gold); }
+
+        .simulation-modes { pointer-events: auto; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; max-width: 65%; }
+        .btn-mode { flex: 1 1 calc(25% - 6px); min-width: 100px; text-align: center; font-size: 0.65rem; }
+
+        .ar-btn { border-color: var(--emerald-green); color: var(--emerald-green); }
+        .ar-btn:hover, .ar-btn.active { background: var(--emerald-green); color: var(--titanium-black); box-shadow: 0 0 15px var(--emerald-green); }
+
+        /* Retícula Central */
+        .reticle {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 50px; height: 50px; border: 1px solid rgba(0, 243, 255, 0.3);
+            border-radius: 50%; pointer-events: none; z-index: 4;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .reticle::before { content: ''; width: 2px; height: 10px; background: rgba(0,243,255,0.5); position: absolute; top: -5px; }
+        .reticle::after { content: ''; width: 2px; height: 10px; background: rgba(0,243,255,0.5); position: absolute; bottom: -5px; }
+        .reticle-h::before { content: ''; width: 10px; height: 2px; background: rgba(0,243,255,0.5); position: absolute; left: -5px; top: 24px;}
+        .reticle-h::after { content: ''; width: 10px; height: 2px; background: rgba(0,243,255,0.5); position: absolute; right: -5px; top: 24px;}
+        .reticle-center { width: 4px; height: 4px; background: var(--alert-red); border-radius: 50%; box-shadow: 0 0 10px var(--alert-red); }
+
+        /* Tooltip de Interacción al Hover */
+        #interaction-tooltip {
+            position: absolute; background: rgba(0,0,0,0.9); border: 1px solid var(--amber-gold);
+            color: var(--amber-gold); padding: 6px 12px; font-size: 0.65rem; pointer-events: none;
+            display: none; z-index: 5; box-shadow: 0 0 10px rgba(255, 183, 0, 0.4);
+            transform: translate(20px, -20px); border-radius: 4px;
+        }
+
+        @media (max-width: 900px) {
+            .hud-container { 
+                grid-template-areas: "header header header" "left center right" "bottom_left bottom_left bottom_left" "footer footer footer"; 
+                grid-template-columns: 1fr;
+            }
+            .hud-left, .hud-right, .ticker-container { display: none; }
+            .hud-target { grid-area: bottom_left; width: 100%; margin-bottom: 10px; }
+            .simulation-modes { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <video id="ar-video" autoplay playsinline></video>
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+    
+    <canvas id="renderCanvas"></canvas>
+    
+    <div class="reticle"><div class="reticle-h"></div><div class="reticle-center"></div></div>
+    <div id="interaction-tooltip">DATA</div>
+
+    <div class="hud-container">
+        <!-- HEADER -->
+        <div class="header">
+            <div class="author-box">
+                <div class="author-name" id="t-author">Dr. Julio César Oporta Barrera</div>
+                <div class="project-title" id="t-title">PERFECT CALL: Verdad del Juego</div>
+            </div>
+            <div class="controls">
+                <button class="btn btn-lang active" id="btn-es" onclick="changeLang('es')">ES</button>
+                <button class="btn btn-lang" id="btn-en" onclick="changeLang('en')">EN</button>
+                <button class="btn btn-lang" id="btn-zh" onclick="changeLang('zh')">ZH</button>
+                <button class="btn ar-btn" id="btn-ar" onclick="toggleAR()">[ AR MODE ]</button>
+            </div>
+        </div>
+
+        <!-- LEFT PANEL -->
+        <div class="panel hud-left">
+            <div class="panel-title" id="p-tech-title">NÚCLEO TECNOLÓGICO</div>
+            <div class="data-row"><span class="data-label" id="l-ai">Algoritmos IA:</span> <span class="data-value" id="val-ai">100%</span></div>
+            <div class="data-row"><span class="data-label" id="l-cross">Validación Cruzada:</span> <span class="data-value" id="v-active">ACTIVA</span></div>
+            <div class="data-row"><span class="data-label" id="l-neuro">Predicción Neuro:</span> <span class="data-value" id="val-neuro">MONITOR</span></div>
+            <br>
+            <div class="panel-title" id="p-quant-title">CAPTURA CUÁNTICA</div>
+            <div class="data-row"><span class="data-label" id="l-res">Resolución:</span> <span class="data-value">10^-15s</span></div>
+            <div class="data-row"><span class="data-label" id="l-mol">Posición Molecular:</span> <span class="data-value" id="v-sync">SYNC</span></div>
+        </div>
+
+        <!-- RIGHT PANEL -->
+        <div class="panel hud-right">
+            <div class="panel-title" id="p-imp-title">IMPACTO Y VALOR</div>
+            <div class="data-row"><span class="data-label" id="l-dec">Decisión Perfecta:</span> <span class="data-value green" id="v-verif">VERIFICADA</span></div>
+            <div class="data-row"><span class="data-label" id="l-cert">Certificación Legal:</span> <span class="data-value amber" id="val-hash">0x00...</span></div>
+            <div class="data-row"><span class="data-label" id="l-reg">Registro Eterno:</span> <span class="data-value amber">BLOCKCHAIN</span></div>
+            <br>
+            <div class="panel-title" id="p-prev-title">PREVENCIÓN LESIONES</div>
+            <div class="data-row"><span class="data-label" id="l-bio">Biometría Muscular:</span> <span class="data-value" id="v-nom">NOMINAL</span></div>
+            <div class="data-row"><span class="data-label" id="l-risk">Riesgo Físico:</span> <span class="data-value green" id="val-risk">BAJO (1.2%)</span></div>
+        </div>
+
+        <!-- TARGET LOCK PANEL (Interaction) -->
+        <div class="panel hud-target" id="panel-target">
+            <div class="panel-title alert" id="p-target-title">ANÁLISIS AISLADO</div>
+            <div class="data-row"><span class="data-label">ID Nodo:</span> <span class="data-value" id="t-node-id">---</span></div>
+            <div class="data-row"><span class="data-label">Coord (X,Y,Z):</span> <span class="data-value" id="t-node-coord">0, 0, 0</span></div>
+            <div class="data-row"><span class="data-label" id="l-state">Estado:</span> <span class="data-value amber" id="t-node-data">---</span></div>
+        </div>
+
+        <!-- TICKER -->
+        <div class="ticker-container" id="ticker-text">...</div>
+
+        <!-- FOOTER / MODES -->
+        <div class="footer">
+            <div class="telemetry">
+                <div id="t-status">ESTADO: OPERATIVO</div>
+                <div>SYS_TICK: <span id="sys-tick" class="amber">0000</span></div>
+                <div>HOVER: <span id="sys-int" class="green">ESPERANDO</span></div>
+            </div>
+            
+            <div class="simulation-modes">
+                <button class="btn btn-mode active" id="btn-m1" onclick="setMode(1, this)">Núcleo Cuántico</button>
+                <button class="btn btn-mode" id="btn-m2" onclick="setMode(2, this)">Interfaz AR</button>
+                <button class="btn btn-mode" id="btn-m3" onclick="setMode(3, this)">Biomecánica</button>
+                <button class="btn btn-mode" id="btn-m4" onclick="setMode(4, this)">Enjambre IA</button>
+                <button class="btn btn-mode" id="btn-m5" onclick="setMode(5, this)" style="border-color: var(--amber-gold); color: var(--amber-gold);">Blockchain</button>
+                <!-- Nuevos Módulos -->
+                <button class="btn btn-mode" id="btn-m6" onclick="setMode(6, this)" style="border-color: var(--alert-red); color: var(--alert-red);">Topología Predictiva</button>
+                <button class="btn btn-mode" id="btn-m7" onclick="setMode(7, this)">Universalidad</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * MULTILENGUAJE PROFUNDO Y DICCIONARIO
+         */
+        const i18n = {
+            es: {
+                author: "Dr. Julio César Oporta Barrera", title: "PERFECT CALL: La Verdad del Juego, Visible para Todos",
+                ar_btn: "[ MODO AR ]", ar_active: "[ AR ACTIVO ]", ar_error: "Permiso denegado por el navegador local.",
+                status: "ESTADO: OPERATIVO", hover_wait: "ESPERANDO",
+                panels: { p_tech: "NÚCLEO TECNOLÓGICO", p_quant: "CAPTURA CUÁNTICA", p_imp: "IMPACTO Y VALOR", p_prev: "PREVENCIÓN LESIONES", p_target: "ANÁLISIS AISLADO" },
+                labels: { ai: "Algoritmos IA:", cross: "Validación Cruzada:", neuro: "Predicción Neuro:", res: "Resolución:", mol: "Posición Molecular:", dec: "Decisión Perfecta:", cert: "Certificación Legal:", reg: "Registro Eterno:", bio: "Biometría Muscular:", risk: "Riesgo Físico:", state: "Estado:" },
+                values: { active: "ACTIVA", monitor: "MONITOR", sync: "SYNC", verif: "VERIFICADA", nom: "NOMINAL", calc: "CALCULANDO..." },
+                modes: ["Núcleo Cuántico", "Interfaz AR", "Biomecánica", "Enjambre IA", "Blockchain", "Topología Predictiva", "Universalidad"],
+                ticker: ["Sincronizando malla cuántica...", "Generando hash criptográfico de la decisión...", "Verificación cruzada completada exitosamente.", "La Verdad Compartida ha sido registrada en el bloque.", "Escaneando biometría para prevención de lesiones...", "Analizando zona de strike universal..."],
+                nodeData: { qnode: "Latencia", head: "Cognición", neck: "Tensión", joint: "Articulación", impact: "Impacto", sensor: "Sensor", force: "Fuerza", pressure: "Presión", ai_dist: "Cálculo Distribuido", block: "Data Sellada", pred: "Vector Probable", clash: "PUNTO DE CHOQUE", uni: "Geometría Activa" }
+            },
+            en: {
+                author: "Dr. Julio César Oporta Barrera", title: "PERFECT CALL: The Truth of the Game, Visible to All",
+                ar_btn: "[ AR MODE ]", ar_active: "[ AR ACTIVE ]", ar_error: "Permission denied by local browser.",
+                status: "STATUS: OPERATIONAL", hover_wait: "WAITING",
+                panels: { p_tech: "TECHNOLOGICAL CORE", p_quant: "QUANTUM CAPTURE", p_imp: "IMPACT & VALUE", p_prev: "INJURY PREVENTION", p_target: "ISOLATED ANALYSIS" },
+                labels: { ai: "AI Algorithms:", cross: "Cross Validation:", neuro: "Neuro Prediction:", res: "Resolution:", mol: "Molecular Position:", dec: "Perfect Decision:", cert: "Legal Certification:", reg: "Eternal Record:", bio: "Muscle Biometrics:", risk: "Physical Risk:", state: "Status:" },
+                values: { active: "ACTIVE", monitor: "MONITOR", sync: "SYNC", verif: "VERIFIED", nom: "NOMINAL", calc: "CALCULATING..." },
+                modes: ["Quantum Core", "AR Interface", "Biomechanics", "Swarm AI", "Blockchain", "Predictive Topology", "Universality"],
+                ticker: ["Synchronizing quantum mesh...", "Generating cryptographic hash of the decision...", "Cross verification completed successfully.", "The Shared Truth has been registered in the block.", "Scanning biometrics for injury prevention...", "Analyzing universal strike zone..."],
+                nodeData: { qnode: "Latency", head: "Cognition", neck: "Tension", joint: "Joint", impact: "Impact", sensor: "Sensor", force: "Force", pressure: "Pressure", ai_dist: "Distributed Calc", block: "Sealed Data", pred: "Probable Vector", clash: "CLASH POINT", uni: "Active Geometry" }
+            },
+            zh: {
+                author: "Julio César Oporta Barrera 博士", title: "PERFECT CALL: 游戏的真相，所有人可见",
+                ar_btn: "[ 增强现实 ]", ar_active: "[ AR 激活 ]", ar_error: "本地浏览器拒绝访问。",
+                status: "状态: 运行中", hover_wait: "等待中",
+                panels: { p_tech: "技术核心", p_quant: "量子捕获", p_imp: "影响与价值", p_prev: "伤害预防", p_target: "独立分析" },
+                labels: { ai: "人工智能算法:", cross: "交叉验证:", neuro: "神经预测:", res: "分辨率:", mol: "分子位置:", dec: "完美决策:", cert: "合法认证:", reg: "永久记录:", bio: "肌肉生物识别:", risk: "物理风险:", state: "状态:" },
+                values: { active: "活跃", monitor: "监控", sync: "同步", verif: "已验证", nom: "正常", calc: "计算中..." },
+                modes: ["量子核心", "AR 界面", "生物力学", "蜂群 AI", "区块链", "预测拓扑", "通用性"],
+                ticker: ["同步量子网格...", "生成决策的加密哈希...", "交叉验证成功完成。", "共享真相已注册在区块中。", "扫描生物识别以预防伤害...", "分析通用好球带..."],
+                nodeData: { qnode: "延迟", head: "认知", neck: "紧张", joint: "关节", impact: "冲击", sensor: "传感器", force: "力量", pressure: "压力", ai_dist: "分布式计算", block: "密封数据", pred: "可能向量", clash: "碰撞点", uni: "活动几何" }
+            }
+        };
+
+        let currentLang = 'es';
+
+        function changeLang(lang) {
+            currentLang = lang;
+            const d = i18n[lang];
+            
+            // Botones de Idioma
+            document.querySelectorAll('.btn-lang').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-${lang}`).classList.add('active');
+
+            // Textos Generales
+            document.getElementById('t-author').innerText = d.author;
+            document.getElementById('t-title').innerText = d.title;
+            document.getElementById('btn-ar').innerText = arActive ? d.ar_active : d.ar_btn;
+            document.getElementById('t-status').innerText = d.status;
+            if(document.getElementById('sys-int').innerText === i18n['es'].hover_wait || document.getElementById('sys-int').innerText === i18n['en'].hover_wait || document.getElementById('sys-int').innerText === i18n['zh'].hover_wait) {
+                document.getElementById('sys-int').innerText = d.hover_wait;
+            }
+
+            // Paneles Titles
+            document.getElementById('p-tech-title').innerText = d.panels.p_tech;
+            document.getElementById('p-quant-title').innerText = d.panels.p_quant;
+            document.getElementById('p-imp-title').innerText = d.panels.p_imp;
+            document.getElementById('p-prev-title').innerText = d.panels.p_prev;
+            document.getElementById('p-target-title').innerText = d.panels.p_target;
+
+            // Labels
+            document.getElementById('l-ai').innerText = d.labels.ai;
+            document.getElementById('l-cross').innerText = d.labels.cross;
+            document.getElementById('l-neuro').innerText = d.labels.neuro;
+            document.getElementById('l-res').innerText = d.labels.res;
+            document.getElementById('l-mol').innerText = d.labels.mol;
+            document.getElementById('l-dec').innerText = d.labels.dec;
+            document.getElementById('l-cert').innerText = d.labels.cert;
+            document.getElementById('l-reg').innerText = d.labels.reg;
+            document.getElementById('l-bio').innerText = d.labels.bio;
+            document.getElementById('l-risk').innerText = d.labels.risk;
+            document.getElementById('l-state').innerText = d.labels.state;
+
+            // Valores Estáticos
+            document.getElementById('v-active').innerText = d.values.active;
+            document.getElementById('v-sync').innerText = d.values.sync;
+            document.getElementById('v-verif').innerText = d.values.verif;
+            document.getElementById('v-nom').innerText = d.values.nom;
+
+            // Modos Botones
+            for(let i=1; i<=7; i++) document.getElementById(`btn-m${i}`).innerText = d.modes[i-1];
+
+            // Re-render tooltips y panel objetivo si hay selección
+            if (targetNode) updateTargetHUD(targetNode);
+        }
+
+        // Ticker Lógica
+        let tickerIndex = 0;
+        setInterval(() => {
+            const arr = i18n[currentLang].ticker;
+            document.getElementById('ticker-text').innerText = "> " + arr[tickerIndex];
+            tickerIndex = (tickerIndex + 1) % arr.length;
+        }, 3000);
+
+
+        /**
+         * MOTOR 3D MATEMÁTICO PURO (V3.0 - Eventos, Modos Nuevos, Ondas)
+         */
+        const canvas = document.getElementById('renderCanvas');
+        const ctx = canvas.getContext('2d');
+        const tooltip = document.getElementById('interaction-tooltip');
+        
+        let width, height, cx, cy;
+        let focalLength = 700;
+        let angleX = 0.3, angleY = 0.5;
+        let targetAngleX = 0.3, targetAngleY = 0.5;
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let mousePos = { x: 0, y: 0 };
+        let currentMode = 1; 
+        let tick = 0;
+        let arActive = false;
+
+        function resize() {
+            width = window.innerWidth; height = window.innerHeight;
+            canvas.width = width; canvas.height = height;
+            cx = width / 2; cy = height / 2;
+        }
+        window.addEventListener('resize', resize); resize();
+
+        // Estructura de Datos Mejorada
+        class Point3D {
+            constructor(x, y, z, id = "", typeKey = "", extraVal = "") {
+                this.x = x; this.y = y; this.z = z;
+                this.ox = x; this.oy = y; this.oz = z; 
+                this.id = id; 
+                this.typeKey = typeKey; // Clave para el diccionario nodeData
+                this.extraVal = extraVal; // Valor numérico o extra
+                this.proj = {x:0, y:0, scale:0, z:0};
+            }
+            // Obtener texto traducido
+            getDataText() {
+                let base = i18n[currentLang].nodeData[this.typeKey] || "Data";
+                return base + (this.extraVal ? `: ${this.extraVal}` : "");
+            }
+        }
+
+        // --- MODELOS GEOMÉTRICOS ---
+
+        // 1. Rejilla
+        const gridLines = [];
+        for (let i = -1000; i <= 1000; i += 1000/10) {
+            gridLines.push([new Point3D(i, 200, -1000), new Point3D(i, 200, 1000)]);
+            gridLines.push([new Point3D(-1000, 200, i), new Point3D(1000, 200, i)]);
+        }
+
+        // 2. Quantum Engine (Modo 1)
+        const corePoints = []; const coreEdges = [];
+        const t = (1.0 + Math.sqrt(5.0)) / 2.0; const s = 120; 
+        const icoV = [[-1,t,0],[1,t,0],[-1,-t,0],[1,-t,0],[0,-1,t],[0,1,t],[0,-1,-t],[0,1,-t],[t,0,-1],[t,0,1],[-t,0,-1],[-t,0,1]];
+        icoV.forEach((v, i) => corePoints.push(new Point3D(v[0]*s, v[1]*s, v[2]*s, `Q_${i}`, "qnode", `0.00${i}ms`)));
+        const faces = [[0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],[1,5,9],[5,11,4],[11,10,2],[10,7,6],[7,1,8],[3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],[4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1]];
+        faces.forEach(f => { coreEdges.push([f[0], f[1]], [f[1], f[2]], [f[2], f[0]]); });
+
+        // 3. Biomecánica (Modo 3)
+        const bioPoints = []; const bioEdges = [];
+        const bVerts = [
+            [0,-150,0,"H_01","head","98%"], [0,-120,0,"N_01","neck","OK"],
+            [-40,-120,0,"J_L1","joint","OK"], [40,-120,0,"J_R1","joint","OK"],
+            [-60,-60,20,"E_L1","impact","0G"], [60,-60,-20,"E_R1","impact","0G"],
+            [-50,-10,40,"S_L1","sensor","ON"], [50,-10,-40,"S_R1","sensor","ON"],
+            [0,-40,0,"P_01","force","C"], [-30,-40,0,"H_L1","force","N"], [30,-40,0,"H_R1","force","N"],
+            [-30,40,30,"K_L1","joint","WARN"], [30,40,-30,"K_R1","joint","OK"],
+            [-30,120,50,"F_L1","pressure","85kg"], [30,120,-50,"F_R1","pressure","120kg"]
+        ];
+        bVerts.forEach(v => bioPoints.push(new Point3D(v[0]*1.8, v[1]*1.8, v[2]*1.8, v[3], v[4], v[5])));
+        const bConns = [[0,1],[1,2],[1,3],[2,4],[4,6],[3,5],[5,7],[1,8],[8,9],[8,10],[9,11],[11,13],[10,12],[12,14]];
+        bConns.forEach(c => bioEdges.push([c[0], c[1]]));
+
+        // 4. Enjambre IA (Modo 4)
+        const swarmNodes = [];
+        for(let i=0; i<150; i++) {
+            let th = Math.random() * Math.PI * 2, ph = Math.acos((Math.random() * 2) - 1), r = 250 + Math.random() * 150;
+            swarmNodes.push({
+                p: new Point3D(r*Math.sin(ph)*Math.cos(th), r*Math.sin(ph)*Math.sin(th), r*Math.cos(ph), `IA_${i}`, "ai_dist", Math.random().toString(16).substring(2,6)),
+                spd: 0.01 + Math.random() * 0.02, ang: th, orb: r
+            });
+        }
+
+        // 5. Blockchain (Modo 5)
+        const blockPoints = []; const blockEdges = []; const nb = 6, bs = 40;
+        for(let i=0; i<nb; i++) {
+            let xO = (i - nb/2) * 150, pS = blockPoints.length;
+            let v = [[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]];
+            v.forEach((vo, j) => blockPoints.push(new Point3D(xO+vo[0]*bs, vo[1]*bs, vo[2]*bs, `B${i}_V${j}`, "block", `TS:${i*10}`)));
+            let be = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+            be.forEach(e => blockEdges.push([pS+e[0], pS+e[1]]));
+            if(i > 0) blockEdges.push([pS-7, pS]); 
+        }
+
+        // 6. Topología Predictiva (NUEVO MÓDULO)
+        const predPoints = [];
+        // Dos trayectorias curviadas que colisionan
+        for(let i=0; i<=20; i++) {
+            let t = i/20;
+            // Curva 1
+            predPoints.push(new Point3D(-300 + 300*t, 50 - 100*Math.sin(t*Math.PI), -200 + 200*t, `P1_${i}`, "pred", `t=${t.toFixed(2)}`));
+            // Curva 2
+            predPoints.push(new Point3D(300 - 300*t, 50 - 100*Math.sin(t*Math.PI), -200 + 200*t, `P2_${i}`, "pred", `t=${t.toFixed(2)}`));
+        }
+        // Punto de Choque
+        predPoints.push(new Point3D(0, 50, 0, "CLASH_01", "clash", "100% PROB"));
+
+        // 7. Universalidad (NUEVO MÓDULO - Toroide que muta)
+        const uniPoints = [];
+        for(let i=0; i<30; i++) {
+            for(let j=0; j<10; j++) {
+                let u = (i/30) * Math.PI * 2; let v = (j/10) * Math.PI * 2;
+                // Ecuación de toroide
+                let R = 150, r = 40;
+                let x = (R + r * Math.cos(v)) * Math.cos(u);
+                let y = (R + r * Math.cos(v)) * Math.sin(u);
+                let z = r * Math.sin(v);
+                uniPoints.push(new Point3D(x, y, z, `U_${i}_${j}`, "uni", `Coord(${u.toFixed(1)},${v.toFixed(1)})`));
+            }
+        }
+
+        // --- MATEMÁTICAS ---
+        function rotateX(p, a) { return { x: p.x, y: p.y * Math.cos(a) - p.z * Math.sin(a), z: p.y * Math.sin(a) + p.z * Math.cos(a) }; }
+        function rotateY(p, a) { return { x: p.x * Math.cos(a) + p.z * Math.sin(a), y: p.y, z: -p.x * Math.sin(a) + p.z * Math.cos(a) }; }
+        function project(pt) {
+            let p1 = rotateX(pt, angleX); let p2 = rotateY(p1, angleY);
+            let z = p2.z + focalLength; if (z <= 0) z = 1; let f = focalLength / z;
+            pt.proj = { x: cx + p2.x * f, y: cy + p2.y * f, scale: f, z: p2.z };
+            return pt.proj;
+        }
+
+        function drawLine(p1, p2, col, blur, w, dash = []) {
+            if(p1.z < -focalLength+50 || p2.z < -focalLength+50) return;
+            ctx.beginPath(); ctx.setLineDash(dash);
+            ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+            ctx.strokeStyle = col; ctx.lineWidth = w * ((p1.scale + p2.scale)/2);
+            ctx.shadowBlur = blur; ctx.shadowColor = col; ctx.stroke(); ctx.setLineDash([]);
+        }
+
+        function drawPoint(pt, col, blur, s) {
+            let p = pt.proj; if(p.z < -focalLength+50) return;
+            ctx.beginPath(); ctx.arc(p.x, p.y, s * p.scale, 0, Math.PI*2);
+            ctx.fillStyle = col; ctx.shadowBlur = blur; ctx.shadowColor = col; ctx.fill();
+        }
+
+        // --- INTERACCIONES Y EVENTOS ---
+        let interactivePoints = [];
+        let hoveredNode = null;
+        let targetNode = null;
+        let shockwaves = []; // {pt, radius, color}
+
+        function updateTargetHUD(node) {
+            const pTarget = document.getElementById('panel-target');
+            pTarget.style.display = 'flex';
+            document.getElementById('t-node-id').innerText = node.id;
+            document.getElementById('t-node-coord').innerText = `${Math.round(node.x)}, ${Math.round(node.y)}, ${Math.round(node.z)}`;
+            document.getElementById('t-node-data').innerText = node.getDataText();
+        }
+
+        // Detección 2.5D
+        function checkInteractions() {
+            hoveredNode = null; let minDist = Infinity;
+            for(let pt of interactivePoints) {
+                if(pt.proj.z < -focalLength+50) continue;
+                let dist = Math.hypot(mousePos.x - pt.proj.x, mousePos.y - pt.proj.y);
+                if(dist < (20 * pt.proj.scale) && dist < minDist) { minDist = dist; hoveredNode = pt; }
+            }
+
+            if(hoveredNode) {
+                document.body.style.cursor = 'crosshair';
+                tooltip.style.display = 'block'; tooltip.style.left = (mousePos.x + 15) + 'px'; tooltip.style.top = (mousePos.y - 15) + 'px';
+                tooltip.innerHTML = `<strong>[${hoveredNode.id}]</strong><br>${hoveredNode.getDataText()}`;
+                document.getElementById('sys-int').innerText = hoveredNode.id;
+                document.getElementById('sys-int').style.color = 'var(--emerald-green)';
+            } else {
+                document.body.style.cursor = 'default'; tooltip.style.display = 'none';
+                document.getElementById('sys-int').innerText = i18n[currentLang].hover_wait;
+                document.getElementById('sys-int').style.color = 'var(--amber-gold)';
+            }
+        }
+
+        // Eventos Clic para Target Lock y Shockwave
+        function handleTap() {
+            if(hoveredNode) {
+                targetNode = hoveredNode;
+                updateTargetHUD(targetNode);
+                // Activar Onda espacial
+                let waveColor = currentMode === 6 ? 'var(--alert-red)' : 'var(--neon-blue)';
+                shockwaves.push({ p: new Point3D(hoveredNode.x, hoveredNode.y, hoveredNode.z), r: 0, c: waveColor });
+            }
+        }
+        canvas.addEventListener('click', handleTap);
+        canvas.addEventListener('touchend', (e) => { if(!isDragging) handleTap(); isDragging = false; });
+
+        // --- RENDER LOOP ---
+        function render() {
+            if(arActive) ctx.clearRect(0,0,width,height); 
+            else { ctx.fillStyle = 'rgba(5, 5, 5, 0.25)'; ctx.fillRect(0,0,width,height); }
+
+            ctx.globalCompositeOperation = 'lighter';
+            angleX += (targetAngleX - angleX) * 0.1; angleY += (targetAngleY - angleY) * 0.1;
+            interactivePoints = [];
+
+            // 1. Rejilla
+            gridLines.forEach(l => { drawLine(project(l[0]), project(l[1]), 'rgba(0, 243, 255, 0.05)', 0, 1); });
+
+            // MODO 1: Quantum Engine
+            if (currentMode === 1) {
+                let sP = 1 + Math.sin(tick*0.05)*0.1;
+                corePoints.forEach(pt => {
+                    let rp = rotateY(rotateX(new Point3D(pt.x*sP, pt.y*sP, pt.z*sP, pt.id, pt.typeKey, pt.extraVal), tick*0.02), tick*0.03);
+                    project(rp); pt.proj = rp.proj; pt.x=rp.x; pt.y=rp.y; pt.z=rp.z; // sync for shockwave
+                    interactivePoints.push(pt); drawPoint(pt, '#fff', 20, 4);
+                });
+                coreEdges.forEach(e => drawLine(corePoints[e[0]].proj, corePoints[e[1]].proj, 'var(--neon-blue)', 15, 1.5));
+            }
+
+            // MODO 2: Interfaz AR (Cancha)
+            if (currentMode === 2) {
+                let sZ = Math.sin(tick*0.02) * 400;
+                drawLine(project(new Point3D(-400,150,sZ)), project(new Point3D(400,150,sZ)), 'var(--alert-red)', 20, 3, [10,10]);
+                drawLine(project(new Point3D(100,150,sZ-50)), project(new Point3D(100,-50,sZ-50)), 'var(--neon-blue)', 10, 8);
+            }
+
+            // MODO 3: Biomecánica
+            if (currentMode === 3) {
+                let r = tick * 0.15;
+                bioPoints[11].z = bioPoints[11].oz + Math.sin(r)*50; bioPoints[13].z = bioPoints[13].oz + Math.sin(r)*70; bioPoints[13].y = bioPoints[13].oy - Math.abs(Math.cos(r))*40;
+                bioPoints[12].z = bioPoints[12].oz + Math.sin(r+Math.PI)*50; bioPoints[14].z = bioPoints[14].oz + Math.sin(r+Math.PI)*70; bioPoints[14].y = bioPoints[14].oy - Math.abs(Math.cos(r+Math.PI))*40;
+                bioPoints[6].z = bioPoints[6].oz + Math.sin(r+Math.PI)*40; bioPoints[7].z = bioPoints[7].oz + Math.sin(r)*40;
+
+                bioPoints.forEach(pt => { project(pt); interactivePoints.push(pt); drawPoint(pt, pt.id.includes("L1")?"var(--alert-red)":"#fff", 15, 4); });
+                bioEdges.forEach(e => drawLine(bioPoints[e[0]].proj, bioPoints[e[1]].proj, 'var(--emerald-green)', 10, 2));
+            }
+
+            // MODO 4: Enjambre
+            if (currentMode === 4) {
+                swarmNodes.forEach(n => {
+                    n.ang += n.spd * 2; n.p.x = Math.sin(n.ang)*n.orb; n.p.z = Math.cos(n.ang)*n.orb; n.p.y += Math.sin(tick*0.05+n.orb)*3;
+                    project(n.p); interactivePoints.push(n.p); drawPoint(n.p, 'var(--neon-blue)', 15, 3);
+                    if(Math.random()>0.985) drawLine(n.p.proj, swarmNodes[Math.floor(Math.random()*swarmNodes.length)].p.proj, 'rgba(0, 243, 255, 0.4)', 5, 1);
+                });
+            }
+
+            // MODO 5: Blockchain
+            if (currentMode === 5) {
+                blockPoints.forEach(pt => { let rp = rotateX(pt, tick*0.01); pt.proj = project(rp); pt.x=rp.x; pt.y=rp.y; pt.z=rp.z; interactivePoints.push(pt); drawPoint(pt, 'var(--amber-gold)', 20, 3); });
+                blockEdges.forEach(e => drawLine(blockPoints[e[0]].proj, blockPoints[e[1]].proj, 'rgba(255, 183, 0, 0.6)', 10, 2));
+            }
+
+            // MODO 6: Topología Predictiva
+            if (currentMode === 6) {
+                predPoints.forEach((pt, i) => { 
+                    project(pt); interactivePoints.push(pt); 
+                    drawPoint(pt, pt.typeKey==="clash" ? 'var(--alert-red)' : 'var(--emerald-green)', 15, pt.typeKey==="clash"? 6 : 2); 
+                    if(i>0 && pt.typeKey !== "clash" && predPoints[i-1].typeKey !== "clash") {
+                        if(i !== 21) drawLine(predPoints[i-1].proj, pt.proj, 'var(--neon-blue)', 5, 1.5);
+                    }
+                });
+                // Halo de Choque latente
+                let clashP = predPoints[predPoints.length-1].proj;
+                if(clashP.z > -focalLength) {
+                    ctx.beginPath(); ctx.arc(clashP.x, clashP.y, (20 + Math.sin(tick*0.2)*10)*clashP.scale, 0, Math.PI*2);
+                    ctx.strokeStyle = 'var(--alert-red)'; ctx.stroke();
+                }
+            }
+
+            // MODO 7: Universalidad
+            if (currentMode === 7) {
+                // Rotar el toroide entero para mostrar universalidad
+                uniPoints.forEach(pt => {
+                    let rp = rotateY(rotateX(pt, tick*0.01), tick*0.02);
+                    project(rp); pt.x=rp.x; pt.y=rp.y; pt.z=rp.z; pt.proj = rp.proj;
+                    interactivePoints.push(pt);
+                    drawPoint(pt, 'rgba(0, 243, 255, 0.6)', 5, 1.5);
+                });
+                // Simular un proyectil cruzando
+                let bx = Math.sin(tick*0.05)*300, by = Math.cos(tick*0.05)*100, bz = 0;
+                let bPt = new Point3D(bx, by, bz);
+                let bp = project(bPt);
+                ctx.beginPath(); ctx.arc(bp.x, bp.y, 8*bp.scale, 0, Math.PI*2); ctx.fillStyle='#fff'; ctx.shadowColor='#fff'; ctx.shadowBlur=20; ctx.fill();
+            }
+
+            // Renderizar Shockwaves (Efecto espacial)
+            for(let i = shockwaves.length-1; i>=0; i--) {
+                let sw = shockwaves[i];
+                sw.r += 8; // expandir
+                let p = project(sw.p);
+                if(p.z > -focalLength) {
+                    ctx.beginPath(); ctx.arc(p.x, p.y, sw.r * p.scale, 0, Math.PI*2);
+                    ctx.strokeStyle = sw.c; ctx.lineWidth = 2 * p.scale;
+                    ctx.globalAlpha = Math.max(0, 1 - (sw.r / 300));
+                    ctx.stroke(); ctx.globalAlpha = 1;
+                }
+                if(sw.r > 300) shockwaves.splice(i, 1);
+            }
+
+            ctx.globalCompositeOperation = 'source-over';
+            checkInteractions();
+
+            // Telemetría Random
+            tick++;
+            document.getElementById('sys-tick').innerText = tick.toString(16).toUpperCase().padStart(4, '0');
+            if(tick % 20 === 0) {
+                document.getElementById('val-hash').innerText = '0x' + Math.random().toString(16).substr(2, 10).toUpperCase();
+                let nv = i18n[currentLang].values.monitor;
+                if(currentMode === 4) nv = i18n[currentLang].values.calc;
+                if(currentMode === 6) nv = "PROB: " + (80 + Math.random()*19).toFixed(1) + "%";
+                document.getElementById('val-neuro').innerText = nv;
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        // Mouse / Touch handlers (arrastre de cámara)
+        canvas.addEventListener('mousedown', (e) => { isDragging = true; previousMousePosition = mousePos = { x: e.offsetX, y: e.offsetY }; });
+        canvas.addEventListener('mousemove', (e) => {
+            mousePos = { x: e.offsetX, y: e.offsetY };
+            if (isDragging) {
+                targetAngleY += (mousePos.x - previousMousePosition.x) * 0.01; targetAngleX += (mousePos.y - previousMousePosition.y) * 0.01;
+                targetAngleX = Math.max(-Math.PI/2, Math.min(Math.PI/2, targetAngleX));
+                previousMousePosition = mousePos;
+            }
+        });
+        window.addEventListener('mouseup', () => { isDragging = false; });
+        canvas.addEventListener('touchstart', (e) => { isDragging = true; mousePos = previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY }; });
+        canvas.addEventListener('touchmove', (e) => {
+            mousePos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            if (isDragging) {
+                targetAngleY += (mousePos.x - previousMousePosition.x) * 0.01; targetAngleX += (mousePos.y - previousMousePosition.y) * 0.01;
+                targetAngleX = Math.max(-Math.PI/2, Math.min(Math.PI/2, targetAngleX));
+                previousMousePosition = mousePos;
+            }
+        });
+
+        canvas.addEventListener('wheel', (e) => { focalLength -= e.deltaY * 0.5; focalLength = Math.max(300, Math.min(2000, focalLength)); });
+
+        // CAMBIO DE MODOS
+        function setMode(mId, btn) {
+            currentMode = mId;
+            document.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            ctx.fillStyle = '#fff'; ctx.fillRect(0,0,width,height); // Glitch
+            
+            // Cerrar HUD objetivo si se cambia de modo
+            document.getElementById('panel-target').style.display = 'none';
+            targetNode = null;
+
+            if(mId===2){ targetAngleX=0; targetAngleY=0; focalLength=500; }
+            else if(mId===5){ targetAngleX=0.2; targetAngleY=0.8; }
+            else if(mId===6){ targetAngleX=0.4; targetAngleY=-0.2; focalLength=800;}
+            else { targetAngleX=0.3; targetAngleY=0.5; focalLength=700;}
+        }
+
+        // AR OFFLINE
+        function toggleAR() {
+            const v = document.getElementById('ar-video'), btn = document.getElementById('btn-ar');
+            if(!arActive) {
+                if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(s => {
+                        v.srcObject=s; v.style.display='block'; document.body.style.backgroundColor='transparent';
+                        arActive=true; btn.classList.add('active'); btn.innerText = i18n[currentLang].ar_active;
+                    }).catch(e => alert(i18n[currentLang].ar_error));
+                }
+            } else {
+                if(v.srcObject) v.srcObject.getTracks().forEach(t=>t.stop());
+                v.style.display='none'; document.body.style.backgroundColor='var(--titanium-black)';
+                arActive=false; btn.classList.remove('active'); btn.innerText = i18n[currentLang].ar_btn;
+            }
+        }
+
+        // INICIALIZACIÓN
+        changeLang('es');
+        setTimeout(() => { render(); }, 300);
+    </script>
+</body>
+</html>
