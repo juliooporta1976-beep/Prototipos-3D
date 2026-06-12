@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALPM APEX SIMULATOR v4 - Dr. Julio César Oporta Barrera</title>
+    <!-- Tailwind CSS para la interfaz táctil -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js (Motor 3D de alta fidelidad) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls para navegación tridimensional -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Lucide Icons para simbología técnica militar/médica -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+        
+        :root {
+            --neon-blue: #00f2ff;
+            --stealth-black: #020508;
+            --titanium: #0f141c;
+            --alert-red: #ff004c;
+            --hyper-purple: #bc00ff;
+            --gold-amber: #ffaa00;
+            --heal-mint: #00ffaa;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: var(--stealth-black);
+            overflow: hidden;
+            user-select: none;
+        }
+        
+        .orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Estilo táctico HUD translúcido */
+        .hud-panel {
+            background: rgba(3, 8, 15, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 242, 255, 0.15);
+            box-shadow: inset 0 0 20px rgba(0, 242, 255, 0.03);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .hud-panel:hover {
+            border: 1px solid rgba(0, 242, 255, 0.35);
+            box-shadow: inset 0 0 25px rgba(0, 242, 255, 0.08), 0 0 15px rgba(0, 242, 255, 0.05);
+        }
+
+        .neon-text {
+            text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+        }
+
+        /* Estilización táctica de sliders */
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: rgba(0, 242, 255, 0.08);
+            border-radius: 4px;
+            height: 5px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--neon-blue);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--neon-blue);
+            transition: transform 0.1s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.3);
+        }
+
+        /* Contenedor de simulación de cámara para Realidad Aumentada */
+        #ar-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+            display: none;
+            opacity: 0.35;
+        }
+
+        #webgl-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+        }
+
+        /* Efecto de escáner en bucle */
+        .scan-bar {
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--neon-blue), transparent);
+            position: absolute;
+            top: 0;
+            animation: scanning 6s linear infinite;
+            z-index: 5;
+            pointer-events: none;
+            opacity: 0.4;
+        }
+
+        @keyframes scanning {
+            0% { top: 0; opacity: 0; }
+            5% { opacity: 0.5; }
+            95% { opacity: 0.5; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        /* Ocultar barra de desplazamiento estándar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 242, 255, 0.4);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="text-gray-100 h-screen w-screen relative">
+
+    <video id="ar-video" autoplay playsinline muted></video>
+    <div class="scan-bar"></div>
+    <div id="webgl-canvas"></div>
+
+    <div class="absolute top-4 left-4 hud-panel p-4 rounded-tl-2xl rounded-br-2xl border-l-4 border-l-[#00f2ff] z-10 max-w-sm">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-cyan-500/10 rounded-full flex items-center justify-center border border-cyan-400/40">
+                <i data-lucide="shield" class="text-cyan-400 w-5 h-5 animate-pulse"></i>
+            </div>
+            <div>
+                <span class="text-[10px] text-cyan-400 tracking-[0.25em] block uppercase font-bold orbitron">ALPM CHIEF ARCHITECT</span>
+                <h1 class="text-lg font-bold tracking-tight text-white orbitron">Dr. Julio César Oporta Barrera</h1>
+                <p class="text-[10px] text-gray-400 font-medium">Patent-Pending &bull; Agile Loss Prevention Manager</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="absolute top-4 right-4 flex space-x-2 z-10">
+        <div class="hud-panel p-1.5 rounded-lg flex space-x-1">
+            <button onclick="setLanguage('es')" id="btn-lang-es" class="px-2.5 py-1 rounded text-[10px] font-bold orbitron transition-all">ESP</button>
+            <button onclick="setLanguage('en')" id="btn-lang-en" class="px-2.5 py-1 rounded text-[10px] font-bold orbitron transition-all">ENG</button>
+            <button onclick="setLanguage('zh')" id="btn-lang-zh" class="px-2.5 py-1 rounded text-[10px] font-bold orbitron transition-all">中文</button>
+        </div>
+    </div>
+
+    <div class="absolute top-4 left-1/2 -translate-x-1/2 w-96 hud-panel p-3 rounded-lg z-10 flex justify-between items-center space-x-4">
+        <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <div>
+                <span class="text-[8px] text-gray-500 block orbitron uppercase font-bold" id="lbl-drift-title">RPE MODEL STATUS</span>
+                <span class="text-xs font-semibold text-gray-200" id="lbl-rpe-status">Calibrated & active</span>
+            </div>
+        </div>
+        <div class="text-right flex space-x-4">
+            <div>
+                <span class="text-[8px] text-gray-500 block font-bold" id="lbl-drift-factor">DRIFT FACTOR</span>
+                <span class="text-xs font-mono text-cyan-400 font-bold" id="val-drift">0.024</span>
+            </div>
+            <div>
+                <span class="text-[8px] text-gray-500 block font-bold" id="lbl-accuracy">ACCURACY</span>
+                <span class="text-xs font-mono text-emerald-400 font-bold" id="val-accuracy">98.6%</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="absolute left-4 top-28 w-80 hud-panel p-5 rounded-lg flex flex-col space-y-4 z-10 max-h-[calc(100vh-240px)] overflow-y-auto">
+        <div class="border-b border-cyan-500/20 pb-2">
+            <span class="text-xs text-cyan-400 orbitron uppercase font-bold tracking-widest" id="lbl-operating-mode">MODOS OPERATIVOS</span>
+        </div>
+
+        <!-- Estados Dinámicos (Clásicos y Extra) -->
+        <div class="grid grid-cols-3 gap-2">
+            <button id="btn-state-normal" onclick="changeSystemState('normal')" class="py-2 rounded text-[9px] orbitron font-bold border transition-all duration-300">
+                NORMAL
+            </button>
+            <button id="btn-state-stealth" onclick="changeSystemState('stealth')" class="py-2 rounded text-[9px] orbitron font-bold border transition-all duration-300">
+                STEALTH
+            </button>
+            <button id="btn-state-hyper" onclick="changeSystemState('hyper')" class="py-2 rounded text-[9px] orbitron font-bold border transition-all duration-300">
+                HYPER
+            </button>
+            <button id="btn-state-crisis" onclick="changeSystemState('crisis')" class="py-2 rounded text-[9px] orbitron font-bold border transition-all duration-300">
+                CRISIS
+            </button>
+            <button id="btn-state-audit" onclick="changeSystemState('audit')" class="py-2 rounded text-[9px] orbitron font-bold border transition-all duration-300">
+                AUDIT
+            </button>
+            <button id="btn-state-heal" onclick="changeSystemState('heal')" class="py-2 rounded text-[9px] orbitron font-bold border transition-all duration-300">
+                HEAL
+            </button>
+        </div>
+
+        <!-- Sliders de control ALPM Core -->
+        <div class="space-y-3 pt-2">
+            <div>
+                <div class="flex justify-between text-xs mb-1">
+                    <span class="text-gray-400 uppercase font-semibold" id="lbl-risk-index">Índice de Riesgo (RPE)</span>
+                    <span id="val-risk" class="text-cyan-400 font-bold orbitron">34%</span>
+                </div>
+                <input type="range" id="slider-risk" min="10" max="95" value="34" class="w-full">
+            </div>
+
+            <div>
+                <div class="flex justify-between text-xs mb-1">
+                    <span class="text-gray-400 uppercase font-semibold" id="lbl-budget-mitigation">Presupuesto Asignado</span>
+                    <span id="val-budget" class="text-cyan-400 font-bold orbitron">$120K</span>
+                </div>
+                <input type="range" id="slider-budget" min="15" max="300" value="120" class="w-full">
+            </div>
+
+            <div>
+                <div class="flex justify-between text-xs mb-1">
+                    <span class="text-gray-400 uppercase font-semibold" id="lbl-team-capacity">Capacidad de Mitigación</span>
+                    <span id="val-capacity" class="text-cyan-400 font-bold orbitron">75%</span>
+                </div>
+                <input type="range" id="slider-capacity" min="20" max="100" value="75" class="w-full">
+            </div>
+        </div>
+
+        <!-- Botones de Acción de Simulación Avanzada -->
+        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-cyan-500/10">
+            <button onclick="triggerCascadingLoss()" class="py-2.5 rounded-md border border-emerald-500/30 bg-emerald-950/20 hover:bg-emerald-500 hover:text-black font-bold text-[9px] orbitron text-emerald-400 transition-all duration-300 tracking-wider uppercase" id="btn-simulate-loss">
+                SIMULAR IPA
+            </button>
+            <button onclick="calculateCriticalPath()" class="py-2.5 rounded-md border border-amber-500/30 bg-amber-950/20 hover:bg-amber-500 hover:text-black font-bold text-[9px] orbitron text-amber-400 transition-all duration-300 tracking-wider uppercase" id="btn-simulate-cpm">
+                OPTIMIZAR CPM
+            </button>
+        </div>
+
+        <!-- Consola de Logs de Eventos en tiempo real -->
+        <div class="bg-black/40 rounded border border-gray-800 p-2 flex flex-col h-32">
+            <div class="flex justify-between items-center text-[9px] font-bold text-gray-500 uppercase pb-1 border-b border-gray-800 mb-1">
+                <span id="lbl-terminal-title">Consola de Eventos IA</span>
+                <span class="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-ping"></span>
+            </div>
+            <div id="terminal-logs" class="text-[9px] font-mono text-cyan-200/70 space-y-1 overflow-y-auto grow pr-1">
+                <div>&gt; ALPM APEX Core v4.0 loaded.</div>
+                <div>&gt; Dual Engine status: OK.</div>
+                <div>&gt; Ready for physical modeling.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="absolute right-4 top-28 w-80 hud-panel p-5 rounded-lg flex flex-col space-y-4 z-10 max-h-[calc(100vh-240px)] overflow-y-auto">
+        <div class="border-b border-cyan-500/20 pb-2 flex justify-between items-center">
+            <span class="text-xs text-cyan-400 orbitron uppercase font-bold tracking-widest" id="lbl-metrics-panel">MONITOR DE PÉRDIDAS EVITADAS</span>
+            <i data-lucide="activity" class="w-4 h-4 text-cyan-400 animate-pulse"></i>
+        </div>
+
+        <!-- Métricas Principales -->
+        <div class="grid grid-cols-2 gap-3">
+            <div class="bg-black/40 p-2.5 rounded border border-gray-800">
+                <span class="text-[9px] text-gray-500 uppercase font-bold block" id="lbl-avoided-losses">PÉRDIDAS EVITADAS</span>
+                <span id="hud-avoided" class="text-base font-bold text-emerald-400 orbitron">$170,000</span>
+            </div>
+            <div class="bg-black/40 p-2.5 rounded border border-gray-800">
+                <span class="text-[9px] text-gray-500 uppercase font-bold block" id="lbl-vps">VALOR PROTEGIDO (VPS)</span>
+                <span id="hud-vps" class="text-base font-bold text-cyan-400 orbitron">$340K</span>
+            </div>
+            <div class="bg-black/40 p-2.5 rounded border border-gray-800">
+                <span class="text-[9px] text-gray-500 uppercase font-bold block" id="lbl-efficiency">EFICIENCIA (IEM)</span>
+                <span id="hud-efficiency" class="text-base font-bold text-blue-400 orbitron">84.5%</span>
+            </div>
+            <div class="bg-black/40 p-2.5 rounded border border-gray-800">
+                <span class="text-[9px] text-gray-500 uppercase font-bold block" id="lbl-crm">COSTO MITIGACIÓN</span>
+                <span id="hud-crm" class="text-base font-bold text-orange-400 orbitron">$45,000</span>
+            </div>
+        </div>
+
+        <!-- Matriz 5x5 RPE / MOA -->
+        <div>
+            <span class="text-xs text-gray-400 uppercase font-bold block mb-2 orbitron" id="lbl-live-matrix">Matriz de Riesgo 5x5 (RPE/MOA)</span>
+            <div class="grid grid-cols-5 gap-1 bg-black/50 p-2 rounded border border-gray-800" id="risk-matrix">
+                <!-- Se pobla dinámicamente -->
+            </div>
+        </div>
+
+        <!-- HUD Adicional: Backlog de Mitigaciones Activas (Simulado CPM) -->
+        <div class="bg-black/40 p-3 rounded border border-gray-800 space-y-2">
+            <span class="text-[10px] text-gray-400 uppercase font-bold block orbitron" id="lbl-tasks-title">MILP MITIGATION TASKS</span>
+            <div class="space-y-1.5 text-[9px] font-mono">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-300">AWS Load Balancing</span>
+                    <span class="text-emerald-400" id="task-1-status">Executing (90%)</span>
+                </div>
+                <div class="w-full bg-gray-800 h-1 rounded overflow-hidden">
+                    <div class="bg-emerald-400 h-full w-[90%] transition-all duration-500" id="task-1-bar"></div>
+                </div>
+
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-300">Patch CI/CD Vulnerability</span>
+                    <span class="text-yellow-400" id="task-2-status">Queued (45%)</span>
+                </div>
+                <div class="w-full bg-gray-800 h-1 rounded overflow-hidden">
+                    <div class="bg-yellow-400 h-full w-[45%] transition-all duration-500" id="task-2-bar"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Realidad Aumentada -->
+        <button onclick="toggleAR()" class="w-full py-2.5 rounded-lg border border-cyan-400/50 bg-cyan-950/40 hover:bg-cyan-400 hover:text-black transition-all duration-300 orbitron flex items-center justify-center space-x-2 text-[10px] font-bold tracking-widest text-cyan-400" id="btn-ar">
+            <i data-lucide="aperture" class="w-4 h-4"></i>
+            <span id="txt-ar-btn">ACTIVAR REALIDAD AUMENTADA (RA)</span>
+        </button>
+    </div>
+
+    <div id="node-telemetry-panel" class="absolute left-1/2 top-20 -translate-x-1/2 hud-panel p-4 rounded-lg z-10 w-80 pointer-events-auto opacity-0 translate-y-[-20px] transition-all duration-300 border-t-4 border-t-cyan-400">
+        <div class="flex justify-between items-center border-b border-cyan-500/20 pb-2 mb-2">
+            <span class="text-xs orbitron font-bold text-white tracking-widest flex items-center space-x-1">
+                <i data-lucide="cpu" class="w-3.5 h-3.5 text-cyan-400"></i>
+                <span id="lbl-holo-node-title">TELEMETRÍA DE NODO</span>
+            </span>
+            <button onclick="hideTelemetry()" class="text-cyan-400 hover:text-red-400 transition-colors text-xs">&times;</button>
+        </div>
+        
+        <div class="space-y-2 text-xs">
+            <div class="flex justify-between"><span class="text-gray-400" id="lbl-node-id">ID de Origen:</span> <span id="telemetry-id" class="font-mono text-cyan-400">10.01</span></div>
+            <div class="flex justify-between"><span class="text-gray-400" id="lbl-node-name">Identificación:</span> <span id="telemetry-name" class="font-bold">ERP Core Sync</span></div>
+            <div class="flex justify-between"><span class="text-gray-400" id="lbl-node-flow">Tasa de Ingesta:</span> <span id="telemetry-flow" class="font-mono">4.2 GB/s</span></div>
+            
+            <!-- Interactividad avanzada: Slider para cambiar riesgo individual del nodo -->
+            <div class="pt-1.5 border-t border-cyan-500/10">
+                <div class="flex justify-between text-[10px] mb-1">
+                    <span class="text-gray-300 uppercase font-semibold" id="lbl-local-risk-title">Riesgo Local Inyectado</span>
+                    <span id="telemetry-risk-val" class="text-red-400 font-bold font-mono">12%</span>
+                </div>
+                <input type="range" id="slider-node-risk" min="0" max="100" value="12" class="w-full">
+            </div>
+
+            <button onclick="simulateSingleNodeAnomaly()" class="w-full py-1.5 mt-1 bg-red-950/40 border border-red-500/50 rounded text-[9px] font-bold orbitron text-red-400 hover:bg-red-500 hover:text-black transition-all" id="btn-infiltrate-node">
+                INFILTRAR ANOMALÍA EN NODO
+            </button>
+        </div>
+    </div>
+
+    <div class="absolute bottom-4 left-4 right-4 hud-panel p-4 rounded-lg flex flex-col md:flex-row justify-between items-center gap-4 z-10">
+        <div class="flex flex-wrap items-center justify-center gap-6">
+            <div class="flex items-center space-x-2 cursor-pointer" onclick="focusOnSection('datasources')">
+                <span class="w-3 h-3 bg-cyan-400 rounded-full inline-block shadow-[0_0_8px_#00f2ff]"></span>
+                <span class="text-xs text-gray-300 font-semibold" id="lbl-legend-data">(10) Fuentes de Datos del Proyecto</span>
+            </div>
+            <div class="flex items-center space-x-2 cursor-pointer" onclick="focusOnSection('capsule')">
+                <span class="w-3 h-3 bg-indigo-500 rounded-full inline-block shadow-[0_0_8px_#6366f1] animate-pulse"></span>
+                <span class="text-xs text-gray-300 font-semibold" id="lbl-legend-central">(20) Sistema Central ALPM (RPE + MOA)</span>
+            </div>
+            <div class="flex items-center space-x-2 cursor-pointer" onclick="focusOnSection('dashboard')">
+                <span class="w-3 h-3 bg-emerald-400 rounded-full inline-block shadow-[0_0_8px_#10b981]"></span>
+                <span class="text-xs text-gray-300 font-semibold" id="lbl-legend-dashboard">(40) Dashboard de Mando de Control</span>
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <span class="text-[10px] font-mono text-gray-500 tracking-tighter">COORD: 12.1328° N, 86.2504° W | MANAGUA, NI</span>
+            <button onclick="resetCamera()" class="p-2 rounded border border-gray-700 hover:bg-gray-800 text-xs text-gray-400 transition-all">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const translations = {
+            es: {
+                title: "ALPM CHIEF ARCHITECT",
+                operatingMode: "MODOS OPERATIVOS",
+                riskIndex: "Índice de Riesgo (RPE)",
+                budget: "Presupuesto Asignado",
+                capacity: "Capacidad de Mitigación",
+                arBtn: "ACTIVAR REALIDAD AUMENTADA (RA)",
+                metricsPanel: "MONITOR DE PÉRDIDAS EVITADAS",
+                avoidedLosses: "PÉRDIDAS EVITADAS",
+                vps: "VALOR PROTEGIDO (VPS)",
+                efficiency: "EFICIENCIA (IEM)",
+                crm: "COSTO MITIGACIÓN",
+                liveMatrix: "Matriz de Riesgo 5x5 (RPE/MOA)",
+                legendData: "(10) Fuentes de Datos del Proyecto",
+                legendCentral: "(20) Sistema Central ALPM (RPE + MOA)",
+                legendDashboard: "(40) Dashboard de Mando de Control",
+                btnSimulate: "SIMULAR IPA",
+                btnSimulateCpm: "OPTIMIZAR CPM",
+                arOff: "DESACTIVAR REALIDAD AUMENTADA (RA)",
+                terminalTitle: "Consola de Eventos IA",
+                holoTitle: "TELEMETRÍA DE NODO",
+                holoId: "ID de Origen:",
+                holoName: "Identificación:",
+                holoFlow: "Tasa de Ingesta:",
+                lblLocalRiskTitle: "Riesgo Local Inyectado",
+                btnInfiltrateNode: "INFILTRAR ANOMALÍA EN NODO",
+                lblDriftTitle: "ESTADO MODELO RPE",
+                lblRpeStatus: "Calibrado y activo",
+                lblDriftFactor: "FACTOR DRIFT",
+                lblAccuracy: "PRECISIÓN MODELO",
+                lblTasksTitle: "TAREAS DE MITIGACIÓN MILP"
+            },
+            en: {
+                title: "ALPM CHIEF ARCHITECT",
+                operatingMode: "OPERATING MODES",
+                riskIndex: "Risk Index (RPE)",
+                budget: "Allocated Budget",
+                capacity: "Mitigation Capacity",
+                arBtn: "ACTIVATE AUGMENTED REALITY (AR)",
+                metricsPanel: "AVOIDED LOSS MONITOR",
+                avoidedLosses: "LOSSES AVOIDED",
+                vps: "PROTECTED VALUE (VPS)",
+                efficiency: "EFFICIENCY (IEM)",
+                crm: "MITIGATION COST",
+                liveMatrix: "5x5 Risk Matrix (RPE/MOA)",
+                legendData: "(10) Project Data Sources",
+                legendCentral: "(20) ALPM Central System (RPE + MOA)",
+                legendDashboard: "(40) Strategic Command Dashboard",
+                btnSimulate: "SIMULATE IPA",
+                btnSimulateCpm: "OPTIMIZE CPM",
+                arOff: "DEACTIVATE AUGMENTED REALITY (AR)",
+                terminalTitle: "AI Event Terminal",
+                holoTitle: "NODE TELEMETRY",
+                holoId: "Origin ID:",
+                holoName: "Identification:",
+                holoFlow: "Ingress Rate:",
+                lblLocalRiskTitle: "Local Injected Risk",
+                btnInfiltrateNode: "INFILTRATE NODE ANOMALY",
+                lblDriftTitle: "RPE MODEL STATUS",
+                lblRpeStatus: "Calibrated & active",
+                lblDriftFactor: "DRIFT FACTOR",
+                lblAccuracy: "MODEL ACCURACY",
+                lblTasksTitle: "MILP MITIGATION TASKS"
+            },
+            zh: {
+                title: "ALPM 首席架构师",
+                operatingMode: "系统操作模式切换",
+                riskIndex: "风险概率指数 (RPE)",
+                budget: "分配缓解预算",
+                capacity: "团队缓解能力评估",
+                arBtn: "激活增强现实技术 (AR)",
+                metricsPanel: "避免损失统计显示屏",
+                avoidedLosses: "已避免的经济损失",
+                vps: "当前保护的总价值 (VPS)",
+                efficiency: "缓解效率指数 (IEM)",
+                crm: "预测缓解执行成本",
+                liveMatrix: "5x5风险矩阵实时反馈",
+                legendData: "(10) 项目异构数据源节点",
+                legendCentral: "(20) ALPM中央智能处理核心",
+                legendDashboard: "(40) 数字化实时决策控制台",
+                btnSimulate: "触发级联损失仿真 (IPA)",
+                btnSimulateCpm: "路径优化 (CPM)",
+                arOff: "禁用增强现实技术 (AR)",
+                terminalTitle: "人工智能事件终端",
+                holoTitle: "节点遥测数据",
+                holoId: "源节点ID:",
+                holoName: "节点类型:",
+                holoFlow: "数据吞吐率:",
+                lblLocalRiskTitle: "局部注入风险",
+                btnInfiltrateNode: "注入节点异常故障",
+                lblDriftTitle: "RPE模型运行状态",
+                lblRpeStatus: "已成功校准并激活",
+                lblDriftFactor: "模型温漂因子",
+                lblAccuracy: "神经网络精度",
+                lblTasksTitle: "MILP 规划缓解方案队列"
+            }
+        };
+
+        let currentLang = 'es';
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            const t = translations[lang];
+            
+            document.getElementById('lbl-operating-mode').innerText = t.operatingMode;
+            document.getElementById('lbl-risk-index').innerText = t.riskIndex;
+            document.getElementById('lbl-budget-mitigation').innerText = t.budget;
+            document.getElementById('lbl-team-capacity').innerText = t.capacity;
+            
+            if(!arActive) {
+                document.getElementById('btn-ar').innerHTML = `<i data-lucide="aperture" class="w-4 h-4"></i><span>${t.arBtn}</span>`;
+            } else {
+                document.getElementById('btn-ar').innerHTML = `<i data-lucide="aperture" class="w-4 h-4"></i><span>${t.arOff}</span>`;
+            }
+            document.getElementById('lbl-metrics-panel').innerText = t.metricsPanel;
+            document.getElementById('lbl-avoided-losses').innerText = t.avoidedLosses;
+            document.getElementById('lbl-vps').innerText = t.vps;
+            document.getElementById('lbl-efficiency').innerText = t.efficiency;
+            document.getElementById('lbl-crm').innerText = t.crm;
+            document.getElementById('lbl-live-matrix').innerText = t.liveMatrix;
+            document.getElementById('lbl-legend-data').innerText = t.legendData;
+            document.getElementById('lbl-legend-central').innerText = t.legendCentral;
+            document.getElementById('lbl-legend-dashboard').innerText = t.legendDashboard;
+            document.getElementById('btn-simulate-loss').innerText = t.btnSimulate;
+            document.getElementById('btn-simulate-cpm').innerText = t.btnSimulateCpm;
+            document.getElementById('lbl-terminal-title').innerText = t.terminalTitle;
+            document.getElementById('lbl-holo-node-title').innerText = t.holoTitle;
+            document.getElementById('lbl-node-id').innerText = t.holoId;
+            document.getElementById('lbl-node-name').innerText = t.holoName;
+            document.getElementById('lbl-node-flow').innerText = t.holoFlow;
+            document.getElementById('lbl-local-risk-title').innerText = t.lblLocalRiskTitle;
+            document.getElementById('btn-infiltrate-node').innerText = t.btnInfiltrateNode;
+
+            document.getElementById('lbl-drift-title').innerText = t.lblDriftTitle;
+            document.getElementById('lbl-rpe-status').innerText = t.lblRpeStatus;
+            document.getElementById('lbl-drift-factor').innerText = t.lblDriftFactor;
+            document.getElementById('lbl-accuracy').innerText = t.lblAccuracy;
+            document.getElementById('lbl-tasks-title').innerText = t.lblTasksTitle;
+
+            lucide.createIcons();
+
+            ['es', 'en', 'zh'].forEach(l => {
+                const btn = document.getElementById(`btn-lang-${l}`);
+                if (l === lang) {
+                    btn.classList.add('bg-cyan-500/25', 'text-cyan-300', 'border', 'border-cyan-400/30');
+                    btn.classList.remove('bg-transparent', 'text-gray-400');
+                } else {
+                    btn.classList.remove('bg-cyan-500/25', 'text-cyan-300', 'border', 'border-cyan-400/30');
+                    btn.classList.add('bg-transparent', 'text-gray-400');
+                }
+            });
+            
+            writeLog(`System language switched to [${lang.toUpperCase()}].`);
+        }
+
+        function writeLog(message) {
+            const container = document.getElementById('terminal-logs');
+            if (container) {
+                const logLine = document.createElement('div');
+                logLine.innerText = `> [${new Date().toLocaleTimeString()}] ${message}`;
+                container.prepend(logLine);
+            }
+        }
+
+        // Definiciones estáticas de los 12 nodos IA para interactividad de raycasting
+        const nodeDefinitions = [
+            { id: "10.01", name: "SAP S4 ERP Losses Ledger", flow: "6.8 GB/s", risk: "12%", desc: "Registro directo de pérdidas financieras." },
+            { id: "10.02", name: "Jira Sprint Overdue Crawler", flow: "1.4 GB/s", risk: "28%", desc: "Analizador de tickets atrasados." },
+            { id: "10.03", name: "Oracle SQL Budget Pipeline", flow: "5.5 GB/s", risk: "8%", desc: "Sincronizador activo de presupuestos locales." },
+            { id: "10.04", name: "GitLab CI/CD Deploy Audits", flow: "3.2 GB/s", risk: "34%", desc: "Detección automatizada de vulnerabilidades de build." },
+            { id: "10.05", name: "Salesforce CRM Lead Pipeline", flow: "2.1 GB/s", risk: "15%", desc: "Cálculo de pérdida por retención de clientes." },
+            { id: "10.06", name: "NIST Security Compliance API", flow: "0.8 GB/s", risk: "4%", desc: "Validador automático de vulnerabilidades." },
+            { id: "10.07", name: "Office 365 Outlook NLP Stream", flow: "4.9 GB/s", risk: "19%", desc: "Analizador de incidentes comunicados." },
+            { id: "10.08", name: "Slack Dev Channels Scraper", flow: "2.5 GB/s", risk: "22%", desc: "Identificador de fallos de coordinación en hilos." },
+            { id: "10.09", name: "AWS CloudWatch Billing Monitor", flow: "8.1 GB/s", risk: "11%", desc: "Prevención de sobrecostes operativos." },
+            { id: "10.10", name: "Zendesk Technical Tickets API", flow: "3.7 GB/s", risk: "40%", desc: "Cola de fallos y bugs técnicos activos." },
+            { id: "10.11", name: "Apache Kafka Event Ingestion", flow: "9.4 GB/s", risk: "18%", desc: "Bus de eventos centralizado del proyecto." },
+            { id: "10.12", name: "Snowflake Cloud Data Warehouse", flow: "12.2 GB/s", risk: "6%", desc: "Bodega de datos históricos y auditorías." }
+        ];
+
+        let scene, camera, renderer, controls, raycaster, mouse;
+        let nodeMeshes = [];
+        let leftStructureLines = [];
+        let capsuleGlassMesh, rpeStorm, moaLattice, coreLightningBeam;
+        let rightDashboardFrame, cycloneVortex, terrainWaveMesh;
+        let cpmPathLines = []; // Líneas adicionales para simular caminos críticos
+        
+        // Enjambre de partículas de datos (Swarm AI)
+        let dataParticles;
+        const SWARM_PARTICLE_COUNT = 300;
+        let particlePathsData = [];
+
+        let currentFlowColor = 0x00f2ff;
+        let speedMultiplier = 1.0;
+        let capsulePulseStrength = 1.0;
+        let isIPASimulating = false;
+        let selectedNodeIndex = null; 
+
+        function initALPM3D() {
+            const container = document.getElementById('webgl-canvas');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x020508);
+            scene.fog = new THREE.FogExp2(0x020508, 0.012);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 12, 28);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.05; // No pasar bajo el suelo táctico
+            controls.minDistance = 6;
+            controls.maxDistance = 60;
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Iluminación táctica de estudio
+            const ambient = new THREE.AmbientLight(0x0a1622, 2.0);
+            scene.add(ambient);
+
+            const directCyan = new THREE.DirectionalLight(0x00f2ff, 4.0);
+            directCyan.position.set(10, 20, 10);
+            scene.add(directCyan);
+
+            const coreWarmLight = new THREE.PointLight(0xff6e00, 3.0, 40);
+            coreWarmLight.position.set(-12, 4, -8);
+            scene.add(coreWarmLight);
+
+            // Rejilla de tierra táctica Stealth
+            const gridHelper = new THREE.GridHelper(60, 60, 0x00f2ff, 0x041624);
+            gridHelper.position.y = -5;
+            scene.add(gridHelper);
+
+            // Construir los componentes geométricos de la Patente (image_7821fb.jpg)
+            buildLeftDataStructure();
+            buildCentralCapsule();
+            buildRightDashboard();
+            buildSwarmAI();
+
+            // Eventos globales de interacción
+            window.addEventListener('pointerdown', onSceneClick);
+            window.addEventListener('resize', onWindowResize);
+
+            animateSimulation();
+        }
+
+        function buildLeftDataStructure() {
+            const numNodes = nodeDefinitions.length;
+            const nodeGeom = new THREE.IcosahedronGeometry(0.35, 1);
+            
+            const nodeMat = new THREE.MeshStandardMaterial({
+                color: 0x00f2ff,
+                roughness: 0.1,
+                metalness: 0.9,
+                emissive: 0x003355,
+                emissiveIntensity: 1.0
+            });
+
+            // Raíl vertical
+            const railPoints = [
+                new THREE.Vector3(-14, 8, -6),
+                new THREE.Vector3(-14, -4, -6)
+            ];
+            const railCurve = new THREE.LineCurve3(railPoints[0], railPoints[1]);
+            const railGeom = new THREE.TubeGeometry(railCurve, 20, 0.08, 8, false);
+            const railMat = new THREE.MeshBasicMaterial({ color: 0x00f2ff, transparent: true, opacity: 0.15 });
+            const rail = new THREE.Mesh(railGeom, railMat);
+            scene.add(rail);
+
+            for (let i = 0; i < numNodes; i++) {
+                // Separación y alineamiento vertical de los nodos
+                const yPos = 8.0 - (i * 1.05);
+                const xPos = -14.0 + Math.sin(i * 1.5) * 0.4;
+                const zPos = -6.0 + Math.cos(i * 1.5) * 0.4;
+
+                const nodeMesh = new THREE.Mesh(nodeGeom, nodeMat.clone());
+                nodeMesh.position.set(xPos, yPos, zPos);
+                
+                nodeMesh.userData = {
+                    index: i,
+                    data: nodeDefinitions[i],
+                    originalColor: 0x00f2ff
+                };
+
+                scene.add(nodeMesh);
+                nodeMeshes.push(nodeMesh);
+
+                // Anillo orbital flotante
+                const ringGeom = new THREE.RingGeometry(0.5, 0.55, 16);
+                const ringMat = new THREE.MeshBasicMaterial({ color: 0x00f2ff, side: THREE.DoubleSide, transparent: true, opacity: 0.3 });
+                const ring = new THREE.Mesh(ringGeom, ringMat);
+                ring.rotation.x = Math.PI / 2;
+                nodeMesh.add(ring);
+
+                // Conexiones de datos hacia el Portal de la Cápsula Central (20)
+                const linePoints = [];
+                linePoints.push(new THREE.Vector3(xPos, yPos, zPos));
+                linePoints.push(new THREE.Vector3(xPos * 0.5, yPos * 0.2, -3.0));
+                linePoints.push(new THREE.Vector3(-5.0, 1.0, 0.0)); // Portal de entrada del reactor
+
+                const connectionCurve = new THREE.CatmullRomCurve3(linePoints);
+                const points = connectionCurve.getPoints(50);
+                const connectionGeom = new THREE.BufferGeometry().setFromPoints(points);
+                const connectionMat = new THREE.LineBasicMaterial({
+                    color: 0x00f2ff,
+                    transparent: true,
+                    opacity: 0.12
+                });
+                const connectionLine = new THREE.Line(connectionGeom, connectionMat);
+                scene.add(connectionLine);
+                leftStructureLines.push({ curve: connectionCurve, line: connectionLine });
+            }
+        }
+
+        function buildCentralCapsule() {
+            const capsuleGroup = new THREE.Group();
+            capsuleGroup.position.set(-2, 1, 0);
+
+            // Geometría translúcida de la cápsula (Reactor cilíndrico)
+            const points = [];
+            for ( let i = 0; i < 20; i ++ ) {
+                let radius = 2.4;
+                if(i < 3) radius = 2.0; 
+                else if (i > 16) radius = 1.7; 
+                points.push( new THREE.Vector2( radius, ( i - 10 ) * 0.45 ) );
+            }
+            const latheGeom = new THREE.LatheGeometry( points, 32 );
+            const latheMat = new THREE.MeshPhysicalMaterial({
+                color: 0x021520,
+                transparent: true,
+                opacity: 0.3,
+                roughness: 0.05,
+                metalness: 0.1,
+                transmission: 0.9,
+                thickness: 1.0,
+                side: THREE.DoubleSide
+            });
+            capsuleGlassMesh = new THREE.Mesh(latheGeom, latheMat);
+            capsuleGroup.add(capsuleGlassMesh);
+
+            // Tapas industriales superior e inferior
+            const capGeom = new THREE.CylinderGeometry(2.1, 2.1, 0.5, 32);
+            const capMat = new THREE.MeshStandardMaterial({ color: 0x0a1c24, roughness: 0.2, metalness: 0.9 });
+            
+            const topCap = new THREE.Mesh(capGeom, capMat);
+            topCap.position.y = 4.3;
+            capsuleGroup.add(topCap);
+
+            const bottomCap = topCap.clone();
+            bottomCap.position.y = -4.3;
+            capsuleGroup.add(bottomCap);
+
+            // 1. Motor de Predicción de Riesgos (RPE) - Sección Superior de la Cápsula
+            rpeStorm = new THREE.Group();
+            rpeStorm.position.y = 2.0;
+            
+            const rpePlaneGeo = new THREE.BoxGeometry(3.0, 0.05, 1.8);
+            const rpePlaneMat = new THREE.MeshStandardMaterial({
+                color: 0x00f2ff,
+                transparent: true,
+                opacity: 0.4,
+                wireframe: true,
+                emissive: 0x0099ff
+            });
+            const rpePlate = new THREE.Mesh(rpePlaneGeo, rpePlaneMat);
+            rpeStorm.add(rpePlate);
+
+            // Núcleo RPE (Wireframe de tormentas neuronales)
+            const rpeCoreGeo = new THREE.IcosahedronGeometry(0.7, 2);
+            const rpeCoreMat = new THREE.MeshStandardMaterial({
+                color: 0x00f2ff,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.6
+            });
+            const rpeCore = new THREE.Mesh(rpeCoreGeo, rpeCoreMat);
+            rpeCore.position.y = 0.8;
+            rpeStorm.add(rpeCore);
+            capsuleGroup.add(rpeStorm);
+
+            // 2. Motor de Optimización de Mitigaciones (MOA) - Sección Inferior
+            moaLattice = new THREE.Group();
+            moaLattice.position.y = -2.0;
+
+            const moaPlate = rpePlate.clone();
+            moaPlate.material = new THREE.MeshStandardMaterial({
+                color: 0x10b981,
+                transparent: true,
+                opacity: 0.4,
+                wireframe: true,
+                emissive: 0x059669
+            });
+            moaLattice.add(moaPlate);
+
+            const latticeCoreGeo = new THREE.OctahedronGeometry(0.8, 1);
+            const latticeCoreMat = new THREE.MeshStandardMaterial({
+                color: 0x10b981,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.7
+            });
+            const moaCore = new THREE.Mesh(latticeCoreGeo, latticeCoreMat);
+            moaCore.position.y = -0.8;
+            moaLattice.add(moaCore);
+            capsuleGroup.add(moaLattice);
+
+            // 3. Haz de comunicación electromagnético hacia el Dashboard 40
+            const beamCurve = new THREE.LineCurve3(
+                new THREE.Vector3(0, 0, 0),
+                new THREE.Vector3(12.0, -0.5, 0.0)
+            );
+            const beamGeom = new THREE.TubeGeometry(beamCurve, 20, 0.15, 8, false);
+            const beamMat = new THREE.MeshBasicMaterial({
+                color: 0x00f2ff,
+                transparent: true,
+                opacity: 0.45,
+                blending: THREE.AdditiveBlending
+            });
+            coreLightningBeam = new THREE.Mesh(beamGeom, beamMat);
+            capsuleGroup.add(coreLightningBeam);
+
+            scene.add(capsuleGroup);
+        }
+
+        function buildRightDashboard() {
+            const dashboardGroup = new THREE.Group();
+            dashboardGroup.position.set(11.0, 1.0, 0.0);
+            dashboardGroup.rotation.y = -Math.PI / 6;
+
+            // Panel de acrílico holográfico
+            const screenGeo = new THREE.PlaneGeometry(9, 6.2);
+            const screenMat = new THREE.MeshPhysicalMaterial({
+                color: 0x000c14,
+                transparent: true,
+                opacity: 0.45,
+                roughness: 0.1,
+                metalness: 0.2,
+                transmission: 0.85,
+                side: THREE.DoubleSide
+            });
+            const glassScreen = new THREE.Mesh(screenGeo, screenMat);
+            dashboardGroup.add(glassScreen);
+
+            // Marco luminoso del Dashboard
+            const frameEdges = new THREE.EdgesGeometry(screenGeo);
+            const frameMat = new THREE.LineBasicMaterial({ color: 0x00f2ff, linewidth: 2, transparent: true, opacity: 0.8 });
+            rightDashboardFrame = new THREE.LineSegments(frameEdges, frameMat);
+            dashboardGroup.add(rightDashboardFrame);
+
+            // Elemento A: Ciclón de riesgo volumétrico flotante
+            const cycloneGroup = new THREE.Group();
+            cycloneGroup.position.set(-2.0, 1.2, 0.3);
+            
+            const cyclParticlesCount = 80;
+            const cyclGeo = new THREE.BufferGeometry();
+            const cyclPos = new Float32Array(cyclParticlesCount * 3);
+            for (let i = 0; i < cyclParticlesCount; i++) {
+                const height = Math.random() * 1.5;
+                const angle = Math.random() * Math.PI * 2;
+                const radius = height * 0.6 + 0.1;
+
+                cyclPos[i*3] = Math.cos(angle) * radius;
+                cyclPos[i*3+1] = height - 0.75;
+                cyclPos[i*3+2] = Math.sin(angle) * radius;
+            }
+            cyclGeo.setAttribute('position', new THREE.BufferAttribute(cyclPos, 3));
+            const cyclMat = new THREE.PointsMaterial({
+                color: 0x00f2ff,
+                size: 0.09,
+                transparent: true,
+                opacity: 0.9,
+                blending: THREE.AdditiveBlending
+            });
+            cycloneVortex = new THREE.Points(cyclGeo, cyclMat);
+            cycloneGroup.add(cycloneVortex);
+            dashboardGroup.add(cycloneGroup);
+
+            // Elemento B: Gráfico de Tendencias Predictivas (Malla de Olas 3D)
+            const terrainGeo = new THREE.PlaneGeometry(7.5, 2.0, 15, 10);
+            const terrainMat = new THREE.MeshStandardMaterial({
+                color: 0x00f2ff,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.45,
+                side: THREE.DoubleSide
+            });
+            terrainWaveMesh = new THREE.Mesh(terrainGeo, terrainMat);
+            terrainWaveMesh.position.set(0.0, -1.6, 0.2);
+            terrainWaveMesh.rotation.x = -Math.PI / 4;
+            dashboardGroup.add(terrainWaveMesh);
+
+            // Botones/Widgets decorativos de la pantalla
+            const widgetGeo = new THREE.BoxGeometry(1.4, 0.2, 0.05);
+            const widgetMat = new THREE.MeshBasicMaterial({ color: 0x00f2ff, transparent: true, opacity: 0.6 });
+            
+            const btn1 = new THREE.Mesh(widgetGeo, widgetMat);
+            btn1.position.set(3.0, 2.2, 0.1);
+            dashboardGroup.add(btn1);
+
+            const btn2 = btn1.clone();
+            btn2.position.set(3.0, 1.8, 0.1);
+            btn2.material = new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.6 });
+            dashboardGroup.add(btn2);
+
+            scene.add(dashboardGroup);
+        }
+
+        function buildSwarmAI() {
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(SWARM_PARTICLE_COUNT * 3);
+            const colors = new Float32Array(SWARM_PARTICLE_COUNT * 3);
+
+            for (let i = 0; i < SWARM_PARTICLE_COUNT; i++) {
+                const pathIndex = i % nodeMeshes.length;
+                const pathData = leftStructureLines[pathIndex];
+                const progress = Math.random();
+                const point = pathData.curve.getPointAt(progress);
+
+                positions[i * 3] = point.x;
+                positions[i * 3 + 1] = point.y;
+                positions[i * 3 + 2] = point.z;
+
+                colors[i * 3] = 0.0;
+                colors[i * 3 + 1] = 0.94;
+                colors[i * 3 + 2] = 1.0;
+
+                particlePathsData.push({
+                    pathIndex: pathIndex,
+                    progress: progress,
+                    speed: 0.003 + Math.random() * 0.005
+                });
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 0.14,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.85,
+                blending: THREE.AdditiveBlending
+            });
+
+            dataParticles = new THREE.Points(geometry, material);
+            scene.add(dataParticles);
+        }
+
+        function onSceneClick(event) {
+            if (event.target.tagName !== 'CANVAS') return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(nodeMeshes);
+
+            if (intersects.length > 0) {
+                const clickedNode = intersects[0].object;
+                const details = clickedNode.userData.data;
+                selectedNodeIndex = clickedNode.userData.index;
+
+                // Efecto visual de rebote de interacción
+                clickedNode.scale.set(1.5, 1.5, 1.5);
+                setTimeout(() => clickedNode.scale.set(1, 1, 1), 300);
+
+                showTelemetry(details);
+            }
+        }
+
+        function showTelemetry(data) {
+            const panel = document.getElementById('node-telemetry-panel');
+            document.getElementById('telemetry-id').innerText = data.id;
+            document.getElementById('telemetry-name').innerText = data.name;
+            document.getElementById('telemetry-flow').innerText = data.flow;
+            
+            // Sincronizar el slider del nodo con su riesgo actual
+            const riskVal = parseInt(data.risk);
+            document.getElementById('telemetry-risk-val').innerText = `${riskVal}%`;
+            document.getElementById('slider-node-risk').value = riskVal;
+
+            panel.style.opacity = '1';
+            panel.style.transform = 'translateX(-50%) translateY(0)';
+            
+            writeLog(`Node Selected: [${data.name}] -> Current Risk: ${data.risk}.`);
+        }
+
+        function hideTelemetry() {
+            const panel = document.getElementById('node-telemetry-panel');
+            panel.style.opacity = '0';
+            panel.style.transform = 'translateX(-50%) translateY(-20px)';
+            selectedNodeIndex = null;
+        }
+
+        function simulateSingleNodeAnomaly() {
+            if (selectedNodeIndex === null) return;
+            
+            const targetNode = nodeMeshes[selectedNodeIndex];
+            const nodeData = targetNode.userData.data;
+
+            writeLog(`NODE EXPLOIT: Inyectando vector de anomalía local en [${nodeData.name}]...`);
+            
+            // Forzar riesgo del nodo al 100%
+            document.getElementById('slider-node-risk').value = 100;
+            updateSelectedNodeRisk(100);
+
+            // Efecto visual instantáneo de sobrecarga en el nodo
+            targetNode.material.color.setHex(0xff004c);
+            targetNode.material.emissive.setHex(0xff004c);
+            leftStructureLines[selectedNodeIndex].line.material.color.setHex(0xff004c);
+            leftStructureLines[selectedNodeIndex].line.material.opacity = 1.0;
+
+            // Simular pulso localizado
+            setTimeout(() => {
+                targetNode.material.color.setHex(0x00f2ff);
+                targetNode.material.emissive.setHex(0x003355);
+                leftStructureLines[selectedNodeIndex].line.material.color.setHex(0x00f2ff);
+                leftStructureLines[selectedNodeIndex].line.material.opacity = 0.12;
+                writeLog(`NODE REBOOT: Ancho de banda de [${nodeData.name}] balanceado.`);
+            }, 3000);
+        }
+
+        function updateSelectedNodeRisk(newRisk) {
+            if (selectedNodeIndex === null) return;
+            
+            // Actualizar datos locales del nodo
+            nodeDefinitions[selectedNodeIndex].risk = `${newRisk}%`;
+            document.getElementById('telemetry-risk-val').innerText = `${newRisk}%`;
+
+            // Efecto visual en tiempo real: entre más riesgo, el nodo brilla más rojo
+            const targetNode = nodeMeshes[selectedNodeIndex];
+            const interpolColor = new THREE.Color(0x00f2ff).lerp(new THREE.Color(0xff004c), newRisk / 100);
+            targetNode.material.color.set(interpolColor);
+            
+            // Recalcular métricas generales según la perturbación del nodo
+            let totalRiskSum = 0;
+            nodeDefinitions.forEach(n => {
+                totalRiskSum += parseInt(n.risk);
+            });
+            const averageRisk = Math.round(totalRiskSum / nodeDefinitions.length);
+            
+            document.getElementById('slider-risk').value = averageRisk;
+            document.getElementById('val-risk').innerText = `${averageRisk}%`;
+
+            updateInputsAndMetrics(averageRisk, document.getElementById('slider-budget').value, document.getElementById('slider-capacity').value);
+            renderRiskMatrix();
+        }
+
+        function calculateCriticalPath() {
+            writeLog("PERT/CPM CRITICAL PATH: Calculando secuencia de mayor riesgo temporal...");
+            
+            // Eliminar líneas de caminos críticos anteriores si existen
+            cpmPathLines.forEach(l => scene.add(l)); // dummy logic trigger
+            cpmPathLines.forEach(line => scene.remove(line));
+            cpmPathLines = [];
+
+            // Seleccionar de 4 a 5 nodos con mayor riesgo local
+            let sortedNodes = [...nodeMeshes].sort((a,b) => {
+                return parseInt(b.userData.data.risk) - parseInt(a.userData.data.risk);
+            });
+
+            // Dibujar un camino dorado brillante (Critical Path) interconectando los peores nodos
+            const points = [];
+            for (let i = 0; i < Math.min(5, sortedNodes.length); i++) {
+                points.push(sortedNodes[i].position.clone());
+            }
+            points.push(new THREE.Vector3(-2, 1, 0)); // Llevarlo a la Cápsula central
+
+            const cpmCurve = new THREE.CatmullRomCurve3(points);
+            const tubeGeom = new THREE.TubeGeometry(cpmCurve, 40, 0.18, 8, false);
+            const tubeMat = new THREE.MeshBasicMaterial({
+                color: 0xffaa00,
+                transparent: true,
+                opacity: 0.75,
+                blending: THREE.AdditiveBlending
+            });
+            const cpmLineMesh = new THREE.Mesh(tubeGeom, tubeMat);
+            scene.add(cpmLineMesh);
+            cpmPathLines.push(cpmLineMesh);
+
+            writeLog("CPM OPTIMIZER COMPLETE: Camino crítico resaltado en Oro Amber. Impacto temporal previsto: +4.2 días de sprint breach.");
+
+            // Apagar camino crítico después de 5 segundos
+            setTimeout(() => {
+                scene.remove(cpmLineMesh);
+                writeLog("CPM OPTIMIZER: Visualización de camino crítico en espera.");
+            }, 5000);
+        }
+
+        function triggerCascadingLoss() {
+            if (isIPASimulating) return;
+            isIPASimulating = true;
+            
+            const targetIdx = Math.floor(Math.random() * nodeMeshes.length);
+            const targetNode = nodeMeshes[targetIdx];
+            const nodeData = targetNode.userData.data;
+
+            writeLog(`IPA RUNNING: Anomalía propagándose en cascada desde [${nodeData.name}]...`);
+
+            // Pintar nodo detonador en Rojo Alerta
+            targetNode.material.color.setHex(0xff004c);
+            targetNode.material.emissive.setHex(0xff004c);
+            leftStructureLines[targetIdx].line.material.color.setHex(0xff004c);
+            leftStructureLines[targetIdx].line.material.opacity = 1.0;
+
+            // Inyectar enjambre de partículas en rojo
+            updateParticlesAndCore(0xff004c, 4.0, 2.0);
+
+            // Fase 2: Impacto penetra la cápsula superior RPE
+            setTimeout(() => {
+                writeLog("IPA RISK: Pérdida escalando al (20) Sistema Central ALPM RPE Engine.");
+                rpeStorm.children[1].material.color.setHex(0xff004c); 
+                capsuleGlassMesh.material.color.setHex(0x2a0208);
+                capsuleGlassMesh.material.opacity = 0.65;
+
+                // Fase 3: Auto-recuperación activa por el optimizador MOA
+                setTimeout(() => {
+                    writeLog("MOA ENGINE: Ejecutando mitigación óptima de contingencia (MILP Matrix solver)...");
+                    moaLattice.children[1].material.color.setHex(0x10b981); 
+
+                    setTimeout(() => {
+                        writeLog("MOA COMPLETED: Redirigiendo mitigaciones estables al (40) Dashboard.");
+                        
+                        // Chorro de mitigación verde esmeralda
+                        coreLightningBeam.material.color.setHex(0x10b981);
+                        coreLightningBeam.material.opacity = 1.0;
+                        coreLightningBeam.scale.set(2.5, 1, 2.5);
+
+                        // Simular barra de progreso de mitigación automatizada en el HUD
+                        document.getElementById('task-1-status').innerText = "Calibrating (100%)";
+                        document.getElementById('task-1-bar').style.width = "100%";
+
+                        // Restaurar arquitectura
+                        setTimeout(() => {
+                            targetNode.material.color.setHex(0x00f2ff);
+                            targetNode.material.emissive.setHex(0x003355);
+                            leftStructureLines[targetIdx].line.material.color.setHex(0x00f2ff);
+                            leftStructureLines[targetIdx].line.material.opacity = 0.12;
+                            
+                            rpeStorm.children[1].material.color.setHex(0x00f2ff);
+                            moaLattice.children[1].material.color.setHex(0x10b981);
+                            
+                            capsuleGlassMesh.material.color.setHex(0x021520);
+                            capsuleGlassMesh.material.opacity = 0.3;
+
+                            coreLightningBeam.material.color.setHex(0x00f2ff);
+                            coreLightningBeam.material.opacity = 0.45;
+                            coreLightningBeam.scale.set(1, 1, 1);
+
+                            document.getElementById('task-1-status').innerText = "Executing (90%)";
+                            document.getElementById('task-1-bar').style.width = "90%";
+
+                            changeSystemState(systemState);
+                            isIPASimulating = false;
+                            writeLog("IPA FINISHED: Resiliencia del sistema ALPM restablecida.");
+                        }, 2000);
+
+                    }, 1200);
+
+                }, 1000);
+
+            }, 1500);
+        }
+
+        let systemState = 'normal';
+
+        function changeSystemState(state) {
+            systemState = state;
+            
+            // Resetear todos los botones de estado del panel táctico
+            ['normal', 'stealth', 'hyper', 'crisis', 'audit', 'heal'].forEach(s => {
+                const btn = document.getElementById(`btn-state-${s}`);
+                if (btn) btn.className = "py-2 rounded text-[9px] orbitron font-bold border transition-all duration-300 bg-transparent border-gray-700/50 text-gray-400 hover:bg-gray-800/20";
+            });
+
+            const activeBtn = document.getElementById(`btn-state-${state}`);
+
+            if (state === 'normal') {
+                activeBtn.className = "py-2 rounded text-[9px] orbitron font-bold border transition-all duration-300 bg-cyan-950/50 border-cyan-500 text-cyan-400 shadow-[0_0_8px_rgba(0,242,255,0.2)]";
+                updateParticlesAndCore(0x00f2ff, 1.0, 1.0);
+                updateInputsAndMetrics(34, 120, 75);
+                writeLog("State Changed: NORMAL. Cómputo preventivo balanceado.");
+            } else if (state === 'stealth') {
+                activeBtn.className = "py-2 rounded text-[9px] orbitron font-bold border transition-all duration-300 bg-slate-950/50 border-slate-500 text-slate-300";
+                updateParticlesAndCore(0x556e7a, 0.4, 0.5);
+                updateInputsAndMetrics(15, 250, 95);
+                writeLog("State Changed: STEALTH. Procesamiento silencioso de baja firma de red.");
+            } else if (state === 'hyper') {
+                activeBtn.className = "py-2 rounded text-[9px] orbitron font-bold border transition-all duration-300 bg-purple-950/50 border-purple-500 text-purple-400 shadow-[0_0_8px_rgba(188,0,255,0.2)]";
+                updateParticlesAndCore(0xbc00ff, 3.5, 2.5);
+                updateInputsAndMetrics(55, 280, 88);
+                writeLog("State Changed: HYPER-SCALE. Enjambres paralelos multi-región activos.");
+            } else if (state === 'crisis') {
+                activeBtn.className = "py-2 rounded text-[9px] orbitron font-bold border transition-all duration-300 bg-red-950/50 border-red-500 text-red-500 animate-pulse";
+                updateParticlesAndCore(0xff004c, 5.0, 3.0);
+                updateInputsAndMetrics(88, 45, 30);
+                writeLog("State Changed: CRISIS WARNING. Despliegue de redundancia de contingencia.");
+            } else if (state === 'audit') {
+                // Nuevo estado: AUDIT (Gobernanza y cumplimiento estricto)
+                activeBtn.className = "py-2 rounded text-[9px] orbitron font-bold border transition-all duration-300 bg-amber-950/50 border-amber-500 text-amber-400 shadow-[0_0_8px_rgba(255,170,0,0.2)]";
+                updateParticlesAndCore(0xffaa00, 0.7, 0.8);
+                updateInputsAndMetrics(22, 190, 85);
+                writeLog("State Changed: AUDIT MODE. Evaluando cumplimiento ISO/IEC 38505 (Gobernanza de Datos).");
+            } else if (state === 'heal') {
+                // Nuevo estado: HEAL (Modo auto-recuperación)
+                activeBtn.className = "py-2 rounded text-[9px] orbitron font-bold border transition-all duration-300 bg-emerald-950/50 border-emerald-500 text-emerald-400 shadow-[0_0_8px_rgba(0,255,170,0.2)]";
+                updateParticlesAndCore(0x00ffaa, 2.0, 1.8);
+                updateInputsAndMetrics(12, 110, 92);
+                writeLog("State Changed: HEAL PROTOCOL. Enjambres redirigidos a la restauración de salud del sistema.");
+            }
+
+            renderRiskMatrix();
+        }
+
+        function updateInputsAndMetrics(risk, budget, capacity) {
+            document.getElementById('slider-risk').value = risk;
+            document.getElementById('val-risk').innerText = `${risk}%`;
+
+            document.getElementById('slider-budget').value = budget;
+            document.getElementById('val-budget').innerText = `$${budget}K`;
+
+            document.getElementById('slider-capacity').value = capacity;
+            document.getElementById('val-capacity').innerText = `${capacity}%`;
+
+            // Fórmulas teóricas del MANUAL TÉCNICO
+            const avoided = Math.round((budget * 1000) * (capacity/100) * (1 - risk/100) * 4);
+            const crm = Math.round((budget * 1000) * (risk/100) * 0.4);
+            const vps = Math.round((avoided * 1.8) + crm);
+            const efficiency = ((capacity * (1 - (risk/220)))).toFixed(1);
+
+            document.getElementById('hud-avoided').innerText = `$${avoided.toLocaleString()}`;
+            document.getElementById('hud-vps').innerText = `$${Math.round(vps/1000)}K`;
+            document.getElementById('hud-efficiency').innerText = `${efficiency}%`;
+            document.getElementById('hud-crm').innerText = `$${crm.toLocaleString()}`;
+        }
+
+        function renderRiskMatrix() {
+            const matrixContainer = document.getElementById('risk-matrix');
+            if(!matrixContainer) return;
+            matrixContainer.innerHTML = '';
+            
+            const riskVal = parseInt(document.getElementById('slider-risk').value);
+            const activeCol = Math.min(4, Math.floor(riskVal / 20));
+            const activeRow = Math.min(4, Math.floor((100 - riskVal) / 20));
+
+            for (let r = 0; r < 5; r++) {
+                for (let c = 0; c < 5; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'w-full h-4 rounded-sm transition-all duration-300';
+                    
+                    let cellColor = 'bg-emerald-500/20 border border-emerald-500/5';
+                    if (r + c >= 6) {
+                        cellColor = 'bg-red-500/30 border border-red-500/5';
+                    } else if (r + c >= 4) {
+                        cellColor = 'bg-yellow-500/25 border border-yellow-500/5';
+                    } else if (r + c >= 2) {
+                        cellColor = 'bg-blue-500/20 border border-blue-500/5';
+                    }
+
+                    if (r === activeRow && c === activeCol) {
+                        if (systemState === 'normal') {
+                            cell.className += ' bg-cyan-400 shadow-[0_0_10px_#00f2ff] scale-110 border border-white animate-pulse';
+                        } else if (systemState === 'stealth') {
+                            cell.className += ' bg-slate-300 shadow-[0_0_8px_#cbd5e1] scale-110 border border-white';
+                        } else if (systemState === 'hyper') {
+                            cell.className += ' bg-purple-500 shadow-[0_0_10px_#bc00ff] scale-110 border border-white animate-pulse';
+                        } else if (systemState === 'crisis') {
+                            cell.className += ' bg-red-500 shadow-[0_0_10px_#ff004c] scale-110 border border-white animate-ping';
+                        } else if (systemState === 'audit') {
+                            cell.className += ' bg-amber-400 shadow-[0_0_10px_#ffaa00] scale-110 border border-white';
+                        } else if (systemState === 'heal') {
+                            cell.className += ' bg-emerald-400 shadow-[0_0_10px_#00ffaa] scale-110 border border-white animate-pulse';
+                        }
+                    } else {
+                        cell.className += ' ' + cellColor;
+                    }
+                    matrixContainer.appendChild(cell);
+                }
+            }
+        }
+
+        let arActive = false;
+        let camStream = null;
+
+        async function toggleAR() {
+            const video = document.getElementById('ar-video');
+            if (!arActive) {
+                try {
+                    camStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: "environment" }
+                    });
+                    video.srcObject = camStream;
+                    video.style.display = 'block';
+
+                    renderer.setClearColor(0x000000, 0);
+                    scene.background = null;
+
+                    camera.position.set(0, 16, 15);
+                    camera.lookAt(0, 0, 0);
+
+                    arActive = true;
+                    setLanguage(currentLang);
+                    document.getElementById('btn-ar').classList.remove('border-cyan-400/50', 'text-cyan-400');
+                    document.getElementById('btn-ar').classList.add('border-red-500/50', 'text-red-400', 'bg-red-950/20');
+                    writeLog("AR MODE: Proyectando prototipo ALPM en mesa de trabajo.");
+                } catch (err) {
+                    console.error(err);
+                    writeLog("AR ERROR: No se puede acceder a la cámara ambiental.");
+                }
+            } else {
+                if (camStream) {
+                    camStream.getTracks().forEach(track => track.stop());
+                }
+                video.style.display = 'none';
+
+                renderer.setClearColor(0x020508, 1);
+                scene.background = new THREE.Color(0x020508);
+
+                camera.position.set(0, 12, 28);
+                camera.lookAt(0, 0, 0);
+
+                arActive = false;
+                setLanguage(currentLang);
+                document.getElementById('btn-ar').classList.add('border-cyan-400/50', 'text-cyan-400');
+                document.getElementById('btn-ar').classList.remove('border-red-500/50', 'text-red-400', 'bg-red-950/20');
+                writeLog("AR MODE: Desactivado.");
+            }
+        }
+
+        function focusOnSection(section) {
+            controls.reset();
+            if (section === 'datasources') {
+                camera.position.set(-15, 4, 12);
+                writeLog("CAM: Enfocando sección (10) Fuentes de Datos.");
+            } else if (section === 'capsule') {
+                camera.position.set(-2, 2, 10);
+                writeLog("CAM: Enfocando sección (20) Sistema Central ALPM.");
+            } else if (section === 'dashboard') {
+                camera.position.set(11, 2, 11);
+                writeLog("CAM: Enfocando sección (40) Dashboard de Mando.");
+            }
+        }
+
+        function resetCamera() {
+            controls.reset();
+            camera.position.set(0, 12, 28);
+            camera.lookAt(0, 0, 0);
+            writeLog("CAM: Vista de cámara restablecida.");
+        }
+
+        function updateParticlesAndCore(hexColor, speedMul, pulseIntensity) {
+            currentFlowColor = hexColor;
+            speedMultiplier = speedMul;
+            capsulePulseStrength = pulseIntensity;
+
+            const colorObj = new THREE.Color(hexColor);
+            
+            leftStructureLines.forEach(l => {
+                l.line.material.color.set(colorObj);
+                l.line.material.opacity = (systemState === 'stealth') ? 0.05 : 0.15;
+            });
+
+            coreLightningBeam.material.color.set(colorObj);
+            rightDashboardFrame.material.color.set(colorObj);
+        }
+
+        let time = 0;
+        function animateSimulation() {
+            requestAnimationFrame(animateSimulation);
+            time += 0.01;
+
+            // 1. Biomecánica: Latido e inflamiento de la cápsula central
+            const pulse = 1.0 + Math.sin(time * 3 * capsulePulseStrength) * 0.05;
+            capsuleGlassMesh.scale.set(pulse, 1, pulse);
+
+            rpeStorm.rotation.y += 0.015 * speedMultiplier;
+            moaLattice.rotation.y -= 0.008 * speedMultiplier;
+
+            // 2. Física modular: Flotación suave y órbitas individuales de los nodos de datos
+            nodeMeshes.forEach((node, idx) => {
+                node.rotation.y += 0.02;
+                node.position.y += Math.sin(time * 1.5 + idx) * 0.003;
+                node.children[0].rotation.y += 0.01; 
+            });
+
+            // 3. Inteligencia de enjambre (Swarm AI): Partículas viajando sobre las curvas
+            if (dataParticles) {
+                const positions = dataParticles.geometry.attributes.position.array;
+                const colors = dataParticles.geometry.attributes.color.array;
+                const activeColor = new THREE.Color(currentFlowColor);
+
+                for (let i = 0; i < SWARM_PARTICLE_COUNT; i++) {
+                    const pData = particlePathsData[i];
+                    pData.progress += pData.speed * speedMultiplier;
+
+                    if (pData.progress >= 1.0) {
+                        pData.progress = 0.0;
+                    }
+
+                    const curveData = leftStructureLines[pData.pathIndex];
+                    const pos = curveData.curve.getPointAt(pData.progress);
+
+                    positions[i * 3] = pos.x;
+                    positions[i * 3 + 1] = pos.y;
+                    positions[i * 3 + 2] = pos.z;
+
+                    colors[i * 3] = THREE.MathUtils.lerp(colors[i * 3], activeColor.r, 0.1);
+                    colors[i * 3 + 1] = THREE.MathUtils.lerp(colors[i * 3 + 1], activeColor.g, 0.1);
+                    colors[i * 3 + 2] = THREE.MathUtils.lerp(colors[i * 3 + 2], activeColor.b, 0.1);
+                }
+
+                dataParticles.geometry.attributes.position.needsUpdate = true;
+                dataParticles.geometry.attributes.color.needsUpdate = true;
+            }
+
+            // 4. Dashboard de Mando: Ciclón rotando y malla 3D de olas
+            if (cycloneVortex) {
+                cycloneVortex.rotation.y += 0.03 * speedMultiplier;
+            }
+
+            if (terrainWaveMesh) {
+                const posAttr = terrainWaveMesh.geometry.attributes.position;
+                const count = posAttr.count;
+                const speedScale = (systemState === 'hyper') ? 6.0 : (systemState === 'crisis') ? 8.0 : 2.5;
+                const waveAmp = (systemState === 'crisis') ? 0.35 : 0.12;
+
+                for (let i = 0; i < count; i++) {
+                    const x = posAttr.getX(i);
+                    const y = posAttr.getY(i);
+                    
+                    // Simulación de olas Monte Carlo dinámicas
+                    const z = Math.sin(x * 1.2 + time * speedScale) * Math.cos(y * 0.8 + time * speedScale) * waveAmp;
+                    posAttr.setZ(i, z);
+                }
+                posAttr.needsUpdate = true;
+            }
+
+            if (coreLightningBeam) {
+                const scaleY = 1.0 + Math.sin(time * 25) * 0.08;
+                coreLightningBeam.scale.set(1.0, scaleY, 1.0);
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.onload = () => {
+            lucide.createIcons();
+            setLanguage('es');
+            initALPM3D();
+            changeSystemState('normal');
+
+            // Listeners para sliders del HUD principal
+            document.getElementById('slider-risk').addEventListener('input', (e) => {
+                const val = parseInt(e.target.value);
+                document.getElementById('val-risk').innerText = `${val}%`;
+                updateInputsAndMetrics(val, document.getElementById('slider-budget').value, document.getElementById('slider-capacity').value);
+            });
+
+            document.getElementById('slider-budget').addEventListener('input', (e) => {
+                const val = parseInt(e.target.value);
+                document.getElementById('val-budget').innerText = `$${val}K`;
+                updateInputsAndMetrics(document.getElementById('slider-risk').value, val, document.getElementById('slider-capacity').value);
+            });
+
+            document.getElementById('slider-capacity').addEventListener('input', (e) => {
+                const val = parseInt(e.target.value);
+                document.getElementById('val-capacity').innerText = `${val}%`;
+                updateInputsAndMetrics(document.getElementById('slider-risk').value, document.getElementById('slider-budget').value, val);
+            });
+
+            // Listener para slider de telemetría de nodo individual (Interactividad avanzada)
+            document.getElementById('slider-node-risk').addEventListener('input', (e) => {
+                const val = parseInt(e.target.value);
+                updateSelectedNodeRisk(val);
+            });
+
+            // Simular leves fluctuaciones automáticas en la red de datos para realismo
+            setInterval(() => {
+                if (systemState !== 'crisis' && !isIPASimulating && selectedNodeIndex === null) {
+                    const riskSlider = document.getElementById('slider-risk');
+                    let currentRisk = parseInt(riskSlider.value);
+                    currentRisk += Math.floor(Math.random() * 5) - 2;
+                    currentRisk = Math.max(10, Math.min(95, currentRisk));
+                    
+                    riskSlider.value = currentRisk;
+                    document.getElementById('val-risk').innerText = `${currentRisk}%`;
+                    
+                    updateInputsAndMetrics(currentRisk, document.getElementById('slider-budget').value, document.getElementById('slider-capacity').value);
+                    renderRiskMatrix();
+                }
+            }, 5000);
+        };
+    </script>
+</body>
+</html>
