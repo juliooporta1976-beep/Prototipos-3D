@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DYNAMICFOOD NEUROTASTE - 3D PROTOTYPE</title>
+  <!-- Tailwind core styling loaded via CDN for high display precision -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background-color: #0d0e12;
+      color: #e2e8f0;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .neon-border {
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+    }
+    .neon-text {
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+      color: #00f0ff;
+    }
+    #canvasContainer {
+      position: relative;
+      background-color: #11131a;
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+      border-radius: 0.75rem;
+      overflow: hidden;
+      width: 100%;
+      height: 480px;
+    }
+    @media (max-width: 768px) {
+      #canvasContainer {
+        height: 360px;
+      }
+    }
+  </style>
+</head>
+<body class="bg-[#0d0e12] text-slate-100 min-h-screen p-4 md:p-8">
+
+  <!-- TOP BAR SECTION -->
+  <header class="border-b border-cyan-500/20 pb-4 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div>
+      <div class="text-cyan-400 font-mono text-sm tracking-widest uppercase">// NEUROTASTE ADAPTIVE SYSTEM</div>
+      <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-white mt-1">
+        DYNAMICFOOD NEUROTASTE
+      </h1>
+      <p class="text-slate-400 text-sm mt-0.5">Alimentación Adaptativa por IA Salival</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="text-slate-400 text-xs font-mono">LANGUAGE:</span>
+      <select id="langSelect" class="bg-[#181a21] border border-cyan-500/30 rounded px-2 py-1 text-sm font-mono text-cyan-400 focus:outline-none" onchange="switchLanguage(this.value)">
+        <option value="es" selected>Español</option>
+        <option value="en" >English</option>
+        <option value="zh" >Mandarin</option>
+      </select>
+    </div>
+  </header>
+
+  <main class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- VIEWPORT & 3D CONTROLLER -->
+    <div class="lg:col-span-8 flex flex-col gap-4">
+      <div id="canvasContainer" class="relative bg-[#11131a] rounded-xl overflow-hidden neon-border flex flex-col">
+        
+        <!-- Live Diagnostic Banner -->
+        <div class="absolute top-4 left-4 z-10 bg-[#0d0e12]/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-cyan-500/30 text-[10px] font-mono">
+          <span class="text-cyan-400 font-bold">⚡ NÚCLEO AUTÓNOMO IA RECTIFICADO</span>
+        </div>
+
+        <!-- Model Switcher Tabs inside offline prototype -->
+        <div class="absolute top-4 right-4 z-20 bg-[#0d0e12]/95 backdrop-blur-md p-1 rounded-xl border border-cyan-500/20 flex flex-wrap gap-1 text-[10px] font-mono shadow-md max-w-[90%] justify-end">
+          <button id="btnModelFood" onclick="setModel('food')" class="px-2 py-1 rounded bg-[#00f0ff]/20 text-[#00f0ff] font-bold border border-[#00f0ff]/30 whitespace-nowrap">🍽️ Alimento</button>
+          <button id="btnModelCapsule" onclick="setModel('capsule')" class="px-2 py-1 rounded text-slate-400 hover:text-white border border-transparent whitespace-nowrap">🪐 Cápsula</button>
+          <button id="btnModelTwin" onclick="setModel('twin')" class="px-2 py-1 rounded text-slate-400 hover:text-white border border-transparent whitespace-nowrap font-bold text-sky-400">👤 Bucle IA</button>
+          <button id="btnModelReceptor" onclick="setModel('receptor')" class="px-2 py-1 rounded text-slate-400 hover:text-white border border-transparent whitespace-nowrap">👅 Receptores TRC</button>
+          <button id="btnModelCellular" onclick="setModel('cellular')" class="px-2 py-1 rounded text-slate-400 hover:text-white border border-transparent whitespace-nowrap">🔋 Absorción celular</button>
+          <button id="btnModelMicrobiome" onclick="setModel('microbiome')" class="px-2 py-1 rounded text-slate-400 hover:text-white border border-transparent whitespace-nowrap font-medium text-emerald-400">🦠 Microbioma bucal</button>
+        </div>
+
+        <!-- Canvas -->
+        <canvas id="3dCanvas" class="w-full h-full flex-grow cursor-grab active:cursor-grabbing"></canvas>
+
+        <!-- Dynamic indicators overlay -->
+        <div class="absolute bottom-4 left-4 right-4 flex flex-wrap justify-between items-end gap-2 bg-[#0d0e12]/80 backdrop-blur-md p-3 rounded-lg border border-cyan-500/10 text-xs font-mono z-10">
+          <div>
+            <div class="text-slate-500 uppercase">// ACTIVE STATE</div>
+            <div id="activeStateLabel" class="text-cyan-400 font-semibold text-sm">LOADING...</div>
+          </div>
+          <div class="flex gap-4">
+            <div>
+              <span class="text-slate-500">CORTISOL:</span> <span id="logCort" class="text-amber-400 font-semibold">--</span>
+            </div>
+            <div>
+              <span class="text-slate-500">LACTATE:</span> <span id="logLac" class="text-emerald-400 font-semibold">--</span>
+            </div>
+            <div>
+              <span class="text-slate-500">GLUCOSE:</span> <span id="logGlu" class="text-violet-400 font-semibold">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls & Toggle modes -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-[#141722] p-4 rounded-xl border border-slate-800 flex flex-col gap-3">
+          <h2 id="titleModos" class="text-white font-semibold flex items-center gap-2">
+            📊 Modos Operativos
+          </h2>
+          <div class="grid grid-cols-1 gap-2">
+            <button onclick="setRegime('stress')" class="w-full text-left p-2.5 rounded-lg text-sm transition-all duration-200 border bg-[#1a1d28] hover:bg-[#202535] border-cyan-500/30 text-cyan-300">
+              ⚡ Estrés Alto (Cortisol)
+            </button>
+            <button onclick="setRegime('athletic')" class="w-full text-left p-2.5 rounded-lg text-sm transition-all duration-200 border bg-[#1a1d28] hover:bg-[#202535] border-emerald-500/30 text-emerald-300">
+              🏃 Recuperación Deportiva (Lactato)
+            </button>
+            <button onclick="setRegime('glycemic')" class="w-full text-left p-2.5 rounded-lg text-sm transition-all duration-200 border bg-[#1a1d28] hover:bg-[#202535] border-purple-500/30 text-purple-300">
+              🩺 Control Glucémico (Glucosa)
+            </button>
+            <button onclick="setRegime('cognitive')" class="w-full text-left p-2.5 rounded-lg text-sm transition-all duration-200 border bg-[#1a1d28] hover:bg-[#202535] border-blue-500/30 text-blue-300">
+              🧠 <span id="btnModoCo">Enfoque Cognitivo / Zinc</span>
+            </button>
+            <button onclick="setRegime('digestive')" class="w-full text-left p-2.5 rounded-lg text-sm transition-all duration-200 border bg-[#1a1d28] hover:bg-[#202535] border-pink-500/30 text-pink-300">
+              🍃 <span id="btnModoDi">Optimización Microbioma</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-[#141722] p-4 rounded-xl border border-slate-800 flex flex-col gap-2">
+          <h2 id="titleBiomarcadores" class="text-white font-semibold flex items-center gap-2">
+            🧪 Biomarcadores en Tiempo Real
+          </h2>
+          <div class="flex flex-col gap-2 text-xs font-mono">
+            <div>
+              <div class="flex justify-between text-slate-400 mb-0.5">
+                <span id="lblGlu">Glucosa</span><span id="valGlu">--</span>
+              </div>
+              <input type="range" id="rngGlu" min="50" max="250" value="75" class="w-full accent-cyan-400" oninput="manualBiomarker('glucose', this.value)">
+            </div>
+            <div>
+              <div class="flex justify-between text-slate-400 mb-0.5">
+                <span id="lblCor">Cortisol (Estrés)</span><span id="valCor">--</span>
+              </div>
+              <input type="range" id="rngCor" min="1" max="40" value="18" class="w-full accent-cyan-400" oninput="manualBiomarker('cortisol', this.value)">
+            </div>
+            <div>
+              <div class="flex justify-between text-slate-400 mb-0.5">
+                <span id="lblLac">Lactato (Fatiga)</span><span id="valLac">--</span>
+              </div>
+              <input type="range" id="rngLac" min="0.2" max="10" step="0.1" value="1" class="w-full accent-cyan-400" oninput="manualBiomarker('lactate', this.value)">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HUD TACTICAL / DESCRIPTIONS -->
+    <div class="lg:col-span-4 flex flex-col gap-4">
+      <div class="bg-[#141722] p-4 rounded-xl border border-slate-800 flex flex-col h-full justify-between">
+        <div class="flex flex-col gap-3">
+          <span class="text-cyan-500 font-mono text-xs">// HUD TÁCTICO</span>
+          <h2 id="hudTitle" class="text-xl font-bold text-white tracking-tight">HUD Táctico del Sensor</h2>
+          <hr class="border-slate-800">
+          <p id="regimeExplanation" class="text-slate-300 text-sm leading-relaxed p-3 bg-[#0d0e12] rounded-lg border border-cyan-500/10">
+            LOADING MANUAL EXPLANATION...
+          </p>
+          
+          <div class="mt-4 flex flex-col gap-2 text-xs font-mono">
+            <div class="flex justify-between border-b border-slate-800 py-1.5 text-slate-400">
+              <span>BIOMECH FORCE:</span>
+              <span id="hudMech" class="text-white">--</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-800 py-1.5 text-slate-400">
+              <span>SHEAR PRESSURE:</span>
+              <span id="hudShear" class="text-white">--</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-800 py-1.5 text-slate-400">
+              <span id="hudVoltLabel">SALIVARY VOLTAGE:</span>
+              <span id="hudVolt" class="text-cyan-400">--</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-800 py-1.5 text-slate-400">
+              <span id="hudDegLabel">MEMBRANE DEGRADATION:</span>
+              <span id="hudDeg" class="text-pink-400">--</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-800 py-1.5 text-slate-400">
+              <span id="hudAffLabel">RECEPTOR AFFINITY:</span>
+              <span id="hudAff" class="text-emerald-400">--</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-800 py-1.5 text-slate-400">
+              <span>SYNAPSE ALIGN:</span>
+              <span id="hudSync" class="text-white">--</span>
+            </div>
+          </div>
+
+          <!-- Exploded view & speed controls in Standalone -->
+          <div class="mt-4 pt-3 border-t border-slate-800 flex flex-col gap-2">
+            <div class="flex items-center justify-between text-xs text-slate-400 font-mono">
+              <span id="optExplode">Explode Capsule Layers (CAD)</span>
+              <input type="checkbox" id="chkExplode" class="w-4 h-4 accent-cyan-400 cursor-pointer">
+            </div>
+            <div class="flex flex-col gap-1">
+              <div class="flex justify-between text-xs text-slate-400 font-mono">
+                <span id="optSpeed">Rotational Speed</span>
+                <span id="valSpeed" class="text-cyan-400 font-semibold">1.0x</span>
+              </div>
+              <input type="range" id="rngSpeed" min="0" max="3" step="0.2" value="1.0" class="w-full accent-cyan-400">
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 p-3 bg-cyan-950/20 border border-cyan-500/30 rounded-xl text-xs flex items-center gap-2">
+          <span class="text-cyan-400 text-lg">💡</span>
+          <p class="text-slate-400">Este prototipo funciona en local sin conexión a internet. Puede ser compartido fácilmente por WhatsApp o correo.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- DYNAMIC INTEGRATED SCHEMATIC INFOGRAPHIC LOOP (OFFLINE) -->
+    <div class="lg:col-span-12 mt-6 bg-[#0f1118]/90 border border-slate-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden transition-all duration-300">
+      <div class="absolute inset-0 bg-scanlines pointer-events-none opacity-5"></div>
+      
+      <!-- Ambient Orb -->
+      <div id="offlineGlowOrb" class="absolute w-72 h-72 rounded-full blur-[100px] pointer-events-none transition-all duration-700 opacity-20 bg-cyan-500" style="top: 30%; left: 40%;"></div>
+
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-800/80 pb-4 gap-2 z-10">
+        <div class="flex items-center gap-3">
+          <div class="p-1 px-1.5 rounded bg-cyan-950/40 border border-cyan-400/30 text-cyan-400 flex items-center justify-center animate-pulse">
+            <span class="text-xs font-mono">⚡ DIAGRAMA</span>
+          </div>
+          <div>
+            <h3 class="text-white font-extrabold tracking-tight text-sm uppercase font-mono flex items-center gap-2">
+              <span id="infografiaMainLabel">INTEGRACIÓN ESQUEMA DIGITAL AUTÓNOMO</span>
+              <span class="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-bold animate-pulse">OFFLINE MATRIX SYNC</span>
+            </h3>
+            <p id="infografiaSubLabel" class="text-slate-400 text-xs mt-0.5">
+              Ciclo continuo de alimentación adaptativa guiado por tu saliva y una IA.
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 font-mono text-[10px] bg-slate-950/80 p-1.5 rounded-lg border border-slate-800">
+          <span class="text-slate-500">OFFLINE MODE:</span>
+          <span id="offlineActiveModeLabel" class="font-bold underline tracking-wider uppercase text-cyan-400">STRESS</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-center mt-6">
+        <!-- SVG LOOP -->
+        <div class="xl:col-span-8 bg-[#090a0f]/90 p-4 rounded-xl border border-slate-800 relative flex flex-col items-center justify-center min-h-[440px]">
+          <div class="absolute top-3 left-3 bg-[#11131c] border border-slate-805 p-2 rounded-lg text-[9px] font-mono text-slate-400 max-w-sm z-10 pointer-events-none">
+            💡 Haz clic en los nodos de la infografía para alternar parámetros biológicos en tiempo real.
+          </div>
+
+          <div class="w-full max-w-[500px] aspect-square relative flex items-center justify-center p-2">
+            <svg class="absolute inset-0 w-full h-full" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="300" cy="300" r="195" fill="none" stroke="rgba(255, 255, 255, 0.03)" stroke-width="1.5" stroke-dasharray="4 6"></circle>
+              <circle cx="300" cy="300" r="215" fill="none" stroke="rgba(255, 255, 255, 0.02)" stroke-width="1"></circle>
+              
+              <!-- Core Arcs -->
+              <path d="M 160 215 C 200 135, 240 100, 300 100" fill="none" stroke="rgba(0, 240, 255, 0.2)" stroke-width="2"></path>
+              <path d="M 300 100 C 400 100, 470 175, 450 360" fill="none" stroke="rgba(0, 240, 255, 0.2)" stroke-width="2"></path>
+              <path d="M 430 440 C 350 515, 230 515, 145 375" fill="none" stroke="#10b981" stroke-width="5" stroke-linecap="round"></path>
+              
+              <circle cx="160" cy="215" r="8" fill="#00f0ff" opacity="0.3"></circle>
+              <circle cx="300" cy="100" r="8" fill="#00f0ff" opacity="0.3"></circle>
+              <circle cx="430" cy="440" r="8" fill="#10b981" opacity="0.4"></circle>
+            </svg>
+
+            <!-- Node 1: IA -->
+            <div onclick="clickOfflineNode('ia')" class="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer p-2.5 rounded-xl bg-[#030408] border border-slate-800 text-center hover:border-cyan-400 font-mono transition-all duration-200 z-10" style="left: 50%; top: 15%; min-width: 160px;">
+              <span id="labelNodeIaTitle" class="text-[10px] font-bold text-cyan-400 block">☁️ PLATAFORMA DE IA</span>
+              <span id="labelNodeIaText" class="text-[8.5px] text-slate-400 block mt-0.5">Análisis Predictivo</span>
+            </div>
+
+            <!-- Node 2: SENSADO -->
+            <div onclick="clickOfflineNode('sensing')" class="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer p-2.5 rounded-xl bg-[#030408] border border-slate-800 hover:border-sky-400 font-mono transition-all duration-200 z-10" style="left: 17%; top: 42%; width: 155px;">
+              <span id="labelNodeSensTitle" class="text-[10px] font-bold text-sky-400 block">🔌 SENSADO</span>
+              <span id="labelNodeSensText" class="text-[8.5px] text-slate-400 block mt-0.5">Glucosa, Lactato, pH</span>
+            </div>
+
+            <!-- Node 3: EXPERIENCIA -->
+            <div onclick="clickOfflineNode('experience')" class="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer p-2.5 rounded-xl bg-[#030408] border border-slate-800 hover:border-pink-400 font-mono transition-all duration-200 z-10" style="left: 20%; top: 80%; width: 155px;">
+              <span id="labelNodeExpTitle" class="text-[10px] font-bold text-pink-400 block">🧠 EXPERIENCIA</span>
+              <span id="labelNodeExpText" class="text-[8.5px] text-slate-400 block mt-0.5">dulce, umami, crujiente</span>
+            </div>
+
+            <!-- Node 4: ACCIÓN -->
+            <div onclick="clickOfflineNode('action')" class="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer p-2.5 rounded-xl bg-[#030408] border border-slate-800 hover:border-rose-400 font-mono transition-all duration-200 z-10" style="left: 80%; top: 78%; width: 165px;">
+              <span id="labelNodeActTitle" class="text-[10px] font-bold text-rose-400 block">🧪 ACCIÓN</span>
+              <span id="labelNodeActText" class="text-[8.5px] text-slate-400 block mt-0.5">Liberación Enzimática</span>
+            </div>
+
+            <!-- Central USER Node -->
+            <div onclick="clickOfflineNode('user')" class="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer p-1 rounded-full bg-[#05060b] border border-slate-700 w-22 h-22 flex flex-col items-center justify-center transition-all duration-300 hover:scale-105 z-10" style="left: 50%; top: 50%;">
+              <span class="text-[10px] text-white font-extrabold tracking-widest bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-500/20">USER</span>
+              <span class="text-[8.5px] text-emerald-400 font-semibold block mt-1">😊 BIOTECH</span>
+            </div>
+
+            <!-- Curving feedback Arrow Badge -->
+            <div class="absolute -translate-x-1/2 p-2 px-3 rounded-full border border-emerald-500/30 bg-[#06110f]/95 text-emerald-500 text-[9px] font-mono font-bold tracking-wide shadow-md whitespace-nowrap animate-pulse z-10" style="left: 50%; top: 91%;">
+              🔄 <span id="labelNodeLoop">Ciclo Continuo de Adaptación en Tiempo Real</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side Offline text details -->
+        <div class="xl:col-span-4 bg-[#11131c]/60 p-4 rounded-xl border border-slate-800 h-full flex flex-col justify-between gap-4 self-stretch min-h-[300px]">
+          <div>
+            <div class="text-cyan-400 font-mono text-[10px] tracking-widest uppercase">// CONTROL OFFLINE RECTIFICADO</div>
+            <h4 id="offInfDetailsTitle" class="text-white font-extrabold text-sm uppercase mt-1">DIAGNÓSTICO DEL BUCLE DE EVALUACIÓN</h4>
+            <p id="offInfDetailsDesc" class="text-slate-400 text-xs leading-relaxed mt-2">
+              Haz clic en cualquier bloque sensor para ensayar respuestas químicas, desencadenar explosiones de polímero o simular cargas neurotransmisoras. El modelo 3D superior responderá en concordancia.
+            </p>
+          </div>
+          
+          <div class="bg-slate-950 p-3 rounded-lg border border-slate-900 text-[10px] font-mono flex flex-col gap-1.5">
+            <div class="flex justify-between items-center text-slate-500">
+              <span>SATELLITE SYNC:</span> <span class="text-emerald-400 font-bold">ONLINE COMPATIBLE</span>
+            </div>
+            <div class="flex justify-between items-center text-slate-500">
+              <span>GUSTATORY SYNERGY:</span> <span class="text-white font-bold">Active closed loop</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="border-t border-slate-800 mt-12 py-6 text-center text-xs text-slate-500 font-mono">
+    Prototipo Funcional de Patente © 2026
+  </footer>
+
+  <!-- EMBEDDED TRANSLATIONS DATABASE & 3D ENGINE -->
+  <script>
+    const translations = {"es":{"authorTitle":"Dr. Julio César Oporta Barrera","developer":"Prototipo Funcional de Patente","patente":"DYNAMICFOOD NEUROTASTE","viewTitle":"Alimentación Adaptativa por IA Salival","descargarBtn":"Descargar Prototipo Autónomo (.html)","descargarDesc":"Descarga un archivo HTML 100% autónomo con el simulador 3D para usar sin conexión y enviar por WhatsApp/correo.","languageSelect":"Idioma","modosOperativos":"Modos Operativos","modoEs":"Estrés Alto (Cortisol)","modoAt":"Recuperación Deportiva (Lactato)","modoGl":"Control Glucémico (Glucosa)","modoCu":"Simulación Libre / Personalizada","biomarcadores":"Biomarcadores en Tiempo Real","datosSalivales":"Análisis Químico Salival","glusosa":"Glucosa","cortisol":"Cortisol (Estrés)","lactato":"Lactato (Fatiga)","amilasa":"Amilasa Salival","ph":"Acidez (pH)","temperatura":"Temperatura Cavidad","biomecanica":"Biomecánica y Masticación","fisicaModular":"Física Modular","energiaHibrida":"Energía Híbrida Enzimática","iaEnjambre":"IA de Enjambre (Partículas)","hUDTactico":"HUD Táctico del Sensor","realidadAumentada":"Holograma y Realidad Aumentada (AR)","arInstruccion":"Usa este visor para superponer el prototipo sobre tu mesa mediante la cámara","nodosSistema":"Sistema de Nodos IA","nuevoNodo":"Agregar Nodo","conectarNodos":"Enlazar Siguiente Fase","simuladorAccion":"Control de Simulación","simulando":"Simulando en tiempo real...","reproducir":"Reanudar","pausar":"Pausar","reliculasTexto":"Liberación de Nanocápsulas","descripcionSabor":"Sabor Adaptado","capsulasGrosor":"Grosor de Membrana (PLGA)","viscosidadFrente":"Viscosidad Reológica","sensorOral":"Sensor Sublingual / Dental","descripStress":"Se detecta alto cortisol. La IA activa nanocápsulas de liberación rápida de Magnesio y L-teanina, enmascarando sabores amargos con mentol refrescante.","descripAthletic":"Fatiga muscular detectada. Liberación selectiva de electrolitos (Sodio/Potasio) y péptidos bioactivos con sabor salado-umami vigorizante.","descripGlycemic":"Pico de glucosa inminente. Activación de liberación lenta de fibra soluble con sabor cítrico ácido que retarda la absorción gástrica.","descripCustom":"Ajusta manualmente los niveles de biomarcadores salivales usando los controles para ver la reacción adaptativa del sistema.","iluminacionCine":"Iluminación Cinematográfica","cinematicLightDesc":"Focos de tungsteno y retroiluminación azul neón táctico para sombras realistas y visualización volumétrica de fluidos.","shadersTitle":"Shaders Avanzados de Enzimas","texturaDureza":"Dureza de Nanocápsulas","modoCo":"Enfoque Cognitivo (Neuro-Tratado / Zinc)","modoDi":"Optimización Microbioma (Digestivo)","descripCognitive":"Se detecta alta fatiga intelectual. La IA modula la absorción y libera Zinc con L-teanina, un neuroprotector que potencia la focalización nerviosa sin inducir cansancio.","descripDigestive":"Desequilibrio y digestión lenta detectados. La IA modula la viscosidad bucofaríngea y libera prebióticos con inmunoglobulina (IgA) para proteger la mucosa bacteriana.","explodedViewText":"Expandir Capas de la Cápsula (Vista Explosión CAD)","rotationSpeedText":"Velocidad de Giro","bioVo":"Voltaje Enzimático","polyDeg":"Degradación del Polímero","recepAff":"Afinidad del Receptor","modoEx":"Experiencia Sensorial (Dulce/Umami/Crujencia)","descripExperiencial":"Modulación de sabores y texturas en bucle óptimo: Sintoniza dulce, umami, crujencia, suavidad y temperatura térmica bucofaríngea según predicciones de la IA.","modoRe":"Calma & Relajación (Mindfulness & GABA)","descripRelaxation":"Se detecta estrés moderado en declive sutil. La IA modula un flujo salival altamente enriquecido con GABA, L-Teanina y adaptógenos de manzanilla con notas florales de tarta de cereza, estabilizando los ritmos biológicos autonómicos.","modoCi":"Sincronización Circadiana (Crononutrición Melatonina)","descripCircadian":"Se detecta desfase de ritmo nictemeral / cronobiológico. La IA dosifica micro-estímulos salivales de Melatonina recombinante, triptófano de liberación ultra-lenta y notas olfativo-espaciales de lavanda, induciendo ondas cerebrales de readaptación al ciclo sueño-vigilia."},"en":{"authorTitle":"Dr. Julio César Oporta Barrera","developer":"Patent Functional Prototype","patente":"DYNAMICFOOD NEUROTASTE","viewTitle":"Salivary AI-Mediated Adaptive Nutrition","descargarBtn":"Download Autonomous Prototype (.html)","descargarDesc":"Download a 100% autonomous HTML file with the 3D simulator to run offline and send via WhatsApp or email.","languageSelect":"Language","modosOperativos":"Operative Modes","modoEs":"High Stress (Cortisol Mode)","modoAt":"Athletic Recovery (Lactate Mode)","modoGl":"Glycemic Control (Glucose Mode)","modoCu":"Free / Customized Simulation","biomarcadores":"Real-time Biomarkers","datosSalivales":"Salivary Chemical Analysis","glusosa":"Glucose","cortisol":"Cortisol (Stress)","lactato":"Lactate (Fatigue)","amilasa":"Salivary Amylase","ph":"Acidity (pH)","temperatura":"Oral Cavity Temp","biomecanica":"Biomechanics & Chewing","fisicaModular":"Modular Physics","energiaHibrida":"Enzymatic Hybrid Energy","iaEnjambre":"Swarm AI (Particles)","hUDTactico":"Tactical Sensor HUD","realidadAumentada":"Hologram & Augmented Reality (AR)","arInstruccion":"Use this viewer to overlay the prototype on your workspace using the camera","nodosSistema":"AI Node System","nuevoNodo":"Add Node","conectarNodos":"Link Next Phase","simuladorAccion":"Simulation Control","simulando":"Simulating in real time...","reproducir":"Resume","pausar":"Pause","reliculasTexto":"Nanocapsule Release","descripcionSabor":"Adapted Taste Profile","capsulasGrosor":"Membrane Thickness (PLGA)","viscosidadFrente":"Rheological Viscosity","sensorOral":"Sublingual / Dental Sensor","descripStress":"High cortisol detected. The AI activates rapid-release Magnesium and L-theanine nanocapsules, masking bitter compounds with refreshing menthol.","descripAthletic":"Muscle fatigue detected. Selective release of electrolytes (Sodium/Potassium) and bioactive peptides with invigorating salty-umami flavor.","descripGlycemic":"Glucose threshold reached. Activation of slow-release soluble fiber with tart acidic citrus flavor to delay gastric absorption.","descripCustom":"Manually adjust salivary biomarker levels using the sliders to see the real-time adaptive response of the platform.","iluminacionCine":"Cinematic Lighting","cinematicLightDesc":"Tungsten spotlights and tactical neon-blue backlighting for realistic shadows and volumetric fluid visualization.","shadersTitle":"Advanced Enzyme Shaders","texturaDureza":"Nanocapsule Shell Toughness","modoCo":"Cognitive Focus (Neuro-Care / Zinc Mode)","modoDi":"Microbiome Balance (Oral Digestion)","descripCognitive":"Cognitive exhaustion sensed. Salivary AI targets sublingual delivery of structured Zinc & L-Theanine to balance neurological pulses without lethargy.","descripDigestive":"Digestive strain and neutral pH spotted. Platform triggers polymer micro-pore splits to release prebiotic active cultures and mucosal IgA peptidics.","explodedViewText":"Explode Capsule Layers (CAD Mechanical View)","rotationSpeedText":"Rotational Speed","bioVo":"Enzymatic Voltage","polyDeg":"Polymer Material Degradation","recepAff":"Receptor Synapse Affinity","modoEx":"Sensory & Taste Experience (Sweet/Umami)","descripExperiencial":"Active sensory texture and taste optimization: Closed-loop tuning of sweet, umami, crunchiness, smoothness, and oral thermal levels based on real-time predictions.","modoRe":"Calm & Relaxation (Mindfulness & GABA Mode)","descripRelaxation":"Moderate stress drop sensed. The AI triggers salivary infusion of bio-receptive GABA, tranquilizing L-Theanine, and chamomile adaptogens with floral cherry-tart notes, reinforcing cardiac and parasympathetic rhythms.","modoCi":"Circadian Synchronization (Melatonin Chrono Mode)","descripCircadian":"Circadian dysregulation detected. The AI salivary unit targets micro-infusions of slow-acting Melatonin, structured L-Tryptophan, and lavender aromatic scent vectors, stabilizing pineal circadian oscillators and delta sleep signals."},"zh":{"authorTitle":"Dr. Julio César Oporta Barrera (奥波塔博士)","developer":"专利功能性原型系统","patente":"DYNAMICFOOD NEUROTASTE","viewTitle":"唾液人工智能介导的自适应营养系统","descargarBtn":"下载免安装独立原型 (.html)","descargarDesc":"下载一个100%独立的HTML文件，包含完整的3D模拟引擎，可完全离线运行并可通过微信/邮件发送。","languageSelect":"语言","modosOperativos":"运行模式","modoEs":"高压调理 (皮质醇模式)","modoAt":"运动恢复 (乳酸模式)","modoGl":"血糖稳态 (葡萄糖模式)","modoCu":"自由/自定义交互模拟","biomarcadores":"实时生物标志物参数","datosSalivales":"唾液化学分析数据","glusosa":"葡萄糖","cortisol":"皮质醇 (压力)","lactato":"乳酸 (疲劳度)","amilasa":"唾液淀粉酶","ph":"酸碱度 (pH值)","temperatura":"口腔温度","biomecanica":"生物力学与咀嚼剪切","fisicaModular":"物理模块化相互作用","energiaHibrida":"混合酶催化能量释放","iaEnjambre":"集群人工智能粒子流","hUDTactico":"战术HUD传感器视界","realidadAumentada":"全息与增强现实 (AR)","arInstruccion":"使用此视窗通过设备摄像头将纳米胶囊原型投影到您的工作桌面上","nodosSistema":"AI 决策节点突触系统","nuevoNodo":"添加突触节点","conectarNodos":"连接下一决策阶段","simuladorAccion":"模拟控制台","simulando":"实时AI自适应模拟中...","reproducir":"继续模拟","pausar":"暂停模拟","reliculasTexto":"智能纳米胶囊破裂释放","descripcionSabor":"自主调节风味外形","capsulasGrosor":"PLGA外壳厚度","viscosidadFrente":"流变剪切粘度","sensorOral":"舌下/牙科智能传感器","descripStress":"检测到高浓度皮质醇。人工智能立即激活快速释放的多孔镁和L-茶氨酸纳米颗粒，并以清凉的薄荷香气遮盖苦味。","descripAthletic":"检测到肌肉疲劳。选择性释放电解质（钠/钾）与活性短肽，带有一股增强活力的咸鲜乌玛米（鲜味）风味。","descripGlycemic":"预测血糖急剧波动。慢加速释放可溶性膳食纤维网格，辅以清酸柠檬风味，以延缓胃空置率与小肠吸收率。","descripCustom":"在下方滑动条中手动调节生物标志物，观察动态自适应系统在口腔内的微观响应与计算抉择。","iluminacionCine":"电影级三点式光影追踪","cinematicLightDesc":"钨光质感偏光与霓虹蓝强光背景，针对纳米微粒实现高对比度散射与流体物理阴影。","shadersTitle":"高级酶特异性着色器","texturaDureza":"纳米囊壁机械弹性/硬度","modoCo":"脑神经营养 (认知聚焦 / 锌离子)","modoDi":"粘膜免疫屏障 (腔道微生态)","descripCognitive":"检测到深度中枢脑疲劳。人工智能系统触发胶囊表面结合位点，选择性释放微克级活性锌离子与L-茶氨酸，激活脑神经营养通路并增强专注力。","descripDigestive":"检测到微生态失衡与吞咽阻力。系统主动提高释能流体粘度，缓释特异性IgA免疫因子与微胶囊化益生元，建立粘膜保护并稳固消化活性。","explodedViewText":"展开纳米胶囊图层 (CAD 机械拆解视角)","rotationSpeedText":"模型自动旋转速率","bioVo":"唾液酶活体化电压","polyDeg":"高分子材质溶解速率","recepAff":"靶向受体突触亲和力","modoEx":"全感官自适应体验 (甜/鲜/冷/松脆)","descripExperiencial":"闭环自适应感官调制：利用口腔边缘分析实时调节甜味、鲜味、松脆感、滑嫩感及热敏温度，形成完整的生物自适应反馈环。","modoRe":"心灵禅意与放松 (GABA与睡眠恢复模式)","descripRelaxation":"检测到微弱的心智压力。唾液人工智能立即下令触发释放活性多孔GABA，超细化L-茶氨酸与香蜂草及洋甘菊自适应因子，融合清雅香甜的樱桃风味，稳定副交感神经系统。","modoCi":"昼夜生物节律重置 (褪黑素与松果体同步模式)","descripCircadian":"检测到昼夜节律紊乱及暗光感官失真。唾液AI阵列精准控制水解褪黑素原、结构化色氨酸以及超微薰衣草分子靶向舌下吞咽释放，同步松果体及下丘脑视交叉上核，深度诱导温和的高效睡眠修复。"}};
+    let currentLang = "es";
+
+    // Biosensors default
+    let biomarkers = {
+      glucose: 75,
+      cortisol: 18.5,
+      lactate: 1.1,
+      amylase: 85,
+      pH: 6.3,
+      temperature: 36.8
+    };
+
+    let stats = {
+      mechanicalWear: 12,
+      capsuleShear: 220,
+      hybridEnergyEfficiency: 98.4,
+      swarmAISynchrony: 0.95,
+      capsuleBurstCount: 1,
+      activeOperativeMode: "stress"
+    };
+
+    let activeMode = "stress";
+    let explodedView = false;
+    let rotationSpeed = 1.0;
+    let visualizationType = "food";
+
+    function setModel(type) {
+      visualizationType = type;
+      const buttons = {
+        food: document.getElementById("btnModelFood"),
+        capsule: document.getElementById("btnModelCapsule"),
+        twin: document.getElementById("btnModelTwin"),
+        receptor: document.getElementById("btnModelReceptor"),
+        cellular: document.getElementById("btnModelCellular"),
+        microbiome: document.getElementById("btnModelMicrobiome")
+      };
+      
+      Object.keys(buttons).forEach(k => {
+        if (buttons[k]) {
+          buttons[k].className = "px-2.5 py-1 rounded text-slate-400 hover:text-white border border-transparent whitespace-nowrap";
+        }
+      });
+      
+      if (buttons[type]) {
+        buttons[type].className = "px-2.5 py-1 rounded bg-[#00f0ff]/20 text-[#00f0ff] font-bold border border-[#00f0ff]/35 whitespace-nowrap";
+      }
+    }
+
+    // Listeners for standalone config toggles
+    document.getElementById("chkExplode").addEventListener("change", function(e) {
+      explodedView = e.target.checked;
+    });
+
+    document.getElementById("rngSpeed").addEventListener("input", function(e) {
+      rotationSpeed = parseFloat(e.target.value);
+      document.getElementById("valSpeed").innerText = rotationSpeed.toFixed(1) + "x";
+    });
+
+    function switchLanguage(lang) {
+      currentLang = lang;
+      updateUI();
+    }
+
+    function updateUI() {
+      const t = translations[currentLang];
+      document.getElementById("titleModos").innerHTML = '📊 ' + t.modosOperativos;
+      document.getElementById("titleBiomarcadores").innerHTML = '🧪 ' + t.biomarcadores;
+      document.getElementById("hudTitle").innerHTML = t.hUDTactico;
+
+      document.getElementById("lblGlu").innerText = t.glusosa;
+      document.getElementById("lblCor").innerText = t.cortisol;
+      document.getElementById("lblLac").innerText = t.lactato;
+
+      document.getElementById("rngGlu").value = biomarkers.glucose;
+      document.getElementById("rngCor").value = biomarkers.cortisol;
+      document.getElementById("rngLac").value = biomarkers.lactate;
+
+      document.getElementById("valGlu").innerText = Math.round(biomarkers.glucose) + " mg/dL";
+      document.getElementById("valCor").innerText = biomarkers.cortisol.toFixed(1) + " mcg/dL";
+      document.getElementById("valLac").innerText = biomarkers.lactate.toFixed(1) + " mmol/L";
+
+      document.getElementById("logGlu").innerText = Math.round(biomarkers.glucose);
+      document.getElementById("logCort").innerText = biomarkers.cortisol.toFixed(1);
+      document.getElementById("logLac").innerText = biomarkers.lactate.toFixed(1);
+
+      document.getElementById("btnModoCo").innerText = t.modoCo || "Enfoque Cognitivo / Zinc";
+      document.getElementById("btnModoDi").innerText = t.modoDi || "Optimización Microbioma";
+      document.getElementById("hudVoltLabel").innerText = (t.bioVo || "ENZYMATIC VOLTAGE") + ":";
+      document.getElementById("hudDegLabel").innerText = (t.polyDeg || "MEMBRANE DEGRADATION") + ":";
+      document.getElementById("hudAffLabel").innerText = (t.recepAff || "RECEPTOR AFFINITY") + ":";
+      document.getElementById("optExplode").innerText = t.explodedViewText || "Explode Capsule Layers (CAD)";
+      document.getElementById("optSpeed").innerText = t.rotationSpeedText || "Rotational Speed";
+      const translations_by_lang = {
+        es: {
+          food: "🍽️ Alimento",
+          capsule: "🪐 Cápsula",
+          twin: "👤 Bucle IA",
+          receptor: "👅 Receptores TRC",
+          cellular: "🔋 Absorción celular",
+          microbiome: "🦠 Microbioma bucal"
+        },
+        en: {
+          food: "🍽️ Food",
+          capsule: "🪐 Capsule",
+          twin: "👤 AI Loop",
+          receptor: "👅 TRC Receptors",
+          cellular: "🔋 Cell Transit",
+          microbiome: "🦠 Oral Microbiome"
+        },
+        zh: {
+          food: "🍽️ 智能食品",
+          capsule: "🪐 智能胶囊",
+          twin: "👤 AI反馈环路",
+          receptor: "👅 TRC味觉受体",
+          cellular: "🔋 细胞腔道吸收",
+          microbiome: "🦠 口腔微生态"
+        }
+      };
+      const localized = translations_by_lang[currentLang] || translations_by_lang.es;
+      if (document.getElementById("btnModelFood")) document.getElementById("btnModelFood").innerText = localized.food;
+      if (document.getElementById("btnModelCapsule")) document.getElementById("btnModelCapsule").innerText = localized.capsule;
+      if (document.getElementById("btnModelTwin")) document.getElementById("btnModelTwin").innerText = localized.twin;
+      if (document.getElementById("btnModelReceptor")) document.getElementById("btnModelReceptor").innerText = localized.receptor;
+      if (document.getElementById("btnModelCellular")) document.getElementById("btnModelCellular").innerText = localized.cellular;
+      if (document.getElementById("btnModelMicrobiome")) document.getElementById("btnModelMicrobiome").innerText = localized.microbiome;
+
+      // Modes
+      let expText = "";
+      if (activeMode === "stress") {
+        expText = t.descripStress;
+        document.getElementById("activeStateLabel").innerHTML = t.modoEs;
+      } else if (activeMode === "athletic") {
+        expText = t.descripAthletic || t.descripAthetic;
+        document.getElementById("activeStateLabel").innerHTML = t.modoAt;
+      } else if (activeMode === "glycemic") {
+        expText = t.descripGlycemic;
+        document.getElementById("activeStateLabel").innerHTML = t.modoGl;
+      } else if (activeMode === "cognitive") {
+        expText = t.descripCognitive || "Cognitive Focus Activated.";
+        document.getElementById("activeStateLabel").innerHTML = t.modoCo || "Cognitive";
+      } else if (activeMode === "digestive") {
+        expText = t.descripDigestive || "Microbiome Digest protection.";
+        document.getElementById("activeStateLabel").innerHTML = t.modoDi || "Digestive";
+      } else {
+        expText = t.descripCustom;
+        document.getElementById("activeStateLabel").innerHTML = t.modoCu;
+      }
+      document.getElementById("regimeExplanation").innerText = expText;
+
+      // Update stat locks
+      const wear = Math.round(biomarkers.cortisol * 1.5 + biomarkers.lactate * 8);
+      const shear = Math.round(biomarkers.cortisol * 22 + biomarkers.glucose * 1.2);
+      const syncVal = Math.min(100, Math.max(70, 94 - (biomarkers.cortisol - 15) * 1.5));
+
+      stats.mechanicalWear = Math.min(100, Math.max(5, wear));
+      stats.capsuleShear = shear;
+      stats.swarmAISynchrony = syncVal / 100;
+      stats.hybridEnergyEfficiency = parseFloat((99.9 - (24 - biomarkers.cortisol) * 0.1).toFixed(1));
+
+      // Dynamic biophysical stats
+      const volt = Math.round(biomarkers.pH * 12 + biomarkers.amylase * 0.15 + Math.sin(Date.now() / 300) * 4);
+      const deg = ((8.0 - biomarkers.pH) * 1.8 + biomarkers.cortisol * 0.05).toFixed(2);
+      const aff = Math.min(100, Math.round(85 + (biomarkers.amylase * 0.1) - (biomarkers.glucose * 0.04)));
+
+      document.getElementById("hudMech").innerText = Math.min(100, Math.max(5, wear)) + "%";
+      document.getElementById("hudShear").innerText = shear + " Pa";
+      document.getElementById("hudVolt").innerText = volt + " mV";
+      document.getElementById("hudDeg").innerText = deg + " %/min";
+      document.getElementById("hudAff").innerText = aff + "%";
+      document.getElementById("hudSync").innerText = syncVal.toFixed(0) + "%";
+
+      // Offline infographic translation sync
+      const loops_translations = {
+        es: {
+          main: "INTEGRACIÓN ESQUEMA DIGITAL AUTÓNOMO",
+          sub: "Ciclo continuo de alimentación adaptativa guiado por tu saliva y una IA.",
+          iaTitle: "☁️ PLATAFORMA DE IA",
+          iaText: "Análisis Predictivo",
+          sensTitle: "🔌 SENSADO",
+          sensText: "Bionanosensores Salivales",
+          expTitle: "🧠 EXPERIENCIA",
+          expText: "Boca, Lengua, Cerebro",
+          actTitle: "🧪 ACCIÓN",
+          actText: "Nanocápsulas Activas",
+          loop: "Ciclo Continuo de Adaptación en Tiempo Real",
+          detailsTitle: "DIAGNÓSTICO DEL BUCLE DE EVALUACIÓN",
+          detailsDesc: "Haz clic en cualquier bloque sensor para ensayar respuestas químicas, desencadenar explosiones de polímero o simular cargas neurotransmisoras. El modelo 3D superior responderá en concordancia."
+        },
+        en: {
+          main: "INTEGRATIVE SCHEMATIC WORKSPACE",
+          sub: "Continuous adaptive nutrition loop guided by your saliva chemistry and an AI model.",
+          iaTitle: "☁️ AI PLATFORM",
+          iaText: "Predictive Analytics",
+          sensTitle: "🔌 SENSING NODE",
+          sensText: "Bio-nanosensors Monitor",
+          expTitle: "🧠 EXPERIENCE",
+          expText: "Mouth, Tongue & Brain",
+          actTitle: "🧪 ACTION GATE",
+          actText: "Active Nanocapsules",
+          loop: "Continuous Real-Time Adaptation Loop",
+          detailsTitle: "CLOSED-LOOP FEEDBACK DIAGNOSTICS",
+          detailsDesc: "Click any sensor node above to mock hormonal assays, trigger PLGA polymer shell breaks, or test neural sensory synapse paths. The 3D model will react in real time."
+        },
+        zh: {
+          main: "自适应系统全景反馈集成",
+          sub: "唾液化学分析介导的人工智能稳态闭环优化系统。",
+          iaTitle: "☁️ 人工智能决策平台",
+          iaText: "前瞻性预测决策",
+          sensTitle: "🔌 传感器感测单元",
+          sensText: "唾液微流动分析仪",
+          expTitle: "🧠 自适应感官体验",
+          expText: "舌下受体与中枢系统",
+          actTitle: "🧪 靶向执行机构",
+          actText: "纳米双重包裹介质",
+          loop: "实时闭环自适应迭代回路",
+          detailsTitle: "离线物理矩阵闭环智能诊断",
+          detailsDesc: "点击上方任意多参数节点，可以注入模拟唾液电位差，裂解聚合物屏障并追踪生化递质，主3D画布将自适应联动呈现。"
+        }
+      };
+      
+      const l = loops_translations[currentLang] || loops_translations.es;
+      if (document.getElementById("infografiaMainLabel")) {
+        document.getElementById("infografiaMainLabel").innerText = l.main;
+        document.getElementById("infografiaSubLabel").innerText = l.sub;
+        document.getElementById("labelNodeIaTitle").innerText = l.iaTitle;
+        document.getElementById("labelNodeIaText").innerText = l.iaText;
+        document.getElementById("labelNodeSensTitle").innerText = l.sensTitle;
+        document.getElementById("labelNodeSensText").innerText = l.sensText;
+        document.getElementById("labelNodeExpTitle").innerText = l.expTitle;
+        document.getElementById("labelNodeExpText").innerText = l.expText;
+        document.getElementById("labelNodeActTitle").innerText = l.actTitle;
+        document.getElementById("labelNodeActText").innerText = l.actText;
+        document.getElementById("labelNodeLoop").innerText = l.loop;
+        document.getElementById("offInfDetailsTitle").innerText = l.detailsTitle;
+        document.getElementById("offInfDetailsDesc").innerText = l.detailsDesc;
+        
+        // Mode syncing
+        document.getElementById("offlineActiveModeLabel").innerText = activeMode.toUpperCase();
+        
+        // Color shifts and glow sync
+        const glowOrb = document.getElementById("offlineGlowOrb");
+        const activeLabel = document.getElementById("offlineActiveModeLabel");
+        let colorHex = "#00f0ff";
+        let colorClasses = "text-cyan-400";
+        
+        if (activeMode === "stress") {
+          colorHex = "#f59e0b";
+          colorClasses = "text-amber-400";
+        } else if (activeMode === "athletic") {
+          colorHex = "#10b981";
+          colorClasses = "text-emerald-400";
+        } else if (activeMode === "glycemic") {
+          colorHex = "#a855f7";
+          colorClasses = "text-purple-400";
+        } else if (activeMode === "cognitive") {
+          colorHex = "#3b82f6";
+          colorClasses = "text-blue-400";
+        } else if (activeMode === "digestive") {
+          colorHex = "#ec4899";
+          colorClasses = "text-pink-400";
+        }
+        
+        if (glowOrb) glowOrb.style.background = colorHex;
+        if (activeLabel) activeLabel.className = "font-bold underline tracking-wider uppercase " + colorClasses;
+      }
+    }
+
+    function setRegime(mode) {
+      activeMode = mode;
+      if (mode === "stress") {
+        biomarkers.glucose = 88;
+        biomarkers.cortisol = 24.5;
+        biomarkers.lactate = 0.8;
+        biomarkers.pH = 6.3;
+        biomarkers.amylase = 85;
+      } else if (mode === "athletic") {
+        biomarkers.glucose = 62;
+        biomarkers.cortisol = 11.2;
+        biomarkers.lactate = 5.2;
+        biomarkers.pH = 6.0;
+        biomarkers.amylase = 130;
+      } else if (mode === "glycemic") {
+        biomarkers.glucose = 188;
+        biomarkers.cortisol = 8.5;
+        biomarkers.lactate = 1.2;
+        biomarkers.pH = 7.2;
+        biomarkers.amylase = 110;
+      } else if (mode === "cognitive") {
+        biomarkers.glucose = 78;
+        biomarkers.cortisol = 31.5;
+        biomarkers.lactate = 1.3;
+        biomarkers.pH = 6.4;
+        biomarkers.amylase = 140;
+      } else if (mode === "digestive") {
+        biomarkers.glucose = 105;
+        biomarkers.cortisol = 10.1;
+        biomarkers.lactate = 0.8;
+        biomarkers.pH = 7.6;
+        biomarkers.amylase = 195;
+      } else if (mode === "experiencial") {
+        biomarkers.glucose = 110;
+        biomarkers.cortisol = 8.0;
+        biomarkers.lactate = 0.5;
+        biomarkers.pH = 7.0;
+        biomarkers.amylase = 160;
+      }
+      updateUI();
+    }
+
+    function manualBiomarker(key, val) {
+      activeMode = "custom";
+      biomarkers[key] = parseFloat(val);
+      updateUI();
+    }
+
+    // Canvas 3D Graphics
+    const canvas = document.getElementById("3dCanvas");
+    const container = document.getElementById("canvasContainer");
+    const ctx = canvas.getContext("2d");
+    let rotation = { x: 0.4, y: 0.7 };
+    let isDragging = false;
+    let prevPos = { x: 0, y: 0 };
+
+    canvas.addEventListener("mousedown", (e) => {
+      isDragging = true;
+      prevPos = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener("mouseup", () => isDragging = false);
+
+    canvas.addEventListener("mousemove", (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - prevPos.x;
+      const dy = e.clientY - prevPos.y;
+      rotation.y += dx * 0.01;
+      rotation.x += dy * 0.01;
+      prevPos = { x: e.clientX, y: e.clientY };
+    });
+
+    // Touch support for mobiles / Edge Touch
+    canvas.addEventListener("touchstart", (e) => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        prevPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    });
+    canvas.addEventListener("touchend", () => isDragging = false);
+    canvas.addEventListener("touchmove", (e) => {
+      if (!isDragging || e.touches.length !== 1) return;
+      const dx = e.touches[0].clientX - prevPos.x;
+      const dy = e.touches[0].clientY - prevPos.y;
+      rotation.y += dx * 0.01;
+      rotation.x += dy * 0.01;
+      prevPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    });
+
+    let frame = 0;
+    const particles = [];
+    for (let p=0; p<45; p++) {
+      particles.push({
+        x: (Math.random() - 0.5) * 160,
+        y: (Math.random() - 0.5) * 160,
+        z: (Math.random() - 0.5) * 160,
+        size: 1.5 + Math.random() * 2
+      });
+    }
+
+    function renderLoop() {
+      frame++;
+      
+      // CRITICAL: Sizing canvas safely relative to container limits. Corrects collapsing on both Mobile & Edge local files!
+      const w = canvas.width = container.clientWidth || 640;
+      const h = canvas.height = container.clientHeight || 480;
+
+      // Draw cybernetic black background
+      const grad = ctx.createRadialGradient(w/2, h/2, 50, w/2, h/2, w);
+      grad.addColorStop(0, "#12141c");
+      grad.addColorStop(1, "#07080b");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Rotation angles with dynamic multiplier
+      const rx = rotation.x + frame * 0.003 * rotationSpeed;
+      const ry = rotation.y + frame * 0.001 * rotationSpeed;
+      const cosX = Math.cos(rx);
+      const sinX = Math.sin(rx);
+      const cosY = Math.cos(ry);
+      const sinY = Math.sin(ry);
+
+      const cx = w/2;
+      const cy = h/2;
+      const baseScale = Math.min(w, h) * 0.3;
+
+      function project(x, y, z) {
+        let x1 = x * cosY - z * sinY;
+        let z1 = x * sinY + z * cosY;
+        let y2 = y * cosX - z1 * sinX;
+        let z2 = y * sinX + z1 * cosX;
+        const dist = 300;
+        const s = (dist / (dist + z2)) * baseScale;
+        return { px: cx + x1 * s, py: cy + y2 * s, pz: z2 };
+      }
+
+      // 2. CHOOSE Standalone 3D viewport drawing
+      if (visualizationType === "capsule") {
+        // Geodesic capsule lines
+        const baseRadius = explodedView ? 140 : 90;
+        const step = 12;
+        ctx.strokeStyle = "rgba(0, 240, 255, 0.15)";
+        ctx.lineWidth = 1;
+
+        for (let lat = 0; lat <= step; lat++) {
+          const theta = (lat * Math.PI) / step;
+          ctx.beginPath();
+          for (let lon = 0; lon <= step; lon++) {
+            const phi = (lon * 2 * Math.PI) / step;
+            const x = baseRadius * Math.sin(theta) * Math.cos(phi);
+            const y = baseRadius * Math.cos(theta);
+            const z = baseRadius * Math.sin(theta) * Math.sin(phi);
+            const proj = project(x, y, z);
+            if (lon === 0) ctx.moveTo(proj.px, proj.py);
+            else ctx.lineTo(proj.px, proj.py);
+          }
+          ctx.stroke();
+        }
+
+        // Draw receptors distributed around outer body
+        const numLockReceptors = 8;
+        const actualReceptorRadius = explodedView ? 110 : baseRadius;
+        for (let k = 0; k < numLockReceptors; k++) {
+          const phi = (k / numLockReceptors) * 2 * Math.PI + frame * 0.002;
+          const theta = Math.acos((k / numLockReceptors) * 2 - 1);
+          const x = actualReceptorRadius * Math.sin(theta) * Math.cos(phi);
+          const y = actualReceptorRadius * Math.cos(theta);
+          const z = actualReceptorRadius * Math.sin(theta) * Math.sin(phi);
+
+          const proj = project(x, y, z);
+          if (proj.pz < 50) {
+            ctx.beginPath();
+            ctx.arc(proj.px, proj.py, 7, 0, 2 * Math.PI);
+            ctx.fillStyle = activeMode === "stress" ? "rgba(245, 158, 11, 0.82)" : "rgba(0, 240, 255, 0.82)";
+            ctx.fill();
+          }
+        }
+
+        // Draw core peptides
+        const innerRadius = explodedView ? 40 : 50;
+        ctx.fillStyle = "#ff007f";
+        for (let k = 0; k < 15; k++) {
+          const phi = (k / 15) * 2 * Math.PI + frame * 0.005;
+          const x = innerRadius * Math.cos(phi);
+          const y = innerRadius * 0.3 * Math.sin(phi);
+          const z = innerRadius * 0.4 * Math.sin(phi * 2);
+          const proj = project(x, y, z);
+          ctx.beginPath();
+          ctx.arc(proj.px, proj.py, 4.5, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+      } else if (visualizationType === "twin") {
+        // --- Standalone Digital Twin Schematic: DETAILED 3D SKELETON & ENTERIC HUMAN BEING ---
+        const humanBodyPoints = [
+          // Head / Cranium
+          [
+            {x: 0, y: -72, z: 0}, {x: 8, y: -70, z: 5}, {x: 13, y: -64, z: 8},
+            {x: 14, y: -56, z: 8}, {x: 10, y: -48, z: 5}, {x: 0, y: -44, z: 0},
+            {x: -10, y: -48, z: -5}, {x: -14, y: -56, z: -8}, {x: -13, y: -64, z: -8},
+            {x: -8, y: -70, z: -5}, {x: 0, y: -72, z: 0}
+          ],
+          // Face profile outline
+          [
+            {x: 0, y: -64, z: 12}, {x: 6, y: -60, z: 14}, {x: 2, y: -56, z: 12},
+            {x: 5, y: -52, z: 12}, {x: 0, y: -46, z: 10}
+          ],
+          // Left Arm
+          [
+            {x: -6, y: -38, z: 0}, {x: -24, y: -34, z: -6}, {x: -32, y: -10, z: -10}, {x: -35, y: 15, z: -6}
+          ],
+          // Right Arm
+          [
+            {x: 6, y: -38, z: 0}, {x: 24, y: -34, z: 6}, {x: 32, y: -10, z: 10}, {x: 35, y: 15, z: 6}
+          ],
+          // Torso Left boundary
+          [
+            {x: -24, y: -34, z: -6}, {x: -18, y: -10, z: -4}, {x: -16, y: 15, z: -2}, {x: -18, y: 34, z: 0}
+          ],
+          // Torso Right boundary
+          [
+            {x: 24, y: -34, z: 6}, {x: 18, y: -10, z: 4}, {x: 16, y: 15, z: 2}, {x: 18, y: 34, z: 0}
+          ],
+          // Pelvis / Waist
+          [
+            {x: -18, y: 34, z: 0}, {x: -16, y: 46, z: 0}, {x: 0, y: 48, z: 0}, {x: 16, y: 46, z: 0}, {x: 18, y: 34, z: 0}
+          ],
+          // Left Leg
+          [
+            {x: -16, y: 46, z: 0}, {x: -13, y: 80, z: -3}, {x: -10, y: 114, z: -5}, {x: -14, y: 117, z: -2}
+          ],
+          // Right Leg
+          [
+            {x: 16, y: 46, z: 0}, {x: 13, y: 80, z: 3}, {x: 10, y: 114, z: 5}, {x: 14, y: 117, z: 2}
+          ]
+        ];
+
+        // Draw humanoid skeleton
+        ctx.strokeStyle = activeMode === "stress" ? "rgba(245, 158, 11, 0.28)" : "rgba(0, 240, 255, 0.28)";
+        ctx.lineWidth = 1;
+        humanBodyPoints.forEach(seg => {
+          ctx.beginPath();
+          seg.forEach((pt, idx) => {
+            const proj = project(pt.x, pt.y, pt.z);
+            if (idx === 0) ctx.moveTo(proj.px, proj.py);
+            else ctx.lineTo(proj.px, proj.py);
+          });
+          ctx.stroke();
+        });
+
+        // 3D Spinal Cord
+        ctx.beginPath();
+        for (let sk = -38; sk <= 46; sk += 7) {
+          const pCol = project(0, sk, 0);
+          if (sk === -38) ctx.moveTo(pCol.px, pCol.py);
+          else ctx.lineTo(pCol.px, pCol.py);
+        }
+        ctx.strokeStyle = "rgba(0, 240, 255, 0.5)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Glowing spine pulse
+        for (let sk = -38; sk <= 46; sk += 14) {
+          const ptCol = project(0, sk, 0);
+          const pSize = 1.5 + Math.abs(Math.sin(frame * 0.05 + sk * 0.1)) * 3;
+          ctx.beginPath();
+          ctx.arc(ptCol.px, ptCol.py, pSize, 0, 2 * Math.PI);
+          ctx.fillStyle = "#ffffff";
+          ctx.fill();
+        }
+
+        // Esophagus / Enteric tract
+        const digestivePoints = [
+          {x: 1, y: -45, z: 4},
+          {x: 0, y: -32, z: 2},
+          {x: -1, y: -10, z: 1},
+          {x: -4, y: 12, z: 2},
+          {x: 0, y: 25, z: 3}
+        ];
+        ctx.beginPath();
+        digestivePoints.forEach((pt, idx) => {
+          const proj = project(pt.x, pt.y, pt.z);
+          if (idx === 0) ctx.moveTo(proj.px, proj.py);
+          else ctx.lineTo(proj.px, proj.py);
+        });
+        ctx.strokeStyle = "rgba(236, 72, 153, 0.55)";
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+
+        // Swallowed dynamic nanocapsules slides
+        const loopTimer = (frame * 1.5) % 90;
+        const interpIdx = Math.floor(loopTimer / 20);
+        const interpFrac = (loopTimer % 20) / 20;
+        if (interpIdx < digestivePoints.length - 1) {
+          const pA = digestivePoints[interpIdx];
+          const pB = digestivePoints[interpIdx + 1];
+          const curX = pA.x + (pB.x - pA.x) * interpFrac;
+          const curY = pA.y + (pB.y - pA.y) * interpFrac;
+          const curZ = pA.z + (pB.z - pA.z) * interpFrac;
+          const projCapsule = project(curX, curY, curZ);
+          ctx.beginPath();
+          ctx.arc(projCapsule.px, projCapsule.py, 3.5, 0, 2 * Math.PI);
+          ctx.fillStyle = "#ec4899";
+          ctx.strokeStyle = "#ffffff";
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        // Cranial circular loops
+        ctx.strokeStyle = "rgba(0, 240, 255, 0.12)";
+        ctx.lineWidth = 0.8;
+        for (let h = 0; h < 3; h++) {
+          ctx.beginPath();
+          const hoopAngle = h * (Math.PI / 3) + frame * 0.003;
+          const hoopRadiusX = 18;
+          const hoopRadiusY = 24;
+          for (let theta = 0; theta <= 24; theta++) {
+            const ang = (theta / 24) * 2 * Math.PI;
+            const ex = hoopRadiusX * Math.cos(ang) * Math.cos(hoopAngle);
+            const ey = hoopRadiusY * Math.sin(ang) - 58;
+            const ez = hoopRadiusX * Math.cos(ang) * Math.sin(hoopAngle);
+            const projHoop = project(ex, ey, ez);
+            if (theta === 0) ctx.moveTo(projHoop.px, projHoop.py);
+            else ctx.lineTo(projHoop.px, projHoop.py);
+          }
+          ctx.stroke();
+        }
+
+        // Synaptic firing nodes
+        const numBrainNodes = 8;
+        const brainNodes = [];
+        for (let b = 0; b < numBrainNodes; b++) {
+          brainNodes.push({
+            x: Math.sin(b * 12) * 11,
+            y: -60 - Math.cos(b * 7) * 9,
+            z: Math.sin(b * 93) * 10
+          });
+        }
+
+        ctx.strokeStyle = "rgba(0, 240, 255, 0.09)";
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        for (let i = 0; i < numBrainNodes; i++) {
+          const p1 = project(brainNodes[i].x, brainNodes[i].y, brainNodes[i].z);
+          for (let j = i + 1; j < numBrainNodes; j++) {
+            if (Math.abs(i - j) < 3) {
+              const p2 = project(brainNodes[j].x, brainNodes[j].y, brainNodes[j].z);
+              ctx.moveTo(p1.px, p1.py);
+              ctx.lineTo(p2.px, p2.py);
+            }
+          }
+        }
+        ctx.stroke();
+
+        brainNodes.forEach((node, i) => {
+          const proj = project(node.x, node.y, node.z);
+          const pulse = Math.abs(Math.sin(frame * 0.07 + i));
+          ctx.beginPath();
+          ctx.arc(proj.px, proj.py, 1 + pulse * 2.5, 0, 2 * Math.PI);
+          ctx.fillStyle = activeMode === "stress" ? "rgba(245, 158, 11, " + (0.45 + pulse * 0.55) + ")" : "rgba(0, 240, 255, " + (0.45 + pulse * 0.55) + ")";
+          ctx.fill();
+        });
+
+        // 3D adaptive feedback orbit
+        const loopRadiusX = 135;
+        const loopRadiusY = 115;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        for (let a = 0; a <= 50; a++) {
+          const ang = (a / 50) * 2 * Math.PI;
+          const px = loopRadiusX * Math.cos(ang);
+          const pz = loopRadiusY * Math.sin(ang);
+          const proj = project(px, 0, pz);
+          if (a === 0) ctx.moveTo(proj.px, proj.py);
+          else ctx.lineTo(proj.px, proj.py);
+        }
+        ctx.stroke();
+
+        for (let p = 0; p < 3; p++) {
+          const angleOffset = (p / 3) * 2 * Math.PI + frame * 0.007;
+          const pLineX = loopRadiusX * Math.cos(angleOffset);
+          const pLineZ = loopRadiusY * Math.sin(angleOffset);
+          const projLine = project(pLineX, 0, pLineZ);
+          ctx.fillStyle = activeMode === "stress" ? "#f59e0b" : activeMode === "athletic" ? "#10b981" : "#00f0ff";
+          ctx.beginPath();
+          ctx.arc(projLine.px, projLine.py, 5.5, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+
+        const sectors = [
+          { id: "ia", label: "(1) PLATAFORMA IA", sub: "Análisis Predictivo", x: 0, y: -115, z: 0, color: "#00f0ff", icon: "☁️" },
+          { id: "sensado", label: "(2) SENSADO SALIVAL", sub: "g: " + Math.round(biomarkers.glucose) + " / pH " + biomarkers.pH.toFixed(1), x: -130, y: -20, z: 15, color: "#3b82f6", icon: "🧪" },
+          { id: "experiencia", label: "(4) EXPERIENCIA", sub: (activeMode === 'experiencial' ? '92% Sw / 95% Um' : '75% Sw / 82% Um'), x: -95, y: 75, z: -15, color: "#f59e0b", icon: "👅" },
+          { id: "accion", label: "(3) ACCIÓN / LIBERA", sub: "Dosis activa: " + (stats.capsuleBurstCount || 1), x: 105, y: 65, z: 10, color: "#ec4899", icon: "💊" },
+          { id: "twin_nod", label: "GEMELO DIGITAL", sub: "Fisiológico 100% OK", x: 110, y: -80, z: -10, color: "#10b981", icon: "👤" }
+        ];
+
+        sectors.forEach(sec => {
+          const proj = project(sec.x, sec.y, sec.z);
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          const projCenter = project(0, 0, 0);
+          ctx.moveTo(projCenter.px, projCenter.py);
+          ctx.lineTo(proj.px, proj.py);
+          ctx.stroke();
+
+          ctx.fillStyle = "rgba(7, 9, 14, 0.88)";
+          ctx.strokeStyle = sec.color + "95";
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.rect(proj.px - 66, proj.py - 22, 132, 44);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.font = "bold 9px monospace";
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(sec.icon + " " + sec.label, proj.px - 58, proj.py - 7);
+
+          ctx.font = "8px monospace";
+          ctx.fillStyle = "rgba(255, 255, 255, 0.65)";
+          ctx.fillText(sec.sub, proj.px - 58, proj.py + 9);
+        });
+      } else if (visualizationType === "receptor") {
+        // --- Standalone TRC receptor drawing ---
+        let baseColor = "rgba(0, 240, 255, 0.85)";
+        if (activeMode === "stress") baseColor = "rgba(245, 158, 11, 0.85)";
+        else if (activeMode === "athletic") baseColor = "rgba(16, 185, 129, 0.85)";
+        else if (activeMode === "glycemic") baseColor = "rgba(168, 85, 247, 0.85)";
+        else if (activeMode === "cognitive") baseColor = "rgba(59, 130, 246, 0.85)";
+        else if (activeMode === "digestive") baseColor = "rgba(236, 72, 153, 0.85)";
+
+        // Double layer tongue surface contours
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+        ctx.lineWidth = 1.5;
+        for (let r = 80; r <= 150; r += 20) {
+          ctx.beginPath();
+          for (let a = 0; a <= 40; a++) {
+            const ang = (a / 40) * 2 * Math.PI;
+            const px = r * Math.cos(ang);
+            const pz = r * Math.sin(ang);
+            const proj = project(px, 50, pz);
+            if (a === 0) ctx.moveTo(proj.px, proj.py);
+            else ctx.lineTo(proj.px, proj.py);
+          }
+          ctx.stroke();
+        }
+
+        const receptors = [
+          { x: -50, z: -30, type: "T1R2+T1R3 (Sweet)", active: true },
+          { x: 50, z: -40, type: "T1R1+T1R3 (Umami)", active: true },
+          { x: -10, z: 60, type: "TRPM5 Ion Gate", active: true },
+          { x: -60, z: 50, type: "T2R Bitter Array", active: activeMode === "stress" },
+          { x: 60, z: 40, type: "ENaC (Salty Channel)", active: activeMode === "athletic" }
+        ];
+
+        receptors.forEach((rec, idx) => {
+          const rY = 15 + Math.sin(frame * 0.04 + idx) * 3;
+          const projBase = project(rec.x, 50, rec.z);
+          const projTop = project(rec.x, rY, rec.z);
+
+          // Cylinder body
+          ctx.beginPath();
+          ctx.moveTo(projBase.px, projBase.py);
+          ctx.lineTo(projTop.px, projTop.py);
+          ctx.strokeStyle = rec.active ? baseColor : "rgba(255, 255, 255, 0.15)";
+          ctx.lineWidth = 4;
+          ctx.stroke();
+
+          // Cap
+          ctx.beginPath();
+          ctx.arc(projTop.px, projTop.py, 8, 0, 2 * Math.PI);
+          ctx.fillStyle = rec.active ? baseColor : "rgba(100, 100, 100, 0.4)";
+          ctx.fill();
+
+          // Text
+          ctx.font = "8px monospace";
+          ctx.fillStyle = rec.active ? "#ffffff" : "rgba(255, 255, 255, 0.3)";
+          ctx.fillText(rec.type, projTop.px + 10, projTop.py - 2);
+
+          // Spikes
+          if (rec.active) {
+            const prg = ((frame + idx * 15) % 50) / 50;
+            const sparkY = 50 + prg * 60;
+            const projSpark = project(rec.x, sparkY, rec.z);
+            ctx.beginPath();
+            ctx.arc(projSpark.px, projSpark.py, 3, 0, 2 * Math.PI);
+            ctx.fillStyle = "#ffffff";
+            ctx.fill();
+          }
+        });
+      } else if (visualizationType === "cellular") {
+        // --- Standalone Lipid Bilayer Transit drawing ---
+        let cellColor = "rgba(0, 240, 255, 0.85)";
+        if (activeMode === "stress") cellColor = "rgba(245, 158, 11, 0.85)";
+        else if (activeMode === "athletic") cellColor = "rgba(16, 185, 129, 0.85)";
+        else if (activeMode === "glycemic") cellColor = "rgba(168, 85, 247, 0.85)";
+        else if (activeMode === "cognitive") cellColor = "rgba(59, 130, 246, 0.85)";
+        else if (activeMode === "digestive") cellColor = "rgba(236, 72, 153, 0.85)";
+
+        const topY = explodedView ? -45 : -15;
+        const bottomY = explodedView ? 45 : 15;
+
+        ctx.fillStyle = cellColor.replace("0.85", "0.45");
+        ctx.strokeStyle = cellColor.replace("0.85", "0.15");
+        ctx.lineWidth = 0.5;
+
+        // Draw lipid heads & tails
+        for (let ix = -3; ix <= 3; ix++) {
+          for (let iz = -3; iz <= 3; iz++) {
+            const lx = ix * 40;
+            const lz = iz * 40;
+
+            const projTopHead = project(lx, topY, lz);
+            ctx.beginPath();
+            ctx.arc(projTopHead.px, projTopHead.py, 3.5, 0, 2 * Math.PI);
+            ctx.fill();
+
+            const projBotHead = project(lx, bottomY, lz);
+            ctx.beginPath();
+            ctx.arc(projBotHead.px, projBotHead.py, 3.5, 0, 2 * Math.PI);
+            ctx.fill();
+
+            const projTopTailEnd = project(lx, topY + 8, lz);
+            const projBotTailEnd = project(lx, bottomY - 8, lz);
+
+            ctx.beginPath();
+            ctx.moveTo(projTopHead.px, projTopHead.py);
+            ctx.lineTo(projTopTailEnd.px, projTopTailEnd.py);
+            ctx.moveTo(projBotHead.px, projBotHead.py);
+            ctx.lineTo(projBotTailEnd.px, projBotTailEnd.py);
+            ctx.stroke();
+          }
+        }
+
+        // Draw Transmembrane Channel (G-Protein)
+        const px = 0;
+        const pz = 0;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1.5;
+        const channelRadius = 14;
+        const numSlices = 5;
+
+        for (let s = 0; s <= numSlices; s++) {
+          const sy = topY + (s / numSlices) * (bottomY - topY);
+          ctx.beginPath();
+          for (let a = 0; a <= 20; a++) {
+            const ang = (a / 20) * 2 * Math.PI + frame * 0.02;
+            const cx = px + channelRadius * Math.cos(ang);
+            const cz = pz + channelRadius * Math.sin(ang);
+            const proj = project(cx, sy, cz);
+            if (a === 0) ctx.moveTo(proj.px, proj.py);
+            else ctx.lineTo(proj.px, proj.py);
+          }
+          ctx.stroke();
+        }
+
+        // Active ions sliding down channel
+        const ionY = topY - 20 + ((frame * 1.5) % 100);
+        const projIon = project(px, ionY, pz);
+        ctx.beginPath();
+        ctx.arc(projIon.px, projIon.py, 5, 0, 2 * Math.PI);
+        ctx.fillStyle = cellColor;
+        ctx.fill();
+      } else if (visualizationType === "microbiome") {
+        // --- Standalone Probiotics & Microbiome Flora Protection array ---
+        let floraColor = "rgba(16, 185, 129, 0.85)";
+        if (activeMode === "digestive") floraColor = "rgba(236, 72, 153, 0.85)";
+        else if (activeMode === "circadian") floraColor = "rgba(14, 165, 233, 0.85)";
+
+        // Draw papillae base lattice
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+        ctx.lineWidth = 1;
+        for (let i = -4; i <= 4; i++) {
+          ctx.beginPath();
+          const p1 = project(i * 35, 45, -120);
+          const p2 = project(i * 35, 45, 120);
+          ctx.moveTo(p1.px, p1.py);
+          ctx.lineTo(p2.px, p2.py);
+          ctx.stroke();
+
+          ctx.beginPath();
+          const p3 = project(-120, 45, i * 35);
+          const p4 = project(120, 45, i * 35);
+          ctx.moveTo(p3.px, p3.py);
+          ctx.lineTo(p4.px, p4.py);
+          ctx.stroke();
+        }
+
+        const bacteria = [
+          { x: -45, y: 10, z: -30, size: 14, label: "S. salivarius K12" },
+          { x: 50, y: 0, z: -25, size: 12, label: "L. rhamnosus GG" },
+          { x: -10, y: -20, z: 45, size: 15, label: "S. salivarius M18" },
+          { x: 55, y: 20, z: 50, size: 11, label: "B. coagulans" }
+        ];
+
+        bacteria.forEach((b, index) => {
+          const oscY = b.y + Math.sin(frame * 0.035 + index) * 6;
+          const projB = project(b.x, oscY, b.z);
+          const projShadow = project(b.x, 45, b.z);
+
+          ctx.beginPath();
+          ctx.arc(projShadow.px, projShadow.py, b.size - 2, 0, 2 * Math.PI);
+          ctx.fillStyle = "rgba(0,0,0,0.35)";
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.arc(projB.px, projB.py, b.size, 0, 2 * Math.PI);
+          ctx.fillStyle = floraColor;
+          ctx.fill();
+
+          ctx.fillStyle = "rgba(255,255,255,0.75)";
+          ctx.font = "bold 8px monospace";
+          ctx.fillText(b.label, projB.px - 34, projB.py - (b.size + 4));
+        });
+      } else {
+        // --- SMART GOURMET PLATE 3D SIMULATION ---
+        let themeColor = "rgba(0, 240, 255, 0.8)";
+        if (activeMode === "stress") {
+          themeColor = "rgba(245, 158, 11, 0.85)";
+        } else if (activeMode === "athletic") {
+          themeColor = "rgba(16, 185, 129, 0.85)";
+        } else if (activeMode === "glycemic") {
+          themeColor = "rgba(168, 85, 247, 0.85)";
+        } else if (activeMode === "cognitive") {
+          themeColor = "rgba(59, 130, 246, 0.85)";
+        } else if (activeMode === "digestive") {
+          themeColor = "rgba(236, 72, 153, 0.85)";
+        }
+
+        const drawHorizontalPlatterCircle = (R, yFlat, color, widthVal) => {
+          ctx.beginPath();
+          for (let a = 0; a <= 50; a++) {
+            const ang = (a / 50) * 2 * Math.PI;
+            const px = R * Math.cos(ang);
+            const pz = R * Math.sin(ang);
+            const proj = project(px, yFlat, pz);
+            if (a === 0) ctx.moveTo(proj.px, proj.py);
+            else ctx.lineTo(proj.px, proj.py);
+          }
+          ctx.strokeStyle = color;
+          ctx.lineWidth = widthVal;
+          ctx.stroke();
+        };
+
+        // Draw platter base layers
+        drawHorizontalPlatterCircle(135, 45, "rgba(255, 255, 255, 0.08)", 1.5);
+        drawHorizontalPlatterCircle(115, 43, themeColor.replace("0.85", "0.22").replace("0.8", "0.22"), 2);
+        drawHorizontalPlatterCircle(65, 45, "rgba(255, 255, 255, 0.04)", 1);
+
+        for (let i = 0; i < 16; i++) {
+          const ang = (i / 16) * 2 * Math.PI;
+          const xStart = 115 * Math.cos(ang);
+          const zStart = 115 * Math.sin(ang);
+          const xEnd = 125 * Math.cos(ang);
+          const zEnd = 125 * Math.sin(ang);
+          const projS = project(xStart, 43, zStart);
+          const projE = project(xEnd, 43, zEnd);
+          ctx.strokeStyle = themeColor.replace("0.85", "0.25").replace("0.8", "0.25");
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(projS.px, projS.py);
+          ctx.lineTo(projE.px, projE.py);
+          ctx.stroke();
+        }
+
+        ctx.beginPath();
+        for (let phi = 0; phi <= Math.PI * 5; phi += 0.1) {
+          const rSp = 15 + phi * 10;
+          const fX = rSp * Math.cos(phi + frame * 0.005);
+          const fZ = rSp * Math.sin(phi + frame * 0.005);
+          const fY = 40 - Math.sin(phi * 2 - frame * 0.04) * 5;
+          const projS = project(fX, fY, fZ);
+          if (phi === 0) ctx.moveTo(projS.px, projS.py);
+          else ctx.lineTo(projS.px, projS.py);
+        }
+        ctx.strokeStyle = themeColor;
+        ctx.lineWidth = activeMode === "glycemic" ? 3.5 : 2;
+        ctx.stroke();
+
+        const verticalLayerDistance = explodedView ? -40 : 0;
+        const numGastrospheres = 5;
+        for (let k = 0; k < numGastrospheres; k++) {
+          const phiG = (k / numGastrospheres) * 2 * Math.PI + frame * 0.002;
+          const gX = 55 * Math.cos(phiG);
+          const gY = 25 + verticalLayerDistance + Math.sin(frame * 0.04 + k) * 4;
+          const gZ = 55 * Math.sin(phiG);
+
+          const projG = project(gX, gY, gZ);
+
+          const projShadow = project(gX, 43, gZ);
+          ctx.beginPath();
+          ctx.arc(projShadow.px, projShadow.py, 10, 0, 2 * Math.PI);
+          ctx.fillStyle = "rgba(0,0,0,0.55)";
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.arc(projG.px, projG.py, 10 + Math.sin(frame * 0.03 + k) * 2, 0, 2 * Math.PI);
+          ctx.fillStyle = themeColor;
+          ctx.fill();
+
+          ctx.beginPath();
+          const pTopY = gY - 45;
+          const projTop = project(gX, pTopY, gZ);
+          ctx.moveTo(projG.px, projG.py);
+          ctx.lineTo(projTop.px, projTop.py);
+          ctx.strokeStyle = themeColor.replace("0.85", "0.22").replace("0.8", "0.22");
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          for (let b = 0; b < 3; b++) {
+            const bOffset = ((frame * 0.8 + b * 15) % 45);
+            const bY = gY - bOffset;
+            const projB = project(gX + Math.sin(frame * 0.05 + b) * 2, bY, gZ);
+            ctx.beginPath();
+            ctx.arc(projB.px, projB.py, 2, 0, 2 * Math.PI);
+            ctx.fillStyle = "rgba(255,255,255,0.75)";
+            ctx.fill();
+          }
+        }
+
+        if (activeMode === "cognitive") {
+          ctx.beginPath();
+          ctx.strokeStyle = "rgba(234, 179, 8, 0.4)";
+          ctx.lineWidth = 1;
+          for (let j = 0; j < numGastrospheres; j++) {
+            const phiA = (j / numGastrospheres) * 2 * Math.PI + frame * 0.002;
+            const phiB = (((j + 2) % numGastrospheres) / numGastrospheres) * 2 * Math.PI + frame * 0.002;
+            
+            const gX1 = 55 * Math.cos(phiA);
+            const gY1 = 25 + verticalLayerDistance + Math.sin(frame * 0.04 + j) * 4;
+            const gZ1 = 55 * Math.sin(phiA);
+
+            const gX2 = 55 * Math.cos(phiB);
+            const gY2 = 25 + verticalLayerDistance + Math.sin(frame * 0.04 + ((j + 2) % numGastrospheres)) * 4;
+            const gZ2 = 55 * Math.sin(phiB);
+
+            const p1 = project(gX1, gY1, gZ1);
+            const p2 = project(gX2, gY2, gZ2);
+
+            ctx.moveTo(p1.px, p1.py);
+            ctx.lineTo(p2.px, p2.py);
+          }
+          ctx.stroke();
+        }
+      }
+
+      // Active swarm particles
+      particles.forEach((p, index) => {
+        if (visualizationType === "food") {
+          p.y -= 1.25;
+          p.x += Math.sin(frame * 0.03 + index) * 0.6;
+          if (p.y < -120) {
+            p.y = 35 + (Math.random() - 0.5) * 15;
+            p.x = (Math.random() - 0.5) * 120;
+            p.z = (Math.random() - 0.5) * 120;
+          }
+        } else {
+          p.x += (Math.random() - 0.5) * 1.5;
+          p.y += (Math.random() - 0.5) * 1.5;
+        }
+        const proj = project(p.x, p.y, p.z);
+        if (proj.pz < 150) {
+          ctx.beginPath();
+          ctx.arc(proj.px, proj.py, p.size, 0, 2*Math.PI);
+          // particle color according to mode
+          if (activeMode === "cognitive") {
+            ctx.fillStyle = "rgba(59, 130, 246, 0.85)";
+          } else if (activeMode === "digestive") {
+            ctx.fillStyle = "rgba(236, 72, 153, 0.85)";
+          } else if (activeMode === "stress") {
+            ctx.fillStyle = "rgba(245, 158, 11, 0.85)";
+          } else if (activeMode === "athletic") {
+            ctx.fillStyle = "rgba(16, 185, 129, 0.85)";
+          } else {
+            ctx.fillStyle = "rgba(168, 85, 247, 0.85)";
+          }
+          ctx.fill();
+        }
+      });
+
+      // Periodic trigger stats update animation
+      if (frame % 15 === 0) {
+        // dynamic tick
+        const voltEl = document.getElementById("hudVolt");
+        if (voltEl) {
+          const currentVolt = Math.round(biomarkers.pH * 12 + biomarkers.amylase * 0.15 + Math.sin(Date.now() / 300) * 4);
+          voltEl.innerText = currentVolt + " mV";
+        }
+      }
+
+      requestAnimationFrame(renderLoop);
+    }
+
+    function clickOfflineNode(node) {
+      const detailsTitle = document.getElementById("offInfDetailsTitle");
+      const detailsDesc = document.getElementById("offInfDetailsDesc");
+      
+      const logs = {
+        es: {
+          ia: { title: "DOCKING: PROTOCOLO PLATAFORMA IA", desc: "La plataforma neuronal de IA recalcula los factores hedónicos y metabólicos instantáneamente. Optimizando un ciclo de realimentación para estabilizar el cortisol." },
+          sensing: { title: "DOCKING: BIONANOSENSORES SALIVALES", desc: "Sensor dental activado. Muestreando amilasa y pH salival. Configuración adaptada para responder al nivel de estrés y fatiga fisiológica." },
+          experience: { title: "DOCKING: QUIMIORRECEPTORES SENSORIALES", desc: "Señal de sabor dirigida a la corteza cerebral. Modulando la intensidad hedónica del sabor dulce y umami junto con la textura reológica." },
+          action: { title: "DOCKING: SISTEMA ACTIVO DE INYECCIÓN", desc: "Iniciando colapso de membrana PLGA para liberación controlada. Carga útil de micronutrientes descargada sublingualmente." },
+          user: { title: "DOCKING: SINCRONIZACIÓN DE USUARIO", desc: "Perfil clínico sincronizado. El humor hedónico del usuario registra una satisfacción del 100% ante los compuestos modulados." }
+        },
+        en: {
+          ia: { title: "DOCKING: AI PLATFORM CORE PROTOCOL", desc: "The neural AI recalculates hedonic and metabolic rewards instantly, directing slow-release microparticulates to counter raw hormone curves." },
+          sensing: { title: "DOCKING: SALIVARY BIOSENSING STREAM", desc: "Dental transducer active. Scanning alpha-amylase and oral pH. Custom parameters loaded to respond to physical fatigue." },
+          experience: { title: "DOCKING: RECEPTOR TASTE PROFILE", desc: "Taste synaptic signal directed to gustatory cortex. Closed-loop tuning of sweet, umami, crisp rheology, and thermal PELTIER feedback." },
+          action: { title: "DOCKING: ACTIVE INJECTOR RUPTURE", desc: "Triggering PLGA polymer micro-pores. Releasing biological prebiotic active cultures alongside active peptides." },
+          user: { title: "DOCKING: USER DIGITAL CORE SYNC", desc: "Biometric user slot updated. Smiling hedonic response registers 100% satisfaction factor with the targeted matrix." }
+        },
+        zh: {
+          ia: { title: "突触对接: 人工智能中枢决策协议", desc: "深度神经网络实时重构系统多目标适应度奖励，对冲因压力引起的皮质醇和乳酸峰值。" },
+          sensing: { title: "突触对接: 唾液多传感器扫描流", desc: "牙齿微流控传感器已激活。实时监测唾液淀粉酶及微量离子浓度，针对躯体疲劳自动加载调理常数。" },
+          experience: { title: "突触对接: 脑神感官网络交互", desc: "风味感知突触信号直达大脑皮层。闭环控制甜味、鲜味强度，及高分子微颗粒流变阻尼质感。" },
+          action: { title: "突触对接: 胞外释放机构", desc: "PLGA囊膜物理孔道受控破裂，毫秒级释放益生元活性物质和免疫球蛋白防护涂层。" },
+          user: { title: "突触对接: 用户数字双胞胎系统同步", desc: "用户临床特征槽已重置。多模感官适应因子表现出100%的高满意度，各生理节点均进入正常波段。" }
+        }
+      };
+      
+      const currentLogs = logs[currentLang] || logs.es;
+      const data = currentLogs[node];
+      if (data) {
+        detailsTitle.innerText = data.title;
+        detailsDesc.innerText = data.desc;
+        
+        // Highlight corresponding visual system models
+        if (node === 'ia') setModel('twin');
+        if (node === 'sensing') setModel('cellular');
+        if (node === 'experience') setModel('receptor');
+        if (node === 'action') setModel('capsule');
+        if (node === 'user') setModel('microbiome');
+      }
+    }
+
+    // Expose to window for onclick attributes in offline template
+    window.clickOfflineNode = clickOfflineNode;
+    window.switchLanguage = switchLanguage;
+    window.setRegime = setRegime;
+    window.manualBiomarker = manualBiomarker;
+
+    // Startup
+    setRegime("stress");
+    renderLoop();
+  </script>
+</body>
+</html>
