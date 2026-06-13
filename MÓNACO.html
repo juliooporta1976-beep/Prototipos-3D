@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ecosofia Monaco - 3D Interactive Offline Patent Prototype</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body { background: #02060c; color: #e2e8f0; font-family: 'Space Grotesk', sans-serif; overflow: hidden; width: 100vw; height: 100vh; }
+        header { position: absolute; top:0; left:0; right:0; height:50px; background: rgba(2,6,12,0.95); border-bottom:1px solid rgba(0,243,255,0.2); display:flex; justify-content:space-between; align-items:center; padding: 0 16px; z-index:100; backdrop-filter:blur(10px); }
+        .author-tag { font-family: 'JetBrains Mono', monospace; font-size:10px; color:#00f3ff; text-transform:uppercase; text-shadow:0 0 5px rgba(0,243,255,0.4); }
+        .project-title h1 { font-size:15px; letter-spacing:1px; font-weight:700; color:#fff; }
+        .lang-btn { background: rgba(10,25,47,0.6); border:1px solid rgba(0,243,255,0.2); color:#8892b0; font-family:'JetBrains Mono', monospace; font-size:9px; padding:2px 6px; border-radius:3px; cursor:pointer; }
+        .lang-btn.active { color:#00f3ff; border-color:#00f3ff; background: rgba(0,243,255,0.15); }
+        #viewport-container { position:absolute; inset:0; z-index:10; }
+        #canvas3d { width:100%; height:100%; display:block; }
+        .tactical-hud { position:absolute; top:60px; right:15px; width:330px; background: rgba(2,6,12,0.92); border:1px solid rgba(0,243,255,0.2); border-radius:6px; padding:12px; z-index:50; backdrop-filter:blur(8px); display:flex; flex-direction:column; gap:10px; max-height:calc(100vh - 80px); overflow-y:auto; box-shadow:0 8px 30px rgba(0,0,0,0.5); }
+        .hud-section-title { font-family:'JetBrains Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:1px; color:#00f3ff; border-bottom:1px solid rgba(0,243,255,0.15); padding-bottom:4px; margin-bottom:2px; }
+        .mode-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+        .mode-btn { background: rgba(10,25,47,0.5); border:1px solid rgba(255,255,255,0.07); color:#94a3b8; font-size:9px; font-family:'JetBrains Mono', monospace; padding:5px; border-radius:3px; cursor:pointer; text-align:center; transition:0.2s; text-transform:uppercase; }
+        .mode-btn.active.normal { border-color:#00f3ff; color:#00f3ff; background:rgba(0,243,255,0.1); }
+        .mode-btn.active.alert { border-color:#ff3300; color:#ff3300; background:rgba(255,51,0,0.1); }
+        .mode-btn.active.healing { border-color:#00ffaa; color:#00ffaa; background:rgba(0,255,170,0.1); }
+        .mode-btn.active.evolution { border-color:#ff00ff; color:#ff00ff; background:rgba(255,0,255,0.1); }
+        .mode-btn.active.emergency_recon { border-color:#eab308; color:#eab308; background:rgba(234,179,8,0.15); }
+        .diagnostic-card { background: rgba(10,25,47,0.4); border:1px solid rgba(255,255,255,0.05); border-radius:4px; padding:8px; display:flex; flex-direction:column; gap:4px; }
+        .diag-row { display:flex; justify-content:space-between; font-family:'JetBrains Mono', monospace; font-size:10px; }
+        .diag-label { color:#64748b; }
+        .diag-val { color:#00f3ff; font-weight:700; }
+        .slider-group { display:flex; flex-direction:column; gap:2px; }
+        .slider-header { display:flex; justify-content:space-between; font-family:'JetBrains Mono', monospace; font-size:9px; color:#94a3b8; }
+        .custom-slider { width:100%; height:3px; background:#0f172a; outline:none; -webkit-appearance:none; accent-color:#00f3ff; cursor:pointer; }
+        #log-node-terminal { background:#010409; border:1px solid rgba(255,255,255,0.06); border-radius:3px; min-height:48px; padding:6px; font-family:'JetBrains Mono', monospace; font-size:9px; color:#51b3ef; overflow-y:auto; max-height:80px; }
+        .ar-btn { background: linear-gradient(to right, #0055ff, #00f3ff); border:none; color:#fff; font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:10px; padding:8px; border-radius:4px; cursor:pointer; display:flex; justify-content:center; align-items:center; gap:4px; }
+        .ar-panel { position:absolute; top:60px; left:15px; background:rgba(2,6,12,0.9); border:1px solid rgba(0,255,170,0.3); border-radius:6px; padding:10px; font-size:10px; max-width:200px; z-index:50; }
+        .bottom-bar { position:absolute; bottom:0; left:0; right:0; height:24px; background:#02060c; border-top:1px solid rgba(0,243,255,0.15); z-index:100; display:flex; justify-content:space-between; align-items:center; padding:0 16px; font-family:'JetBrains Mono', monospace; font-size:8px; color:#475569; }
+        #ar-webcam-feed { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0.35; z-index:1; display:none; }
+        .calibration-control { display:none; position:absolute; bottom:30px; left:50%; transform:translateX(-50%); background:rgba(2,6,12,0.9); border:1px solid rgba(0,243,255,0.3); border-radius:6px; padding:6px 12px; z-index:60; gap:8px; align-items:center; }
+        .sub-tab-bar { display:flex; background:#090d16; border:1px solid rgba(255,255,255,0.05); rounded:3px; margin:4px 0; }
+        .sub-tab-btn { flex:1; background:none; border:none; color:#64748b; font-family:'JetBrains Mono', monospace; font-size:9px; padding:4px; cursor:pointer; text-transform:uppercase; transition:0.2s; }
+        .sub-tab-btn.active { color:#00f3ff; background:rgba(0,243,255,0.1); font-weight:700; }
+        .sub-panel { display:none; flex-direction:column; gap:8px; }
+        .sub-panel.active { display:flex; }
+        .wave-btn { font-family:'JetBrains Mono', monospace; font-size:8px; padding:3px 6px; background:#090d16; border:1px solid rgba(255,255,255,0.06); color:#8892b0; cursor:pointer; }
+        .wave-btn.active { border-color:#ff00d0; color:#ff00d0; background:rgba(255,0,208,0.1); }
+        .progress-bar-container { width:100%; height:4px; background:#010409; border-radius:2px; overflow:hidden; margin-top:2px; margin-bottom: 2px; }
+        .progress-bar-fill { height:100%; width:85%; background:#10b981; transition: width 0.3s; }
+    </style>
+</head>
+<body>
+    <video id="ar-webcam-feed" autoplay playsinline muted></video>
+    <header>
+        <div>
+            <div class="author-tag" id="authorText">Dr. Julio César Oporta Barrera</div>
+            <div class="project-title"><h1 id="titleText">ECOSOFÍA MÓNACO</h1></div>
+        </div>
+        <div style="display:flex; gap:4px;">
+            <button class="lang-btn active" onclick="switchLanguage('es')">ES</button>
+            <button class="lang-btn" onclick="switchLanguage('en')">EN</button>
+            <button class="lang-btn" onclick="switchLanguage('zh')">ZH</button>
+        </div>
+    </header>
+
+    <div id="viewport-container"><canvas id="canvas3d"></canvas></div>
+
+    <div class="ar-panel" id="arInstructionsBox" style="display: none;">
+        <span style="font-weight:700; color:#00ffaa; display:block; margin-bottom:2px;">AR ENGINE</span>
+        <span id="arInstructionText">Align. Align device onto table workspace floor.</span>
+    </div>
+
+    <div class="calibration-control" id="arCalibrationHUD">
+        <span style="font-family:'JetBrains Mono', monospace; font-size:9px; color:#00f3ff;">SCALE:</span>
+        <input type="range" class="custom-slider" style="width:60px;" min="0.3" max="2.0" step="0.05" id="arScaleSlider" value="1.0" oninput="scaleFactor=parseFloat(this.value)">
+    </div>
+
+    <div class="tactical-hud">
+        <div><p class="hud-section-title" id="hudTitleText">TACTICAL CONTROL HUD</p></div>
+
+        <!-- Operating Modes Grid -->
+        <div style="display:flex; flex-direction:column; gap:4px;">
+            <p style="font-size:9px; font-family:'JetBrains Mono', monospace; color:#64748b; text-transform:uppercase;" id="opsModeText">Operational Mode</p>
+            <div class="mode-grid">
+                <button class="mode-btn active normal" onclick="setMode('NORMAL')">Normal</button>
+                <button class="mode-btn alert" onclick="setMode('ALERT')">Alert</button>
+                <button class="mode-btn healing" onclick="setMode('HEALING')">Healing</button>
+                <button class="mode-btn evolution" onclick="setMode('EVOLUTION')">Evolution</button>
+                <button class="mode-btn emergency_recon" style="grid-column: span 2;" onclick="setMode('EMERGENCY_RECON')">Emergency Recon</button>
+            </div>
+        </div>
+
+        <!-- Development Flow Phases -->
+        <div style="display:flex; flex-direction:column; gap:4px;">
+            <p style="font-size:9px; font-family:'JetBrains Mono', monospace; color:#64748b; text-transform:uppercase;" id="flowPhaseText">Development Flow Phase</p>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr; gap:3px;">
+                <button class="mode-btn phase-btn alfa" onclick="setFlowPhase('alfa')">Alfa</button>
+                <button class="mode-btn phase-btn beta" onclick="setFlowPhase('beta')">Beta</button>
+                <button class="mode-btn phase-btn active gamma" onclick="setFlowPhase('gamma')">Gamma</button>
+                <button class="mode-btn phase-btn omega" onclick="setFlowPhase('omega')">Omega</button>
+                <button class="mode-btn phase-btn solomon" onclick="setFlowPhase('solomon')">Solomon</button>
+            </div>
+        </div>
+
+        <!-- Sub Tab select bar -->
+        <div class="sub-tab-bar">
+            <button class="sub-tab-btn active" id="tabBtnEnergy" onclick="switchSubTab('energy')">Energía</button>
+            <button class="sub-tab-btn" id="tabBtnBiomech" onclick="switchSubTab('biomech')">Biomecánica</button>
+            <button class="sub-tab-btn" id="tabBtnPhysics" onclick="switchSubTab('physics')">Física</button>
+            <button class="sub-tab-btn" id="tabBtnBiosphere" onclick="switchSubTab('biosphere')">Biosfera</button>
+        </div>
+
+        <!-- Panel 1: Hybrid Energy -->
+        <div class="sub-panel active" id="panelEnergy">
+            <div class="slider-group">
+                <div class="slider-header"><span id="lblSolar">Sustancia Solar:</span><span id="valSolar">45%</span></div>
+                <input type="range" class="custom-slider" min="5" max="80" value="45" id="slideSolar" oninput="adjustEnergy('solar', parseInt(this.value))">
+            </div>
+            <div class="slider-group">
+                <div class="slider-header"><span id="lblWind">Captura Eólica:</span><span id="valWind">30%</span></div>
+                <input type="range" class="custom-slider" min="5" max="80" value="30" id="slideWind" oninput="adjustEnergy('wind', parseInt(this.value))">
+            </div>
+            <div class="slider-group">
+                <div class="slider-header"><span id="lblPiezo">Piezoeléctrico:</span><span id="valPiezo">25%</span></div>
+                <input type="range" class="custom-slider" min="5" max="80" value="25" id="slidePiezo" oninput="adjustEnergy('piezo', parseInt(this.value))">
+            </div>
+            <div style="display:flex; gap:4px; margin-top:2px;">
+                <button class="mode-btn" style="flex:1; font-size:7.5px; padding:3px;" onclick="applyPresetEnergy(70,15,15)">Max Solar</button>
+                <button class="mode-btn" style="flex:1; font-size:7.5px; padding:3px;" onclick="applyPresetEnergy(15,70,15)">Max Viento</button>
+                <button class="mode-btn" style="flex:1; font-size:7.5px; padding:3px;" onclick="applyPresetEnergy(33,33,34)">Balanced</button>
+            </div>
+        </div>
+
+        <!-- Panel 2: Biomechanics -->
+        <div class="sub-panel" id="panelBiomech">
+            <div class="slider-group">
+                <div class="slider-header"><span id="lblCircadian">Resonancia Circadiana:</span><span id="valCircadian">1.2 Hz</span></div>
+                <input type="range" class="custom-slider" min="0.4" max="3.0" step="0.1" value="1.2" id="slideCircadian" oninput="circadianFrequency=parseFloat(this.value); document.getElementById('valCircadian').innerText=this.value+' Hz'">
+            </div>
+            <div class="slider-group">
+                <div class="slider-header"><span id="lblRegen">Celular Regenerador:</span><span id="valRegen">1.5x</span></div>
+                <input type="range" class="custom-slider" min="0.5" max="3.5" step="0.1" value="1.5" id="slideRegen" oninput="cellularRegenSpeed=parseFloat(this.value); document.getElementById('valRegen').innerText=this.value+'x'">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:2px; background:#010409; padding:4px; border-radius:3px;">
+                <span style="font-size:7.5px; font-family:'JetBrains Mono', monospace; color:#10b981; display:block;">LIVE BIO-OSCILLOSCOPE FEED</span>
+                <canvas id="scopeCanvas" width="280" height="40" style="width:100%; height:40px; display:block;"></canvas>
+            </div>
+        </div>
+
+        <!-- Panel 3: Modular Physics -->
+        <div class="sub-panel" id="panelPhysics">
+            <div class="slider-group">
+                <div class="slider-header"><span id="lblResonanceField">Campo Sináptico:</span><span id="valResonanceField">14.8 GHz</span></div>
+                <input type="range" class="custom-slider" min="2" max="50" step="1" value="14.1" id="slideResonanceField" oninput="resonanceFrequency=parseFloat(this.value); document.getElementById('valResonanceField').innerText=this.value+' GHz'">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:3px;">
+                <span style="font-size:8px; font-color:#64748b; font-family:'JetBrains Mono', monospace;" id="lblWaveform">Física del Medio Sináptico:</span>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:3px;">
+                    <button class="wave-btn active" id="waveSINE" onclick="setWaveform('SINE')">Sin</button>
+                    <button class="wave-btn" id="waveSQUARE" onclick="setWaveform('SQUARE')">Square</button>
+                    <button class="wave-btn" id="wavePULSE" onclick="setWaveform('PULSE')">Pulse</button>
+                    <button class="wave-btn" id="waveDELTA" onclick="setWaveform('DELTA')">Delta</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel 4: Biosphere -->
+        <div class="sub-panel" id="panelBiosphere">
+            <p style="font-size:8px; line-height:1.2; color:#a1a1aa; margin-bottom:4px;" id="valBiosphereDesc">Monitorea la regulación del microclima y la filtración biológica activa en el ecosistema.</p>
+            <div class="slider-group">
+                <div class="slider-header"><span id="lblToxinHtml">Filtro de Toxinas:</span><span id="valToxin">65%</span></div>
+                <input type="range" class="custom-slider" min="0" max="100" step="5" value="65" id="slideToxin" oninput="adjustBiosphere('toxin', parseInt(this.value))">
+            </div>
+            <div class="slider-group">
+                <div class="slider-header"><span id="lblTempHtml">T. Microclima:</span><span id="valTemp">21.5°C</span></div>
+                <input type="range" class="custom-slider" min="15" max="30" step="0.5" value="21.5" id="slideTemp" oninput="adjustBiosphere('temp', parseFloat(this.value))">
+            </div>
+            <div class="slider-group">
+                <div class="slider-header"><span id="lblHumidityHtml">Humedad Bio:</span><span id="valHumidity">55%</span></div>
+                <input type="range" class="custom-slider" min="10" max="90" step="5" value="55" id="slideHumidity" oninput="adjustBiosphere('humidity', parseInt(this.value))">
+            </div>
+            <div style="display:flex; gap:3.5px; margin-top:2.5px;">
+                <button class="mode-btn" style="flex:1; font-size:7.5px; padding:3px;" onclick="applyPresetBiosphere(100,18.0,75)" id="btnPreHyper">🍃 Hiper-Filtraje</button>
+                <button class="mode-btn" style="flex:1; font-size:7.5px; padding:3px;" onclick="applyPresetBiosphere(30,26.5,35)" id="btnPreDesert">Desert State</button>
+                <button class="mode-btn" style="flex:1; font-size:7.5px; padding:3px;" onclick="applyPresetBiosphere(65,21.5,55)" id="btnPreBiot">Equilibrio</button>
+            </div>
+        </div>
+
+        <!-- Diagnostic Stats Matrix -->
+        <div class="diagnostic-card">
+            <p style="font-size:8px; font-family:'JetBrains Mono', monospace; color:#64748b; text-transform:uppercase; margin-bottom:4px;" id="stateMatrixText">COGNITIVE SYSTEM INDEX</p>
+            <div class="diag-row">
+                <span class="diag-label" id="coherenceText">Coherence Index:</span>
+                <span class="diag-val" id="coherenceIndexVal">88%</span>
+            </div>
+            <div class="diag-row">
+                <span class="diag-label" id="activeNodesText">Active Neurons:</span>
+                <span class="diag-val">4 / 4 Nodes</span>
+            </div>
+            <div class="diag-row" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top:2px;">
+                <span class="diag-label" id="lblEfficiency">Eficiencia de Conversión:</span>
+                <span class="diag-val" id="valEfficiency" style="color:#10b981;">92.1%</span>
+            </div>
+            <div class="progress-bar-container"><div class="progress-bar-fill" id="efficiencyFill"></div></div>
+            <div class="diag-row">
+                <span class="diag-label" id="lblAnomaly">Tasa de Anomalía:</span>
+                <span class="diag-val" id="valAnomaly" style="color:#f43f5e;">1.02%</span>
+            </div>
+            <div class="diag-row">
+                <span class="diag-label" id="timeCoinText">Conscious Coins:</span>
+                <span class="diag-val" style="color:#ff00d0;" id="timeCoinVal">420 Mins</span>
+            </div>
+            <div class="diag-row">
+                <span class="diag-label" id="cryptoSyncText" style="color:#00f3ff;">Consenso Blockchain:</span>
+                <span class="diag-val" style="color:#00f3ff;" id="cryptoSyncVal">99.45%</span>
+            </div>
+        </div>
+
+        <!-- MNET Biospheric Telemetry card -->
+        <div class="diagnostic-card" style="border: 1px solid rgba(245,158,11,0.25);">
+            <p style="font-size:8px; font-family:'JetBrains Mono', monospace; color:#f59e0b; text-transform:uppercase; margin-bottom:4px; display:flex; justify-content:space-between;" id="lblTelemetryHeader">
+                <span id="telemetryHeaderTitle">TELEMETRÍA BIOSFÉRICA MNET</span>
+                <span class="animate-pulse" style="color:#22c55e;">● LIVE</span>
+            </p>
+            <div class="diag-row">
+                <span class="diag-label" id="lblToxinDiag">Filtro de Toxinas:</span>
+                <span class="diag-val" style="color:#f59e0b;" id="hudToxinVal">65%</span>
+            </div>
+            <div class="progress-bar-container"><div class="progress-bar-fill" style="width:65%; background:#f59e0b;" id="hudToxinFill"></div></div>
+
+            <div class="diag-row" style="margin-top:2px;">
+                <span class="diag-label" id="lblTempDiag">Desviación Microclima:</span>
+                <span class="diag-val" style="color:#fbbf24;" id="hudTempVal">21.5°C</span>
+            </div>
+            <div class="progress-bar-container"><div class="progress-bar-fill" style="width:43.3%; background:#fbbf24;" id="hudTempFill"></div></div>
+
+            <div class="diag-row" style="margin-top:2px;">
+                <span class="diag-label" id="lblHumidityDiag">Humedad Biosférica:</span>
+                <span class="diag-val" style="color:#34d399;" id="hudHumidityVal">55%</span>
+            </div>
+            <div class="progress-bar-container"><div class="progress-bar-fill" style="width:55%; background:#34d399;" id="hudHumidityFill"></div></div>
+
+            <div style="font-family:'JetBrains Mono', monospace; font-size:7.5px; color:#64748b; border-top:1px solid rgba(255,255,255,0.05); padding-top:4px; margin-top:4px;" id="lblLiveStream">
+                <span style="color:#00f3ff; font-weight:700;" id="streamDataTitle">● LIVE_TRACT_DATA_STREAM:</span>
+                <div style="margin-top:1px;">&gt; COHERENCE_INDEX: <span style="color:#e2e8f0;">0.84</span></div>
+                <div>&gt; PARTICULATES: <span style="color:#e2e8f0;" id="hudParticulates">STABLE</span></div>
+                <div>&gt; EQUILIBRIUM: <span style="color:#22c55e;" id="hudSystemEquilibrium">OPTIMIZED</span></div>
+            </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:4px;">
+            <button class="ar-btn" onclick="toggleImmersiveAr()">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                <span id="arToggleText">Project 3D Tisch / desk AR</span>
+            </button>
+            <button class="mode-btn" style="border:1px dashed rgba(244,63,94,0.4); color:#f43f5e;" onclick="triggerAutoImmuneEvent()" id="btnAutoImmune">FORZAR EVENTO AUTO-INMUNE</button>
+        </div>
+
+        <!-- INTEGRATED PATENT INT DESIGN BLUEPRINT -->
+        <div class="diagnostic-card" style="border:1px solid rgba(0, 243, 255, 0.25);">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-b:1px solid rgba(0,243,255,0.15); padding-bottom:4px; margin-bottom:6px;">
+                <p style="font-size:9px; font-family:'JetBrains Mono', monospace; color:#00f3ff; font-weight:700;" id="patentTitleLabel">PATENT INTEGRAL DRAFT BLUEPRINT</p>
+                <div style="display:flex; gap:2px;">
+                    <button class="lang-btn active" id="btnBPPillars" onclick="toggleBlueprintTab('pillars')" style="font-size:8px; padding:1px 4px; line-height:1;">PILARES</button>
+                    <button class="lang-btn" id="btnBPEcosophy" onclick="toggleBlueprintTab('ecosophy')" style="font-size:8px; padding:1px 4px; line-height:1;">ECOSOFÍA</button>
+                </div>
+            </div>
+            
+            <div id="bpPillarsContainer">
+                <svg viewBox="0 0 400 240" style="width:100%; height:auto; background:rgba(0,1,10,0.8); border-radius:4px;">
+                    <circle cx="200" cy="120" r="90" fill="none" stroke="rgba(0,243,255,0.06)" stroke-width="1" />
+                    <line x1="200" y1="10" x2="200" y2="230" stroke="rgba(0,243,255,0.04)" />
+                    <line x1="30" y1="120" x2="370" y2="120" stroke="rgba(0,243,255,0.04)" />
+                    <line x1="200" y1="120" x2="130" y2="70" stroke="rgba(0,243,255,0.3)" id="svgLine1" stroke-width="1.2" />
+                    <line x1="200" y1="120" x2="130" y2="170" stroke="rgba(0,243,255,0.3)" id="svgLine2" stroke-width="1.2" />
+                    <line x1="200" y1="120" x2="270" y2="150" stroke="rgba(0,243,255,0.3)" id="svgLine3" stroke-width="1.2" />
+                    <g onclick="selectOfflinePillar('center')" style="cursor:pointer;"><circle cx="200" cy="120" r="12" fill="rgba(0,243,255,0.15)" stroke="#00f3ff" stroke-width="1.5" id="p_ctr" /><text x="200" y="103" text-anchor="middle" fill="#00f3ff" font-size="7" font-family="monospace">N.C.A.</text></g>
+                    <g onclick="selectOfflinePillar('quantum')" style="cursor:pointer;"><circle cx="130" cy="70" r="9" fill="rgba(255,0,208,0.15)" stroke="#ff00d0" stroke-width="1" id="p_qnt" /><text x="130" y="55" text-anchor="middle" fill="#ff00d0" font-size="6.5" font-family="monospace">PILLAR II</text></g>
+                    <g onclick="selectOfflinePillar('regenerative')" style="cursor:pointer;"><circle cx="130" cy="170" r="9" fill="rgba(0,255,170,0.15)" stroke="#00ffaa" stroke-width="1" id="p_reg" /><text x="130" y="185" text-anchor="middle" fill="#00ffaa" font-size="6.5" font-family="monospace">PILLAR III</text></g>
+                    <g onclick="selectOfflinePillar('sensory')" style="cursor:pointer;"><circle cx="270" cy="150" r="9" fill="rgba(251,191,36,0.15)" stroke="#fbbf24" stroke-width="1" id="p_sns" /><text x="270" y="165" text-anchor="middle" fill="#fbbf24" font-size="6.5" font-family="monospace">PILLAR IV</text></g>
+                </svg>
+            </div>
+            
+            <div id="bpEcosophyContainer" style="display:none;">
+                <svg viewBox="0 0 400 240" style="width:100%; height:auto; background:rgba(0,1,10,0.8); border-radius:4px;">
+                    <!-- Grid background -->
+                    <defs>
+                        <pattern id="grid_pattern" width="12" height="12" patternUnits="userSpaceOnUse">
+                            <path d="M 12 0 L 0 0 0 12" fill="none" stroke="rgba(0,243,255,0.05)" stroke-width="0.5"/>
+                        </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid_pattern)" />
+                    
+                    <!-- Schematic connections and curves -->
+                    <path d="M 75,120 Q 137,45 200,120" fill="none" stroke="rgba(0,243,255,0.25)" stroke-width="1.2" stroke-dasharray="2,2" />
+                    <path d="M 75,120 Q 137,195 200,120" fill="none" stroke="rgba(245,158,11,0.25)" stroke-width="1.2" />
+                    <path d="M 200,120 Q 262,45 325,120" fill="none" stroke="rgba(16,185,129,0.25)" stroke-width="1.2" />
+                    <path d="M 200,120 Q 262,195 325,120" fill="none" stroke="rgba(236,72,153,0.25)" stroke-width="1.2" stroke-dasharray="2,2" />
+                    
+                    <!-- SOBERANÍA TERRENAL Hotspot (Left) -->
+                    <g onclick="selectOfflineHotspot('sovereignty')" style="cursor:pointer;">
+                        <circle cx="75" cy="120" r="14" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="1.2" id="h_sov" />
+                        <text x="75" y="123" text-anchor="middle" fill="#f59e0b" font-weight="bold" font-size="8" font-family="monospace">I</text>
+                        <text x="75" y="96" text-anchor="middle" fill="#f59e0b" font-size="6.5" font-weight="bold" font-family="monospace">SOBERANÍA</text>
+                    </g>
+                    
+                    <!-- TRINIDAD OPERATIVA Hotspot (Center) -->
+                    <g onclick="selectOfflineHotspot('trinity')" style="cursor:pointer;">
+                        <circle cx="200" cy="120" r="18" fill="rgba(0,243,255,0.18)" stroke="#00f3ff" stroke-width="1.8" id="h_tri" />
+                        <text x="200" y="123" text-anchor="middle" fill="#00f3ff" font-weight="bold" font-size="9" font-family="monospace">II</text>
+                        <text x="200" y="93" text-anchor="middle" fill="#00f3ff" font-size="7" font-weight="bold" font-family="monospace">TRINIDAD NCA</text>
+                    </g>
+                    
+                    <!-- CONSCIENCIA COLECTIVA Hotspot (Right) -->
+                    <g onclick="selectOfflineHotspot('conscious')" style="cursor:pointer;">
+                        <circle cx="325" cy="120" r="14" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="1.2" id="h_con" />
+                        <text x="325" y="123" text-anchor="middle" fill="#10b981" font-weight="bold" font-size="8" font-family="monospace">III</text>
+                        <text x="325" y="96" text-anchor="middle" fill="#10b981" font-size="6.5" font-weight="bold" font-family="monospace">CONSCIENCIA</text>
+                    </g>
+                </svg>
+            </div>
+            
+            <div id="patentPillarDesc" style="font-family:'JetBrains Mono', monospace; font-size:8px; color:#a1a1aa; line-height:1.3; padding:4px; background:rgba(0,0,0,0.3); border-radius:3px;">*SELECCIONA PILLAR REGENERADOR ARRIBA</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:4px;">
+            <p style="font-size:8px; font-family:'JetBrains Mono', monospace; color:#475569;" id="terminalTitleText">SINAPSE COGNITIVA LOGS</p>
+            <div id="log-node-terminal">Ready. Click any conscious node inside the 3D territory view to probe local quantum synapses.</div>
+        </div>
+    </div>
+
+    <div class="bottom-bar">
+        <span>ECOSOFÍA MÓNACO - OFFLINE PORTAL</span>
+        <span id="compatibilityText">100% OFFLINE CAPABILITY ACTIVE - MICROSOFT EDGE & CHROME</span>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("canvas3d");
+        let language = "es", currentMode = "NORMAL", boidsCount = 40, frictionCoeff = 0.4, nanobotsCount = 120, scaleFactor = 1.0, arActive = false;
+        let solarRatio = 45, windRatio = 30, piezoRatio = 25, circadianFrequency = 1.2, cellularRegenSpeed = 1.5, resonanceFrequency = 14.1, fieldWaveform = "SINE", anomalyRate = 0.012, gridStability = 85;
+        let toxinPurgeRate = 65, microclimateTemp = 21.5, biologicalHumidity = 55;
+        let cameraTargetY = 30; // Target camera focal height for fluid transitions
+
+        // Custom translations map
+        const locales = {
+            es: {
+                title: "ECOSOFÍA MÓNACO", author: "Dr. Julio César Oporta Barrera", opsMode: "MODO DE OPERACIÓN COGNITIVA", stateMatrix: "MATRIZ DE ESTADOS COGNITIVOS", coherence: "Índice de Coherencia:", activeNodes: "Nodos Neurona Activos:", arToggle: "Proyectar en AR sobre Mesa", arInstruction: "Líneas de alineamiento fijadas. Coloca el celular sobre tu mesa de trabajo para ver el modelo 3D.", terminalReady: "SISTEMA SEGURO: Listo. Haz clic en un nodo neuronal de Mónaco para inspeccionar flujos.", compatibility: "CONECTIVIDAD OFFLINE ACTIVA - EDGE & CHROME COMPATIBLE", patentTitle: "PLANO DE LA PATENTE INTEGRAL", descCenter: "PILAR I (N.C.A. CORE): Modula la cohesión neuronal global. Activa EMERGENCY_RECON.", descQuantum: "PILAR II (FINTECH MECA): Genera micro-energías piezoeléctricas. Estabiliza el voltaje local.", descRegen: "PILAR III (REGEN SPORT): Biosfera circular con auto-recuperativa biocomunicable.", descSensory: "PILAR IV (BIO SENS): Estabiliza flujos circadianos de la población y coherencia general.", lblEfficiency: "Eficiencía de Conversión:", lblAnomaly: "Tasa de Anomalía:", conCoins: "Monedas de Conciencia:", waveLabel: "Física del Medio Sináptico:", tabEnergy: "Energía", tabBio: "Biomecánica", tabPhys: "Física", tabBiosphere: "Biosfera", btnTrigger: "FORZAR EVENTO AUTO-INMUNE",
+                lblToxin: "Filtro de Toxinas:", lblTemp: "T. Microclima:", lblHumidity: "Humedad Bio:",
+                descBiosphere: "Monitorea la regulación del microclima y la filtración biológica activa en el ecosistema.",
+                preHyper: "🍃 Hiper-Filtraje", preDesert: "Desierto State", preBiot: "Equilibrio",
+                lblTelemetry: "TELEMETRÍA BIOSFÉRICA MNET", streamData: "FLUJO DE DATOS LIVE MNET:"
+            },
+            en: {
+                title: "ECOSOFIA MONACO", author: "Dr. Julio César Oporta Barrera", opsMode: "COGNITIVE OPERATIONAL MODE", stateMatrix: "TACTICAL COGNITIVE STATE MATRIX", coherence: "Coherence Index:", activeNodes: "Active Neural Nodes:", arToggle: "Project desk 3D AR Model", arInstruction: "Alignment parameters calibrated. Put your device over any desktop to inspect the 3D model.", terminalReady: "COGNITION SECURED: Tap any 3D urban node to probe deep synapse connections.", compatibility: "100% OFFLINE SECURED VIEWPORT - EDGE & CHROME ACTIVE", patentTitle: "INTEGRAL PATENT DRAFT BLUEPRINT", descCenter: "PILLAR I (N.C.A. CORE): Orchestrates core consciousness loops. Forces EMERGENCY_RECON.", descQuantum: "PILLAR II (FINTECH MECA): Harnesses kinetic roads power grids. Calibrates voltage sync.", descRegen: "PILLAR III (REGEN SPORT): Initiates photosynthesis bio-healing on circular stadium skin.", descSensory: "PILLAR IV (BIO SENS): Records real-time circadian resonance indicators to maximize health.", lblEfficiency: "Conversion Efficiency:", lblAnomaly: "Anomaly Deviation Rate:", conCoins: "Consciousness Coins:", waveLabel: "Synaptic Medium Physics:", tabEnergy: "Energy", tabBio: "Biomechanics", tabPhys: "Physics", tabBiosphere: "Biosphere", btnTrigger: "TRIGGER AUTO-IMMUNE EVENT",
+                lblToxin: "Toxin Purge:", lblTemp: "Microclimate:", lblHumidity: "Bio Humidity:",
+                descBiosphere: "Monitors microclimate regulation and active biological toxin scrubbing inside the ecosystem.",
+                preHyper: "🍃 Hyper-Filter", preDesert: "Desert State", preBiot: "Equilibrium",
+                lblTelemetry: "BIOSPHERIC TELEMETRY MNET", streamData: "LIVE MNET DATA STREAM:"
+            },
+            zh: {
+                title: "摩纳哥生态智慧 (ECOSOFÍA MÓNACO)", author: "Dr. Julio César Oporta Barrera", opsMode: "领土主权意识执行模式", stateMatrix: "自主意识运行状态矩阵", coherence: "神经束共振一致性率:", activeNodes: "有源脑功能节点:", arToggle: "实景3D台面AR混合现实投影", arInstruction: "物理三维参数已锁定。将镜头面置于任意桌面，可无感渲染高精投影。", terminalReady: "神经链连接正常。点击视口任意城市网络节点，可自主钻取数据流脉络。", compatibility: "完美支持离线双击加载 - EDGE & CHROME 深度兼容", patentTitle: "摩纳哥意识国家集成专利蓝图", descCenter: "第一支柱 (N.C.A. 决策中枢): 掌管主意识环路，进入关键自我重建协议以阻断威胁。", descQuantum: "第二支柱 (FINTECH 地面发电): 合并分布式高能感压压电平路铺设，稳定局域能源系统阻抗。", descRegen: "第三支柱 (REGEN 体育馆): 光合作用生物群落自主生化循环。飞行无人机自动前往搜理。", descSensory: "第四支柱 (BIO 传感商圈): 收集整合广大居民健康生理电平波，优化高群智共鸣率。", lblEfficiency: "分布式转换效能比率:", lblAnomaly: "网络异动不协调偏差率:", conCoins: "时间代币 (TimeCoins):", waveLabel: "数据物理突触波形设计:", tabEnergy: "有源能级", tabBio: "生物力学", tabPhys: "物理学", tabBiosphere: "生态气候", btnTrigger: "主动激活抗阻自我防御模式",
+                lblToxin: "毒素净化率:", lblTemp: "局域微温:", lblHumidity: "基质湿度:",
+                descBiosphere: "对摩纳哥城市绿化微气候自适应温湿度调节及生化毒素自动过滤清洗效率实施连续模拟监测。",
+                preHyper: "🍃 超强物理过滤", preDesert: "荒漠抗旱状态", preBiot: "自洽平衡点",
+                lblTelemetry: "生态气候遥测 MNET", streamData: "有源 MNET 数据流:"
+            }
+        };
+
+        const nodes = [
+            { id: "rocher", name_es: "NODO Rocher - Núcleo Institucional (NCA)", name_en: "Node Rocher - Institutional Core", name_zh: "罗彻节点 - 决策中枢 (NCA)", x: 0, y: 15, z: 0, r: 8, color: "#ff00d0", info_es: "Sincronía activa al 98% con el Palacio del Príncipe. Flujo cuántico estable.", info_en: "NCA centralized core. Synaptic transmission rate secure.", info_zh: "中央核心区运行正常。自适应安全策略加载完成。" },
+            { id: "montecarlo", name_es: "NODO Monte-Carlo - Sinergias Financieras", name_en: "Node Monte-Carlo - Financial Sinergy", name_zh: "蒙特卡洛节点 - 金融流控", x: -50, y: -20, z: -35, r: 7, color: "#00f3ff", info_es: "Calles piezoeléctricas alimentando el Casino local. Energía eficiente.", info_en: "Piezoelectric grid charging active battery banks.", info_zh: "压一路面持续发电。微能量自循环机制启动中。" },
+            { id: "la_condamine", name_es: "NODO La Condamine - Área Comercial", name_en: "Node La Condamine - Commerce Area", name_zh: "拉孔达明节点 - 商业繁荣区", x: 45, y: -10, z: 30, r: 7, color: "#00ffaa", info_es: "Detección biológica óptima. Registrando flujos emocionales estables.", info_en: "Biological flux stable. Citizen well-being baseline high.", info_zh: "社会健康指数极优。生活空间空气负氧离子在线监测。" },
+            { id: "fontvieille", name_es: "NODO Fontvieille - Regenerador Deportivo", name_en: "Node Fontvieille - Living Biomimetic Core", name_zh: "芳特维耶节点 - 绿色更新引擎", x: -40, y: 25, z: 45, r: 7, color: "#ffaa00", info_es: "Piel biomimética del estadio captando luz fotosintética. Red viva.", info_en: "Stadium photosyntethic skin feeding local nutrient grid.", info_zh: "体育馆绿色外表面太阳光能自生化转换安全系数充足。" }
+        ];
+
+        // Three.js high-fidelity implementation
+        let scene, camera, renderer, brainGroup, plateGroup, auraMesh, haloGroup, starField;
+        let boidGeo, boidMat, boidsInfo = [];
+        let p1Group, p2Group, p3Group, ringMeshes = [], nodeMeshes = [], connectionLines = [], lineBlobs = [];
+        let pilarA, pilarB, pilarC, pilarD;
+        let angleX = -0.3, angleY = 0.5, isDragging = false, previousMouseX, previousMouseY, mouse = { x: 0, y: 0 };
+
+        function initThree() {
+            const container = document.getElementById("viewport-container");
+            const w = window.innerWidth, h = window.innerHeight;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x02050c);
+            scene.fog = new THREE.FogExp2(0x02050c, 0.0035);
+
+            camera = new THREE.PerspectiveCamera(42, w / h, 1, 1000);
+            camera.position.set(0, 105, 195);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(w, h);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.innerHTML = "";
+            container.appendChild(renderer.domElement);
+
+            // Cinematic Space Cosmic Starfield
+            const starsGeo = new THREE.BufferGeometry();
+            const starsCount = 120;
+            const starsPos = new Float32Array(starsCount * 3);
+            for(let i=0; i<starsCount*3; i+=3) {
+                starsPos[i] = (Math.random() - 0.5) * 350;
+                starsPos[i+1] = (Math.random() - 0.5) * 180 + 20;
+                starsPos[i+2] = (Math.random() - 0.5) * 350;
+            }
+            starsGeo.setAttribute('position', new THREE.BufferAttribute(starsPos, 3));
+            const starsMat = new THREE.PointsMaterial({
+                color: 0x00f3ff,
+                size: 0.9,
+                transparent: true,
+                opacity: 0.45,
+                blending: THREE.AdditiveBlending
+            });
+            starField = new THREE.Points(starsGeo, starsMat);
+            scene.add(starField);
+
+            // Lights
+            scene.add(new THREE.AmbientLight(0x0c1e36, 1.5));
+            const l1 = new THREE.DirectionalLight(0xd97706, 2); l1.position.set(100, 150, 50); scene.add(l1);
+            const l2 = new THREE.DirectionalLight(0x00f3ff, 2); l2.position.set(-100, 120, -50); scene.add(l2);
+
+            // Stack Groups
+            plateGroup = new THREE.Group(); scene.add(plateGroup);
+            p1Group = new THREE.Group(); p1Group.position.y = -30; plateGroup.add(p1Group);
+            p2Group = new THREE.Group(); p2Group.position.y = 2; plateGroup.add(p2Group);
+            p3Group = new THREE.Group(); p3Group.position.y = 32; plateGroup.add(p3Group);
+
+            const plateGeo = new THREE.CylinderGeometry(55, 55, 1.2, 6);
+            const wMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff, wireframe: true, transparent: true, opacity: 0.25 });
+            
+            const p1m = new THREE.Mesh(plateGeo, new THREE.MeshStandardMaterial({ color: 0xb45309, transparent: true, opacity: 0.15 }));
+            p1m.add(new THREE.Mesh(plateGeo, wMat)); p1Group.add(p1m);
+
+            const p2m = new THREE.Mesh(plateGeo, new THREE.MeshStandardMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.15 }));
+            p2m.add(new THREE.Mesh(plateGeo, wMat)); p2Group.add(p2m);
+
+            const p3m = new THREE.Mesh(plateGeo, new THREE.MeshStandardMaterial({ color: 0xd946ef, transparent: true, opacity: 0.15 }));
+            p3m.add(new THREE.Mesh(plateGeo, wMat)); p3Group.add(p3m);
+
+            // Prisms on bottom plate
+            const boxGeo = new THREE.BoxGeometry(2.5, 7, 2.5);
+            const boxMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.3, metalness: 0.8 });
+            for(let i=0; i<15; i++) {
+                const b = new THREE.Mesh(boxGeo, boxMat);
+                b.position.set((Math.random()-0.5)*70, 3.5, (Math.random()-0.5)*70);
+                p1Group.add(b);
+            }
+
+            // Brain Group at Y=58
+            brainGroup = new THREE.Group(); brainGroup.position.set(0, 58, 0); scene.add(brainGroup);
+            const lHemiMat = new THREE.MeshStandardMaterial({ color: 0x00f3ff, emissive: 0x00f3ff, emissiveIntensity: 0.8 });
+            const rHemiMat = new THREE.MeshStandardMaterial({ color: 0xd97706, emissive: 0xd97706, emissiveIntensity: 0.8 });
+            const sGeo = new THREE.SphereGeometry(1.2, 8, 8);
+            for(let i=0; i<35; i++) {
+                const bL = new THREE.Mesh(sGeo, lHemiMat);
+                bL.position.set(-Math.abs(Math.sin(i))*6 + 1, (Math.random()-0.5)*8, (Math.random()-0.5)*10);
+                brainGroup.add(bL);
+                const bR = new THREE.Mesh(sGeo, rHemiMat);
+                bR.position.set(Math.abs(Math.sin(i))*6 - 1, (Math.random()-0.5)*8, (Math.random()-0.5)*10);
+                brainGroup.add(bR);
+            }
+
+            // Holographic Shield Aura around brain (Solomon and Omega)
+            auraMesh = new THREE.Mesh(new THREE.SphereGeometry(14, 16, 16), new THREE.MeshBasicMaterial({ color: 0x00ffaa, wireframe: true, transparent: true, opacity: 0.08 }));
+            auraMesh.position.set(0, 58, 0);
+            scene.add(auraMesh);
+
+            // 4 Corner Cyber-Biomimetic Pillars
+            const createCyberPillar = (px, pz, colorHex, type) => {
+                const pillarProj = new THREE.Group();
+                pillarProj.position.set(px, 15, pz);
+                
+                // Base
+                const bGeom = new THREE.BoxGeometry(10, 2, 10);
+                const bMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6, metalness: 0.9 });
+                const fNode = new THREE.Mesh(bGeom, bMat);
+                fNode.position.y = -46;
+                pillarProj.add(fNode);
+
+                // Shaft
+                const cylinderHeight = 90;
+                const sGeom = new THREE.CylinderGeometry(2, 3, cylinderHeight, 16);
+                const sMat = new THREE.MeshStandardMaterial({
+                    color: 0x0f172a,
+                    roughness: 0.3,
+                    metalness: 0.9,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const shaft = new THREE.Mesh(sGeom, sMat);
+                pillarProj.add(shaft);
+
+                // Rings Ornament
+                const numRings = 4;
+                const ringsArray = [];
+                const ringOrnamentGeo = new THREE.RingGeometry(4, 4.4, 24);
+                const rMat = new THREE.MeshStandardMaterial({
+                    color: colorHex,
+                    emissive: colorHex,
+                    emissiveIntensity: 0.8,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                for (let i = 0; i < numRings; i++) {
+                    const tRing = new THREE.Mesh(ringOrnamentGeo, rMat);
+                    tRing.rotation.x = Math.PI / 2;
+                    tRing.position.y = -35 + i * 22;
+                    pillarProj.add(tRing);
+                    ringsArray.push(tRing);
+                }
+
+                // Cap crystal
+                const capGeo = new THREE.IcosahedronGeometry(4, 1);
+                const capMat = new THREE.MeshStandardMaterial({
+                    color: colorHex,
+                    emissive: colorHex,
+                    emissiveIntensity: 1.0,
+                    roughness: 0.1,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const cap = new THREE.Mesh(capGeo, capMat);
+                cap.position.y = cylinderHeight / 2 + 1;
+                pillarProj.add(cap);
+
+                if (type === "nature") {
+                    const leaveGeo = new THREE.ConeGeometry(3, 8, 4);
+                    const leaveMat = new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.35 });
+                    for (let j = 0; j < 5; j++) {
+                        const leaf = new THREE.Mesh(leaveGeo, leaveMat);
+                        leaf.position.set(Math.sin(j) * 3, -25 + j * 16, Math.cos(j) * 3);
+                        leaf.rotation.z = 0.3 * Math.sin(j);
+                        pillarProj.add(leaf);
+                    }
+                } else if (type === "computational") {
+                    const helixSegments = 40;
+                    const helixPoints1 = [];
+                    const helixPoints2 = [];
+                    for (let j = 0; j <= helixSegments; j++) {
+                        const cy = -45 + (j / helixSegments) * 90;
+                        const theta = (j / helixSegments) * Math.PI * 6;
+                        helixPoints1.push(new THREE.Vector3(Math.cos(theta) * 3.5, cy, Math.sin(theta) * 3.5));
+                        helixPoints2.push(new THREE.Vector3(-Math.cos(theta) * 3.5, cy, -Math.sin(theta) * 3.5));
+                    }
+                    const hMat1 = new THREE.LineBasicMaterial({ color: 0xd946ef });
+                    const hGeo1 = new THREE.BufferGeometry().setFromPoints(helixPoints1);
+                    const hLine1 = new THREE.Line(hGeo1, hMat1);
+                    pillarProj.add(hLine1);
+
+                    const hMat2 = new THREE.LineBasicMaterial({ color: 0x00f3ff });
+                    const hGeo2 = new THREE.BufferGeometry().setFromPoints(helixPoints2);
+                    const hLine2 = new THREE.Line(hGeo2, hMat2);
+                    pillarProj.add(hLine2);
+                }
+
+                scene.add(pillarProj);
+                return { group: pillarProj, rings: ringsArray, cap: cap };
+            };
+
+            pilarA = createCyberPillar(-78, -78, 0xd97706, "governance");
+            pilarB = createCyberPillar(-78, 78, 0xd946ef, "computational");
+            pilarC = createCyberPillar(78, -78, 0x10b981, "nature");
+            pilarD = createCyberPillar(78, 78, 0x06b6d4, "dual");
+
+            // Add Monaco Urban Nodes
+            nodes.forEach(n => {
+                let ny = n.id === "rocher" ? 32 : (n.id === "fontvieille" ? 2 : -30);
+                const nMesh = new THREE.Mesh(new THREE.SphereGeometry(4.8, 16, 16), new THREE.MeshStandardMaterial({
+                    color: n.color, emissive: n.color, emissiveIntensity: 1.0, roughness: 0.1
+                }));
+                nMesh.position.set(n.x * 0.85, ny + 3.5, n.z * 0.85);
+                nMesh.userData = n;
+                scene.add(nMesh);
+                nodeMeshes.push(nMesh);
+
+                const ring = new THREE.Mesh(new THREE.RingGeometry(6, 7, 32), new THREE.MeshBasicMaterial({ color: n.color, side: THREE.DoubleSide, transparent:true, opacity:0.6 }));
+                ring.rotation.x = Math.PI/2;
+                ring.position.set(n.x * 0.85, ny + 0.5, n.z * 0.85);
+                scene.add(ring);
+                ringMeshes.push(ring);
+
+                // Synaptic linkages connecting nodes to brain
+                const pathCurve = new THREE.CatmullRomCurve3([
+                    new THREE.Vector3(0, 58, 0),
+                    new THREE.Vector3(n.x*0.42, 30, n.z*0.42),
+                    new THREE.Vector3(n.x*0.85, ny+3.5, n.z*0.85)
+                ]);
+                const linkGeo = new THREE.BufferGeometry().setFromPoints(pathCurve.getPoints(20));
+                const linkLine = new THREE.Line(linkGeo, new THREE.LineBasicMaterial({ color: n.color, transparent:true, opacity:0.35 }));
+                scene.add(linkLine);
+                connectionLines.push(linkLine);
+
+                // Travel signal particle
+                const pB = new THREE.Mesh(new THREE.SphereGeometry(0.8, 6, 6), new THREE.MeshBasicMaterial({ color: 0x00f3ff }));
+                scene.add(pB);
+                lineBlobs.push({ mesh: pB, path: pathCurve.getPoints(20), progress: Math.random() });
+            });
+
+            // Create Boids eVTOL Swarm
+            boidMat = new THREE.MeshStandardMaterial({ color: 0x00ffaa, emissive: 0x01855a, roughness: 0.3 });
+            boidGeo = new THREE.ConeGeometry(0.7, 2.2, 4);
+            boidGeo.rotateX(Math.PI/2);
+            for(let i=0; i<80; i++) {
+                const m = new THREE.Mesh(boidGeo, boidMat);
+                m.position.set((Math.random()-0.5)*140, 20 + Math.random()*40, (Math.random()-0.5)*140);
+                scene.add(m);
+                boidsInfo.push({ m: m, v: new THREE.Vector3((Math.random()-0.5)*2, (Math.random()-0.5)*1, (Math.random()-0.5)*2) });
+            }
+
+            // Window Resizer
+            window.addEventListener("resize", () => {
+                camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            // Interactive mouse orbits
+            window.addEventListener("mousedown", (e) => { isDragging = true; previousMouseX = e.clientX; previousMouseY = e.clientY; });
+            window.addEventListener("mousemove", (e) => {
+                if (isDragging) {
+                    angleY += (e.clientX - previousMouseX) * 0.007;
+                    angleX += (e.clientY - previousMouseY) * 0.007;
+                    angleX = Math.max(-0.9, Math.min(-0.05, angleX));
+                    previousMouseX = e.clientX; previousMouseY = e.clientY;
+                }
+            });
+            window.addEventListener("mouseup", () => isDragging = false);
+
+            // Raycaster clicks on 3D territory
+            window.addEventListener("pointerdown", (event) => {
+                const rect = renderer.domElement.getBoundingClientRect();
+                mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                const raycaster = new THREE.Raycaster();
+                raycaster.setFromCamera(mouse, camera);
+                const inters = raycaster.intersectObjects(nodeMeshes);
+                if (inters.length > 0) {
+                    const n = inters[0].object.userData;
+                    let txt = language === "es" ? n.info_es : (language === "zh" ? n.info_zh : n.info_en);
+                    let label = language === "es" ? n.name_es : (language === "zh" ? n.name_zh : n.name_en);
+                    document.getElementById("log-node-terminal").innerHTML = "<strong style='color:#00ffaa'>" + label + "</strong><br/>" + txt;
+                    // Focus camera vertical height smoothly on node
+                    cameraTargetY = n.id === "rocher" ? 32 : (n.id === "fontvieille" ? 2 : -15);
+                }
+            });
+        }
+
+        let activeFlowPhase = "gamma";
+        function setFlowPhase(phase) {
+            activeFlowPhase = phase;
+            document.querySelectorAll(".phase-btn").forEach(btn => btn.classList.remove("active"));
+            const activeBtn = document.querySelector(".phase-btn." + phase);
+            if (activeBtn) activeBtn.classList.add("active");
+
+            const rates = { alfa: "48%", beta: "72%", gamma: "88%", omega: "97%", solomon: "100%" };
+            document.getElementById("coherenceIndexVal").innerText = rates[phase] || "88%";
+        }
+
+        // Dual Blueprint switcher for pillars / ecosophy brain diagram
+        function toggleBlueprintTab(tab) {
+            document.getElementById("btnBPPillars").classList.remove("active");
+            document.getElementById("btnBPEcosophy").classList.remove("active");
+            if (tab === 'pillars') {
+                document.getElementById("btnBPPillars").classList.add("active");
+                document.getElementById("bpPillarsContainer").style.display = "block";
+                document.getElementById("bpEcosophyContainer").style.display = "none";
+                document.getElementById("patentPillarDesc").innerHTML = language === "es" ? "*SELECCIONA PILLAR REGENERADOR ARRIBA" : language === "zh" ? "*选择专利蓝图节点来重组三维流控" : "*TAP ANY PATENT PILLAR OVERHEAD TO RECONFIGURE";
+            } else {
+                document.getElementById("btnBPEcosophy").classList.add("active");
+                document.getElementById("bpPillarsContainer").style.display = "none";
+                document.getElementById("bpEcosophyContainer").style.display = "block";
+                document.getElementById("patentPillarDesc").innerHTML = language === "es" ? "*SELECCIONA EJE DE ECOSOFÍA EN EL MAPA" : language === "zh" ? "*在生态智慧蓝图上选择战略维度" : "*TAP ANY ECOSOFÍA AXIS ON THE DIAGRAM OVERHEAD";
+            }
+        }
+
+        function selectOfflineHotspot(key) {
+            document.getElementById("h_sov").setAttribute("stroke-width", "1.2");
+            document.getElementById("h_tri").setAttribute("stroke-width", "1.8");
+            document.getElementById("h_con").setAttribute("stroke-width", "1.2");
+            let desc = "", term = "";
+
+            if (key === "sovereignty") {
+                document.getElementById("h_sov").setAttribute("stroke-width", "2.8");
+                desc = language === "es" ? "I. SOBERANÍA TERRENAL: Matriz material original regulada por soberanía ontológica y flujos liminales." : language === "zh" ? "I. 传统地表主权: 代表底质物理及宪章治理下的基础建筑与路面能量感应层。" : "I. TERRESTRIAL SOVEREIGNTY: Original terrestrial substrate regulated by ontological governance laws.";
+                term = "TERRESTRIAL MATERIAL MATRIX FOCUS ENGAGED.";
+                switchSubTab('energy');
+                applyPresetEnergy(70,15,15);
+                cameraTargetY = -20;
+                angleY = Math.PI * 0.45;
+            } else if (key === "trinity") {
+                document.getElementById("h_tri").setAttribute("stroke-width", "3.2");
+                desc = language === "es" ? "II. TRINIDAD OPERATIVA: Núcleo NCA central, capa de consenso descentralizada y gemelo digital sincrónico." : language === "zh" ? "II. 三位一体运行中枢: 罗彻NCA脑、分布式去中心化突触算法与数字孪生实时映射。" : "II. OPERATIONAL TRINITY: Central intelligence core, decentralized feedback algorithms, and digital twin state synchronicity.";
+                term = "TRINIDAD CENTRAL CORE ENGAGED; FORG COMPRESSIVE OVERRIDE.";
+                setMode("EMERGENCY_RECON");
+                cameraTargetY = 32;
+                angleY = 0;
+            } else {
+                document.getElementById("h_con").setAttribute("stroke-width", "2.8");
+                desc = language === "es" ? "III. CONSCIENCIA COLECTIVA: Canales biológicos neurales, índices circadianos de población y micro-monedas." : language === "zh" ? "III. 集体自主意识: 实时整合广大生态居民睡眠电平波、生物健康圈及Conscious Coin分配指数。" : "III. COLLECTIVE CONSCIOUSNESS: Adaptive bio-circadian parameters and neural synchronization loops.";
+                term = "COLLECTIVE RESONANCE COGNITION SEQUENCE ACTIVE.";
+                setMode("EVOLUTION");
+                switchSubTab('biomech');
+                cameraTargetY = 2;
+                angleY = -Math.PI * 0.45;
+            }
+            document.getElementById("patentPillarDesc").innerHTML = "<strong>*ECOSOFÍA FOCUS:</strong> " + desc;
+            document.getElementById("log-node-terminal").innerHTML = "<span style='color:#a855f7'>" + term + "</span>";
+        }
+
+        // Live oscilloscope canvas rendering
+        const scopeCanvas = document.getElementById("scopeCanvas");
+        const scopeCtx = scopeCanvas.getContext("2d");
+        let scopePhase = 0;
+
+        function drawOscilloscope() {
+            scopeCtx.clearRect(0,0, scopeCanvas.width, scopeCanvas.height);
+            scopeCtx.strokeStyle = currentMode === "ALERT" ? "#f43f5e" : "#10b981";
+            scopeCtx.lineWidth = 1.5;
+            scopeCtx.beginPath();
+            const amp = 14;
+            const midY = scopeCanvas.height / 2;
+            const freq = circadianFrequency * 0.08;
+            for(let x = 0; x < scopeCanvas.width; x++) {
+                let y = midY;
+                if (fieldWaveform === "SINE") {
+                    y += Math.sin(x * freq + scopePhase) * amp;
+                } else if (fieldWaveform === "SQUARE") {
+                    y += (Math.sin(x * freq + scopePhase) >= 0 ? 1 : -1) * amp;
+                } else if (fieldWaveform === "PULSE") {
+                    y += ((x * freq + scopePhase) % 6 < 0.6) ? -amp*1.5 : 0;
+                } else {
+                    y += Math.sin(x * freq + scopePhase) * amp + Math.sin(x * freq*2.5 + scopePhase*2) * (amp*0.4);
+                }
+                if (x === 0) scopeCtx.moveTo(x,y); else scopeCtx.lineTo(x,y);
+            }
+            scopeCtx.stroke();
+            scopePhase += 0.05 * cellularRegenSpeed;
+        }
+
+        function drawFrame() {
+            requestAnimationFrame(drawFrame);
+            drawOscilloscope();
+
+            // Interpolate stack elevations based on activeFlowPhase with smooth physical damping
+            let tL1 = -30, tL2 = 2, tL3 = 32, tBrain = 58;
+            if (activeFlowPhase === "alfa") { tL1=0; tL2=0; tL3=0; tBrain=0; }
+            else if (activeFlowPhase === "beta") { tL1=-15; tL2=10; tL3=10; tBrain=10; }
+            else if (activeFlowPhase === "omega" || activeFlowPhase === "solomon") {
+                // Smooth physical breathing animations using sine oscillations
+                const breathe = Math.sin(Date.now()*0.001 * cellularRegenSpeed) * 3;
+                tL1 = -30 + breathe*0.3; tL2 = 2 + breathe*0.6; tL3 = 32 + breathe; tBrain = 58 + breathe*1.3;
+            }
+
+            p1Group.position.y += (tL1 - p1Group.position.y) * 0.08;
+            p2Group.position.y += (tL2 - p2Group.position.y) * 0.08;
+            p3Group.position.y += (tL3 - p3Group.position.y) * 0.08;
+            brainGroup.position.y += (tBrain - brainGroup.position.y) * 0.08;
+
+            brainGroup.rotation.y += 0.005 * (cellularRegenSpeed * 0.6);
+
+            // Bounding Halo visualization (Solomon and Omega)
+            if (activeFlowPhase === "solomon" || activeFlowPhase === "omega") {
+                auraMesh.visible = true; auraMesh.position.y = brainGroup.position.y;
+                const haloS = 1.0 + Math.sin(Date.now()*0.0015)*0.15;
+                auraMesh.scale.set(haloS, haloS, haloS);
+            } else { auraMesh.visible = false; }
+
+            // 4 Cyber Pillars rotation & breathing
+            const time = Date.now() * 0.001;
+            const activePurgeCoefficient = 1.0 + (toxinPurgeRate / 100) * 2.0;
+            pilarA.rings.forEach((ring, idx) => { ring.rotation.z += 0.006 * (idx + 1); });
+            pilarB.rings.forEach((ring, idx) => { ring.rotation.z -= 0.006 * (idx + 1); });
+            pilarC.rings.forEach((ring, idx) => { ring.rotation.z += 0.006 * (idx + 1) * activePurgeCoefficient; });
+            pilarD.rings.forEach((ring, idx) => { ring.rotation.z -= 0.006 * (idx + 1); });
+
+            pilarA.rings.forEach((ring, idx) => { ring.position.y += Math.sin(time + idx) * 0.03; });
+            pilarB.rings.forEach((ring, idx) => { ring.position.y += Math.sin(time + idx + 1) * 0.03; });
+            pilarC.rings.forEach((ring, idx) => { ring.position.y += Math.sin(time + idx + 2) * 0.03; });
+            pilarD.rings.forEach((ring, idx) => { ring.position.y += Math.sin(time + idx + 3) * 0.03; });
+
+            const dynamicPillarScale = 1.0 + Math.sin(time * 1.5) * 0.06;
+            pilarA.cap.rotation.x += 0.01; pilarA.cap.rotation.y += 0.015;
+            pilarB.cap.rotation.x += 0.01; pilarB.cap.rotation.y += 0.015;
+            pilarC.cap.rotation.x += 0.01; pilarC.cap.rotation.y += 0.015;
+            pilarD.cap.rotation.x += 0.01; pilarD.cap.rotation.y += 0.015;
+
+            pilarA.cap.scale.set(dynamicPillarScale, dynamicPillarScale, dynamicPillarScale);
+            pilarB.cap.scale.set(dynamicPillarScale, dynamicPillarScale, dynamicPillarScale);
+            pilarC.cap.scale.set(dynamicPillarScale, dynamicPillarScale, dynamicPillarScale);
+            pilarD.cap.scale.set(dynamicPillarScale, dynamicPillarScale, dynamicPillarScale);
+
+            // Nodes height and animation update
+            nodeMeshes.forEach((mesh, index) => {
+                const n = mesh.userData;
+                let ny = n.id === "rocher" ? p3Group.position.y : (n.id === "fontvieille" ? p2Group.position.y : p1Group.position.y);
+                mesh.position.y = ny + 3.5;
+                ringMeshes[index].position.y = ny + 0.5;
+                ringMeshes[index].rotation.z += 0.01;
+
+                // Scale expansion pulsation linked directly to circadianFrequency
+                const pulseFactor = 1.0 + Math.sin(Date.now() * 0.0015 * Math.PI * circadianFrequency) * 0.15;
+                mesh.scale.set(pulseFactor, pulseFactor, pulseFactor);
+                
+                const ringPulse = pulseFactor * 1.1;
+                ringMeshes[index].scale.set(ringPulse, ringPulse, ringPulse);
+
+                // Sync colors and glow intensity according to currentMode
+                const mat = mesh.material;
+                if (currentMode === "ALERT") {
+                    mat.color.setHex(0xff3300); mat.emissive.setHex(0xff3300); mat.emissiveIntensity = 1.5 * pulseFactor;
+                } else {
+                    mat.color.setHex(n.color.replace('#', '0x')); mat.emissive.setHex(n.color.replace('#', '0x')); mat.emissiveIntensity = 1.0 * pulseFactor;
+                }
+            });
+
+            // Sinyptic pathways signal particle update
+            lineBlobs.forEach(blob => {
+                blob.progress += 0.005 * cellularRegenSpeed;
+                if (blob.progress >= 1.0) blob.progress = 0;
+                const indexInCurve = Math.floor(blob.progress * (blob.path.length - 1));
+                const pCoords = blob.path[indexInCurve];
+                if (pCoords) blob.mesh.position.copy(pCoords);
+            });
+
+            // Flocking Swarm eVTOL / Boids Swarm responsive in real-time to modular physics fieldWaveform
+            const focusPt = new THREE.Vector3(0, brainGroup.position.y, 0);
+            const limit = Math.min(boidsCount, boidsInfo.length);
+            boidsInfo.forEach((b, idx) => {
+                b.m.visible = idx < limit;
+                if (!b.m.visible) return;
+
+                const dir = new THREE.Vector3().subVectors(focusPt, b.m.position).normalize();
+                let speedCoeff = currentMode === "ALERT" ? 0.35 : currentMode === "EMERGENCY_RECON" ? 0.3 : 0.08;
+                b.v.addScaledVector(dir, speedCoeff);
+
+                // Add advanced modal physics drift based on active fieldWaveform
+                const timeVal = Date.now() * 0.001;
+                if (fieldWaveform === "SINE") {
+                    b.v.y += Math.sin(timeVal + idx) * 0.08;
+                } else if (fieldWaveform === "SQUARE") {
+                    b.v.x += Math.cos(Math.floor(b.m.position.x / 5)) * 0.04;
+                    b.v.z += Math.sin(Math.floor(b.m.position.z / 5)) * 0.04;
+                } else if (fieldWaveform === "PULSE") {
+                    const wavePulse = Math.sin(timeVal * circadianFrequency * Math.PI) > 0.85 ? 0.18 : -0.05;
+                    b.v.addScaledVector(dir, wavePulse);
+                } else { // DELTA multi-frequency chaotic attractors
+                    b.v.x += Math.sin(timeVal * 1.5 + idx) * 0.08;
+                    b.v.z += Math.cos(timeVal * 0.85 + idx) * 0.08;
+                    b.v.y += Math.sin(timeVal * 2.2) * 0.04;
+                }
+
+                b.v.add(new THREE.Vector3((Math.random()-0.5)*0.3, (Math.random()-0.5)*0.15, (Math.random()-0.5)*0.3));
+                b.v.multiplyScalar(1.0 - frictionCoeff * 0.05);
+                b.m.position.add(b.v);
+
+                if (b.v.lengthSq() > 0.1) {
+                    b.m.lookAt(new THREE.Vector3().copy(b.m.position).add(b.v));
+                }
+            });
+
+            // Camera panning and vertical autofocus smoothly following active cameraTargetY focus height
+            if (!isDragging) angleY += 0.0015;
+            const r = 205 * scaleFactor;
+            camera.position.x = r * Math.sin(angleY) * Math.cos(angleX);
+            camera.position.z = r * Math.cos(angleY) * Math.cos(angleX);
+            camera.position.y = r * Math.sin(angleX);
+
+            let intermediateY = brainGroup.position.y * 0.45;
+            if (typeof cameraTargetY !== 'undefined') {
+                intermediateY = cameraTargetY;
+            }
+            camera.lookAt(0, intermediateY, 0);
+
+            // Modulate fog and scene colors dynamically matching temp and humidity
+            const tempFactor = (microclimateTemp - 15) / 15;
+            const humFactor = (biologicalHumidity - 10) / 80;
+
+            const baseFogColor = new THREE.Color(0x02050b);
+            const humidFogColor = new THREE.Color(0x011e22); // Lush tropical teal mist
+            const currentFogColor = baseFogColor.clone().lerp(humidFogColor, humFactor * 0.65);
+
+            scene.background = currentFogColor;
+            if (scene.fog && 'color' in scene.fog) {
+                scene.fog.color = currentFogColor;
+                scene.fog.density = 0.003 + (humFactor * 0.004) + (tempFactor * 0.001);
+            }
+
+            // Render
+            renderer.render(scene, camera);
+        }
+
+        initThree();
+        drawFrame();
+
+        // Parameter managers
+        function updateBoidsValue(val) { boidsCount = parseInt(val); document.getElementById("valEfficiency").innerText = (90 + (gridStability/30) + (solarRatio-45)/20).toFixed(1)+'%'; }
+        
+        function adjustEnergy(type, val) {
+            if (type === 'solar') { solarRatio=val; } else if (type==='wind') { windRatio=val; } else { piezoRatio=val;}
+            document.getElementById('valSolar').innerText = solarRatio+'%';
+            document.getElementById('valWind').innerText = windRatio+'%';
+            document.getElementById('valPiezo').innerText = piezoRatio+'%';
+            const eff = (85 + (100 - Math.abs(solarRatio - 33) - Math.abs(windRatio-33) - Math.abs(piezoRatio-34))/6).toFixed(1);
+            document.getElementById("valEfficiency").innerText = eff+'%';
+            document.getElementById("efficiencyFill").style.width = eff+'%';
+        }
+
+        function applyPresetEnergy(s,w,p) {
+            solarRatio=s; windRatio=w; piezoRatio=p;
+            document.getElementById("slideSolar").value = s; document.getElementById("slideWind").value = w; document.getElementById("slidePiezo").value = p;
+            adjustEnergy('solar', s);
+        }
+
+        function adjustBiosphere(type, val) {
+            if (type === 'toxin') {
+                toxinPurgeRate = val;
+                document.getElementById('valToxin').innerText = toxinPurgeRate + '%';
+                document.getElementById('hudToxinVal').innerText = toxinPurgeRate + '%';
+                document.getElementById('hudToxinFill').style.width = toxinPurgeRate + '%';
+            } else if (type === 'temp') {
+                microclimateTemp = val;
+                document.getElementById('valTemp').innerText = microclimateTemp.toFixed(1) + '°C';
+                document.getElementById('hudTempVal').innerText = microclimateTemp.toFixed(1) + '°C';
+                document.getElementById('hudTempFill').style.width = ((microclimateTemp - 15) / 15 * 100) + '%';
+            } else {
+                biologicalHumidity = val;
+                document.getElementById('valHumidity').innerText = biologicalHumidity + '%';
+                document.getElementById('hudHumidityVal').innerText = biologicalHumidity + '%';
+                document.getElementById('hudHumidityFill').style.width = biologicalHumidity + '%';
+            }
+            updateTractDataStream();
+        }
+
+        function applyPresetBiosphere(toxin, temp, humidity) {
+            toxinPurgeRate = toxin;
+            microclimateTemp = temp;
+            biologicalHumidity = humidity;
+            document.getElementById('slideToxin').value = toxin;
+            document.getElementById('slideTemp').value = temp;
+            document.getElementById('slideHumidity').value = humidity;
+
+            document.getElementById('valToxin').innerText = toxin + '%';
+            document.getElementById('valTemp').innerText = temp.toFixed(1) + '°C';
+            document.getElementById('valHumidity').innerText = humidity + '%';
+
+            document.getElementById('hudToxinVal').innerText = toxin + '%';
+            document.getElementById('hudTempVal').innerText = temp.toFixed(1) + '°C';
+            document.getElementById('hudHumidityVal').innerText = humidity + '%';
+
+            document.getElementById('hudToxinFill').style.width = toxin + '%';
+            document.getElementById('hudTempFill').style.width = ((temp - 15) / 15 * 100) + '%';
+            document.getElementById('hudHumidityFill').style.width = humidity + '%';
+
+            updateTractDataStream();
+        }
+
+        function updateTractDataStream() {
+            const filtrationText = toxinPurgeRate > 75 ? "EXCELLENT" : "STABLE";
+            const equilibriumText = gridStability > 70 ? "OPTIMIZED" : "DEGRADED";
+            document.getElementById('hudParticulates').innerText = filtrationText;
+            document.getElementById('hudSystemEquilibrium').innerText = equilibriumText;
+        }
+
+        function switchSubTab(t) {
+            document.querySelectorAll('.sub-panel').forEach(p=>p.classList.remove('active'));
+            document.querySelectorAll('.sub-tab-btn').forEach(b=>b.classList.remove('active'));
+            if (t==='energy') { document.getElementById('panelEnergy').classList.add('active'); document.getElementById('tabBtnEnergy').classList.add('active'); }
+            else if (t==='biomech') { document.getElementById('panelBiomech').classList.add('active'); document.getElementById('tabBtnBiomech').classList.add('active'); }
+            else if (t==='physics') { document.getElementById('panelPhysics').classList.add('active'); document.getElementById('tabBtnPhysics').classList.add('active'); }
+            else { document.getElementById('panelBiosphere').classList.add('active'); document.getElementById('tabBtnBiosphere').classList.add('active'); }
+        }
+
+        function setWaveform(wave) {
+            fieldWaveform=wave; document.querySelectorAll('.wave-btn').forEach(b=>b.classList.remove('active'));
+            document.getElementById('wave'+wave).classList.add('active');
+            anomalyRate = wave === "DELTA" ? 0.024 : wave === "SQUARE" ? 0.018 : 0.01;
+            document.getElementById("valAnomaly").innerText = (anomalyRate*100).toFixed(2)+'%';
+        }
+
+        // Operational Mode handler
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll(".mode-btn").forEach(btn => btn.classList.remove("active"));
+            const btn = document.querySelector(".mode-btn." + mode.toLowerCase());
+            if (btn) btn.classList.add("active");
+
+            const coherenceEl = document.getElementById("coherenceIndexVal");
+            const anomEl = document.getElementById("valAnomaly");
+            if (mode === "NORMAL") { coherenceEl.innerText = "88%"; anomalyRate=0.0102; }
+            if (mode === "ALERT") { coherenceEl.innerText = "57% (ALERT)"; anomalyRate=0.142; }
+            if (mode === "HEALING") { coherenceEl.innerText = "94% (REGEN)"; anomalyRate=0.006; }
+            if (mode === "EVOLUTION") { coherenceEl.innerText = "99% (EVOLVING)"; anomalyRate=0.015; }
+            if (mode === "EMERGENCY_RECON") { coherenceEl.innerText = "98% (RECON_IMMUNE)"; anomalyRate=0.078; }
+            anomEl.innerText = (anomalyRate*100).toFixed(2)+'%';
+        }
+
+        // Active trigger sequences
+        function triggerAutoImmuneEvent() {
+            setMode("ALERT"); setFlowPhase("solomon"); setWaveform("PULSE");
+            circadianFrequency=2.5; cellularRegenSpeed=3.0; resonanceFrequency=45;
+            document.getElementById('slideCircadian').value=2.5; document.getElementById('slideRegen').value=3.0; document.getElementById('slideResonanceField').value=45;
+            document.getElementById('valCircadian').innerText='2.5 Hz'; document.getElementById('valRegen').innerText='3.0x'; document.getElementById('valResonanceField').innerText='45 GHz';
+            document.getElementById("log-node-terminal").innerHTML = "<span style='color:#f43f5e'>CRITICAL OVERRIDE ACTIVATED: Bio-defense synchronization, full 100% stack rotation.</span>";
+        }
+
+        // Patent Blueprint hotspots sintonization
+        function selectOfflinePillar(key) {
+            document.getElementById("p_ctr").setAttribute("stroke-width", "1.5");
+            document.getElementById("p_qnt").setAttribute("stroke-width", "1");
+            document.getElementById("p_reg").setAttribute("stroke-width", "1");
+            document.getElementById("p_sns").setAttribute("stroke-width", "1");
+            let desc = "", term = "";
+
+            if (key === "center") {
+                document.getElementById("p_ctr").setAttribute("stroke-width", "3"); desc = locales[language].descCenter;
+                setMode("EMERGENCY_RECON"); boidsCount=80; term = "NCO CORE PILLAR MODULATION SECURED.";
+            } else if (key === "quantum") {
+                document.getElementById("p_qnt").setAttribute("stroke-width", "2.8"); desc = locales[language].descQuantum;
+                applyPresetEnergy(15,15,70); term = "PIEZO KINETIC CHARGING SYNC DETECTED.";
+            } else if (key === "regenerative") {
+                document.getElementById("p_reg").setAttribute("stroke-width", "2.8"); desc = locales[language].descRegen;
+                setMode("HEALING"); term = "CIRCULAR BIOMEMBRANE PHOTOSYNTHESIS INITIATED.";
+            } else {
+                document.getElementById("p_sns").setAttribute("stroke-width", "2.8"); desc = locales[language].descSensory;
+                term = "CITIZEN BIOSYNC INTEGRATION PHASE AT ACTIVE.";
+            }
+            document.getElementById("patentPillarDesc").innerHTML = "<strong>*PILLAR SELECT:</strong> " + desc;
+            document.getElementById("log-node-terminal").innerHTML = "<span style='color:#00ffaa'>" + term + "</span>";
+        }
+
+        // Language settings Switcher
+        function switchLanguage(lang) {
+            language = lang;
+            document.querySelectorAll(".lang-btn").forEach(btn => btn.classList.remove("active"));
+            
+            // Find the active tab and highlight it
+            const buttons = document.querySelectorAll(".lang-btn");
+            buttons.forEach(b => {
+                if (b.innerText.toLowerCase() === lang.toLowerCase()) {
+                    b.classList.add("active");
+                } else {
+                    b.classList.remove("active");
+                }
+            });
+
+            const loc = locales[lang];
+
+            document.getElementById("titleText").innerText = loc.title;
+            document.getElementById("authorText").innerText = loc.author;
+            document.getElementById("hudTitleText").innerText = loc.opsMode;
+            document.getElementById("opsModeText").innerText = loc.opsMode;
+            document.getElementById("stateMatrixText").innerText = loc.stateMatrix;
+            document.getElementById("coherenceText").innerText = loc.coherence;
+            document.getElementById("activeNodesText").innerText = loc.activeNodes;
+            document.getElementById("arToggleText").innerText = loc.arToggle;
+            document.getElementById("arInstructionText").innerText = loc.arInstruction;
+            document.getElementById("compatibilityText").innerText = loc.compatibility;
+            document.getElementById("lblEfficiency").innerText = loc.lblEfficiency;
+            document.getElementById("lblAnomaly").innerText = loc.lblAnomaly;
+            document.getElementById("timeCoinText").innerText = loc.conCoins;
+            document.getElementById("lblWaveform").innerText = loc.waveLabel;
+            document.getElementById("patentTitleLabel").innerText = loc.patentTitle;
+            document.getElementById("log-node-terminal").innerText = loc.terminalReady;
+            document.getElementById("btnAutoImmune").innerText = loc.btnTrigger;
+
+            document.getElementById("tabBtnEnergy").innerText = loc.tabEnergy;
+            document.getElementById("tabBtnBiomech").innerText = loc.tabBio;
+            document.getElementById("tabBtnPhysics").innerText = loc.tabPhys;
+            document.getElementById("tabBtnBiosphere").innerText = loc.tabBiosphere;
+
+            // Biosphere panel translations
+            document.getElementById("valBiosphereDesc").innerText = loc.descBiosphere;
+            document.getElementById("lblToxinHtml").innerText = loc.lblToxin;
+            document.getElementById("lblTempHtml").innerText = loc.lblTemp;
+            document.getElementById("lblHumidityHtml").innerText = loc.lblHumidity;
+            document.getElementById("btnPreHyper").innerText = loc.preHyper;
+            document.getElementById("btnPreDesert").innerText = loc.preDesert;
+            document.getElementById("btnPreBiot").innerText = loc.preBiot;
+
+            // Biosphere dynamic list translations in Telemetry
+            document.getElementById("telemetryHeaderTitle").innerText = loc.lblTelemetry;
+            document.getElementById("lblToxinDiag").innerText = loc.lblToxin;
+            document.getElementById("lblTempDiag").innerText = loc.lblTemp;
+            document.getElementById("lblHumidityDiag").innerText = loc.lblHumidity;
+            document.getElementById("streamDataTitle").innerText = "● " + loc.streamData;
+
+            document.getElementById("patentPillarDesc").innerText = lang === "es" ? "*SELECCIONA PIILAR REGENERADOR ARRIBA" : lang === "zh" ? "*选择专利蓝图节点来重组三维流控" : "*TAP ANY PATENT PILLAR OVERHEAD TO RECONFIGURE";
+        }
+
+        async function toggleImmersiveAr() {
+            arActive = !arActive;
+            const video = document.getElementById("ar-webcam-feed");
+            const box = document.getElementById("arInstructionsBox");
+            if (arActive) {
+                try {
+                    video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                    video.style.display = "block";
+                } catch(e) { console.log("AR visual camera not available."); }
+                box.style.display = "block"; document.getElementById("arCalibrationHUD").style.display = "flex";
+            } else {
+                if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+                video.style.display = "none"; box.style.display = "none"; document.getElementById("arCalibrationHUD").style.display = "none";
+            }
+        }
+        switchLanguage("es");
+    </script>
+</body>
+</html>
