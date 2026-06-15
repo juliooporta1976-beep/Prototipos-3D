@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SubDrone Grid Prototipo 3D - Dr. Julio César Oporta Barrera</title>
+  <style>
+    :root {
+      --bg-color: #030712;
+      --card-bg: rgba(10, 15, 30, 0.85);
+      --accent-cyan: #00d2ff;
+      --accent-purple: #a855f7;
+      --accent-green: #10b981;
+      --accent-rose: #f43f5e;
+      --panel-border: rgba(0, 210, 255, 0.2);
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: var(--bg-color);
+      color: #f3f4f6;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      user-select: none;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+    #fallback-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      background:radial-gradient(circle at center, #0a1128 0%, #030510 100%);
+      display: none;
+    }
+    .hud-header {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 10;
+      pointer-events: auto;
+      background: var(--card-bg);
+      border: 1px solid rgba(0, 210, 255, 0.15);
+      border-left: 4px solid var(--accent-cyan);
+      padding: 12px 18px;
+      border-radius: 6px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+    .hud-author {
+      font-size: 14px;
+      font-weight: bold;
+      color: var(--accent-cyan);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      text-shadow: 0 0 10px rgba(0, 210, 255, 0.4);
+    }
+    .hud-title {
+      font-size: 11px;
+      color: #9cb3ff;
+      margin-top: 3px;
+      letter-spacing: 0.5px;
+    }
+    .hud-sidebar {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 10;
+      width: 290px;
+      background: var(--card-bg);
+      border: 1px solid rgba(0, 210, 255, 0.15);
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+    }
+    .lang-btns {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .lang-btn {
+      flex: 1;
+      background: #090e1f;
+      border: 1px solid rgba(0, 210, 255, 0.2);
+      color: #60a5fa;
+      padding: 5px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.2s;
+    }
+    .lang-btn.active {
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+      background: rgba(0, 210, 255, 0.12);
+      box-shadow: 0 0 10px rgba(0, 210, 255, 0.15);
+    }
+    .panel-section-title {
+      font-weight: bold;
+      font-size: 12px;
+      color: var(--accent-cyan);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border-bottom: 1px solid rgba(0, 210, 255, 0.15);
+      padding-bottom: 4px;
+    }
+    .hud-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 5px;
+      font-size: 11px;
+    }
+    .hud-label {
+      color: #8fa0c4;
+    }
+    .hud-val {
+      color: #ffffff;
+      font-weight: bold;
+    }
+    .controls-panel {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      z-index: 10;
+      background: var(--card-bg);
+      border: 1px solid rgba(0, 210, 255, 0.15);
+      padding: 16px;
+      border-radius: 8px;
+      width: 320px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+    .control-group {
+      margin-bottom: 12px;
+    }
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      color: #9cb3ff;
+      margin-bottom: 5px;
+      font-weight: bold;
+      font-size: 11px;
+    }
+    .label-val {
+      color: var(--accent-cyan);
+    }
+    .mode-select {
+      background: #090e1f;
+      border: 1px solid rgba(0, 210, 255, 0.3);
+      color: #fff;
+      width: 100%;
+      padding: 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      outline: none;
+      font-family: inherit;
+    }
+    .btn {
+      background: #07192f;
+      border: 1px solid var(--accent-cyan);
+      color: var(--accent-cyan);
+      padding: 8px 12px;
+      cursor: pointer;
+      border-radius: 6px;
+      width: 100%;
+      font-weight: bold;
+      transition: all 0.2s;
+      margin-top: 6px;
+      font-family: inherit;
+      font-size: 11px;
+    }
+    .btn:hover {
+      background: var(--accent-cyan);
+      color: #030712;
+      box-shadow: 0 0 12px var(--accent-cyan);
+    }
+    .btn-emergency {
+      border-color: var(--accent-rose);
+      color: var(--accent-rose);
+      background: rgba(100, 10, 10, 0.2);
+    }
+    .btn-emergency:hover {
+      background: var(--accent-rose);
+      color: #fff;
+      box-shadow: 0 0 12px var(--accent-rose);
+    }
+    .ar-hud {
+      margin-top: 10px;
+      border-top: 1px solid rgba(0, 210, 255, 0.15);
+      padding-top: 10px;
+      display: none;
+    }
+    #camera-feed {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      display: none;
+      z-index: 0;
+    }
+    .system-status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 100%;
+      background: var(--accent-green);
+      margin-right: 6px;
+      box-shadow: 0 0 6px var(--accent-green);
+    }
+    .system-status-indicator.emergency {
+      background: var(--accent-rose);
+      box-shadow: 0 0 10px var(--accent-rose);
+      animation: flash 0.5s infinite;
+    }
+    @keyframes flash {
+      0% { opacity: 0.2; }
+      50% { opacity: 1; }
+      100% { opacity: 0.2; }
+    }
+    /* Logging terminal style */
+    .logs-container {
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(16, 185, 129, 0.15);
+      border-radius: 6px;
+      padding: 8px;
+      height: 80px;
+      overflow-y: auto;
+      font-size: 9px;
+      color: #34d399;
+      margin-top: 12px;
+      line-height: 1.3;
+    }
+    .log-item {
+      border-bottom: 1px solid rgba(16, 185, 129, 0.05);
+      padding-bottom: 2px;
+      margin-bottom: 2px;
+    }
+    .log-prefix {
+      color: #059669;
+      font-weight: bold;
+    }
+    /* Wave animation graphic inside HUD */
+    .wave-indicator {
+      position: relative;
+      height: 30px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 4px;
+      margin-top: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .wave-indicator svg {
+      width: 100%;
+      height: 100%;
+    }
+    .viewport-overlay {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(10, 15, 30, 0.7);
+      border: 1px solid rgba(0, 210, 255, 0.12);
+      border-radius: 4px;
+      padding: 6px 12px;
+      font-size: 9px;
+      color: var(--accent-cyan);
+      pointer-events: none;
+      z-index: 10;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+  <video id="camera-feed" autoplay playsinline></video>
+  <canvas id="fallback-canvas"></canvas>
+  <div id="canvas-container"></div>
+  <div class="viewport-overlay" id="viewport-lbl">VISTA: ORBITAL DIRECTO [ARRASTRAR PARA MOVER]</div>
+
+  <!-- Dr. Julio César Oporta Barrera Header -->
+  <div class="hud-header">
+    <div class="hud-author" id="author-label">Dr. Julio César Oporta Barrera</div>
+    <div class="hud-title" id="project-title">Sistema de Simulación del Grid de SubDrones - Patente</div>
+  </div>
+
+  <div class="hud-sidebar">
+    <div class="lang-btns">
+      <button class="lang-btn active" id="btn-lang-es" onclick="setLang('es')">ES</button>
+      <button class="lang-btn" id="btn-lang-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" id="btn-lang-zh" onclick="setLang('zh')">ZH</button>
+    </div>
+    
+    <div class="panel-section-title" id="sys-title">ESTADO DE TELEMETRÍA Swarm</div>
+    
+    <div class="hud-row">
+      <span class="hud-label" id="lbl-status">Estado Operativo</span>
+      <span class="hud-val" id="val-status"><span class="system-status-indicator" id="status-ind"></span>OPTIMAL</span>
+    </div>
+    <div class="hud-row">
+      <span class="hud-label" id="lbl-mode">Modo Activo</span>
+      <span class="hud-val" id="val-mode" style="color: #10b981;">ECO</span>
+    </div>
+    <div class="hud-row">
+      <span class="hud-label" id="lbl-drones">Drones Activos</span>
+      <span class="hud-val" id="val-drones-count">5 / 15</span>
+    </div>
+    <div class="hud-row">
+      <span class="hud-label" id="lbl-efficiency">Eficiencia Logística</span>
+      <span class="hud-val" id="val-efficiency-pct">99.6%</span>
+    </div>
+    <div class="hud-row">
+      <span class="hud-label" id="lbl-mesh">Canal Red Mesh</span>
+      <span class="hud-val" style="color: #10b981;">ESTABLE (142 Hz)</span>
+    </div>
+    <div class="hud-row">
+      <span class="hud-label" id="lbl-lev">Propulsión Levitada</span>
+      <span class="hud-val" id="val-lev-h">MAGLEV (12 cm)</span>
+    </div>
+    <div class="hud-row">
+      <span class="hud-label" id="lbl-circular">Fase de Reciclaje</span>
+      <span class="hud-val" id="val-recycle-pct" style="color: #a855f7;">65%</span>
+    </div>
+    <div class="hud-row" style="border: none; margin-bottom: 0px; padding-bottom: 0px;">
+      <span class="hud-label" id="lbl-co2">CO2 Evitado</span>
+      <span class="hud-val" id="val-co2-saved" style="color: #10b981;">60.2%</span>
+    </div>
+
+    <!-- Heartbeat visualizer -->
+    <div class="wave-indicator">
+      <svg viewBox="0 0 290 30" fill="none">
+        <path d="M 0 15 Q 35 3 70 15 T 140 15 T 210 15 T 290 15" stroke="#10b981" stroke-width="1.5" stroke-dasharray="5 3"/>
+        <path d="M 0 15 Q 20 5 40 15 T 80 15 T 120 15 T 160 15 T 200 15 T 240 15 T 290 15" stroke="#00d2ff" stroke-width="1" style="opacity: 0.6;"/>
+      </svg>
+    </div>
+
+    {/* Scrolling logs console */}
+    <div class="logs-container" id="logs-box">
+      <div class="log-item"><span class="log-prefix">&gt;&gt;</span> [SISTEMA] Licencia de Patente validada.</div>
+      <div class="log-item"><span class="log-prefix">&gt;&gt;</span> [SISTEMA] Listo para sincronizar malla de inducción.</div>
+    </div>
+  </div>
+
+  <!-- Interactive controls panel -->
+  <div class="controls-panel">
+    <div class="panel-section-title" id="ctrl-title">TABLERO DE AJUSTES</div>
+    
+    <div class="control-group">
+      <span class="control-label" id="lbl-op-mode">Modo de Operación</span>
+      <select class="mode-select" id="opModeSelect" onchange="changeOpMode(this.value)">
+        <option value="ECO">ECO - Sostenible (25 km/h)</option>
+        <option value="EXPRESS">EXPRESS - Turbo (60 km/h)</option>
+        <option value="HEAVY">HEAVY - Carga Máxima (18 km/h)</option>
+        <option value="CIRCULAR">CIRCULAR - Doble Flujo (35 km/h)</option>
+        <option value="EMERGENCY">EMERGENCY - Parada Táctica (0 km/h)</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <span class="control-label" id="lbl-phys-speed">Frecuencia Propulsión (Vel.) <span class="label-val" id="val-speed-slider">100%</span></span>
+      <input type="range" id="simSpeed" min="10" max="150" value="100" style="width: 100%; accent-color: #00d2ff;" oninput="updateSliderLabel('speed', this.value)">
+    </div>
+
+    <div class="control-group">
+      <span class="control-label" id="lbl-phys-height">Altura de Levitación <span class="label-val" id="val-height-slider">12 cm</span></span>
+      <input type="range" id="simMaglevHeight" min="5" max="30" value="12" style="width: 100%; accent-color: #00d2ff;" oninput="updateSliderLabel('height', this.value)">
+    </div>
+
+    <div class="control-group">
+      <span class="control-label" id="lbl-phys-lanes">Separación Lateral de Carril <span class="label-val" id="val-lanes-slider">0.42 m</span></span>
+      <input type="range" id="simLaneSeparation" min="20" max="80" value="42" style="width: 100%; accent-color: #00d2ff;" oninput="updateSliderLabel('lanes', this.value)">
+    </div>
+
+    <div class="control-group">
+      <span class="control-label" id="lbl-phys-drag">Arrastre Aerodinámico (Cd) <span class="label-val" id="val-drag-slider">Cd 0.12</span></span>
+      <input type="range" id="simDragCd" min="8" max="24" value="12" style="width: 100%; accent-color: #a855f7;" oninput="updateSliderLabel('drag', this.value)">
+    </div>
+
+    <button class="btn" onclick="addDrone()" id="btn-add">Lanzar Cápsula Biomimética</button>
+    <button class="btn btn-emergency" onclick="toggleEmergency()" id="btn-em">Halt de Emergencia (AI Coord)</button>
+    
+    <div class="ar-hud" id="ar-hud-panel">
+      <div class="panel-section-title">CALIBRACIÓN REPROYECTORA AR</div>
+      <div class="control-group">
+        <span class="control-label" id="lbl-scale">Escala Prototipo</span>
+        <input type="range" id="scaleRange" min="20" max="200" value="100" style="width: 100%; accent-color: #10b981;">
+      </div>
+      <div class="control-group">
+        <span class="control-label" id="lbl-rot">Rotación Manual</span>
+        <input type="range" id="rotRange" min="0" max="360" value="0" style="width: 100%; accent-color: #10b981;">
+      </div>
+    </div>
+    
+    <button class="btn" onclick="toggleAR()" id="btn-ar" style="border-color: #10b981; color: #10b981; margin-top: 10px;">Activar Realidad Aumentada</button>
+  </div>
+
+  <script>
+    // Dictionary Translations
+    const dictionary = {
+      es: {
+        author: "Dr. Julio César Oporta Barrera",
+        title: "Sistema de Simulación del Grid de SubDrones - Patente",
+        sysTitle: "ESTADO DE TELEMETRÍA Swarm",
+        lblStatus: "Estado Operativo",
+        lblMode: "Modo Activo",
+        lblDrones: "Drones Activos",
+        lblEfficiency: "Eficiencia Logística",
+        lblMesh: "Canal Red Mesh",
+        lblLev: "Propulsión Levitada",
+        lblCircular: "Fase de Reciclaje",
+        lblCo2: "CO2 Evitado",
+        ctrlTitle: "TABLERO DE AJUSTES",
+        lblOpMode: "Modo de Operación",
+        lblPhysSpeed: "Frecuencia Propulsión (Vel.)",
+        lblPhysHeight: "Altura de Levitación",
+        lblPhysLanes: "Separación Lateral de Carril",
+        lblPhysDrag: "Arrastre Aerodinámico (Cd)",
+        btnAdd: "Lanzar Cápsula Biomimética",
+        btnEm: "Halt de Emergencia (AI Coord)",
+        btnAr: "Activar Realidad Aumentada",
+        lblScale: "Escala Prototipo",
+        lblRot: "Rotación Manual",
+        optimal: "SISTEMA ÓPTIMO",
+        emergency: "PARADA DE CONTROL"
+      },
+      en: {
+        author: "Dr. Julio César Oporta Barrera",
+        title: "SubDrone Grid System Simulation - Patent",
+        sysTitle: "SWARM TELEMETRY OVERVIEW",
+        lblStatus: "Operational Status",
+        lblMode: "Active Mode",
+        lblDrones: "Active Drones",
+        lblEfficiency: "Logistics Efficiency",
+        lblMesh: "Mesh Core Link",
+        lblLev: "Sustained Levitation",
+        lblCircular: "Recycling Ratio",
+        lblCo2: "CO2 Footprint Saved",
+        ctrlTitle: "ADJUSTMENT CONTROL",
+        lblOpMode: "Operational Mode",
+        lblPhysSpeed: "Propulsion Frequency (Speed)",
+        lblPhysHeight: "Levitation Height",
+        lblPhysLanes: "Lateral Lane Separation",
+        lblPhysDrag: "Aerodynamic Drag (Cd)",
+        btnAdd: "Deploy Swarm Capsule",
+        btnEm: "Emergency Halt (AI Coord)",
+        btnAr: "Toggle Augmented Reality",
+        lblScale: "Prototype Scale",
+        lblRot: "Manual Rotation",
+        optimal: "HEALTHY STATE",
+        emergency: "SYSTEM STOPPED"
+      },
+      zh: {
+        author: "朱利奥·塞萨尔·奥波塔·巴雷拉 博士 (Dr. Julio César Oporta Barrera)",
+        title: "地下无人机智能网格仿真与仿真软件 - 专利",
+        sysTitle: "Swarm 群集实时遥测监测",
+        lblStatus: "系统运行状态",
+        lblMode: "有源运载模式",
+        lblDrones: "活动胶囊数量",
+        lblEfficiency: "网络物流吞吐率",
+        lblMesh: "网状传感器通信轨",
+        lblLev: "磁浮物理悬浮高度",
+        lblCircular: "固废绿色纯化比",
+        lblCo2: "碳足迹净减排量",
+        ctrlTitle: "物理引擎智能控制面板",
+        lblOpMode: "运载指令状态",
+        lblPhysSpeed: "电磁推进频率 (速度)",
+        lblPhysHeight: "电磁轨道悬浮距离",
+        lblPhysLanes: "横向双向车道宽度",
+        lblPhysDrag: "空气阻力系数 (Cd)",
+        btnAdd: "一键注入磁轴胶囊舱",
+        btnEm: "人工智能节点紧急制动",
+        btnAr: "触发高精度相机桌面AR",
+        lblScale: "模型显示尺寸",
+        lblRot: "俯仰旋转角度",
+        optimal: "网格状态优良 (OPTIMAL)",
+        emergency: "一键紧急制动锁闭"
+      }
+    };
+
+    let activeLang = 'es';
+    function setLang(lang) {
+      activeLang = lang;
+      const t = dictionary[lang];
+      document.getElementById('author-label').innerText = t.author;
+      document.getElementById('project-title').innerText = t.title;
+      document.getElementById('sys-title').innerText = t.sysTitle;
+      document.getElementById('lbl-status').innerText = t.lblStatus;
+      document.getElementById('lbl-mode').innerText = t.lblMode;
+      document.getElementById('lbl-drones').innerText = t.lblDrones;
+      document.getElementById('lbl-efficiency').innerText = t.lblEfficiency;
+      document.getElementById('lbl-mesh').innerText = t.lblMesh;
+      document.getElementById('lbl-lev').innerText = t.lblLev;
+      document.getElementById('lbl-circular').innerText = t.lblCircular;
+      document.getElementById('lbl-co2').innerText = t.lblCo2;
+      document.getElementById('ctrl-title').innerText = t.ctrlTitle;
+      document.getElementById('lbl-op-mode').innerText = t.lblOpMode;
+      
+      const speedL = document.getElementById('lbl-phys-speed');
+      const heightL = document.getElementById('lbl-phys-height');
+      const laneL = document.getElementById('lbl-phys-lanes');
+      const dragL = document.getElementById('lbl-phys-drag');
+      
+      // Update label texts keeping values intact
+      const isS = document.getElementById('simSpeed').value;
+      const isH = document.getElementById('simMaglevHeight').value;
+      const isL = document.getElementById('simLaneSeparation').value;
+      const isD = document.getElementById('simDragCd').value;
+      
+      speedL.innerHTML = t.lblPhysSpeed + ` <span class="label-val" id="val-speed-slider">` + isS + `%</span>`;
+      heightL.innerHTML = t.lblPhysHeight + ` <span class="label-val" id="val-height-slider">` + isH + ` cm</span>`;
+      laneL.innerHTML = t.lblPhysLanes + ` <span class="label-val" id="val-lanes-slider">` + (isL/100).toFixed(2) + ` m</span>`;
+      dragL.innerHTML = t.lblPhysDrag + ` <span class="label-val" id="val-drag-slider">Cd ` + (isD/100).toFixed(2) + `</span>`;
+
+      document.getElementById('btn-add').innerText = t.btnAdd;
+      document.getElementById('btn-em').innerText = t.btnEm;
+      document.getElementById('btn-ar').innerText = t.btnAr;
+      document.getElementById('lbl-scale').innerText = t.lblScale;
+      document.getElementById('lbl-rot').innerText = t.lblRot;
+
+      // Class toggles for language buttons
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      document.getElementById('btn-lang-' + lang).classList.add('active');
+
+      const select = document.getElementById('opModeSelect');
+      if (lang === 'es') {
+        select.options[0].text = "ECO - Sostenible (25 km/h)";
+        select.options[1].text = "EXPRESS - Turbo (60 km/h)";
+        select.options[2].text = "HEAVY - Carga Máxima (18 km/h)";
+        select.options[3].text = "CIRCULAR - Doble Flujo (35 km/h)";
+        select.options[4].text = "EMERGENCY - Parada Táctica (0 km/h)";
+      } else if (lang === 'en') {
+        select.options[0].text = "ECO - Sustainable (25 km/h)";
+        select.options[1].text = "EXPRESS - Turbo Carrier (60 km/h)";
+        select.options[2].text = "HEAVY - Massive Convoy (18 km/h)";
+        select.options[3].text = "CIRCULAR - Dual Flow (35 km/h)";
+        select.options[4].text = "EMERGENCY - Control Stop (0 km/h)";
+      } else {
+        select.options[0].text = "ECO 环保经济巡航 (25 km/h)";
+        select.options[1].text = "EXPRESS 疾速特快输送 (60 km/h)";
+        select.options[2].text = "HEAVY 重型吨级负载群 (18 km/h)";
+        select.options[3].text = "CIRCULAR 闭环逆流收集 (35 km/h)";
+        select.options[4].text = "EMERGENCY 人工智能节点停滞";
+      }
+
+      updateStatusTexts();
+    }
+
+    function updateSliderLabel(type, val) {
+      if (type === 'speed') {
+        document.getElementById('val-speed-slider').innerText = val + '%';
+        addLog("Ajuste de velocidad global reconfigurado al " + val + "%.");
+      } else if (type === 'height') {
+        document.getElementById('val-height-slider').innerText = val + ' cm';
+        document.getElementById('val-lev-h').innerText = "MAGLEV (" + val + " cm)";
+        addLog("Altitud levitante orbital recalibrada: " + val + " cm.");
+      } else if (type === 'lanes') {
+        document.getElementById('val-lanes-slider').innerText = (val / 100).toFixed(2) + ' m';
+        addLog("Apertura lateral de túneles calibrada: " + (val / 100).toFixed(2) + " m.");
+      } else if (type === 'drag') {
+        document.getElementById('val-drag-slider').innerText = 'Cd ' + (val / 100).toFixed(2);
+        addLog("Morfología de fricción (Cd) establecida en Cd " + (val / 100).toFixed(2) + ".");
+      }
+    }
+
+    function addLog(text) {
+      const box = document.getElementById('logs-box');
+      const timeStr = new Date().toTimeString().split(' ')[0];
+      const div = document.createElement('div');
+      div.className = 'log-item';
+      div.innerHTML = '<span class="log-item"><span class="log-prefix">&gt;&gt;</span> [' + timeStr + '] ' + text + '</span>';
+      box.insertBefore(div, box.firstChild);
+      if (box.children.length > 25) {
+        box.removeChild(box.lastChild);
+      }
+    }
+
+    function updateStatusTexts() {
+      const valText = document.getElementById('val-status');
+      const t = dictionary[activeLang];
+      if (simEmergency) {
+        valText.innerHTML = '<span class="system-status-indicator emergency"></span>' + t.emergency;
+      } else {
+        valText.innerHTML = '<span class="system-status-indicator"></span>' + t.optimal;
+      }
+    }
+
+    // ThreeJS Variables
+    let scene, camera, renderer;
+    let dronesCount = 5;
+    let drones = [];
+    let nodes = [];
+    let tunnelGroup;
+    let splineCurve;
+    let ambientGrid;
+    let fluxPoints = [];
+    let nodeAnimationsList = [];
+    let isOfflineFallbackActive = false;
+
+    // Interactive Drag Camera Variables (Parity with our React Component!)
+    let isDragging = false;
+    let previousMousePosition = { x: 0, y: 0 };
+    let theta = Math.PI / 4;
+    let phi = Math.PI / 2.8;
+    let radius = 13.5;
+    let idleTime = 0;
+
+    let activeMode = 'ECO';
+    let baseSpeedCoeff = 0.6;
+    let simEmergency = false;
+    let arModeActive = false;
+    let videoStream = null;
+
+    const colors = {
+      ECO: 0x10b981,
+      EXPRESS: 0xf43f5e,
+      HEAVY: 0x2563eb,
+      EMERGENCY: 0xf97316,
+      CIRCULAR: 0x8b5cf6
+    };
+
+    // Initialize either 3D or 2D Vector offline fallback scheme
+    window.addEventListener('load', () => {
+      if (typeof THREE === 'undefined') {
+        console.warn("Three.js not found. Launching ultra-high performance offline vector blueprint simulation.");
+        initOfflineFallback();
+      } else {
+        try {
+          init3D();
+        } catch (e) {
+          console.error("Three.js shader crash on compile. Downgrading to fluid raster layout vector mesh.");
+          initOfflineFallback();
+        }
+      }
+    });
+
+    function init3D() {
+      const container = document.getElementById('canvas-container');
+      scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x060b1e, 0.04);
+      
+      camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 100);
+      camera.position.set(0, 5, 14);
+      
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.35;
+      container.appendChild(renderer.domElement);
+
+      tunnelGroup = new THREE.Group();
+      scene.add(tunnelGroup);
+
+      // Studio dynamic lighting setup
+      const ambientLight = new THREE.AmbientLight(0x0d152b, 0.95);
+      scene.add(ambientLight);
+
+      const keyLight = new THREE.DirectionalLight(0x3b82f6, 2.0);
+      keyLight.position.set(12, 22, 12);
+      scene.add(keyLight);
+
+      const insideBlueLight = new THREE.PointLight(0x00d2ff, 2.5, 25);
+      insideBlueLight.position.set(0, 3, 0);
+      scene.add(insideBlueLight);
+
+      const insidePurpleLight = new THREE.PointLight(0x8b5cf6, 1.8, 15);
+      insidePurpleLight.position.set(5, 1, -5);
+      scene.add(insidePurpleLight);
+
+      // Curved CatmullRom spline loop coordinates matching React exactly
+      splineCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-10, 0, -5),
+        new THREE.Vector3(-7, 1.2, 3),
+        new THREE.Vector3(0, -0.6, 6),
+        new THREE.Vector3(7, 1.4, 4),
+        new THREE.Vector3(11, 0, -5),
+        new THREE.Vector3(5, -1.2, -8),
+        new THREE.Vector3(-5, -0.6, -9)
+      ]);
+      splineCurve.closed = true;
+
+      // Polycarbonate transparent pneumatic gloss pipe
+      const tubeGeo = new THREE.TubeGeometry(splineCurve, 120, 2.3, 16, true);
+      const tubeMat = new THREE.MeshStandardMaterial({
+        color: 0x11213d,
+        roughness: 0.1,
+        metalness: 0.95,
+        transparent: true,
+        opacity: 0.12
+      });
+      const tubeMesh = new THREE.Mesh(tubeGeo, tubeMat);
+      tunnelGroup.add(tubeMesh);
+
+      // Structural outer mesh wireframe overlay
+      const wireMat = new THREE.MeshBasicMaterial({
+        color: 0x1e3a8a,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.15
+      });
+      const wireMesh = new THREE.Mesh(tubeGeo, wireMat);
+      tunnelGroup.add(wireMesh);
+
+      // Active dual maglev core rails
+      const leftGeo = new THREE.TubeGeometry(splineCurve, 120, 0.08, 6, true);
+      const rightGeo = new THREE.TubeGeometry(splineCurve, 120, 0.08, 6, true);
+      const lMat = new THREE.MeshBasicMaterial({ color: 0x00d2ff });
+      const rMat = new THREE.MeshBasicMaterial({ color: 0x8b5cf6 });
+
+      const lRail = new THREE.Mesh(leftGeo, lMat);
+      lRail.position.x -= 0.18;
+      lRail.position.y -= 0.12;
+      tunnelGroup.add(lRail);
+
+      const rRail = new THREE.Mesh(rightGeo, rMat);
+      rRail.position.x += 0.18;
+      rRail.position.y -= 0.12;
+      tunnelGroup.add(rRail);
+
+      // Alternating electromagnetic induction loops around tunnel
+      const numCoils = 45;
+      for (let i = 0; i < numCoils; i++) {
+        const u = i / numCoils;
+        const pt = splineCurve.getPointAt(u);
+        const tangent = splineCurve.getTangentAt(u);
+        
+        const coilGeo = new THREE.TorusGeometry(2.35, 0.03, 8, 24);
+        const coilMat = new THREE.MeshStandardMaterial({
+          color: i % 2 === 0 ? 0x00d2ff : 0x8b5cf6,
+          emissive: i % 2 === 0 ? 0x00d2ff : 0x8b5cf6,
+          emissiveIntensity: 0.7,
+          metalness: 0.9,
+          roughness: 0.1
+        });
+        const coilMesh = new THREE.Mesh(coilGeo, coilMat);
+        coilMesh.position.copy(pt);
+        
+        const axis = new THREE.Vector3(0, 0, 1);
+        coilMesh.quaternion.setFromUnitVectors(axis, tangent);
+        tunnelGroup.add(coilMesh);
+      }
+
+      // Upgrade Station Terminal rings, adding rotating blades and cores
+      const originalStations = [
+        { name: 'N1', x: -5, y: 0.2, z: -3, type: 'hub' },
+        { name: 'N2', x: 4, y: -0.2, z: 4, type: 'recycle' },
+        { name: 'N3', x: -8, y: 0.1, z: 6, type: 'loading' },
+        { name: 'N4', x: 9, y: -0.3, z: -2, type: 'transfer' },
+      ];
+
+      originalStations.forEach((node) => {
+        const ringGeo = new THREE.CylinderGeometry(2.55, 2.55, 0.5, 24);
+        ringGeo.rotateX(Math.PI / 2);
+        const ringMat = new THREE.MeshStandardMaterial({
+          color: 0x1f293d, metalness: 0.95, roughness: 0.15
+        });
+        const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+        ringMesh.position.set(node.x, node.y, node.z);
+        tunnelGroup.add(ringMesh);
+
+        // Core central reactor beacon (flashing octahedron)
+        const coreGeo = new THREE.OctahedronGeometry(0.35, 0);
+        const glowHex = node.type === 'recycle' ? 0xa855f7 : 0x00d2ff;
+        const coreMat = new THREE.MeshStandardMaterial({
+          color: glowHex, emissive: glowHex, emissiveIntensity: 0.95, metalness: 0.5, roughness: 0.1
+        });
+        const nodeCore = new THREE.Mesh(coreGeo, coreMat);
+        nodeCore.position.set(node.x, node.y + 1.2, node.z);
+        tunnelGroup.add(nodeCore);
+
+        // Active spinning ventilation cooling rotors at both sides of Node Terminal
+        const fanBladeGeo = new THREE.BoxGeometry(0.7, 0.08, 0.02);
+        const fanBladeMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.98, roughness: 0.12 });
+
+        const fan1 = new THREE.Mesh(fanBladeGeo, fanBladeMat);
+        fan1.position.set(node.x - 2.55, node.y, node.z);
+        fan1.rotation.y = Math.PI / 2;
+        tunnelGroup.add(fan1);
+
+        const fan2 = new THREE.Mesh(fanBladeGeo, fanBladeMat);
+        fan2.position.set(node.x + 2.55, node.y, node.z);
+        fan2.rotation.y = Math.PI / 2;
+        tunnelGroup.add(fan2);
+
+        nodeAnimationsList.push({
+          core: nodeCore, fan1: fan1, fan2: fan2, baseY: node.y + 1.2
+        });
+        nodes.push({ mesh: nodeCore, pulseSpeed: 1.0 });
+      });
+
+      // Cybernetic flux particles zooming inside the tubes
+      const flowGeom = new THREE.BoxGeometry(0.06, 0.06, 0.15);
+      const flowMat = new THREE.MeshBasicMaterial({ color: 0xddff00 });
+      for (let i = 0; i < 20; i++) {
+        const fMesh = new THREE.Mesh(flowGeom, flowMat);
+        tunnelGroup.add(fMesh);
+        fluxPoints.push({
+          mesh: fMesh, progress: Math.random(), speed: 0.0015 + Math.random() * 0.002
+        });
+      }
+
+      // Initialize biomimetic stealth capsules
+      for (let i = 0; i < dronesCount; i++) {
+        createDroneInScene(i / dronesCount, i % 2 === 0 ? 'left' : 'right');
+      }
+
+      // Titanium Steel Grid floor plates
+      ambientGrid = new THREE.GridHelper(50, 45, 0x1e3a8a, 0x0c1e3f);
+      ambientGrid.position.y = -2.5;
+      scene.add(ambientGrid);
+
+      // Event listeners for dragging manual camera orbits
+      const handleMouseDown = (e) => {
+        isDragging = true;
+        previousMousePosition = { x: e.clientX, y: e.clientY };
+        idleTime = 0;
+      };
+
+      const handleMouseMove = (e) => {
+        if (!isDragging) return;
+        const deltaX = e.clientX - previousMousePosition.x;
+        const deltaY = e.clientY - previousMousePosition.y;
+        previousMousePosition = { x: e.clientX, y: e.clientY };
+
+        theta -= deltaX * 0.005;
+        phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, phi - deltaY * 0.005));
+        idleTime = 0;
+        document.getElementById('viewport-lbl').innerText = "VISTA: MANUAL DETALLADA [ARRASTRAR PARA MOVER]";
+      };
+
+      const handleMouseUp = () => {
+        isDragging = false;
+      };
+
+      const handleWheel = (e) => {
+        e.preventDefault();
+        radius = Math.max(5, Math.min(32, radius + e.deltaY * 0.012));
+        idleTime = 0;
+        document.getElementById('viewport-lbl').innerText = "VISTA: MANUAL DETALLADA [ARRASTRAR PARA MOVER]";
+      };
+
+      // Touch events support for mobile
+      const handleTouchStart = (e) => {
+        if (e.touches.length === 1) {
+          isDragging = true;
+          previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+          idleTime = 0;
+        }
+      };
+
+      const handleTouchMove = (e) => {
+        if (!isDragging || e.touches.length !== 1) return;
+        const deltaX = e.touches[0].clientX - previousMousePosition.x;
+        const deltaY = e.touches[0].clientY - previousMousePosition.y;
+        previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+
+        theta -= deltaX * 0.008;
+        phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, phi - deltaY * 0.008));
+        idleTime = 0;
+      };
+
+      container.addEventListener('mousedown', handleMouseDown);
+      container.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      container.addEventListener('wheel', handleWheel, { passive: false });
+      container.addEventListener('touchstart', handleTouchStart);
+      container.addEventListener('touchmove', handleTouchMove);
+
+      window.addEventListener('resize', onWindowResize);
+      addLog("Sistema 3D WebGL inicializado con éxito.");
+      requestAnimationFrame(animate);
+    }
+
+    function createDroneInScene(initialProgress, laneStr) {
+      const droneGroup = new THREE.Group();
+      
+      const podGeom = new THREE.CylinderGeometry(0.35, 0.35, 1.4, 16);
+      podGeom.rotateX(Math.PI / 2);
+      
+      const podMat = new THREE.MeshStandardMaterial({
+        color: 0x111e35, metalness: 0.95, roughness: 0.1
+      });
+      const mainHull = new THREE.Mesh(podGeom, podMat);
+      droneGroup.add(mainHull);
+
+      // Translucent nose
+      const noseGeom = new THREE.SphereGeometry(0.35, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+      noseGeom.rotateX(-Math.PI / 2);
+      noseGeom.translate(0, 0, 0.7);
+      const noseMat = new THREE.MeshBasicMaterial({ color: colors[activeMode] });
+      const nose = new THREE.Mesh(noseGeom, noseMat);
+      droneGroup.add(nose);
+
+      // Lateral stabilizers
+      const stabilizerGeom = new THREE.BoxGeometry(0.12, 0.08, 0.85);
+      const stabalizerMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, metalness: 0.9, roughness: 0.1 });
+      const stabilizerL = new THREE.Mesh(stabilizerGeom, stabalizerMat);
+      stabilizerL.position.set(-0.4, -0.15, 0);
+      droneGroup.add(stabilizerL);
+
+      const stabilizerR = new THREE.Mesh(stabilizerGeom, stabalizerMat);
+      stabilizerR.position.set(0.4, -0.15, 0);
+      droneGroup.add(stabilizerR);
+
+      // Kinetic halo torque ring
+      const ringGeo = new THREE.TorusGeometry(0.55, 0.02, 8, 32);
+      const ringMat = new THREE.MeshBasicMaterial({ color: colors[activeMode], transparent: true, opacity: 0.5 });
+      const ringGlow = new THREE.Mesh(ringGeo, ringMat);
+      ringGlow.position.set(0,0,0);
+      droneGroup.add(ringGlow);
+
+      // Attached PointLight for emitting dynamic track glow!
+      const activeColorHex = colors[activeMode];
+      const podLight = new THREE.PointLight(activeColorHex, 2.5, 5);
+      podLight.position.set(0,0.3,0);
+      droneGroup.add(podLight);
+
+      // Tail exhaust nozzle
+      const tailGlowGeom = new THREE.CylinderGeometry(0.2, 0.1, 0.25, 12);
+      tailGlowGeom.rotateX(Math.PI / 2);
+      tailGlowGeom.translate(0, 0, -0.8);
+      const tailGlowMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.9, roughness: 0.2 });
+      const tail = new THREE.Mesh(tailGlowGeom, tailGlowMat);
+      droneGroup.add(tail);
+
+      tunnelGroup.add(droneGroup);
+
+      drones.push({
+        mesh: droneGroup,
+        noseMesh: nose,
+        haloMesh: ringGlow,
+        lightComponent: podLight,
+        lane: laneStr,
+        progress: initialProgress,
+        speed: (0.0006 + Math.random() * 0.0004),
+        cargo: Math.random() > 0.45 ? 'products' : 'waste',
+        battery: 82 + Math.random() * 18
+      });
+    }
+
+    function addDrone() {
+      if(drones.length >= 15) return;
+      const count = drones.length;
+      if (isOfflineFallbackActive) {
+        drones.push({
+          progress: Math.random(),
+          lane: count % 2 === 0 ? 'left' : 'right',
+          speed: 0.0008 + Math.random() * 0.0006,
+          cargo: Math.random() > 0.45 ? 'products' : 'waste',
+          battery: 90
+        });
+        document.getElementById('val-drones-count').innerText = drones.length + " / 15";
+        addLog("Nueva cápsula biomimética inyectada físicamente al enjambre.");
+        return;
+      }
+      createDroneInScene(Math.random(), count % 2 === 0 ? 'left' : 'right');
+      document.getElementById('val-drones-count').innerText = drones.length + " / 15";
+      addLog("Nueva cápsula biomimética inyectada científicamente al enjambre.");
+    }
+
+    function changeOpMode(mode) {
+      activeMode = mode;
+      const elMode = document.getElementById('val-mode');
+      elMode.innerText = mode;
+      
+      const select = document.getElementById('opModeSelect');
+      select.value = mode;
+      
+      if (mode === 'ECO') {
+        baseSpeedCoeff = 0.5;
+        simEmergency = false;
+        elMode.style.color = '#10b981';
+      } else if (mode === 'EXPRESS') {
+        baseSpeedCoeff = 1.3;
+        simEmergency = false;
+        elMode.style.color = '#f43f5e';
+      } else if (mode === 'HEAVY') {
+        baseSpeedCoeff = 0.42;
+        simEmergency = false;
+        elMode.style.color = '#2563eb';
+      } else if (mode === 'CIRCULAR') {
+        baseSpeedCoeff = 0.72;
+        simEmergency = false;
+        elMode.style.color = '#8b5cf6';
+      } else if (mode === 'EMERGENCY') {
+        baseSpeedCoeff = 0.0;
+        simEmergency = true;
+        elMode.style.color = '#f43f5e';
+      }
+
+      const hexColor = colors[activeMode];
+      if (!isOfflineFallbackActive && tunnelGroup) {
+        drones.forEach(d => {
+          if (d.noseMesh && d.noseMesh.material) d.noseMesh.material.color.setHex(hexColor);
+          if (d.haloMesh && d.haloMesh.material) d.haloMesh.material.color.setHex(hexColor);
+          if (d.lightComponent) {
+            d.lightComponent.color.setHex(hexColor);
+            d.lightComponent.intensity = simEmergency ? 0.8 : 2.5;
+          }
+        });
+      }
+
+      addLog("Modo de red masiva conmutado a " + mode + ".");
+      updateStatusTexts();
+    }
+
+    function toggleEmergency() {
+      if (simEmergency) {
+        changeOpMode("ECO");
+      } else {
+        changeOpMode("EMERGENCY");
+      }
+    }
+
+    // Augmented Reality Stream coordination
+    function toggleAR() {
+      const container = document.getElementById('canvas-container');
+      const video = document.getElementById('camera-feed');
+      const panel = document.getElementById('ar-hud-panel');
+      const arBtn = document.getElementById('btn-ar');
+      
+      if (!arModeActive) {
+        arModeActive = true;
+        video.style.display = 'block';
+        panel.style.display = 'block';
+        arBtn.innerText = "Desactivar Realidad Aumentada";
+        arBtn.style.background = "#0f5132";
+        arBtn.style.color = "#fff";
+        
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(function (stream) {
+              videoStream = stream;
+              video.srcObject = stream;
+              video.play();
+              addLog("Cámara de dispositivo concedida para reproyección AR.");
+            })
+            .catch(function (err) {
+              console.warn("No se pudo iniciar cámara para AR en este entorno local.");
+              addLog("Hardware para Realidad Aumentada no disponible.");
+            });
+        }
+        
+        if (!isOfflineFallbackActive) {
+          tunnelGroup.position.set(0, -1.8, 0);
+          tunnelGroup.scale.set(0.7, 0.7, 0.7);
+          ambientGrid.visible = false;
+        }
+      } else {
+        arModeActive = false;
+        video.style.display = 'none';
+        panel.style.display = 'none';
+        arBtn.innerText = "Activar Realidad Aumentada";
+        arBtn.style.background = "#07192f";
+        arBtn.style.color = "var(--accent-cyan)";
+        
+        if (videoStream) {
+          videoStream.getTracks().forEach(track => track.stop());
+          videoStream = null;
+        }
+        
+        if (!isOfflineFallbackActive) {
+          tunnelGroup.position.set(0, 0, 0);
+          tunnelGroup.scale.set(1, 1, 1);
+          ambientGrid.visible = true;
+        }
+      }
+    }
+
+    function onWindowResize() {
+      if (isOfflineFallbackActive) {
+        const fallbackCanvas = document.getElementById('fallback-canvas');
+        fallbackCanvas.width = window.innerWidth;
+        fallbackCanvas.height = window.innerHeight;
+        return;
+      }
+      const container = document.getElementById('canvas-container');
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    // Main 3D Animation Frame Loop
+    let lastTime = 0;
+    function animate(time) {
+      requestAnimationFrame(animate);
+      
+      const delta = lastTime === 0 ? 0 : (time - lastTime) * 0.001;
+      lastTime = time;
+
+      // Handle custom Drag / Orbiter calculations with Fallback auto spin
+      if (!arModeActive) {
+        if (!isDragging) {
+          idleTime += 16.67;
+          if (idleTime > 5000) {
+            theta += 0.0012; // slow cinematic rotation
+            document.getElementById('viewport-lbl').innerText = "VISTA: CINEMÁTICA AUTOMÁTICA [ARRASTRAR PARA ROTAR]";
+          }
+        } else {
+          idleTime = 0;
+        }
+
+        const posX = radius * Math.sin(phi) * Math.sin(theta);
+        const posZ = radius * Math.sin(phi) * Math.cos(theta);
+        const posY = radius * Math.cos(phi);
+
+        camera.position.set(posX, Math.max(1, posY), posZ);
+        camera.lookAt(0, 0.4, 0);
+      } else {
+        // Sliders feed calibrations in AR
+        const scaleVal = parseFloat(document.getElementById('scaleRange').value) / 100.0;
+        const rotVal = (parseFloat(document.getElementById('rotRange').value) * Math.PI) / 180.0;
+        tunnelGroup.scale.set(scaleVal * 0.7, scaleVal * 0.7, scaleVal * 0.7);
+        tunnelGroup.rotation.y = rotVal;
+      }
+
+      // Rotate Station coolers rotors and float holo reactors
+      nodeAnimationsList.forEach((n, idx) => {
+        n.core.rotation.y += 0.02;
+        n.core.rotation.z += 0.01;
+        n.core.position.y = n.baseY + Math.sin(time * 0.0025 + idx) * 0.08;
+        
+        n.fan1.rotation.y += 0.08;
+        n.fan2.rotation.y -= 0.08;
+      });
+
+      // Relocate cybernetic flux particles inside tube
+      fluxPoints.forEach((f) => {
+        if (!simEmergency) {
+          f.progress = (f.progress + f.speed * (parseFloat(document.getElementById('simSpeed').value) / 100.0)) % 1.0;
+        }
+        const fPos = splineCurve.getPointAt(f.progress);
+        f.mesh.position.copy(fPos);
+      });
+
+      // Update and align maglev drones
+      const speedVal = parseFloat(document.getElementById('simSpeed').value);
+      const heightVal = parseFloat(document.getElementById('simMaglevHeight').value) / 100.0;
+      const lanesVal = parseFloat(document.getElementById('simLaneSeparation').value) / 100.0;
+      const dragVal = parseFloat(document.getElementById('simDragCd').value) / 100.0;
+
+      const userSpeedCoeff = speedVal / 100.0;
+      const dragSpeedModifier = 1.0 + (0.12 - dragVal) * 1.5;
+
+      drones.forEach((d, idx) => {
+        if (!simEmergency) {
+          const moveStep = d.speed * baseSpeedCoeff * userSpeedCoeff * dragSpeedModifier;
+          d.progress = (d.progress + moveStep) % 1.0;
+          d.battery = Math.max(0, d.battery - 0.004 + (activeMode === 'ECO' ? 0.001 : 0));
+        }
+
+        const pos = splineCurve.getPointAt(d.progress);
+        const tangent = splineCurve.getTangentAt(d.progress);
+        const normal = new THREE.Vector3(0, 1, 0).cross(tangent).normalize();
+
+        const laneOffset = d.lane === 'left' ? -lanesVal : lanesVal;
+        pos.addScaledVector(normal, laneOffset);
+
+        const levitationFluct = Math.sin(time * 0.015 + idx) * 0.04;
+        pos.y += levitationFluct + heightVal;
+
+        d.mesh.position.copy(pos);
+
+        // Turn capsule forward
+        const lookT = splineCurve.getPointAt((d.progress + 0.01) % 1.0);
+        lookT.addScaledVector(normal, laneOffset);
+        d.mesh.lookAt(lookT);
+
+        // Halo pulse
+        if (d.haloMesh) {
+          const p = 1.0 + Math.sin(time * 0.02) * 0.15;
+          d.haloMesh.scale.set(p, p, p);
+        }
+
+        const scaling = Math.max(0.7, Math.min(1.3, 1.05 - (baseSpeedCoeff * userSpeedCoeff - 1.0) * 0.1));
+        d.mesh.scale.set(scaling, scaling, scaling * 1.1);
+      });
+
+      renderer.render(scene, camera);
+    }
+
+    // ==========================================
+    // OFFLINE HIGH-PERFORMANCE 2D FALLBACK ENGINE
+    // ==========================================
+    // Generates a fully responsive animated vector blueprint on HTML Canvas if Three.js doesn't run!
+    let fallbackCtx;
+    let fallbackPoints = [];
+    
+    function initOfflineFallback() {
+      isOfflineFallbackActive = true;
+      document.getElementById('canvas-container').style.display = 'none';
+      
+      const fallbackCanvas = document.getElementById('fallback-canvas');
+      fallbackCanvas.style.display = 'block';
+      fallbackCanvas.width = window.innerWidth;
+      fallbackCanvas.height = window.innerHeight;
+      fallbackCtx = fallbackCanvas.getContext('2d');
+
+      // Create precalculated spline layout projected coordinates
+      for (let i = 0; i < 200; i++) {
+        const angle = (i / 200) * Math.PI * 2;
+        // beautiful double-lobed Lissajous figure for tracking lane loops in axonometric projection
+        const rawX = Math.cos(angle) * 11;
+        const rawZ = Math.sin(angle * 2) * 4.5;
+        const rawY = Math.sin(angle) * 1.8;
+        fallbackPoints.push({ x: rawX, y: rawY, z: rawZ });
+      }
+
+      window.addEventListener('resize', onWindowResize);
+      addLog("Modo seguro: Fallback vectorial holográfico iniciado.");
+      requestAnimationFrame(animateFallbackLoop);
+    }
+
+    function animateFallbackLoop(time) {
+      if (!isOfflineFallbackActive) return;
+      requestAnimationFrame(animateFallbackLoop);
+
+      const canvas = document.getElementById('fallback-canvas');
+      const ctx = fallbackCtx;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+
+      // Project 3D axonometric coordinate projection factor
+      function getIsoPos(ptX, ptY, ptZ) {
+        // transform using perspective isometric-like factors
+        const isoX = centerX + (ptX * 30) - (ptZ * 20);
+        const isoY = centerY + (ptX * 12) + (ptZ * 12) - (ptY * 35);
+        return { x: isoX, y: isoY };
+      }
+
+      // 1. Draw Titanium Cyber grid plane
+      ctx.strokeStyle = 'rgba(30, 58, 138, 0.16)';
+      ctx.lineWidth = 1;
+      for (let i = -15; i <= 15; i += 2) {
+        let p1 = getIsoPos(i, -2.5, -15);
+        let p2 = getIsoPos(i, -2.5, 15);
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+
+        let q1 = getIsoPos(-15, -2.5, i);
+        let q2 = getIsoPos(15, -2.5, i);
+        ctx.beginPath();
+        ctx.moveTo(q1.x, q1.y);
+        ctx.lineTo(q2.x, q2.y);
+        ctx.stroke();
+      }
+
+      // 2. Render pneumatic glass tube vectors
+      const heightVal = parseFloat(document.getElementById('simMaglevHeight').value) / 10.0;
+      const lanesVal = parseFloat(document.getElementById('simLaneSeparation').value) / 25.0;
+
+      ctx.strokeStyle = 'rgba(0, 210, 255, 0.22)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      for (let i = 0; i < fallbackPoints.length; i++) {
+        const pt = fallbackPoints[i];
+        const pIso = getIsoPos(pt.x, pt.y + heightVal, pt.z);
+        if (i === 0) ctx.moveTo(pIso.x, pIso.y);
+        else ctx.lineTo(pIso.x, pIso.y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+
+      // Dual lanes inside tube
+      ctx.strokeStyle = '#00d2ff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i < fallbackPoints.length; i++) {
+        const pt = fallbackPoints[i];
+        const pIso = getIsoPos(pt.x - lanesVal, pt.y + heightVal, pt.z);
+        if (i === 0) ctx.moveTo(pIso.x, pIso.y);
+        else ctx.lineTo(pIso.x, pIso.y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+
+      ctx.strokeStyle = '#c084fc';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i < fallbackPoints.length; i++) {
+        const pt = fallbackPoints[i];
+        const pIso = getIsoPos(pt.x + lanesVal, pt.y + heightVal, pt.z);
+        if (i === 0) ctx.moveTo(pIso.x, pIso.y);
+        else ctx.lineTo(pIso.x, pIso.y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+
+      // 3. Draw Stations
+      const stations = [
+        { name: 'HUB - ALCALDÍA', x: -5, y: 0.2, z: -3, color: '#00d2ff' },
+        { name: 'REFLOW - NORTE', x: 4, y: -0.2, z: 4, color: '#a855f7' },
+        { name: 'ECOPULSE - SUR', x: -8, y: 0.1, z: 6, color: '#10b981' },
+        { name: 'WEST TRANSFER', x: 9, y: -0.3, z: -2, color: '#2563eb' }
+      ];
+
+      stations.forEach((node, idx) => {
+        const iso = getIsoPos(node.x, node.y, node.z);
+        
+        // draw glowing circles
+        ctx.strokeStyle = node.color;
+        ctx.fillStyle = 'rgba(10, 15, 30, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(iso.x, iso.y, 14, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = node.color;
+        ctx.beginPath();
+        const floatY = Math.sin(time * 0.003 + idx) * 3;
+        ctx.arc(iso.x, iso.y - 12 + floatY, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // draw ventilation blade indicator
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(iso.x - 14, iso.y);
+        ctx.lineTo(iso.x + 14, iso.y);
+        ctx.stroke();
+
+        // text labels
+        ctx.fillStyle = '#60a5fa';
+        ctx.font = '7px monospace';
+        ctx.fillText(node.name, iso.x - 22, iso.y + 24);
+      });
+
+      // 4. Update and draw subdrone capsules vectors
+      const speedVal = parseFloat(document.getElementById('simSpeed').value);
+      const userSpeedCoeff = speedVal / 100.0;
+      const dragVal = parseFloat(document.getElementById('simDragCd').value) / 100.0;
+      const dragSpeedModifier = 1.0 + (0.12 - dragVal) * 1.5;
+
+      const activeColorStr = activeMode === 'ECO' ? '#10b981' :
+                             activeMode === 'EXPRESS' ? '#f43f5e' :
+                             activeMode === 'HEAVY' ? '#2563eb' :
+                             activeMode === 'CIRCULAR' ? '#8b5cf6' : '#f97316';
+
+      drones.forEach((d, idx) => {
+        if (!simEmergency) {
+          const stepVal = 0.001 * baseSpeedCoeff * userSpeedCoeff * dragSpeedModifier;
+          d.progress = (d.progress + stepVal) % 1.0;
+        }
+
+        // fetch progress index inside list
+        const floatProgress = d.progress * (fallbackPoints.length - 1);
+        const baseIdx = Math.floor(floatProgress);
+        const ratio = floatProgress - baseIdx;
+        const nextIdx = (baseIdx + 1) % fallbackPoints.length;
+
+        const pA = fallbackPoints[baseIdx];
+        const pB = fallbackPoints[nextIdx];
+
+        // Linear interpolation
+        let rawX = pA.x + (pB.x - pA.x) * ratio;
+        let rawY = pA.y + (pB.y - pA.y) * ratio;
+        let rawZ = pA.z + (pB.z - pA.z) * ratio;
+
+        const offsetMultiplier = d.lane === 'left' ? -lanesVal : lanesVal;
+        
+        // simple normal vector calculation in 2D
+        const rawPtNext = fallbackPoints[(nextIdx + 2) % fallbackPoints.length];
+        const dx = rawPtNext.x - rawX;
+        const dz = rawPtNext.z - rawZ;
+        const crossX = -dz;
+        const crossZ = dx;
+        const crossLen = Math.sqrt(crossX*crossX + crossZ*crossZ) || 1;
+        
+        rawX += (crossX / crossLen) * offsetMultiplier;
+        rawZ += (crossZ / crossLen) * offsetMultiplier;
+
+        const swim = Math.sin(time * 0.01 + idx) * 0.1;
+        const iso = getIsoPos(rawX, rawY + heightVal + swim, rawZ);
+
+        // Draw subdrone body capsule
+        ctx.fillStyle = '#1e293b';
+        ctx.strokeStyle = activeColorStr;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(iso.x, iso.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // glowing halo
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.arc(iso.x, iso.y, 8 + Math.sin(time*0.02 + idx)*1.5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // draw a wing
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(iso.x - 9, iso.y - 1, 3, 2);
+        ctx.fillRect(iso.x + 6, iso.y - 1, 3, 2);
+
+        // label text
+        ctx.fillStyle = '#fff';
+        ctx.font = '6px monospace';
+        ctx.fillText("H-" + idx, iso.x - 8, iso.y - 8);
+      });
+    }
+
+    // Launch initial Spanish settings
+    setLang('es');
+  </script>
+</body>
+</html>
