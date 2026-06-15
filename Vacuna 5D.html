@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dr. Julio César Oporta Barrera - IMMUNOS-FIELDS 3D Simulator</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #020410;
+            color: #f1f5f9;
+            font-family: 'Segoe UI', -apple-system, Roboto, Helvetica, sans-serif;
+            overflow-x: hidden;
+            background-image: radial-gradient(circle at center, #080c25 0%, #010313 100%);
+            min-height: 100vh;
+        }
+        header {
+            border-bottom: 1px solid rgba(0, 242, 254, 0.15);
+            background: rgba(2, 4, 16, 0.85);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+        .header-title-container h1 {
+            font-size: 1.15rem;
+            color: #00f2fe;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+        .header-title-container p {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            color: #a855f7;
+        }
+        .patent-author {
+            text-align: left;
+            font-size: 0.82rem;
+            border-left: 2px solid #a855f7;
+            padding-left: 10px;
+        }
+        .patent-author-name {
+            font-weight: bold;
+            color: #ffffff;
+        }
+        .patent-subtitle {
+            font-size: 0.68rem;
+            opacity: 0.6;
+        }
+        .main-grid {
+            display: grid;
+            grid-template-columns: 310px 1fr 310px;
+            height: calc(100vh - 75px);
+        }
+        @media (max-width: 1024px) {
+            .main-grid { grid-template-columns: 1fr; height: auto; }
+        }
+        .canvas-container {
+            position: relative;
+            background: #01020a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .controls-panel {
+            background: rgba(3, 7, 24, 0.95);
+            border-right: 1px solid rgba(0, 242, 254, 0.1);
+            padding: 20px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+        }
+        .right-panel {
+            background: rgba(3, 7, 24, 0.95);
+            border-left: 1px solid rgba(0, 242, 254, 0.1);
+            padding: 20px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+        }
+        .sec-title {
+            color: #00f2fe;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(0, 242, 254, 0.1);
+            padding-bottom: 6px;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .control-group {
+            margin-bottom: 12px;
+        }
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            opacity: 0.9;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            background: #1e293b;
+            border-radius: 2px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: #00f2fe;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 6px #00f2fe;
+        }
+        .mode-btn {
+            background: rgba(14, 116, 144, 0.2);
+            border: 1px solid rgba(0, 242, 254, 0.4);
+            color: #00f2fe;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            transition: all 0.2s;
+            text-align: left;
+        }
+        .mode-btn:hover, .mode-btn.active {
+            background: #00f2fe;
+            color: #020410;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+        }
+        .mode-btn.evt {
+            border-color: rgba(168, 85, 247, 0.4);
+            color: #a855f7;
+        }
+        .mode-btn.evt:hover, .mode-btn.evt.active {
+            background: #a855f7;
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+        }
+        .mode-btn.err {
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+        .mode-btn.err:hover, .mode-btn.err.active {
+            background: #ef4444;
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+        }
+        .hud-hud {
+            background: rgba(15, 23, 42, 0.35);
+            border: 1px solid rgba(0, 242, 254, 0.1);
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .hud-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.75rem;
+        }
+        .hud-val {
+            font-family: monospace;
+            color: #a855f7;
+            font-weight: bold;
+        }
+        .lang-container {
+            display: flex;
+            gap: 6px;
+        }
+        .lang-btn {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+        .lang-btn.active {
+            border-color: #00f2fe;
+            color: #00f2fe;
+            background: rgba(0, 242, 254, 0.1);
+        }
+        .floating-watermark {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            background: rgba(2, 4, 16, 0.75);
+            border: 1px solid rgba(0, 242, 254, 0.15);
+            padding: 12px 18px;
+            border-radius: 4px;
+            backdrop-filter: blur(8px);
+            font-size: 0.76rem;
+            pointer-events: none;
+            z-index: 30;
+        }
+        .audio-toggle-btn {
+            background: #0b1329;
+            border: 1px solid rgba(168, 85, 247, 0.4);
+            color: #a855f7;
+            border-radius: 4px;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .audio-toggle-btn.active {
+            background: #a855f7;
+            color: white;
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
+        }
+        footer {
+            border-top: 1px solid rgba(0,242,254,0.1);
+            background: #010207;
+            padding: 10px 24px;
+            font-size: 0.72rem;
+            color: #94a3b8;
+            font-family: monospace;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div style="border-left: 3px solid #00f2fe; padding-left: 10px;">
+            <div class="patent-author-name">Dr. Julio César Oporta Barrera</div>
+            <div class="patent-subtitle" id="patent-sub">Inventor y Creador del Patrón Quántico</div>
+        </div>
+        <div class="header-title-container" style="text-align: center;">
+            <h1 id="hud-title">VACUNA 5D IMMUNOS-FIELDS</h1>
+            <p id="hud-subtitle">Inmunización por Resonancia Morfogenética</p>
+        </div>
+        <div class="lang-container">
+            <button class="lang-btn active" onclick="setLocale('es')">ES</button>
+            <button class="lang-btn" onclick="setLocale('en')">EN</button>
+            <button class="lang-btn" onclick="setLocale('zh')">ZH</button>
+        </div>
+    </header>
+
+    <div class="main-grid">
+        <!-- LEFT PANEL: Dynamic Multi-modular Simulation parameters -->
+        <div class="controls-panel">
+            <div class="sec-title" id="sec-params">PARÁMETROS FISICA MODULAR</div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span id="lbl-speed">Velocidad de Rotación</span>
+                    <span id="val-speed">1.2x</span>
+                </div>
+                <input type="range" id="rng-speed" min="0.1" max="3" step="0.1" value="1.2" oninput="updateSpeed(this.value)">
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span id="lbl-density">Densidad en Enjambre</span>
+                    <span id="val-density">140</span>
+                </div>
+                <input type="range" id="rng-density" min="20" max="250" step="10" value="140" oninput="updateDensity(this.value)">
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span id="lbl-gravity">Atracción Cuántica</span>
+                    <span id="val-gravity">0.6</span>
+                </div>
+                <input type="range" id="rng-gravity" min="0" max="1.5" step="0.1" value="0.6" oninput="updateGravity(this.value)">
+            </div>
+
+            <div class="sec-title" id="sec-hibrida">ENERGÍA HÍBRIDA</div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span id="lbl-tesla">Tesla Potencia Escalar</span>
+                    <span id="val-tesla">85%</span>
+                </div>
+                <input type="range" id="rng-tesla" min="10" max="100" step="5" value="85" oninput="updateTesla(this.value)">
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span id="lbl-induction">Foco Inducción 5D vs Cero</span>
+                    <span id="val-induction">60%</span>
+                </div>
+                <input type="range" id="rng-induction" min="0" max="100" step="5" value="60" oninput="updateInduction(this.value)">
+            </div>
+
+            <div class="sec-title" id="sec-geom">GEOMETRÍA SAGRADA 7D</div>
+            <select id="sel-geom" onchange="updateGeometry(this.value)" style="width:100%; background:#0b1329; border:1px solid #00f2fe; color:white; padding:8px; border-radius:4px; font-size:11px; margin-bottom:15px;">
+                <option value="flowerOfLife">Flor de la Vida / Flower of Life</option>
+                <option value="metatron">Cubo de Metatrón / Metatron's Cube</option>
+                <option value="torus">Ondas Escalares Toroidales / Torus Wave</option>
+                <option value="goldenSpiral">Espiral Áurea / Golden Spiral</option>
+            </select>
+
+            <div class="sec-title" id="sec-audio">RESONADOR ACÚSTICO WEB</div>
+            <button class="audio-toggle-btn" id="btn-audio" onclick="toggleAudio()">
+                Activar Sonido Resonante
+            </button>
+        </div>
+
+        <!-- CENTER VIEWPORT: Drag-interactive 3D graphics model -->
+        <div class="canvas-container">
+            <div class="floating-watermark">
+                <div>SYS STATUS: <span style="color: #4ade80;">● ONLINE</span></div>
+                <div>POWER: <span id="wt-power">85%</span></div>
+                <div id="wt-mode">MODE: RESONANT</div>
+                <div id="wt-target">TARGET: NODE Alpha-1</div>
+            </div>
+            <canvas id="offscreenCanvas" onmousedown="startDrag(event)" onmousemove="dragRotator(event)" onmouseup="endDrag()" onmouseleave="endDrag()"></canvas>
+        </div>
+
+        <!-- RIGHT PANEL: Tactical HUD detailed reports -->
+        <div class="right-panel">
+            <div class="sec-title" id="sec-hud">HUD TELEMETRIA TÁCTICA</div>
+            <div class="hud-hud">
+                <div class="hud-item">
+                    <span id="hud-cohesion">Cohesión de Qubits</span>
+                    <span class="hud-val" id="val-cohesion">98.4%</span>
+                </div>
+                <div class="hud-item">
+                    <span id="hud-rec">Receptividad Inmunológica</span>
+                    <span class="hud-val" id="val-receptivity">92.1%</span>
+                </div>
+                <div class="hud-item">
+                    <span id="hud-thz">Frecuencia Terminal</span>
+                    <span class="hud-val" id="val-carrier">4.20 THz</span>
+                </div>
+            </div>
+
+            <div class="sec-title" id="sec-bio">BIOMECÁNICA CARDÍACA</div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Monitoreo Bio-Sincronización</span>
+                    <span id="val-heart">72 BPM</span>
+                </div>
+                <input type="range" id="rng-heart" min="50" max="110" step="2" value="72" oninput="updateHeart(this.value)">
+            </div>
+            
+            <div class="sec-title" id="sec-nodes">MODOS OPERATIVOS VACCINE</div>
+            <button class="mode-btn active" id="btn-resonant" onclick="setMode('resonant')">Resonante</button>
+            <button class="mode-btn" id="btn-stealth" onclick="setMode('stealth')">Stealth Táctico</button>
+            <button class="mode-btn evt" id="btn-evolution" onclick="setMode('evolution')">Evolución Dirigida</button>
+            <button class="mode-btn err" id="btn-emergency" onclick="setMode('emergency')">Shutdown de Emergencia</button>
+
+            <div class="sec-title">RED DE NODOS INTELIGENTES</div>
+            <div class="hud-hud" style="font-size:0.75rem;">
+                <div style="cursor:pointer; color:#00f2fe; margin-bottom:4px;" onclick="selectNode(0)">● Alpha-1 Primary Wave</div>
+                <div style="cursor:pointer; color:#a855f7; margin-bottom:4px;" onclick="selectNode(1)">● Beta-2 Secondary Core</div>
+                <div style="cursor:pointer; color:#a855f7; margin-bottom:4px;" onclick="selectNode(2)">● Gamma-3 Cellular Receptor</div>
+                <div style="cursor:pointer; color:#a855f7; " onclick="selectNode(3)">● Delta-4 Epigenetic Trigger</div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div>IMMUNOS-FIELDS 5D Tactical Simulator • Dr. Julio César Oporta Barrera • Octubre 2025 Patent Application</div>
+        <div>Offline Mode: fully operational, no installations required</div>
+    </footer>
+
+    <script>
+        const canvas = document.getElementById("offscreenCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Web Audio Context objects
+        let actx = null;
+        let osc1 = null, osc2 = null, gainNode = null;
+        let soundActive = false;
+
+        // Interactive parameters states
+        let rotationSpeed = 1.2;
+        let swarmDensity = 140;
+        let quantumGravity = 0.6;
+        let teslaPower = 85;
+        let hybridWeight = 60;
+        let activeMode = "resonant";
+        let activeGeometry = "flowerOfLife";
+        let heartRate = 72;
+        let selectedNode = 0;
+        let lang = "es";
+
+        // Drag angle multipliers
+        let isDragging = false;
+        let dragAngleX = 0, dragAngleY = 0;
+        let prevMouseX = 0, prevMouseY = 0;
+
+        function startDrag(e) {
+            isDragging = true;
+            prevMouseX = e.clientX;
+            prevMouseY = e.clientY;
+        }
+
+        function dragRotator(e) {
+            if (!isDragging) return;
+            const dx = e.clientX - prevMouseX;
+            const dy = e.clientY - prevMouseY;
+            dragAngleY += dx * 0.01;
+            dragAngleX += dy * 0.01;
+            prevMouseX = e.clientX;
+            prevMouseY = e.clientY;
+        }
+
+        function endDrag() {
+            isDragging = false;
+        }
+
+        function selectNode(id) {
+            selectedNode = id;
+            document.getElementById("wt-target").innerText = "TARGET: NODE AI-0" + (id + 1);
+            if (soundActive && actx) {
+                // Play feedback sound note instantly
+                const osc = actx.createOscillator();
+                const gain = actx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(330 + id * 80, actx.currentTime);
+                gain.gain.setValueAtTime(0.05, actx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + 0.4);
+                osc.connect(gain);
+                gain.connect(actx.destination);
+                osc.start(); osc.stop(actx.currentTime + 0.4);
+            }
+        }
+
+        function toggleAudio() {
+            if (!soundActive) {
+                try {
+                    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                    actx = new AudioContextClass();
+                    osc1 = actx.createOscillator();
+                    osc2 = actx.createOscillator();
+                    gainNode = actx.createGain();
+
+                    osc1.type = "sine";
+                    osc1.frequency.setValueAtTime(110, actx.currentTime);
+                    osc2.type = "sine";
+                    osc2.frequency.setValueAtTime(117.83, actx.currentTime);
+
+                    gainNode.gain.setValueAtTime(0.04, actx.currentTime);
+                    osc1.connect(gainNode);
+                    osc2.connect(gainNode);
+                    gainNode.connect(actx.destination);
+
+                    osc1.start();
+                    osc2.start();
+
+                    soundActive = true;
+                    document.getElementById("btn-audio").innerText = "Sonido Activo (Desactivar)";
+                    document.getElementById("btn-audio").classList.add("active");
+                } catch (e) {
+                    console.log("Audio Context Error: ", e);
+                }
+            } else {
+                if (osc1) osc1.stop();
+                if (osc2) osc2.stop();
+                if (actx) actx.close();
+                soundActive = false;
+                document.getElementById("btn-audio").innerText = "Activar Sonido Resonante";
+                document.getElementById("btn-audio").classList.remove("active");
+            }
+        }
+
+        const t = {
+            es: {
+                title: "VACUNA 5D IMMUNOS-FIELDS",
+                sub: "Inmunización por Resonancia Morfogenética",
+                patent: "Inventor y Creador del Patrón Quántico",
+                params: "PARÁMETROS FISICA MODULAR",
+                tesla: "Tesla Potencia Escalar",
+                speed: "Velocidad de Rotación",
+                density: "Densidad en Enjambre",
+                gravity: "Atracción Cuántica",
+                cohesion: "Cohesión de Qubits",
+                receptivity: "Receptividad Inmunológica",
+                frequency: "Frecuencia Resonancia THz"
+            },
+            en: {
+                title: "5D IMMUNOS-FIELDS VACCINE",
+                sub: "Morphogenetic Resonance Immunization",
+                patent: "Inventor & Creator of Quantum Blueprint",
+                params: "MODULAR PHYSICS DECAY",
+                tesla: "Scalar Tesla Field Power",
+                speed: "Rotational Core Speed",
+                density: "Swarm Receptor Particle",
+                gravity: "Quantum Gravity Focus",
+                cohesion: "Qubit Cohesion State",
+                receptivity: "Cell Receptor Sensitivity",
+                frequency: "Carrier Wave Frequency"
+            },
+            zh: {
+                title: "5D IMMUNOS-FIELDS 免疫系统",
+                sub: "形态发生共振免疫系统仿真",
+                patent: "专利模型发明人：奥波塔博士",
+                params: "富勒烯拓扑几何物理",
+                tesla: "特斯拉标量调节器",
+                speed: "3D自转运行速",
+                density: "微粒集群微观极化",
+                gravity: "量子相干干涉引力",
+                cohesion: "原子同调共振稳定性",
+                receptivity: "多细胞外源接受率",
+                frequency: "太赫兹主干波段"
+            }
+        };
+
+        function setLocale(newLang) {
+            lang = newLang;
+            document.querySelectorAll(".lang-btn").forEach(b => b.classList.remove("active"));
+            event.target.classList.add("active");
+
+            const dict = t[lang];
+            document.getElementById("hud-title").innerText = dict.title;
+            document.getElementById("hud-subtitle").innerText = dict.sub;
+            document.getElementById("patent-sub").innerText = dict.patent;
+            document.getElementById("sec-params").innerText = dict.params;
+            document.getElementById("lbl-speed").innerText = dict.speed;
+            document.getElementById("lbl-density").innerText = dict.density;
+            document.getElementById("lbl-gravity").innerText = dict.gravity;
+            document.getElementById("lbl-tesla").innerText = dict.tesla;
+            document.getElementById("hud-cohesion").innerText = dict.cohesion;
+            document.getElementById("hud-rec").innerText = dict.receptivity;
+            document.getElementById("hud-thz").innerText = dict.frequency;
+        }
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        // Coordinates calculations points array
+        const points = [];
+        const numPoints = 120;
+        const phi = (1 + Math.sqrt(5)) / 2;
+
+        for (let i = 0; i < numPoints; i++) {
+            const theta = 2 * Math.PI * i / phi;
+            const z = 1 - (2 * i + 1) / numPoints;
+            const radius = Math.sqrt(1 - z * z);
+            const x = radius * Math.cos(theta);
+            const y = radius * Math.sin(theta);
+            points.push({
+                x: x * 145, y: y * 145, z: z * 145,
+                bx: x * 145, by: y * 145, bz: z * 145
+            });
+        }
+
+        const connections = [];
+        for (let i = 0; i < numPoints; i++) {
+            const list = points.map((p, idx) => ({
+                idx,
+                dist: Math.hypot(p.x - points[i].x, p.y - points[i].y, p.z - points[i].z)
+            })).filter(h => h.idx !== i).sort((a, b) => a.dist - b.dist);
+            for (let j = 0; j < 3; j++) {
+                if (i < list[j].idx) connections.push([i, list[j].idx]);
+            }
+        }
+
+        const swarm = [];
+        for (let i = 0; i < 220; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const r = 160 + Math.random() * 80;
+            swarm.push({
+                x: Math.cos(a) * r, y: Math.sin(a) * r,
+                vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5
+            });
+        }
+
+        let autoAngleX = 0, autoAngleY = 0;
+        let pulse = 0;
+
+        function animate() {
+            ctx.fillStyle = "#02030b";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            ctx.strokeStyle = "rgba(0, 242, 254, 0.03)";
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 50) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+            }
+
+            if (activeMode !== "emergency") {
+                autoAngleX += 0.004 * rotationSpeed;
+                autoAngleY += 0.007 * rotationSpeed;
+                pulse += 0.055;
+            }
+
+            const totalX = autoAngleX + dragAngleX;
+            const totalY = autoAngleY + dragAngleY;
+
+            // Draw active geometry backdrop
+            if (activeMode !== "emergency") {
+                ctx.lineWidth = 1;
+                if (activeGeometry === "flowerOfLife") {
+                    ctx.strokeStyle = "rgba(0, 242, 254, 0.1)";
+                    for (let i = -1; i <= 1; i++) {
+                        for (let j = -1; j <= 1; j++) {
+                            ctx.beginPath();
+                            ctx.arc(cx + i * 80, cy + j * 75, 75, 0, Math.PI * 2);
+                            ctx.stroke();
+                        }
+                    }
+                } else if (activeGeometry === "torus") {
+                    ctx.strokeStyle = "rgba(168, 85, 247, 0.15)";
+                    ctx.beginPath();
+                    ctx.ellipse(cx, cy, 200, 80, Math.PI / 4, 0, Math.PI * 2);
+                    ctx.ellipse(cx, cy, 200, 80, -Math.PI / 4, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else if (activeGeometry === "goldenSpiral") {
+                    ctx.strokeStyle = "rgba(0, 242, 254, 0.12)";
+                    ctx.beginPath();
+                    let radiusScale = 1;
+                    ctx.moveTo(cx, cy);
+                    for (let th = 0; th < 40; th += 0.25) {
+                        radiusScale = Math.pow(1.1, th) * 8;
+                        ctx.lineTo(cx + Math.cos(th + pulse * 0.3) * radiusScale, cy + Math.sin(th + pulse * 0.3) * radiusScale);
+                    }
+                    ctx.stroke();
+                }
+            }
+
+            // Project 3D cage points
+            const projected = points.map((p, idx) => {
+                const offset = Math.cos(pulse + idx) * 3;
+                p.x = p.bx + offset; p.y = p.by + offset;
+
+                const cosY = Math.cos(totalY); const sinY = Math.sin(totalY);
+                let x1 = p.x * cosY - p.z * sinY;
+                let z1 = p.x * sinY + p.z * cosY;
+
+                const cosX = Math.cos(totalX); const sinX = Math.sin(totalX);
+                let y2 = p.y * cosX - z1 * sinX;
+                let z2 = p.y * sinX + z1 * cosX;
+
+                const d = 400;
+                const scaleVal = d / (d + z2);
+                return {
+                    x: cx + x1 * scaleVal, y: cy + y2 * scaleVal,
+                    zDepth: z2, scale: scaleVal, idx
+                };
+            });
+
+            // Draw links
+            connections.forEach(([i, j]) => {
+                const p1 = projected[i]; const p2 = projected[j];
+                const opacity = Math.max(0.08, 1 - (p1.zDepth + 150) / 300);
+                if (activeMode === "emergency") {
+                    ctx.strokeStyle = "rgba(239, 68, 68, " + (opacity * 0.2) + ")";
+                } else {
+                    ctx.strokeStyle = "rgba(0, 242, 254, " + (opacity * 0.45) + ")";
+                }
+                ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+            });
+
+            // Draw vertices atoms
+            projected.forEach(p => {
+                const size = Math.max(1, 4.2 * p.scale);
+                const opacity = Math.max(0.12, 1 - (p.zDepth + 150) / 300);
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+                ctx.fillStyle = activeMode === "emergency" ? "rgba(239, 68, 68, " + opacity + ")" : activeMode === "evolution" ? "rgba(168, 85, 247, " + opacity + ")" : "rgba(0, 242, 254, " + opacity + ")";
+                ctx.fill();
+            });
+
+            // Draw anatomical Biovector outline
+            if (activeMode !== "emergency") {
+                ctx.strokeStyle = "rgba(0, 242, 254, 0.4)";
+                ctx.lineWidth = 1.6;
+                ctx.beginPath();
+                ctx.arc(cx, cy - 90, 15, 0, Math.PI * 2);
+                ctx.moveTo(cx, cy - 75); ctx.lineTo(cx, cy + 20);
+                ctx.moveTo(cx - 35, cy - 55); ctx.lineTo(cx + 35, cy - 55);
+                ctx.lineTo(cx + 55, cy - 10);
+                ctx.moveTo(cx - 35, cy - 55); ctx.lineTo(cx - 55, cy - 10);
+                ctx.moveTo(cx, cy + 20); ctx.lineTo(cx - 25, cy + 90);
+                ctx.moveTo(cx, cy + 20); ctx.lineTo(cx + 25, cy + 90);
+                ctx.stroke();
+
+                // Thymus chakra glow heartbeat emitter
+                const waveGlow = 14 + Math.sin(pulse * 2.5) * 5;
+                const heartG = ctx.createRadialGradient(cx, cy - 42, 2, cx, cy - 42, waveGlow);
+                heartG.addColorStop(0, "#ffffff");
+                heartG.addColorStop(1, "rgba(0, 242, 254, 0)");
+                ctx.fillStyle = heartG;
+                ctx.beginPath(); ctx.arc(cx, cy - 42, waveGlow, 0, Math.PI * 2); ctx.fill();
+            }
+
+            // Draw Swarm AI particles
+            const count = Math.min(swarm.length, swarmDensity);
+            for (let i = 0; i < count; i++) {
+                const particle = swarm[i];
+                if (activeMode !== "emergency") {
+                    const dx = cx - (cx + particle.x);
+                    const dy = cy - (cy + particle.y);
+                    const dist = Math.hypot(dx, dy) || 1;
+
+                    const gravityPull = 0.12 * quantumGravity * (hybridWeight / 50);
+                    particle.vx += (dx / dist) * gravityPull + (Math.random() - 0.5) * 0.12;
+                    particle.vy += (dy / dist) * gravityPull + (Math.random() - 0.5) * 0.12;
+
+                    particle.vx += (-dy / dist) * rotationSpeed * 0.22;
+                    particle.vy += (dx / dist) * rotationSpeed * 0.22;
+
+                    const speed = Math.hypot(particle.vx, particle.vy);
+                    if (speed > 3.8) {
+                        particle.vx = (particle.vx / speed) * 3.8;
+                        particle.vy = (particle.vy / speed) * 3.8;
+                    }
+                    particle.x += particle.vx;
+                    particle.y += particle.vy;
+                }
+                ctx.beginPath();
+                ctx.arc(cx + particle.x, cy + particle.y, 2, 0, Math.PI * 2);
+                ctx.fillStyle = activeMode === "evolution" ? "rgba(168, 85, 247, 0.75)" : "rgba(0, 242, 254, 0.75)";
+                ctx.fill();
+            }
+
+            // Real-time canvas telemetry oscilloscope wave at bottom
+            if (activeMode !== "emergency") {
+                ctx.strokeStyle = "rgba(0, 242, 254, 0.15)";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(10, canvas.height - 40);
+                for (let x = 10; x < canvas.width - 10; x++) {
+                  const val = Math.sin(x * 0.04 + pulse) * 12;
+                  ctx.lineTo(x, canvas.height - 40 + val);
+                }
+                ctx.stroke();
+            }
+
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Control updates
+        function updateSpeed(val) {
+            rotationSpeed = parseFloat(val);
+            document.getElementById("val-speed").innerText = val + "x";
+        }
+        function updateDensity(val) {
+            swarmDensity = parseInt(val);
+            document.getElementById("val-density").innerText = val;
+        }
+        function updateGravity(val) {
+            quantumGravity = parseFloat(val);
+            document.getElementById("val-gravity").innerText = val;
+        }
+        function updateTesla(val) {
+            teslaPower = parseInt(val);
+            document.getElementById("val-tesla").innerText = val + "%";
+            document.getElementById("wt-power").innerText = val + "%";
+            const level = 80 + teslaPower * 0.15 + (100 - heartRate) * 0.08;
+            document.getElementById("val-receptivity").innerText = level.toFixed(1) + "%";
+        }
+        function updateInduction(val) {
+            hybridWeight = parseInt(val);
+            document.getElementById("val-induction").innerText = val + "%";
+        }
+        function updateGeometry(val) {
+            activeGeometry = val;
+        }
+        function updateHeart(val) {
+            heartRate = parseInt(val);
+            document.getElementById("val-heart").innerText = val + " BPM";
+        }
+
+        function setMode(mode) {
+            activeMode = mode;
+            document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
+            if (mode === "resonant") {
+                document.getElementById("btn-resonant").classList.add("active");
+                document.getElementById("wt-mode").innerText = "MODE: RESONANT Active";
+                document.getElementById("val-receptivity").innerText = "92.1%";
+                document.getElementById("val-carrier").innerText = "4.20 THz";
+            } else if (mode === "stealth") {
+                document.getElementById("btn-stealth").classList.add("active");
+                document.getElementById("wt-mode").innerText = "MODE: SILENT TACTICAL STEALTH";
+                document.getElementById("val-receptivity").innerText = "84.5%";
+                document.getElementById("val-carrier").innerText = "3.80 THz";
+            } else if (mode === "evolution") {
+                document.getElementById("btn-evolution").classList.add("active");
+                document.getElementById("wt-mode").innerText = "MODE: EVOLUTION ACTIVE";
+                document.getElementById("val-receptivity").innerText = "98.9%";
+                document.getElementById("val-carrier").innerText = "4.85 THz";
+            } else if (mode === "emergency") {
+                document.getElementById("btn-emergency").classList.add("active");
+                document.getElementById("wt-mode").innerText = "MODE: SHUTDOWN SAFE";
+                document.getElementById("val-receptivity").innerText = "0.0%";
+                document.getElementById("val-carrier").innerText = "OFF";
+            }
+        }
+    </script>
+</body>
+</html>
