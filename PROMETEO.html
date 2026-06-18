@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>RESS-Bio Advanced Digital Twin - Dr. Julio César Oporta Barrera</title>
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-magenta: #ff006e;
+            --neon-green: #00ff66;
+            --titanium-black: #05070a;
+            --stealth-gray: #0f131a;
+            --panel-bg: rgba(7, 11, 18, 0.9);
+            --panel-border: rgba(0, 243, 255, 0.3);
+            --font-tactical: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--titanium-black);
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #app-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #ar-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+            display: none;
+            transform: scaleX(-1);
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            cursor: move;
+        }
+
+        /* HUD Superior */
+        .hud-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .author-tag {
+            background: var(--panel-bg);
+            border: 1px solid var(--neon-blue);
+            padding: 15px 25px;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+            pointer-events: auto;
+        }
+
+        .author-title {
+            font-size: 10px;
+            font-family: var(--font-tactical);
+            color: var(--neon-blue);
+            letter-spacing: 3px;
+            margin-bottom: 4px;
+        }
+
+        .author-name {
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            color: #ffffff;
+        }
+
+        .system-status {
+            font-size: 11px;
+            font-family: var(--font-tactical);
+            color: var(--neon-green);
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--neon-green);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.3; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1.1); }
+            100% { opacity: 0.3; transform: scale(0.9); }
+        }
+
+        .language-selector {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            padding: 6px;
+            border-radius: 4px;
+            display: flex;
+            gap: 5px;
+            pointer-events: auto;
+        }
+
+        .lang-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: rgba(255, 255, 255, 0.5);
+            padding: 6px 14px;
+            cursor: pointer;
+            font-family: var(--font-tactical);
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .lang-btn:hover, .lang-btn.active {
+            color: var(--neon-blue);
+            background: rgba(0, 243, 255, 0.1);
+            border-color: var(--neon-blue);
+        }
+
+        /* HUD Izquierdo - Matriz de Enjambre IA Avanzada */
+        .hud-left-panel {
+            position: absolute;
+            left: 20px;
+            top: 110px;
+            width: 300px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            padding: 15px;
+            z-index: 10;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.15);
+            font-family: var(--font-tactical);
+            backdrop-filter: blur(12px);
+        }
+
+        /* HUD Derecho - Parámetros del Reactor */
+        .hud-sidebar {
+            position: absolute;
+            right: 20px;
+            top: 110px;
+            width: 320px;
+            background: var(--panel-bg);
+            border: 1px solid var(--neon-blue);
+            border-radius: 4px;
+            padding: 20px;
+            z-index: 10;
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.25);
+            max-height: calc(100vh - 290px);
+            overflow-y: auto;
+            backdrop-filter: blur(12px);
+        }
+
+        .sidebar-title {
+            font-family: var(--font-tactical);
+            color: var(--neon-blue);
+            font-size: 13px;
+            letter-spacing: 1.5px;
+            border-bottom: 1px solid rgba(0, 243, 255, 0.3);
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .control-group {
+            margin-bottom: 18px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 6px;
+        }
+
+        .control-value {
+            color: var(--neon-blue);
+            font-weight: bold;
+        }
+
+        input[type=range] {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--neon-blue);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--neon-blue);
+        }
+
+        .interactive-btn {
+            width: 100%;
+            background: rgba(0, 243, 255, 0.08);
+            border: 1px solid var(--neon-blue);
+            color: #ffffff;
+            padding: 10px;
+            font-family: var(--font-tactical);
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 8px;
+        }
+
+        .interactive-btn:hover {
+            background: rgba(0, 243, 255, 0.2);
+            box-shadow: 0 0 15px var(--neon-blue);
+        }
+
+        /* HUD Inferior - Consola y Compuertas */
+        .hud-footer {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            height: 140px;
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 20px;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .console-panel {
+            background: var(--panel-bg);
+            border: 1px solid rgba(0, 243, 255, 0.4);
+            border-radius: 4px;
+            padding: 15px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto;
+            backdrop-filter: blur(12px);
+        }
+
+        .console-logs {
+            flex: 1;
+            font-size: 11px;
+            font-family: var(--font-tactical);
+            color: rgba(0, 243, 255, 0.9);
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+
+        .logic-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--neon-blue);
+            border-radius: 4px;
+            padding: 12px;
+            pointer-events: auto;
+            box-shadow: 0 0 20px var(--panel-border);
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(12px);
+        }
+
+        .logic-gate-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 100%;
+        }
+
+        .gate-box {
+            border: 1px dashed rgba(0, 243, 255, 0.4);
+            background: rgba(0, 0, 0, 0.4);
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+            font-family: var(--font-tactical);
+            font-size: 11px;
+            width: 48%;
+        }
+
+        .gate-title {
+            color: var(--neon-blue);
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .gate-status {
+            font-size: 11px;
+            margin-top: 4px;
+            font-weight: bold;
+        }
+
+        /* Botón AR / Filtros */
+        .ar-trigger {
+            position: absolute;
+            left: 340px;
+            top: 20px;
+            background: var(--panel-bg);
+            border: 1px solid var(--neon-blue);
+            color: #ffffff;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: var(--font-tactical);
+            font-size: 12px;
+            font-weight: bold;
+            pointer-events: auto;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .ar-trigger:hover, .ar-trigger.active {
+            background: rgba(0, 243, 255, 0.2);
+            box-shadow: 0 0 25px var(--neon-blue);
+        }
+
+        .ar-trigger.active {
+            background: var(--neon-magenta);
+            border-color: var(--neon-magenta);
+        }
+
+        /* Cuadro de Información Contextual */
+        .info-overlay {
+            position: absolute;
+            left: 20px;
+            top: 360px;
+            width: 300px;
+            background: rgba(5, 8, 14, 0.95);
+            border: 1px solid var(--neon-blue);
+            padding: 18px;
+            border-radius: 4px;
+            z-index: 15;
+            display: none;
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.4);
+            font-family: var(--font-tactical);
+        }
+
+        .info-close {
+            float: right;
+            cursor: pointer;
+            color: var(--neon-magenta);
+            font-weight: bold;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 11px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 2px;
+        }
+
+        .view-mode-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .view-mode-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(0,243,255,0.2);
+            color: #ccc;
+            font-size: 10px;
+            padding: 5px;
+            cursor: pointer;
+            font-family: var(--font-tactical);
+            text-align: center;
+        }
+
+        .view-mode-btn.active {
+            background: rgba(0,243,255,0.15);
+            border-color: var(--neon-blue);
+            color: var(--neon-blue);
+        }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        ::-webkit-scrollbar-thumb { background: var(--neon-blue); border-radius: 2px; }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <video id="ar-video" autoplay playsinline></video>
+        
+        <canvas id="bioreactor-canvas"></canvas>
+
+        <div class="hud-header">
+            <div class="author-tag">
+                <div class="author-title">AUTHORITATIVE OPERATOR & INVENTOR</div>
+                <div class="author-name">Dr. Julio César Oporta Barrera</div>
+                <div class="system-status">
+                    <span class="pulse-dot"></span>
+                    <span id="status-text">RESS-BIO SYSTEM ACTIVE // QUANTUM MATRIX OK</span>
+                </div>
+            </div>
+
+            <div class="language-selector">
+                <button class="lang-btn active" onclick="setLanguage('es')">ES</button>
+                <button class="lang-btn" onclick="setLanguage('en')">EN</button>
+                <button class="lang-btn" onclick="setLanguage('zh')">ZH</button>
+            </div>
+        </div>
+
+        <button class="ar-trigger" id="ar-btn" onclick="toggleAR()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l-7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            <span id="ar-btn-text">ACTIVAR AR PASSTHROUGH</span>
+        </button>
+
+        <div class="hud-left-panel">
+            <div class="sidebar-title" id="title-swarm">ENJAMBRE DE NODOS IA</div>
+            <div id="swarm-nodes-list" style="margin-bottom:12px;">
+                </div>
+            
+            <div class="sidebar-title" id="title-modes" style="margin-top:15px; font-size:11px;">FILTROS VISUALES TÁCTICOS</div>
+            <div class="view-mode-container">
+                <div class="view-mode-btn active" id="mode-std" onclick="setViewMode('standard')">STANDARD</div>
+                <div class="view-mode-btn" id="mode-xray" onclick="setViewMode('xray')">X-RAY STRUCT</div>
+                <div class="view-mode-btn" id="mode-therm" onclick="setViewMode('thermal')">BIO-THERMAL</div>
+                <div class="view-mode-btn" id="mode-quant" onclick="setViewMode('quantum')">VECT-LINKS</div>
+            </div>
+        </div>
+
+        <div class="info-overlay" id="info-box">
+            <span class="info-close" onclick="closeInfo()">[X]</span>
+            <h4 id="info-title" style="color:var(--neon-blue); margin-bottom:6px; font-size:13px;">SUB-COMPONENTE</h4>
+            <p id="info-desc" style="font-size:11px; color:#cccccc; line-height:1.5;">Análisis de datos estructurales...</p>
+        </div>
+
+        <div class="hud-sidebar">
+            <div class="sidebar-title" id="title-controls">ESTADOS Y PARÁMETROS</div>
+            
+            <div class="control-group">
+                <div class="control-label">
+                    <span id="lbl-solar">ESTIMULACIÓN LUMÍNICA / SOLAR</span>
+                    <span class="control-value" id="val-solar">80%</span>
+                </div>
+                <input type="range" id="slider-solar" min="0" max="100" value="80" oninput="updateParam('solar', this.value)">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span id="lbl-co2">FLUJO DE DIÓXIDO DE CARBONO (CO2)</span>
+                    <span class="control-value" id="val-co2">65%</span>
+                </div>
+                <input type="range" id="slider-co2" min="0" max="100" value="65" oninput="updateParam('co2', this.value)">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span id="lbl-metabolic">TASA METABÓLICA (MICROBIOTA)</span>
+                    <span class="control-value" id="val-metabolic">75%</span>
+                </div>
+                <input type="range" id="slider-metabolic" min="10" max="150" value="75" oninput="updateParam('metabolic', this.value)">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span id="lbl-speed">VELOCIDAD DE SIMULACIÓN</span>
+                    <span class="control-value" id="val-speed">1.0x</span>
+                </div>
+                <input type="range" id="slider-speed" min="1" max="30" value="10" oninput="updateParam('speed', this.value/10)">
+            </div>
+
+            <div class="sidebar-title" id="title-physics" style="margin-top:15px; font-size:11px;">MÓDULO DE FÍSICA Y TORQUE</div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span id="lbl-torque">TORQUE TURBINA BIOMECÁNICA</span>
+                    <span class="control-value" id="val-torque">1.2 N·m</span>
+                </div>
+            </div>
+
+            <div class="sidebar-title" id="title-metrics">TELEMETRÍA BIOENERGÉTICA</div>
+            <div style="font-family:var(--font-tactical); font-size:11px;">
+                <div class="metric-row">
+                    <span id="m-fuel">PROMETEO FUEL NETO:</span>
+                    <span id="metric-fuel" style="color:var(--neon-blue); font-weight:bold;">0.0000 L</span>
+                </div>
+                <div class="metric-row">
+                    <span id="m-eff">EFICIENCIA FOTÓNICA:</span>
+                    <span id="metric-eff" style="color:var(--neon-green); font-weight:bold;">64.2%</span>
+                </div>
+                <div class="metric-row">
+                    <span id="m-volt">POTENCIAL DE MEMBRANA:</span>
+                    <span id="metric-volt" style="color:#ffaa00; font-weight:bold;">1.24 mV</span>
+                </div>
+                <div class="metric-row">
+                    <span id="m-stress">FACTOR DE ESTRÉS BIÓTICO:</span>
+                    <span id="metric-stress" style="color:var(--neon-magenta); font-weight:bold;">12.4%</span>
+                </div>
+            </div>
+
+            <div class="sidebar-title" id="title-actions" style="margin-top:15px; font-size:11px;">ACCIONES EJECUTIVAS</div>
+            <button class="interactive-btn" onclick="triggerPurge()" id="btn-purge">FORZAR PURGA DE METANO</button>
+            <button class="interactive-btn" onclick="optimizeSwarm()" id="btn-opt" style="border-color:var(--neon-green); background:rgba(0,255,102,0.05);">OPTIMIZAR ENJAMBRE IA</button>
+        </div>
+
+        <div class="hud-footer">
+            <div class="console-panel">
+                <div class="console-logs" id="console-output"></div>
+            </div>
+
+            <div class="logic-panel">
+                <div class="sidebar-title" id="title-logic" style="margin-bottom:4px; font-size:11px;">CIRCUITOS LÓGICOS BIOLÓGICOS</div>
+                <div class="logic-gate-display">
+                    <div class="gate-box">
+                        <div class="gate-title">AND (FOTÓLISIS)</div>
+                        <div style="color:rgba(255,255,255,0.5); font-size:10px;" id="lbl-and-inputs">Luz & H2O</div>
+                        <div class="gate-status" id="gate-and-result" style="color:var(--neon-green);">TRUE</div>
+                    </div>
+                    <div class="gate-box">
+                        <div class="gate-title">OR (SÍNTESIS)</div>
+                        <div style="color:rgba(255,255,255,0.5); font-size:10px;" id="lbl-or-inputs">CO2 o Voltaje</div>
+                        <div class="gate-status" id="gate-or-result" style="color:var(--neon-green);">TRUE</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Localización Multilenguaje Completa
+        const translations = {
+            es: {
+                status: "SISTEMA RESS-BIO ACTIVO // MATRIZ CUÁNTICA OK",
+                titleControls: "ESTADOS Y PARÁMETROS",
+                titleMetrics: "TELEMETRÍA BIOENERGÉTICA",
+                titleLogic: "CIRCUITOS LÓGICOS BIOLÓGICAS",
+                titleSwarm: "ENJAMBRE DE NODOS IA",
+                titleModes: "FILTROS VISUALES TÁCTICOS",
+                titlePhysics: "MÓDULO DE FÍSICA Y TORQUE",
+                titleActions: "ACCIONES EJECUTIVAS",
+                solar: "ESTIMULACIÓN LUMÍNICA / SOLAR",
+                co2: "FLUJO DE DIÓXIDO DE CARBONO (CO2)",
+                metabolic: "TASA METABÓLICA (MICROBIOTA)",
+                speed: "VELOCIDAD DE SIMULACIÓN",
+                torque: "TORQUE TURBINA BIOMECÁNICA",
+                arActivate: "ACTIVAR AR PASSTHROUGH",
+                arDeactivate: "DESACTIVAR AR PASSTHROUGH",
+                andInputs: "Luz & H2O",
+                orInputs: "CO2 o Voltaje",
+                btnPurge: "FORZAR PURGA DE METANO",
+                btnOpt: "OPTIMIZAR ENJAMBRE IA",
+                mFuel: "PROMETEO FUEL NETO:",
+                mEff: "EFICIENCIA FOTÓNICA:",
+                mVolt: "POTENCIAL DE MEMBRANA:",
+                mStress: "FACTOR DE ESTRÉS BIÓTICO:",
+                nodeText: "Nodo Neural IA detectado. ID: ",
+                bacteriaText: "Matriz microbiana: Cepa Prometeo (Cianobacterias catalíticas).",
+                archaeaText: "Matriz del Núcleo Sólido: Cepa Vulcano (Arqueas anaerobias).",
+                wireText: "Nanocable proteico de Geobacter. Transmisión bioelectrónica activa.",
+                turbineText: "Módulo superior de captura de energía biomecánica flagelar híbrida."
+            },
+            en: {
+                status: "RESS-BIO SYSTEM ACTIVE // QUANTUM MATRIX OK",
+                titleControls: "STATES AND PARAMETERS",
+                titleMetrics: "BIOENERGETIC TELEMETRY",
+                titleLogic: "BIOLOGICAL LOGIC GATES",
+                titleSwarm: "AI SWARM NODES",
+                titleModes: "TACTICAL VISUAL FILTRES",
+                titlePhysics: "PHYSICS & TORQUE MODULE",
+                titleActions: "EXECUTIVE ACTIONS",
+                solar: "LIGHT ESTIMULATION / SOLAR",
+                co2: "CARBON DIOXIDE (CO2) FLOW",
+                metabolic: "METABOLIC RATE (MICROBIOTA)",
+                speed: "SIMULATION SPEED",
+                torque: "BIOMECHANICAL TURBINE TORQUE",
+                arActivate: "ACTIVATE AR PASSTHROUGH",
+                arDeactivate: "DEACTIVATE AR PASSTHROUGH",
+                andInputs: "Light & H2O",
+                orInputs: "CO2 or Voltage",
+                btnPurge: "FORCE METHANE PURGE",
+                btnOpt: "OPTIMIZE AI SWARM",
+                mFuel: "NET PROMETEO FUEL:",
+                mEff: "PHOTONIC EFFICIENCY:",
+                mVolt: "MEMBRANE POTENTIAL:",
+                mStress: "BIOTIC STRESS FACTOR:",
+                nodeText: "AI Neural Node detected. ID: ",
+                bacteriaText: "Microbial matrix: Prometeo Strain (Catalytic cyanobacteria).",
+                archaeaText: "Solid Core Matrix: Vulcano Strain (Anaerobic Archaea).",
+                wireText: "Geobacter protein nanowire. Active bioelectronic transmission.",
+                turbineText: "Superior biomechanical flagellar hybrid energy capture module."
+            },
+            zh: {
+                status: "RESS-BIO 系统激活 // 量子矩阵正常",
+                titleControls: "状态与参数",
+                titleMetrics: "生物能源遥测",
+                titleLogic: "生物逻辑门",
+                titleSwarm: "人工智能集群节点",
+                titleModes: "战术视觉滤镜",
+                titlePhysics: "物理与扭矩模块",
+                titleActions: "执行操作",
+                solar: "光刺激 / 太阳能",
+                co2: "二氧化碳 (CO2) 流量",
+                metabolic: "代谢速率 (微生态)",
+                speed: "模拟速度",
+                torque: "仿生涡轮扭矩",
+                arActivate: "激活增强现实通道",
+                arDeactivate: "停用增强现实通道",
+                andInputs: "光线 & 水",
+                orInputs: "二氧化碳 或 电压",
+                btnPurge: "强制进行甲烷清洗",
+                btnOpt: "优化人工智能集群",
+                mFuel: "净普罗米修斯燃料:",
+                mEff: "光子效率:",
+                mVolt: "膜电位:",
+                mStress: "生物应激因子:",
+                nodeText: "检测到 AI 神经节点。ID: ",
+                bacteriaText: "微生物基质：普罗米修斯菌株（催化蓝藻）。",
+                archaeaText: "固体核心基质：火神菌株（厌氧古菌）。",
+                wireText: "地杆菌属蛋白质纳米线。生物电子传输处于激活状态。",
+                turbineText: "高级仿生鞭毛混合能量捕获模块。"
+            }
+        };
+
+        let currentLang = 'es';
+        let viewMode = 'standard'; // standard, xray, thermal, quantum
+
+        let state = {
+            solar: 80,
+            co2: 65,
+            metabolic: 75,
+            speed: 1.0,
+            arActive: false,
+            totalFuel: 0.0,
+            turbineRotation: 0,
+            torque: 1.2
+        };
+
+        let camera = {
+            yaw: 0.8,
+            pitch: 0.3,
+            zoom: 1.3,
+            isDragging: false,
+            startX: 0,
+            startY: 0
+        };
+
+        let entities = {
+            particles: [],
+            bacteria: [],
+            nanowires: [],
+            aiNodes: []
+        };
+
+        const canvas = document.getElementById('bioreactor-canvas');
+        const ctx = canvas.getContext('2d');
+        const video = document.getElementById('ar-video');
+        const consoleEl = document.getElementById('console-output');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function logToConsole(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const logLine = document.createElement('div');
+            if (type === 'warn') logLine.style.color = 'var(--neon-magenta)';
+            else if (type === 'success') logLine.style.color = 'var(--neon-green)';
+            else logLine.style.color = 'var(--neon-blue)';
+            logLine.innerHTML = `[${time}] > ${message}`;
+            consoleEl.appendChild(logLine);
+            if (consoleEl.children.length > 30) consoleEl.removeChild(consoleEl.firstChild);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.innerText.toLowerCase() === lang);
+            });
+            
+            // Re-mapeo estricto de labels del DOM
+            document.getElementById('status-text').innerText = translations[lang].status;
+            document.getElementById('title-controls').innerText = translations[lang].titleControls;
+            document.getElementById('title-metrics').innerText = translations[lang].titleMetrics;
+            document.getElementById('title-logic').innerText = translations[lang].titleLogic;
+            document.getElementById('title-swarm').innerText = translations[lang].titleSwarm;
+            document.getElementById('title-modes').innerText = translations[lang].titleModes;
+            document.getElementById('title-physics').innerText = translations[lang].titlePhysics;
+            document.getElementById('title-actions').innerText = translations[lang].titleActions;
+            
+            document.getElementById('lbl-solar').innerText = translations[lang].solar;
+            document.getElementById('lbl-co2').innerText = translations[lang].co2;
+            document.getElementById('lbl-metabolic').innerText = translations[lang].metabolic;
+            document.getElementById('lbl-speed').innerText = translations[lang].speed;
+            document.getElementById('lbl-torque').innerText = translations[lang].torque;
+            
+            document.getElementById('gate-and-result').previousElementSibling.innerText = translations[lang].andInputs;
+            document.getElementById('gate-or-result').previousElementSibling.innerText = translations[lang].orInputs;
+            
+            document.getElementById('btn-purge').innerText = translations[lang].btnPurge;
+            document.getElementById('btn-opt').innerText = translations[lang].btnOpt;
+            
+            document.getElementById('m-fuel').innerText = translations[lang].mFuel;
+            document.getElementById('m-eff').innerText = translations[lang].mEff;
+            document.getElementById('m-volt').innerText = translations[lang].mVolt;
+            document.getElementById('m-stress').innerText = translations[lang].mStress;
+            
+            document.getElementById('ar-btn-text').innerText = state.arActive ? translations[lang].arDeactivate : translations[lang].arActivate;
+            
+            logToConsole(`System localization matrix changed to: ${lang.toUpperCase()}`, 'success');
+            renderSwarmHUD();
+        }
+
+        function setViewMode(mode) {
+            viewMode = mode;
+            document.querySelectorAll('.view-mode-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`mode-${mode.substring(0,4)}`).classList.add('active');
+            logToConsole(`Visual spectrum filter shifted to: ${mode.toUpperCase()}`, 'info');
+        }
+
+        function updateParam(key, val) {
+            state[key] = parseFloat(val);
+            if (key === 'solar') document.getElementById('val-solar').innerText = val + '%';
+            if (key === 'co2') document.getElementById('val-co2').innerText = val + '%';
+            if (key === 'metabolic') document.getElementById('val-metabolic').innerText = val + '%';
+            if (key === 'speed') document.getElementById('val-speed').innerText = val.toFixed(1) + 'x';
+            
+            evaluateLogicGates();
+        }
+
+        function evaluateLogicGates() {
+            const andCondition = state.solar > 45 && state.metabolic > 40;
+            const orCondition = state.co2 > 15 || state.solar > 20;
+            
+            const andEl = document.getElementById('gate-and-result');
+            const orEl = document.getElementById('gate-or-result');
+
+            andEl.innerText = andCondition ? "TRUE // STABLE" : "FALSE // LOCK";
+            andEl.style.color = andCondition ? 'var(--neon-green)' : 'var(--neon-magenta)';
+
+            orEl.innerText = orCondition ? "TRUE // SYNC" : "FALSE // CRIT";
+            orEl.style.color = orCondition ? 'var(--neon-green)' : 'var(--neon-magenta)';
+        }
+
+        function toggleAR() {
+            state.arActive = !state.arActive;
+            const arBtn = document.getElementById('ar-btn');
+            const arBtnText = document.getElementById('ar-btn-text');
+
+            if (state.arActive) {
+                arBtn.classList.add('active');
+                video.style.display = 'block';
+                arBtnText.innerText = translations[currentLang].arDeactivate;
+                logToConsole("Initializing mobile WebXR video overlay frame...", "warn");
+                
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                    .then(stream => { video.srcObject = stream; })
+                    .catch(() => { logToConsole("Camera stream requires localization permissions.", "warn"); });
+                }
+            } else {
+                arBtn.classList.remove('active');
+                video.style.display = 'none';
+                arBtnText.innerText = translations[currentLang].arActivate;
+                if (video.srcObject) {
+                    video.srcObject.getTracks().forEach(track => track.stop());
+                }
+                logToConsole("Camera stream decoupled.");
+            }
+        }
+
+        // Acciones ejecutivas adicionales para captación de atención
+        function triggerPurge() {
+            logToConsole("CRITICAL EXECUTIVE ORDER: Forcing biomechanical methane purge valve open...", "warn");
+            state.totalFuel = 0; // Reinicio visual del contador
+            // Añadir pulso masivo de partículas hacia arriba
+            for(let i=0; i<50; i++) {
+                entities.particles.push({
+                    x: (Math.random()-0.5)*80, y: 140, z: (Math.random()-0.5)*80,
+                    vx: (Math.random()-0.5)*4, vy: -6 - Math.random()*5, vz: (Math.random()-0.5)*4,
+                    size: 3 + Math.random()*3, colorShift: true
+                });
+            }
+        }
+
+        function optimizeSwarm() {
+            logToConsole("Executing distributed AI node recombination...", "success");
+            entities.aiNodes.forEach(node => {
+                node.status = "OPTIMIZED";
+                node.stability = 98 + Math.random()*2;
+            });
+            renderSwarmHUD();
+        }
+
+        function initEntities() {
+            entities.bacteria = [];
+            entities.nanowires = [];
+            entities.aiNodes = [];
+            entities.particles = [];
+
+            // Cepas bacterianas diferenciadas
+            for (let i = 0; i < 30; i++) {
+                entities.bacteria.push({
+                    id: 'b-prometeo-' + i,
+                    type: 'cyanobacteria',
+                    x: Math.cos(i) * 115,
+                    y: (i % 5) * 45 - 90,
+                    z: Math.sin(i) * 115,
+                    radius: 8 + Math.random() * 4,
+                    phase: Math.random() * Math.PI
+                });
+            }
+
+            for (let i = 0; i < 25; i++) {
+                entities.bacteria.push({
+                    id: 'b-vulcano-' + i,
+                    type: 'archaea',
+                    x: Math.cos(i * 1.3) * 65,
+                    y: (i % 4) * 40 - 70,
+                    z: Math.sin(i * 1.3) * 65,
+                    radius: 6 + Math.random() * 4,
+                    phase: Math.random() * Math.PI
+                });
+            }
+
+            // Nodos IA Swarm Inteligentes
+            for (let i = 0; i < 5; i++) {
+                entities.aiNodes.push({
+                    id: 'AI-NODE-0' + (i+1),
+                    x: Math.cos(i * (Math.PI * 2 / 5)) * 160,
+                    y: (i % 2 === 0 ? 90 : -110),
+                    z: Math.sin(i * (Math.PI * 2 / 5)) * 160,
+                    status: 'ACTIVE',
+                    stability: 85 + Math.random() * 10
+                });
+            }
+
+            // Conexiones de red neural bioelectrónica
+            for (let i = 0; i < entities.bacteria.length - 2; i += 2) {
+                entities.nanowires.push({ from: entities.bacteria[i], to: entities.bacteria[i+2] });
+            }
+            for (let i = 0; i < entities.aiNodes.length; i++) {
+                entities.nanowires.push({ from: entities.aiNodes[i], to: entities.aiNodes[(i+1)%entities.aiNodes.length] });
+            }
+
+            // Física Modular: Partículas cinéticas iniciales
+            for (let i = 0; i < 150; i++) {
+                entities.particles.push({
+                    x: (Math.random() - 0.5) * 200,
+                    y: -140 + Math.random() * 280,
+                    z: (Math.random() - 0.5) * 200,
+                    vx: (Math.random() - 0.5) * 1.5,
+                    vy: 1.2 + Math.random() * 2,
+                    vz: (Math.random() - 0.5) * 1.5,
+                    size: 1.5 + Math.random() * 2.5,
+                    colorShift: false
+                });
+            }
+
+            renderSwarmHUD();
+        }
+
+        function renderSwarmHUD() {
+            const listContainer = document.getElementById('swarm-nodes-list');
+            listContainer.innerHTML = '';
+            entities.aiNodes.forEach(node => {
+                const row = document.createElement('div');
+                row.style.cssText = "display:flex; justify-content:space-between; font-size:10px; margin-bottom:4px; padding:3px; background:rgba(255,255,255,0.03); border-left: 2px solid var(--neon-blue);";
+                row.innerHTML = `<span>${node.id}</span><span style="color:var(--neon-green)">${node.status}</span><span>${node.stability.toFixed(1)}%</span>`;
+                listContainer.appendChild(row);
+            });
+        }
+
+        function project3D(x, y, z) {
+            let cosY = Math.cos(camera.yaw);
+            let sinY = Math.sin(camera.yaw);
+            let x1 = x * cosY - z * sinY;
+            let z1 = x * sinY + z * cosY;
+
+            let cosX = Math.cos(camera.pitch);
+            let sinX = Math.sin(camera.pitch);
+            let y2 = y * cosX - z1 * sinX;
+            let z2 = y * sinX + z1 * cosX;
+
+            const centerX = canvas.width * 0.44;
+            const centerY = canvas.height * 0.48;
+            const factor = 320 * camera.zoom / (320 + z2);
+
+            return { x: centerX + x1 * factor, y: centerY - y2 * factor, scale: factor, depth: z2 };
+        }
+
+        // Manejo de clicks e interacciones de pantalla táctil
+        canvas.addEventListener('mousedown', (e) => {
+            camera.isDragging = true;
+            camera.startX = e.clientX;
+            camera.startY = e.clientY;
+            detectObjectClick(e.clientX, e.clientY);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!camera.isDragging) return;
+            camera.yaw += (e.clientX - camera.startX) * 0.007;
+            camera.pitch += (e.clientY - camera.startY) * 0.007;
+            camera.pitch = Math.max(-Math.PI/2.3, Math.min(Math.PI/2.3, camera.pitch));
+            camera.startX = e.clientX;
+            camera.startY = e.clientY;
+        });
+
+        window.addEventListener('mouseup', () => camera.isDragging = false);
+
+        // Soporte de gestos multitouch para dispositivos móviles
+        canvas.addEventListener('touchstart', (e) => {
+            if(e.touches.length === 1) {
+                camera.isDragging = true;
+                camera.startX = e.touches[0].clientX;
+                camera.startY = e.touches[0].clientY;
+                detectObjectClick(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        });
+        canvas.addEventListener('touchmove', (e) => {
+            if (!camera.isDragging || e.touches.length !== 1) return;
+            camera.yaw += (e.touches[0].clientX - camera.startX) * 0.01;
+            camera.pitch += (e.touches[0].clientY - camera.startY) * 0.01;
+            camera.startX = e.touches[0].clientX;
+            camera.startY = e.touches[0].clientY;
+        });
+        canvas.addEventListener('touchend', () => camera.isDragging = false);
+
+        canvas.addEventListener('wheel', (e) => {
+            camera.zoom = Math.max(0.4, Math.min(3.0, camera.zoom - e.deltaY * 0.001));
+        });
+
+        function detectObjectClick(mx, my) {
+            // Comprobar Colisiones con Módulo Biomecánico Superior (Turbina)
+            let pTurbine = project3D(0, -165, 0);
+            if (Math.hypot(mx - pTurbine.x, my - pTurbine.y) < 60 * pTurbine.scale) {
+                showInfoBox("BIOMECHANICAL TURBINE", translations[currentLang].turbineText);
+                logToConsole("Interrogating hybrid biomechanical flagellar induction core.");
+                return;
+            }
+
+            // Comprobar Nodos IA
+            for (let node of entities.aiNodes) {
+                let proj = project3D(node.x, node.y, node.z);
+                if (Math.hypot(mx - proj.x, my - proj.y) < 16 * proj.scale) {
+                    showInfoBox(node.id, translations[currentLang].nodeSelected || (translations[currentLang].nodeText + node.id) + ` | Stability matrix: ${node.stability.toFixed(2)}% FLOPS.`);
+                    logToConsole(`Coupled telemetry line to: ${node.id}`);
+                    return;
+                }
+            }
+
+            // Comprobar Bacterias
+            for (let b of entities.bacteria) {
+                let proj = project3D(b.x, b.y, b.z);
+                if (Math.hypot(mx - proj.x, my - proj.y) < b.radius * proj.scale) {
+                    let text = b.type === 'cyanobacteria' ? translations[currentLang].bacteriaText : translations[currentLang].archaeaText;
+                    showInfoBox(b.type.toUpperCase(), text);
+                    logToConsole(`Bio-sensor linked to micro-cluster: ${b.id}`);
+                    return;
+                }
+            }
+        }
+
+        function showInfoBox(title, text) {
+            const box = document.getElementById('info-box');
+            document.getElementById('info-title').innerText = title;
+            document.getElementById('info-desc').innerText = text;
+            box.style.display = 'block';
+        }
+
+        function closeInfo() { document.getElementById('info-box').style.display = 'none'; }
+
+        // Bucle Principal con Motores de Física Modular Integrados
+        function mainLoop() {
+            if (state.arActive) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.fillStyle = viewMode === 'xray' ? 'rgba(3, 5, 8, 1)' : 'rgba(5, 7, 10, 1)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            const currentSpeed = state.speed;
+            const metabolicModifier = state.metabolic / 75;
+
+            // Simulación Física: Rotación e Inercia de la Turbina Biomecánica
+            state.torque = (state.metabolic * 0.014 + state.co2 * 0.003).toFixed(2);
+            document.getElementById('val-torque').innerText = state.torque + " N·m";
+            state.turbineRotation += (parseFloat(state.torque) * 0.04) * currentSpeed;
+
+            // Telemetría avanzada acumulativa
+            state.totalFuel += (state.co2 * state.metabolic * 0.000003) * currentSpeed;
+            document.getElementById('metric-fuel').innerText = state.totalFuel.toFixed(5) + " L";
+            
+            const realEff = Math.min(98.8, (state.solar * 0.45 + state.co2 * 0.35 + state.metabolic * 0.15)).toFixed(1);
+            document.getElementById('metric-eff').innerText = realEff + "%";
+            document.getElementById('metric-volt').innerText = (1.05 + (state.metabolic * 0.0035)).toFixed(2) + " mV";
+            document.getElementById('metric-stress').innerText = (state.metabolic > 105 ? (state.metabolic - 100) * 1.1 : 4.8).toFixed(1) + "%";
+
+            // Dibujar rejilla base holográfica táctica
+            if(viewMode !== 'thermal') drawGrid();
+
+            let renderQueue = [];
+
+            // 1. Añadir Estructura de Nanocables y Enlaces Vectoriales
+            entities.nanowires.forEach(wire => {
+                let p1 = project3D(wire.from.x, wire.from.y, wire.from.z);
+                let p2 = project3D(wire.to.x, wire.to.y, wire.to.z);
+                renderQueue.push({ type: 'nanowire', p1, p2, depth: (p1.depth + p2.depth)/2 });
+            });
+
+            // 2. Añadir Nuevos Módulos de Simulación Avanzada: Turbinas Biomecánicas Híbridas (Top & Bottom)
+            renderQueue.push({ type: 'biomech_module', yOffset: -165, angle: state.turbineRotation, depth: project3D(0, -165, 0).depth });
+            renderQueue.push({ type: 'biomech_module', yOffset: 165, angle: -state.turbineRotation * 0.7, depth: project3D(0, 165, 0).depth });
+
+            // 3. Añadir Microorganismos con Estados Dinámicos Extra (Escala/Color)
+            entities.bacteria.forEach(b => {
+                b.phase += (0.02 + Math.random()*0.02) * currentSpeed * metabolicModifier;
+                let dynamicRadius = b.radius + Math.sin(b.phase) * 1.8;
+                let proj = project3D(b.x, b.y, b.z);
+                renderQueue.push({ type: 'bacteria', bType: b.type, x: proj.x, y: proj.y, scale: proj.scale, radius: dynamicRadius, depth: proj.depth });
+            });
+
+            // 4. Añadir Nodos IA del Enjambre Cuántico
+            entities.aiNodes.forEach(node => {
+                let proj = project3D(node.x, node.y, node.z);
+                renderQueue.push({ type: 'ainode', id: node.id, x: proj.x, y: proj.y, scale: proj.scale, depth: proj.depth });
+            });
+
+            // 5. Física Modular: Procesamiento de Fluidos y Colisiones Moleculares Reales
+            entities.particles.forEach(p => {
+                p.y += p.vy * currentSpeed * metabolicModifier;
+                p.x += p.vx * currentSpeed;
+                p.z += p.vz * currentSpeed;
+
+                // Colisión elástica contra las fronteras cilíndricas del reactor (Radio de contención = 140)
+                let currentRadius = Math.hypot(p.x, p.z);
+                if (currentRadius > 135) {
+                    // Inversión de vectores de velocidad (Rebote físico modular)
+                    p.vx *= -0.9;
+                    p.vz *= -0.9;
+                    p.x = (p.x / currentRadius) * 134;
+                    p.z = (p.z / currentRadius) * 134;
+                }
+
+                if (p.y > 150) { 
+                    p.y = -150; 
+                    p.x = (Math.random() - 0.5) * 120; 
+                    p.z = (Math.random() - 0.5) * 120; 
+                }
+
+                let proj = project3D(p.x, p.y, p.z);
+                renderQueue.push({ type: 'particle', x: proj.x, y: proj.y, scale: proj.scale, size: p.size, colorShift: p.colorShift, depth: proj.depth });
+            });
+
+            // Ordenamiento por profundidad real de escena (Algoritmo del Pintor)
+            renderQueue.sort((a, b) => b.depth - a.depth);
+
+            // Fase de Dibujado y Ejecución de Shaders Procedurales
+            renderQueue.forEach(item => {
+                if (item.scale < 0.05) return;
+
+                if (item.type === 'nanowire') {
+                    ctx.beginPath();
+                    ctx.moveTo(item.p1.x, item.p1.y);
+                    ctx.lineTo(item.p2.x, item.p2.y);
+                    if (viewMode === 'quantum') {
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                        ctx.lineWidth = 1.5 * item.p1.scale;
+                    } else {
+                        ctx.strokeStyle = viewMode === 'thermal' ? 'rgba(255,100,0,0.15)' : 'rgba(0, 243, 255, 0.15)';
+                        ctx.lineWidth = 1 * item.p1.scale;
+                    }
+                    ctx.stroke();
+                } 
+                else if (item.type === 'biomech_module') {
+                    // Renderizado Avanzado de la Turbina de Torque Flagelar en 3D
+                    let pCenter = project3D(0, item.yOffset, 0);
+                    ctx.beginPath();
+                    for (let a = 0; a <= Math.PI * 2; a += 0.3) {
+                        let tx = Math.cos(a) * 130;
+                        let tz = Math.sin(a) * 130;
+                        let tp = project3D(tx, item.yOffset, tz);
+                        if (a === 0) ctx.moveTo(tp.x, tp.y); else ctx.lineTo(tp.x, tp.y);
+                    }
+                    ctx.closePath();
+                    ctx.strokeStyle = viewMode === 'thermal' ? 'rgba(255, 0, 100, 0.5)' : 'var(--neon-blue)';
+                    ctx.lineWidth = 2 * pCenter.scale;
+                    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Aspas de la Turbina (Física Mecánica Visible)
+                    for (let i = 0; i < 4; i++) {
+                        let bladeAngle = item.angle + (i * Math.PI / 2);
+                        let bx = Math.cos(bladeAngle) * 125;
+                        let bz = Math.sin(bladeAngle) * 125;
+                        let pBlade = project3D(bx, item.yOffset, bz);
+                        ctx.beginPath();
+                        ctx.moveTo(pCenter.x, pCenter.y);
+                        ctx.lineTo(pBlade.x, pBlade.y);
+                        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+                        ctx.lineWidth = 3 * pCenter.scale;
+                        ctx.stroke();
+                    }
+                } 
+                else if (item.type === 'bacteria') {
+                    ctx.beginPath();
+                    ctx.arc(item.x, item.y, item.radius * item.scale, 0, Math.PI * 2);
+                    
+                    if (viewMode === 'thermal') {
+                        ctx.fillStyle = item.bType === 'cyanobacteria' ? 'rgba(255, 60, 0, 0.7)' : 'rgba(200, 0, 255, 0.7)';
+                        ctx.strokeStyle = '#fff';
+                    } else if (viewMode === 'xray') {
+                        ctx.fillStyle = 'transparent';
+                        ctx.strokeStyle = item.bType === 'cyanobacteria' ? 'var(--neon-blue)' : 'var(--neon-magenta)';
+                    } else {
+                        ctx.fillStyle = item.bType === 'cyanobacteria' ? `rgba(0, 243, 255, ${0.45 + state.solar*0.002})` : 'rgba(255, 0, 110, 0.55)';
+                        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                    }
+                    ctx.lineWidth = 1 * item.scale;
+                    ctx.fill();
+                    ctx.stroke();
+                } 
+                else if (item.type === 'ainode') {
+                    ctx.beginPath();
+                    ctx.arc(item.x, item.y, 9 * item.scale, 0, Math.PI * 2);
+                    ctx.fillStyle = viewMode === 'thermal' ? '#ff0000' : '#ffffff';
+                    ctx.strokeStyle = 'var(--neon-blue)';
+                    ctx.lineWidth = 2 * item.scale;
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Anillo de difracción del enjambre
+                    ctx.beginPath();
+                    ctx.arc(item.x, item.y, 18 * item.scale, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(0, 243, 255, 0.3)';
+                    ctx.stroke();
+                } 
+                else if (item.type === 'particle') {
+                    ctx.beginPath();
+                    ctx.arc(item.x, item.y, item.size * item.scale, 0, Math.PI * 2);
+                    if (item.colorShift) {
+                        ctx.fillStyle = 'var(--neon-magenta)';
+                    } else {
+                        ctx.fillStyle = viewMode === 'thermal' ? 'rgba(255,255,0,0.8)' : `rgba(255, 255, 255, ${0.4 + (state.metabolic*0.003)})`;
+                    }
+                    ctx.fill();
+                }
+            });
+
+            // Dibujar la carcasa estructural externa del cilindro
+            if(viewMode !== 'quantum') drawReactorHull();
+
+            requestAnimationFrame(mainLoop);
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(0, 243, 255, 0.05)';
+            ctx.lineWidth = 1;
+            const size = 5;
+            const gap = 50;
+            for (let i = -size; i <= size; i++) {
+                let p1 = project3D(i * gap, -150, -size * gap);
+                let p2 = project3D(i * gap, -150, size * gap);
+                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+
+                let p3 = project3D(-size * gap, -150, i * gap);
+                let p4 = project3D(size * gap, -150, i * gap);
+                ctx.beginPath(); ctx.moveTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.stroke();
+            }
+        }
+
+        function drawReactorHull() {
+            ctx.strokeStyle = viewMode === 'xray' ? 'rgba(0, 243, 255, 0.4)' : 'rgba(0, 243, 255, 0.15)';
+            ctx.lineWidth = 1.5;
+            const layers = [-150, -75, 0, 75, 150];
+            
+            layers.forEach(h => {
+                ctx.beginPath();
+                for (let a = 0; a <= Math.PI * 2; a += 0.2) {
+                    let p = project3D(Math.cos(a) * 135, h, Math.sin(a) * 135);
+                    if (a === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+                }
+                ctx.closePath();
+                ctx.stroke();
+            });
+
+            for (let a = 0; a < Math.PI * 2; a += Math.PI / 2) {
+                let tP = project3D(Math.cos(a) * 135, -150, Math.sin(a) * 135);
+                let bP = project3D(Math.cos(a) * 135, 150, Math.sin(a) * 135);
+                ctx.beginPath(); ctx.moveTo(tP.x, tP.y); ctx.lineTo(bP.x, bP.y); ctx.stroke();
+            }
+        }
+
+        // Logs automáticos de inicialización del AutoML de alta fidelidad
+        setTimeout(() => logToConsole("Parsing hybrid biomechanical energy conversions...", "info"), 400);
+        setTimeout(() => logToConsole("Coupling advanced fluid mechanics and boundary collision algorithms...", "info"), 1000);
+        setTimeout(() => logToConsole("Swarm intelligence network integrated with local physical coordinates.", "success"), 1600);
+        setTimeout(() => logToConsole("Digital Twin operational. Deep analytics ready for institutional view.", "success"), 2200);
+
+        initEntities();
+        evaluateLogicGates();
+        mainLoop();
+    </script>
+</body>
+</html>
