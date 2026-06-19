@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emotion Mining BioX - Prototipo 3D Autónomo</title>
+  
+  <!-- Embedding CSS Styles for 100% Offline Compatibility -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background-color: #03060a;
+      color: #e2e8f0;
+      overflow-x: hidden;
+      font-size: 14px;
+    }
+
+    /* Scrollbar Design */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #060913;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1a2333;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #00f0ff;
+    }
+
+    /* Grid Overlay */
+    button {
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s ease-index;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 350px 1fr 350px;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    @media (max-width: 1024px) {
+      .container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 500px auto;
+        height: auto;
+        overflow: auto;
+      }
+    }
+
+    /* Modular Panels */
+    .panel {
+      background: #060913;
+      border-right: 1px solid #14213d;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .panel-right {
+      border-right: none;
+      border-left: 1px solid #14213d;
+      background: #050811;
+    }
+
+    .viewport-outer {
+      position: relative;
+      background: #020408;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .canvas-container {
+      flex: 1;
+      position: relative;
+      cursor: grab;
+    }
+
+    .canvas-container:active {
+      cursor: grabbing;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Typography & Branding */
+    .brand-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #00f0ff;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .author-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #94a3b8;
+      margin-bottom: 5px;
+    }
+
+    .system-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+      margin-top: 2px;
+      text-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+    }
+
+    .section-header {
+      font-size: 10px;
+      font-weight: 700;
+      color: #475569;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      border-bottom: 1px solid #14213d;
+      padding-bottom: 5px;
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Control widgets */
+    .preset-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .btn-preset {
+      background: #0c1424;
+      border: 1px solid #1e2e4a;
+      color: #94a3b8;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    .btn-preset:hover {
+      background: #14213d;
+      color: #ffffff;
+      border-color: #3b82f6;
+    }
+
+    .btn-preset.active {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: #00f0ff;
+      color: #00f0ff;
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.15);
+    }
+
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .slider-val {
+      font-family: 'JetBrains Mono', monospace;
+      color: #00f0ff;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      background: #1e2e4a;
+      border-radius: 2px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #00f0ff;
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+    }
+
+    /* Diagnostics Log Console */
+    .console-logs {
+      background: #020408;
+      border: 1px solid #14213d;
+      border-radius: 5px;
+      padding: 10px;
+      flex: 1;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #818cf8;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      overflow-y: auto;
+      max-height: 180px;
+    }
+
+    .log-line {
+      display: flex;
+      gap: 8px;
+    }
+
+    .log-time {
+      color: #475569;
+    }
+
+    .log-text {
+      color: #a5b4fc;
+    }
+
+    /* Language Selection */
+    .lang-row {
+      display: flex;
+      gap: 5px;
+    }
+
+    .btn-lang {
+      background: #0c1424;
+      border: 1px solid #1e2e4a;
+      color: #64748b;
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 3px;
+    }
+
+    .btn-lang.active {
+      border-color: #00f0ff;
+      color: #00f0ff;
+      background: rgba(0, 240, 255, 0.08);
+    }
+
+    /* HUD overlay boxes */
+    .hud-stat-box {
+      background: rgba(12, 20, 36, 0.6);
+      border: 1px solid #14213d;
+      border-radius: 4px;
+      padding: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .hud-stat-label {
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .hud-stat-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .hud-stat-highlight {
+      color: #00f0ff;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+    }
+
+    /* AR simulation viewport marker */
+    .ar-backdrop {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #01ff80;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      font-family: monospace;
+      color: #000;
+    }
+
+    .mode-desc-box {
+      background: #090e1a;
+      border-left: 2.5px solid #00f0ff;
+      padding: 8px 10px;
+      font-size: 11.5px;
+      color: #94a3b8;
+      line-height: 1.4;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .watermark-ar {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0,0,0,0.8);
+      border: 1px solid #00f0ff;
+      padding: 5px 10px;
+      border-radius: 3px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #00f0ff;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.65; }
+      50% { opacity: 1; }
+      100% { opacity: 0.65; }
+    }
+
+    /* Node details block */
+    .node-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0a0d17;
+      border: 1px solid #14213d;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 11.5px;
+      cursor: pointer;
+    }
+
+    .node-item:hover {
+      border-color: #00f0ff;
+      background: rgba(0, 240, 255, 0.05);
+    }
+
+    .node-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #3b82f6;
+      display: inline-block;
+    }
+
+    .node-status-dot.active {
+      background: #10b981;
+      box-shadow: 0 0 6px #10b981;
+    }
+
+    .node-status-dot.pulse-now {
+      background: #f43f5e;
+      box-shadow: 0 0 8px #f43f5e;
+      transform: scale(1.3);
+      transition: all 0.15s ease;
+    }
+
+    .top-notch {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid #14213d;
+      padding-bottom: 15px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- Left panel (AFFECTIVE CONTROLS) -->
+    <div class="panel">
+      
+      <div class="top-notch">
+        <div>
+          <div class="author-title" id="lbl-author">Dr. Julio César Oporta Barrera</div>
+          <div class="brand-title" id="lbl-brand">EMOTION MINING BIOX</div>
+          <div class="system-title" id="lbl-title">Biorreactor 3D</div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <span id="lbl-lang-sec">IDIOMA / LANGUAGE</span>
+        <div class="lang-row">
+          <button class="btn-lang active" onclick="setLanguage('es')">ES</button>
+          <button class="btn-lang" onclick="setLanguage('en')">EN</button>
+          <button class="btn-lang" onclick="setLanguage('zh')">ZH</button>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <span id="lbl-control-sec">PANEL DE CONTROL AFECTIVO</span>
+      </div>
+
+      <div class="preset-grid">
+        <button class="btn-preset active" id="btn-pre-calm" onclick="selectEmotion('calm')">Calma</button>
+        <button class="btn-preset" id="btn-pre-joy" onclick="selectEmotion('joy')">Alegría</button>
+        <button class="btn-preset" id="btn-pre-sad" onclick="selectEmotion('sadness')">Tristeza</button>
+        <button class="btn-preset" id="btn-pre-ang" onclick="selectEmotion('anger')">Ira</button>
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span id="lbl-pad-p">Placer (Pleasure)</span>
+          <span class="slider-val" id="val-pad-p">0.8</span>
+        </div>
+        <input type="range" min="-1" max="1" step="0.1" value="0.8" id="sli-pad-p" oninput="updatePAD()">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span id="lbl-pad-a">Activación (Arousal)</span>
+          <span class="slider-val" id="val-pad-a">-0.4</span>
+        </div>
+        <input type="range" min="-1" max="1" step="0.1" value="-0.4" id="sli-pad-a" oninput="updatePAD()">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span id="lbl-pad-d">Dominio (Dominance)</span>
+          <span class="slider-val" id="val-pad-d">0.6</span>
+        </div>
+        <input type="range" min="-1" max="1" step="0.1" value="0.6" id="sli-pad-d" oninput="updatePAD()">
+      </div>
+
+      <div class="hud-stat-box">
+        <div class="hud-stat-label" id="lbl-hud-freq">Asoc. Freq</div>
+        <div class="hud-stat-value hud-stat-highlight" id="val-hud-freq">600 Hz</div>
+      </div>
+
+      <div class="hud-stat-box" style="flex-direction: column; align-items: flex-start; gap: 5px;">
+        <div class="hud-stat-label" id="lbl-hud-pathway">Ruta Metabólica</div>
+        <div class="hud-stat-value" id="val-hud-pathway" style="font-size: 11.5px; color: #a5b4fc;">Calma -> Generación de enzimas regenerativas</div>
+      </div>
+
+      <div class="hud-stat-box" style="flex-direction: column; align-items: flex-start; gap: 5px;">
+        <div class="hud-stat-label" id="lbl-hud-compound">Compuesto Generado</div>
+        <div class="hud-stat-value" id="val-hud-compound" style="font-size: 11.5px; color: #34d399;">Lipasas, Proteasas</div>
+      </div>
+
+      <div class="section-header">
+        <span id="lbl-diagnostic-sec">DIAGNÓSTICOS (RL Q-LEARNING)</span>
+      </div>
+
+      <div class="console-logs" id="console-logs">
+        <!-- Log items dynamically injected -->
+      </div>
+
+    </div>
+
+    <!-- Central Viewport (3D INTERACTIVE VIEWPORT) -->
+    <div class="viewport-outer">
+      
+      <!-- Artificial AR Camera backdrop simulator -->
+      <div class="ar-backdrop" id="ar-backdrop">
+        <!-- Generates canvas cell simulation patterns to simulate cell cameras -->
+      </div>
+
+      {true && <div class="watermark-ar" id="watermark-ar-lbl" style="display: none;">
+        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#ef4444; margin-right:5px;"></span>
+        AR HOLOGRAPHIC SYSTEM ON TABLE
+      </div>}
+
+      <div class="canvas-container" id="canvas-container">
+        <canvas id="gl-canvas"></canvas>
+      </div>
+
+    </div>
+
+    <!-- Right panel (BIOLOGY & HARDWARE SIMULATION) -->
+    <div class="panel panel-right">
+      
+      <div class="section-header">
+        <span id="lbl-mode-sec">MODOS OPERATIVOS DEL SISTEMA</span>
+      </div>
+
+      <select id="sel-operational" onchange="changeOperationalMode()" style="background: #010612; border: 1px solid #14213d; color: #fff; padding: 8px 12px; border-radius: 4px; outline: none; font-size:12px;">
+        <option value="pharma">Medicinal / Biofarma</option>
+        <option value="remediation">Biorremediación Ambiental</option>
+        <option value="agri">Agrobiotectología Inteligente</option>
+        <option value="bioart">Bioarte Interactivo</option>
+      </select>
+
+      <div class="mode-desc-box" id="mode-desc-lbl">
+        Farmacéutico / Nutracéutico: Optimiza la síntesis de enzimas regeneratividades como respuesta a calma.
+      </div>
+
+      <div class="section-header">
+        <span id="lbl-biology-sec">BIOMECÁNICA & FÍSICA MODULAR</span>
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span id="lbl-sli-vis">Viscosidad del Medio</span>
+          <span class="slider-val" id="val-sli-vis">35%</span>
+        </div>
+        <input type="range" min="1" max="100" value="35" id="sli-vis" oninput="updateSliders()">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span id="lbl-sli-freq">Frecuencia Vibración (Voxel)</span>
+          <span class="slider-val" id="val-sli-freq">1200 Hz</span>
+        </div>
+        <input type="range" min="100" max="3000" step="50" value="1200" id="sli-freq" oninput="updateSliders()">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span id="lbl-sli-mem">Permeabilidad Luminal</span>
+          <span class="slider-val" id="val-sli-mem">80%</span>
+        </div>
+        <input type="range" min="1" max="100" value="80" id="sli-mem" oninput="updateSliders()">
+      </div>
+
+      <!-- NEW MODULE: STANDALONE ACTIVE SHIELDS CONTROLLER -->
+      <div class="section-header">
+        <span id="lbl-shields-sec" style="color: #00f0ff;">ESCUDOS DE FÍSICA MODULAR ACTIVA</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div class="node-item" onclick="toggleOfflineShield(0)" style="justify-content: space-between;">
+          <span id="lbl-shield-1">SHIELD I: Estabilización de Presión</span>
+          <span class="node-status-dot active" id="status-shield-1" style="background:#10b981; box-shadow:0 0 6px #10b981;"></span>
+        </div>
+        <div class="node-item" onclick="toggleOfflineShield(1)" style="justify-content: space-between;">
+          <span id="lbl-shield-2">SHIELD II: Contención Magneto-Reo</span>
+          <span class="node-status-dot active" id="status-shield-2" style="background:#10b981; box-shadow:0 0 6px #10b981;"></span>
+        </div>
+        <div class="node-item" onclick="toggleOfflineShield(2)" style="justify-content: space-between;">
+          <span id="lbl-shield-3">SHIELD III: Detector Láser CRISPR</span>
+          <span class="node-status-dot active" id="status-shield-3" style="background:#10b981; box-shadow:0 0 6px #10b981;"></span>
+        </div>
+      </div>
+
+      <!-- NEW MODULE: STANDALONE HYBRID GRID ENERGY CORE -->
+      <div class="section-header">
+        <span id="lbl-energy-sec" style="color: #eab308;">SISTEMA DE ENERGÍA HÍBRIDA BIOMECÁNICA</span>
+      </div>
+      <div style="background: rgba(12,20,36,0.6); border: 1px solid #14213d; padding: 12px; border-radius: 4px; display: flex; flex-direction: column; gap: 8px;">
+        <div style="display:flex; justify-content:space-between; font-size: 11px;">
+          <span style="color:#64748b;">BATTERY CAPACITANCE:</span>
+          <span id="lbl-offline-battery" style="color:#10b981; font-weight:bold; font-family:monospace;">94%</span>
+        </div>
+        <div style="width:100%; bg:#1e2e4a; height:5px; border-radius:2px; background:#1e2e4a; overflow:hidden;">
+          <div id="bar-offline-battery" style="background:#10b981; height:100%; width:94%; transition:all 0.5s;"></div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:9x; font-family:monospace;">
+          <div style="background:#020408; padding:5px; border-radius:3px; border:1px solid #14213d;">
+            <span style="color:#475569; display:block; font-size:8px;">ACOUSTIC CONV:</span>
+            <span style="color:#00f0ff; font-weight:bold;">82%</span>
+          </div>
+          <div style="background:#020408; padding:5px; border-radius:3px; border:1px solid #14213d;">
+            <span style="color:#475569; display:block; font-size:8px;">METABOLIC ATP:</span>
+            <span id="lbl-offline-atp" style="color:#818cf8; font-weight:bold;">78%</span>
+          </div>
+        </div>
+        <button onclick="toggleOfflineStorm()" id="btn-offline-storm" style="width:100%; padding:6px; background:rgba(16,185,129,0.15); border:1px solid #10b981; color:#10b981; border-radius:4px; font-size:10px; font-weight:bold; font-family:monospace; margin-top:4px;">
+          STORM MODE ACTIVE
+        </button>
+      </div>
+
+      <div class="section-header">
+        <span id="lbl-swarm-sec">INTELIGENCIA DE ENJAMBRE (SWARM AI)</span>
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span id="lbl-sli-count">Población Bactocitótica</span>
+          <span class="slider-val" id="val-sli-count">45</span>
+        </div>
+        <input type="range" min="10" max="100" value="45" id="sli-count" oninput="updateSliders()">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span id="lbl-sli-cohesion">Cohesión de Enjambre</span>
+          <span class="slider-val" id="val-sli-cohesion">60%</span>
+        </div>
+        <input type="range" min="0" max="100" value="60" id="sli-cohesion" oninput="updateSliders()">
+      </div>
+
+      <div class="section-header">
+        <span id="lbl-nodes-sec">AI REDOX NODE SYSTEM</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div class="node-item" onclick="triggerNodePulse('1'); selectNodeOffline('1')" id="node-box-1">
+          <span id="node-lbl-1">Operador Humano</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="node-status-dot active" id="dot-node-1"></span>
+          </div>
+        </div>
+        <div class="node-item" onclick="triggerNodePulse('2'); selectNodeOffline('2')" id="node-box-2">
+          <span id="node-lbl-2">Decodificador Afectivo IA</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="node-status-dot active" id="dot-node-2"></span>
+          </div>
+        </div>
+        <div class="node-item" onclick="triggerNodePulse('3'); selectNodeOffline('3')" id="node-box-3">
+          <span id="node-lbl-3">Transductor Acústico</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="node-status-dot active" id="dot-node-3"></span>
+          </div>
+        </div>
+        <div class="node-item" onclick="triggerNodePulse('4'); selectNodeOffline('4')" id="node-box-4">
+          <span id="node-lbl-4">Receptores TRPA1</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="node-status-dot active" id="dot-node-4"></span>
+          </div>
+        </div>
+        <div class="node-item" onclick="triggerNodePulse('5'); selectNodeOffline('5')" id="node-box-5">
+          <span id="node-lbl-5">Cascada Intracelular</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="node-status-dot active" id="dot-node-5"></span>
+          </div>
+        </div>
+        <div class="node-item" onclick="triggerNodePulse('6'); selectNodeOffline('6')" id="node-box-6">
+          <span id="node-lbl-6">Compuesto Bioactivo Patentado</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="node-status-dot active" id="dot-node-6"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <span id="lbl-display-sec">AR & SHADERS AVANZADOS</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; font-size:12px;">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" checked id="chk-grid" onchange="updateShaders()">
+          <span id="lbl-chk-grid">Rejilla Holográfica 3D</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" checked id="chk-bloom" onchange="updateShaders()">
+          <span id="lbl-chk-bloom">Brillo Neón Cinematográfico</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" id="chk-ar" onchange="toggleARMode()">
+          <span id="lbl-chk-ar" style="color: #00f0ff; font-weight:bold;">Visualizar en Realidad Aumentada</span>
+        </label>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Client-side Interactive Logic Script -->
+  <script>
+    // Translating tables
+    const dictionary = {
+      es: {
+        author: "Dr. Julio César Oporta Barrera",
+        brand: "EMOTION MINING BIOX",
+        title: "Biorreactor 3D",
+        langSec: "IDIOMA / LANGUAGE",
+        controlSec: "PANEL DE CONTROL AFECTIVO",
+        diagnosticSec: "DIAGNÓSTICOS (RL Q-LEARNING)",
+        modeSec: "MODOS OPERATIVOS DEL SISTEMA",
+        biologySec: "BIOMECÁNICA & FÍSICA MODULAR",
+        swarmSec: "INTELIGENCIA DE ENJAMBRE (SWARM AI)",
+        nodesSec: "AI REDOX NODE SYSTEM",
+        displaySec: "AR & SHADERS AVANZADOS",
+        calm: "Calma",
+        joy: "Alegría",
+        sadness: "Tristeza",
+        anger: "Ira",
+        padP: "Placer (Pleasure)",
+        padA: "Activación (Arousal)",
+        padD: "Dominio (Dominance)",
+        hudFreq: "Asoc. Freq",
+        hudPathway: "Ruta Metabólica",
+        hudCompound: "Compuesto Generado",
+        sliVis: "Viscosidad del Medio",
+        sliFreq: "Frecuencia Vibración (Voxel)",
+        sliMem: "Permeabilidad Luminal",
+        sliCount: "Población Bactocitótica",
+        sliCohesion: "Cohesión de Enjambre",
+        node1: "Operador Humano (Voz)",
+        node2: "Decodificador Afectivo IA",
+        node3: "Transductor de Sonido",
+        node4: "Receptores TRPA1 Sintéticos",
+        chkGrid: "Rejilla Holográfica 3D",
+        chkBloom: "Brillo Neón Cinematográfico",
+        chkAr: "Proyectar sobre mi Mesa (Realidad Aumentada)",
+        modePharma: "Medicinal / Biofarma",
+        modeRemediation: "Biorremediación Ambiental",
+        modeAgri: "Agrobiotecnología",
+        modeBioart: "Bioarte Interactivo",
+        modePharmaDesc: "Medicinal: estimula la síntesis de enzimas de cicatrización acelerada y antioxidantes naturales (glutatión y catalasa) en respuesta a frecuencias sinusoidales de gracia y sosiego (Calma).",
+        modeRemediationDesc: "Biorremediación: estimula la transcripción de operones bacterianos para ingerir hidrocarburos y atrapar plomo modulados por voces alarmadas de urgencia.",
+        modeAgriDesc: "Agroecológico: secreta factores bioquímicos de biofertilizantes fúngicos al simular ondas de susurro, cuidado y mimos campestres.",
+        modeBioartDesc: "Bioarte: canaliza las variaciones espectrales de tonos e intenciones directamente en cambios de color (pigmentos bioluminiscentes) para crear arte molecular."
+      },
+      en: {
+        author: "Dr. Julio Cesar Oporta Barrera",
+        brand: "EMOTION MINING BIOX",
+        title: "3D Bioreactor",
+        langSec: "LANGUAGE / IDIOMA",
+        controlSec: "AFFECTIVE CONTROL PANEL",
+        diagnosticSec: "DIAGNOSTICS (RL Q-LEARNING)",
+        modeSec: "SYSTEM OPERATIONAL MODES",
+        biologySec: "BIOMECHANICS & MODULAR PHYSICS",
+        swarmSec: "SWARM AI INTELLECT",
+        nodesSec: "AI REDOX NODE SYSTEM",
+        displaySec: "AR & SHADERS",
+        calm: "Calm",
+        joy: "Joy",
+        sadness: "Sadness",
+        anger: "Anger",
+        padP: "Pleasure",
+        padA: "Arousal",
+        padD: "Dominance",
+        hudFreq: "Assoc. Freq",
+        hudPathway: "Metabolic Path",
+        hudCompound: "Synthesized Output",
+        sliVis: "Fluid Viscosity",
+        sliFreq: "Acoustic Hertz (Voxel)",
+        sliMem: "Membrane Pore Flux",
+        sliCount: "Bactocell Population",
+        sliCohesion: "Swarm Alignment Cohesion",
+        node1: "Human Operator (Vocal)",
+        node2: "Affective AI Decoder",
+        node3: "Acoustic Transducer Cap",
+        node4: "Synthetic TRPA1 Receptors",
+        chkGrid: "Holographic 3D Grid Guide",
+        chkBloom: "Cinematic Neon Aura",
+        chkAr: "Project on my Workbench (AR Mode)",
+        modePharma: "Bio-Pharmaceutical Mode",
+        modeRemediation: "Tactical Bioremediation",
+        modeAgri: "Smart Agro-Biotech Mode",
+        modeBioart: "Interactive Molecular Bioart",
+        modePharmaDesc: "Bio-Pharmaceutical: Amplifies expression of antioxidant proteins and healing enzymes when matching soft calming hums.",
+        modeRemediationDesc: "Bioremediation: Commands synthetically engineered bacteria to extract toxic heavy metals and digest crude oil under vocal emergency tones.",
+        modeAgriDesc: "Agro-Biotechnology: Triggers biofertilizer growth promoters using harmonic acoustic signals of care and organic prosperity.",
+        modeBioartDesc: "Bioart Focus: Links chromatophore cellular expansion directly with vocal spectral metrics to paint responsive bioluminescent colors."
+      },
+      zh: {
+        author: "Julio César Oporta Barrera 博士",
+        brand: "EMOTION MINING BIOX",
+        title: "全息3D生命反应器",
+        langSec: "选择语言 / LANGUAGE",
+        controlSec: "情感输入解析中枢",
+        diagnosticSec: "强化学习神经网络遥测",
+        modeSec: "生化工作模式调节",
+        biologySec: "生物力学模块与膜物理",
+        swarmSec: "群落智能 (SWARM AI)",
+        nodesSec: "全息生化互联节点",
+        displaySec: "高级着色器与AR漫游",
+        calm: "深思平静",
+        joy: "喜悦澎湃",
+        sadness: "低沉忧郁",
+        anger: "焦急警惕",
+        padP: "愉悦度 (Pleasure)",
+        padA: "激活度 (Arousal)",
+        padD: "支配度 (Dominance)",
+        hudFreq: "声压谐振点",
+        hudPathway: "靶向传导通路",
+        hudCompound: "目标产出化合物",
+        sliVis: "胶质粘稠通量",
+        sliFreq: "声学电磁谐振 (Voxel)",
+        sliMem: "膜脂通道开放率",
+        sliCount: "在轨工程菌存活量",
+        sliCohesion: "群落协作共振力",
+        node1: "人类声纹波谱",
+        node2: "AI 多维翻译系统",
+        node3: "压电声波定向激射器",
+        node4: "听觉敏感修饰蛋白",
+        chkGrid: "3D全息定位十字线",
+        chkBloom: "电影级炫光漫反射",
+        chkAr: "将立体投影覆盖到桌面(AR)",
+        modePharma: "制药与健康科研模式",
+        modeRemediation: "生态战术去碳修复",
+        modeAgri: "复合机智生物农业",
+        modeBioart: "交互感官分子艺术",
+        modePharmaDesc: "制药模式: 接收到平静舒缓的声音信号时，细菌高效分泌自然界的抗氧化能手还原型谷胱甘肽。",
+        modeRemediationDesc: "去碳生物修复: 紧急急促情绪激励下，工程大肠杆菌以 1.5 倍速吞噬石油并锁止有害重金属元素。",
+        modeAgriDesc: "复合农业模式: 模拟低频呵护的春雨音频，靶向诱导农田活性菌增值分泌作物强力防御素。",
+        modeBioartDesc: "分子艺术模式: 将人声音律的每一次顿挫与颤抖，精细转化为生物荧光多波长的渐变演色艺术。"
+      }
+    };
+
+    let currentLang = 'es';
+    let currentEmotion = 'calm';
+    let simParams = {
+      pleasure: 0.8,
+      arousal: -0.4,
+      dominance: 0.6,
+      viscosity: 35,
+      frequency: 1200,
+      membrane: 80,
+      bacteriaCount: 45,
+      cohesion: 60,
+      useGrid: true,
+      useBloom: true,
+      useAR: false,
+      mode: 'pharma'
+    };
+
+    const logsArray = [];
+    const maxLogs = 15;
+
+    // Trigger Node physical flash pulse
+    function triggerNodePulse(nodeId) {
+      const dot = document.getElementById('dot-node-' + nodeId);
+      if (dot) {
+        dot.classList.add('pulse-now');
+        addLog("Manual pulse trigger injected on Node [" + nodeId + "]");
+        setTimeout(() => {
+          dot.classList.remove('pulse-now');
+        }, 350);
+      }
+    }
+
+    // Diagnostics additions
+    function addLog(text) {
+      const timeStr = new Date().toTimeString().split(' ')[0];
+      logsArray.unshift({ time: timeStr, text: text });
+      if (logsArray.length > maxLogs) logsArray.pop();
+      renderLogs();
+    }
+
+    function renderLogs() {
+      const parent = document.getElementById('console-logs');
+      if (!parent) return;
+      parent.innerHTML = logsArray.map(log => 
+        '<div class="log-line"><span class="log-time">[' + log.time + ']</span><span class="log-text">' + log.text + '</span></div>'
+      ).join('');
+    }
+
+    // Set Translation
+    function setLanguage(lang) {
+      currentLang = lang;
+      
+      // Update language toggle buttons
+      const buttons = document.querySelectorAll('.btn-lang');
+      buttons.forEach(btn => btn.classList.remove('active'));
+      const activeBtn = Array.from(buttons).find(btn => btn.textContent.toLowerCase() === lang);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const d = dictionary[lang];
+      document.getElementById('lbl-author').textContent = d.author;
+      document.getElementById('lbl-brand').textContent = d.brand;
+      document.getElementById('lbl-title').textContent = d.title;
+      document.getElementById('lbl-lang-sec').textContent = d.langSec;
+      document.getElementById('lbl-control-sec').textContent = d.controlSec;
+      document.getElementById('lbl-diagnostic-sec').textContent = d.diagnosticSec;
+      document.getElementById('lbl-mode-sec').textContent = d.modeSec;
+      document.getElementById('lbl-biology-sec').textContent = d.biologySec;
+      document.getElementById('lbl-swarm-sec').textContent = d.swarmSec;
+      document.getElementById('lbl-nodes-sec').textContent = d.nodesSec;
+      document.getElementById('lbl-display-sec').textContent = d.displaySec;
+
+      document.getElementById('btn-pre-calm').textContent = d.calm;
+      document.getElementById('btn-pre-joy').textContent = d.joy;
+      document.getElementById('btn-pre-sad').textContent = d.sadness;
+      document.getElementById('btn-pre-ang').textContent = d.anger;
+
+      document.getElementById('lbl-pad-p').textContent = d.padP;
+      document.getElementById('lbl-pad-a').textContent = d.padA;
+      document.getElementById('lbl-pad-d').textContent = d.padD;
+
+      document.getElementById('lbl-hud-freq').textContent = d.hudFreq;
+      document.getElementById('lbl-hud-pathway').textContent = d.hudPathway;
+      document.getElementById('lbl-hud-compound').textContent = d.hudCompound;
+
+      document.getElementById('lbl-sli-vis').textContent = d.sliVis;
+      document.getElementById('lbl-sli-freq').textContent = d.sliFreq;
+      document.getElementById('lbl-sli-mem').textContent = d.sliMem;
+      document.getElementById('lbl-sli-count').textContent = d.sliCount;
+      document.getElementById('lbl-sli-cohesion').textContent = d.sliCohesion;
+
+      document.getElementById('node-lbl-1').textContent = d.node1;
+      document.getElementById('node-lbl-2').textContent = d.node2;
+      document.getElementById('node-lbl-3').textContent = d.node3;
+      document.getElementById('node-lbl-4').textContent = d.node4;
+
+      document.getElementById('lbl-chk-grid').textContent = d.chkGrid;
+      document.getElementById('lbl-chk-bloom').textContent = d.chkBloom;
+      document.getElementById('lbl-chk-ar').textContent = d.chkAr;
+
+      // Dropdown translations
+      const opSel = document.getElementById('sel-operational');
+      opSel.options[0].text = d.modePharma;
+      opSel.options[1].text = d.modeRemediation;
+      opSel.options[2].text = d.modeAgri;
+      opSel.options[3].text = d.modeBioart;
+
+      updateDescriptions();
+      addLog("Language profile swapped to [" + lang.toUpperCase() + "]");
+    }
+
+    function selectEmotion(em) {
+      currentEmotion = em;
+      
+      const buttons = document.querySelectorAll('.btn-preset');
+      buttons.forEach(btn => btn.classList.remove('active'));
+      document.getElementById('btn-pre-' + (em === 'sadness' ? 'sad' : em === 'anger' ? 'ang' : em === 'calm' ? 'calm' : 'joy')).classList.add('active');
+
+      if (em === 'calm') {
+        simParams.pleasure = 0.8;
+        simParams.arousal = -0.4;
+        simParams.dominance = 0.6;
+        simParams.frequency = 600;
+        simParams.mode = 'pharma';
+      } else if (em === 'joy') {
+        simParams.pleasure = 0.9;
+        simParams.arousal = 0.8;
+        simParams.dominance = 0.7;
+        simParams.frequency = 1200;
+        simParams.mode = 'pharma';
+      } else if (em === 'sadness') {
+        simParams.pleasure = -0.7;
+        simParams.arousal = -0.8;
+        simParams.dominance = -0.3;
+        simParams.frequency = 600;
+        simParams.mode = 'remediation';
+      } else if (em === 'anger') {
+        simParams.pleasure = -0.8;
+        simParams.arousal = 0.9;
+        simParams.dominance = 0.5;
+        simParams.frequency = 1800;
+        simParams.mode = 'remediation';
+      }
+
+      // Sync widgets
+      document.getElementById('sli-pad-p').value = simParams.pleasure;
+      document.getElementById('sli-pad-a').value = simParams.arousal;
+      document.getElementById('sli-pad-d').value = simParams.dominance;
+      document.getElementById('sli-freq').value = simParams.frequency;
+      document.getElementById('sel-operational').value = simParams.mode;
+
+      updatePADValues();
+      updateDescriptions();
+      addLog("Emotion shifted: " + em.toUpperCase());
+    }
+
+    function updatePAD() {
+      simParams.pleasure = parseFloat(document.getElementById('sli-pad-p').value);
+      simParams.arousal = parseFloat(document.getElementById('sli-pad-a').value);
+      simParams.dominance = parseFloat(document.getElementById('sli-pad-d').value);
+      
+      updatePADValues();
+      addLog("Custom PAD changed -> [" + simParams.pleasure + ", " + simParams.arousal + ", " + simParams.dominance + "]");
+    }
+
+    function updatePADValues() {
+      document.getElementById('val-pad-p').textContent = simParams.pleasure;
+      document.getElementById('val-pad-a').textContent = simParams.arousal;
+      document.getElementById('val-pad-d').textContent = simParams.dominance;
+    }
+
+    function changeOperationalMode() {
+      simParams.mode = document.getElementById('sel-operational').value;
+      updateDescriptions();
+      addLog("Core operational parameters aligned to Mode [" + simParams.mode + "]");
+    }
+
+    function updateDescriptions() {
+      const d = dictionary[currentLang];
+      const lbl = document.getElementById('val-hud-freq');
+      const pathwayLabel = document.getElementById('val-hud-pathway');
+      const compoundLabel = document.getElementById('val-hud-compound');
+      const descLabel = document.getElementById('mode-desc-lbl');
+
+      lbl.textContent = simParams.frequency + " Hz";
+
+      if (simParams.mode === 'pharma') {
+        pathwayLabel.textContent = currentLang === 'es' ? "Síntesis de Proteínas Regeneradoras" : currentLang === 'zh' ? "表达重组修复级联活性" : "Regenerative Protein Cascade";
+        compoundLabel.textContent = currentLang === 'es' ? "Antioxidantes (Glutatión, Catalasa)" : currentLang === 'zh' ? "谷胱甘肽、生长酶核" : "Antioxidant complex (Glutathione)";
+        descLabel.textContent = d.modePharmaDesc;
+      } else if (simParams.mode === 'remediation') {
+        pathwayLabel.textContent = currentLang === 'es' ? "Operón de Digestión Hidrocarburos" : currentLang === 'zh' ? "烷烃氧化物降解活化途径" : "Hydrocarbon Oxidation Pathway";
+        compoundLabel.textContent = currentLang === 'es' ? "Enzimas Biodegradadoras de Petróleo" : currentLang === 'zh' ? "重金属沉淀鳌合物" : "Biodegrading Crude Enzymes";
+        descLabel.textContent = d.modeRemediationDesc;
+      } else if (simParams.mode === 'agri') {
+        pathwayLabel.textContent = currentLang === 'es' ? "Ruta Promotora Giberelina Fúngica" : currentLang === 'zh' ? "植物激素诱导合成大通路" : "Fungal Gibberellin Secreter";
+        compoundLabel.textContent = currentLang === 'es' ? "Biofertilizante Molecular Activo" : currentLang === 'zh' ? "复合根瘤菌刺激活性分子" : "Active Gibberellin Hormone";
+        descLabel.textContent = d.modeAgriDesc;
+      } else {
+        pathwayLabel.textContent = currentLang === 'es' ? "Translocación de Cromoproteínas Bioluminiscentes" : currentLang === 'zh' ? "生物荧光色原核糖体偶联" : "Chromoprotein Luminescent Synthesis";
+        compoundLabel.textContent = currentLang === 'es' ? "Pigmentos Fluorescentes BioCromáticos" : currentLang === 'zh' ? "多波段光谱自发光分子" : "Bioluminescent Multi-pigments";
+        descLabel.textContent = d.modeBioartDesc;
+      }
+    }
+
+    function updateSliders() {
+      simParams.viscosity = parseInt(document.getElementById('sli-vis').value);
+      simParams.frequency = parseInt(document.getElementById('sli-freq').value);
+      simParams.membrane = parseInt(document.getElementById('sli-mem').value);
+      simParams.bacteriaCount = parseInt(document.getElementById('sli-count').value);
+      simParams.cohesion = parseInt(document.getElementById('sli-cohesion').value);
+
+      document.getElementById('val-sli-vis').textContent = simParams.viscosity + "%";
+      document.getElementById('val-sli-freq').textContent = simParams.frequency + " Hz";
+      document.getElementById('val-sli-mem').textContent = simParams.membrane + "%";
+      document.getElementById('val-sli-count').textContent = simParams.bacteriaCount;
+      document.getElementById('val-sli-cohesion').textContent = simParams.cohesion + "%";
+
+      updateDescriptions();
+    }
+
+    function updateShaders() {
+      simParams.useGrid = document.getElementById('chk-grid').checked;
+      simParams.useBloom = document.getElementById('chk-bloom').checked;
+    }
+
+    function toggleARMode() {
+      simParams.useAR = document.getElementById('chk-ar').checked;
+      const bdr = document.getElementById('ar-backdrop');
+      const wmk = document.getElementById('watermark-ar-lbl');
+      if (simParams.useAR) {
+        bdr.style.display = 'flex';
+        if (wmk) wmk.style.display = 'flex';
+        addLog("AR Backdrop mode initiated (desk visual mockup)");
+      } else {
+        bdr.style.display = 'none';
+        if (wmk) wmk.style.display = 'none';
+        addLog("AR Backdrop terminated");
+      }
+    }
+
+    // STATE CONTROL HANDLERS FOR OFFLINE INTEGRATION
+    let offlineShields = [true, true, true];
+    let offlineStorm = true;
+    let offlineBattery = 94;
+    let selectedNodeId = null;
+
+    function toggleOfflineShield(index) {
+      offlineShields[index] = !offlineShields[index];
+      const dot = document.getElementById('status-shield-' + (index + 1));
+      if (dot) {
+        if (offlineShields[index]) {
+          dot.style.background = '#10b981';
+          dot.style.boxShadow = '0 0 6px #10b981';
+        } else {
+          dot.style.background = '#ef4444';
+          dot.style.boxShadow = '0 0 6px #ef4444';
+        }
+      }
+      
+      const shieldNames = [
+        currentLang === 'es' ? 'Presión de Fluido' : 'Fluid Pressure',
+        currentLang === 'es' ? 'Contención Magnética' : 'Magnetic Containment',
+        currentLang === 'es' ? 'Filtro CRISPR-Cas9' : 'CRISPR-Cas9 Filter'
+      ];
+      const statusStr = offlineShields[index] ? 'ONLINE' : 'OFFLINE';
+      addLog("Shield [" + shieldNames[index] + "] set to " + statusStr);
+    }
+
+    function toggleOfflineStorm() {
+      offlineStorm = !offlineStorm;
+      const btn = document.getElementById('btn-offline-storm');
+      const lblBattery = document.getElementById('lbl-offline-battery');
+      const barBattery = document.getElementById('bar-offline-battery');
+      const lblAtp = document.getElementById('lbl-offline-atp');
+      
+      if (offlineStorm) {
+        btn.textContent = "STORM MODE ACTIVE";
+        btn.style.background = "rgba(16,185,129,0.15)";
+        btn.style.borderColor = "#10b981";
+        btn.style.color = "#10b981";
+        offlineBattery = 62;
+        lblBattery.style.color = "#ef4444";
+        barBattery.style.backgroundColor = "#ef4444";
+        lblAtp.textContent = "99%";
+        addLog("Biochemical stimulator STORM active. Elevated cell stress.");
+      } else {
+        btn.textContent = "STORM MODE STABILIZED";
+        btn.style.background = "rgba(148,163,184,0.1)";
+        btn.style.borderColor = "#64748b";
+        btn.style.color = "#94a3b8";
+        offlineBattery = 94;
+        lblBattery.style.color = "#10b981";
+        barBattery.style.backgroundColor = "#10b981";
+        lblAtp.textContent = "78%";
+        addLog("Biochemical system stabilized. Core cells relaxed.");
+      }
+      lblBattery.textContent = offlineBattery + "%";
+      barBattery.style.width = offlineBattery + "%";
+    }
+
+    // Interactive nodes projection database (offline clone of NODE_DIAGNOSTICS)
+    const nodeDataMap = {
+      '1': {
+        es: { name: "Operador de Frecuencia Humana", type: "Entrada Proximal No Lineal", desc: "Establece el vector fundamental de prosodia y análisis de frecuencias vocales humanas directas. Extrae valores PLEASURE, AROUSAL y DOMINANCE.", m1: "Pleasure (PAD)", m2: "Arousal (PAD)", m3: "Dominance (PAD)" },
+        en: { name: "Human Frequency Operator", type: "Nonlinear Proximal Input", desc: "Analyzes and establishes the foundational vocal prosody vector. Extract and map emotional pleasure, arousal, and dominance coefficients.", m1: "Pleasure", m2: "Arousal", m3: "Dominance" },
+        zh: { name: "人类操作员与情感解析", type: "非线性主音源输入", desc: "建立人类声纹分析的核心矢量。通过情感神经网络引擎解析Pleasure、Arousal和Dominance微度矢量。", m1: "Pleasure值", m2: "Arousal值", m3: "Dominance值" }
+      },
+      '2': {
+        es: { name: "Algoritmo de Traducción IA", type: "Red Recurrente Q-Learning", desc: "Alinea de forma computacional el estado afectivo derivado con las consignas químicas apropiadas. Utiliza recompensas heurísticas.", m1: "Llegada RL", m2: "Precisión", m3: "Pérdida Adaptativa" },
+        en: { name: "Affective AI Decoder Engine", type: "Q-learning Reinforcement Core", desc: "Bridges computational emotion metrics with biosynthetic operational parameters. Leverages double Q-learning algorithms.", m1: "RL Convergence", m2: "Decision Acc", m3: "Adaptive Loss" },
+        zh: { name: "情感AI特征与Q学习解析器", type: "双循环增强型Q学习网络", desc: "高精准计算人类情感与细菌胞外物质转化的化学当量。利用强化Q学习网络自适应逼近最优细胞能效产量。", m1: "强化Q函数", m2: "模型精确比", m3: "损失变异度" }
+      },
+      '3': {
+        es: { name: "Transductor Piezoeléctrico", type: "Actuador de Oscilación Física", desc: "Transforma las señales de control de micro-vibración en remolinos fluidodinámicos reales. Ajusta la agitación de la columna.", m1: "Resonancia", m2: "Viscosidad", m3: "Amplitud" },
+        en: { name: "Piezo-acoustic Transducer Core", type: "Mechanical Vibrating Actuator", desc: "Transforms low-voltage audio commands into physical microfluidic pressure waves. Modulates fluid shear stress.", m1: "Resonance", m2: "Viscosity", m3: "Shear Amp" },
+        zh: { name: "低压高频压电式共鸣换能器", type: "高频流体剪切力物理促动器", desc: "转化微幅声电信号并注入实际流体流。精密调节细胞悬液剪切波动，在分子壁上触发听觉蛋白受试。", m1: "谐振波峰", m2: "剪切粘度", m3: "微米应力幅度" }
+      },
+      '4': {
+        es: { name: "Bioreceptores Sintéticos TRPA1", type: "Canales Iónicos de Membrana", desc: "Receptores sensibles al tacto y vibración insertados en la doble capa lipídica. Abren poros moleculares permitiendo calcio.", m1: "Permeabilidad", m2: "Umbral Gating", m3: "Volumen Calcio" },
+        en: { name: "TRPA1 Mechanoreceptive Portals", type: "Transmembrane Ion Shunt", desc: "Touch-sensitive transport membrane proteins engineered into cell surfaces. Modulates ion permeability based on physical wave shear.", m1: "Permeability", m2: "Gating Threshold", m3: "Ca²+ Flux Vol" },
+        zh: { name: "人工听觉TRPA1膜受体受压通道", type: "细胞膜剪切敏感型离子门通道", desc: "设计在工程菌脂质双分子层、对物理压力极度敏感 of 转接蛋白通道。当谐振微流产生时，通道开启Ca²⁺流。", m1: "通透因子", m2: "开启阀值压力", m3: "钙流传量速率" }
+      },
+      '5': {
+        es: { name: "Cascada Cinética Intracelular", type: "Cascada Promotora Genómica", desc: "Conduce la señal de transducción hacia los bloques promotores del ADN. Induce la síntesis activa de ribosomas.", m1: "Alineación CRISPR", m2: "Protocolo", m3: "Flujo RNA" },
+        en: { name: "Kinetic Cascade Pathways", type: "Downstream Genomic Promotor", desc: "Translates intracellular signaling into targeted RNA transcription vectors, prompting active synthesis of enzymes.", m1: "CRISPR Stability", m2: "Active Paradigm", m3: "RNA Poly Flux" },
+        zh: { name: "靶向DNA核糖体酶转录合成环", type: "次级生化酶转录调控促进器", desc: "连接受体蛋白钙离子浓度与末端染色体RNA转录信号的目标链。靶向调控与细胞核糖体蛋白质组高负荷组装。", m1: "CRISPR稳定率", m2: "当前激发策略", m3: "转录聚流率" }
+      },
+      '6': {
+        es: { name: "Compuesto Bioactivo Patentado", type: "Salida Purificada", desc: "Efluente condensado listo para cosecha. Dependiendo del modo, purifica antioxidantes o de limpieza.", m1: "Eficiencia", m2: "Fórmula", m3: "Pureza" },
+        en: { name: "Patented Bioactive Synthesis", type: "Final Purified Output", desc: "Purified extracellular yield harvested from the fluid column. Output formulation morphs dynamically based on operating modes.", m1: "ATP Harvest Yield", m2: "Formula Spec", m3: "Purity Value" },
+        zh: { name: "高纯度最终目标活性产物", type: "多级分子筛泵出产物", desc: "过滤和离心纯化完成的目标复合底物。可根据运行范式精细产出各级生化酶制剂。", m1: "最终产出效能", m2: "复合代化学名", m3: "净过滤产出纯度" }
+      }
+    };
+
+    function selectNodeOffline(id) {
+      selectedNodeId = id;
+      
+      // Highlight active card
+      const items = document.querySelectorAll('.node-item');
+      items.forEach(el => {
+        el.style.borderColor = '';
+        el.style.background = '';
+      });
+      const activeCard = document.getElementById('node-box-' + id);
+      if (activeCard) {
+        activeCard.style.borderColor = '#00f0ff';
+        activeCard.style.background = 'rgba(0, 240, 255, 0.08)';
+      }
+
+      // Populate floating telemetry card
+      let hud = document.getElementById('node-overlay-hud');
+      if (!hud) {
+        hud = document.createElement('div');
+        hud.id = "node-overlay-hud";
+        hud.style.position = "absolute";
+        hud.style.bottom = "20px";
+        hud.style.left = "20px";
+        hud.style.background = "rgba(6, 9, 19, 0.95)";
+        hud.style.border = "1px solid #00f0ff";
+        hud.style.borderRadius = "6px";
+        hud.style.padding = "14px";
+        hud.style.width = "280px";
+        hud.style.zIndex = "100";
+        hud.style.fontFamily = "monospace";
+        hud.style.boxShadow = "0 0 20px rgba(0, 240, 255, 0.25)";
+        document.getElementById('canvas-container').appendChild(hud);
+      }
+
+      hud.style.display = 'block';
+      const nodeInfo = nodeDataMap[id][currentLang];
+      
+      let val1 = "0.00";
+      let val2 = "0.00";
+      let val3 = "0.00";
+      if (id === '1') {
+        val1 = simParams.pleasure;
+        val2 = simParams.arousal;
+        val3 = simParams.dominance;
+      } else if (id === '2') {
+        val1 = "Q(s,a) = +1.84"; val2 = "94.85%"; val3 = "0.002";
+      } else if (id === '3') {
+        val1 = simParams.frequency + " Hz"; val2 = simParams.viscosity + "%"; val3 = "2.4 µm";
+      } else if (id === '4') {
+        val1 = simParams.membrane + "%"; val2 = "48 mN/m"; val3 = "820 pmol/s";
+      } else if (id === '5') {
+        val1 = offlineStorm ? "41%" : "96%"; val2 = "MOD_" + simParams.mode.toUpperCase(); val3 = "115 bp/s";
+      } else if (id === '6') {
+        val1 = offlineStorm ? "99%" : "78%"; 
+        val2 = simParams.mode === 'pharma' ? 'G-SH' : simParams.mode === 'remediation' ? 'Enz.Digest' : simParams.mode === 'agri' ? 'Auxin-A34' : 'Chromo-RGB'; 
+        val3 = "99.88%";
+      }
+
+      hud.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #14213d; padding-bottom:8px; margin-bottom:8px;">
+          <span style="color:#00f0ff; font-weight:bold; font-size:10px;">NODE TELEMETRY [0${id}]</span>
+          <span onclick="window.closeNodeOfflineHTML()" style="cursor:pointer; color:#64748b; font-weight:bold; font-size:12px; padding: 2px 6px;">✕</span>
+        </div>
+        <div style="font-size:11px; color:#fff; font-weight:bold; margin-bottom:4px; font-family: 'Inter', sans-serif;">${nodeInfo.name}</div>
+        <div style="font-size:8px; color:#a5b4fc; background:rgba(129,140,248,0.1); border:1px solid rgba(129,140,248,0.2); padding:1px 4px; display:inline-block; border-radius:2px; margin-bottom:6px;">${nodeInfo.type}</div>
+        <p style="font-size:9.5px; color:#94a3b8; line-height:1.4; margin-bottom:8px;">${nodeInfo.desc}</p>
+        <div style="display:flex; flex-direction:column; gap:4px; border-top:1px dashed #14213d; padding-top:6px;">
+          <div style="display:flex; justify-content:space-between; font-size:9.5px;">
+            <span style="color:#475569;">${nodeInfo.m1}:</span>
+            <span style="color:#00f0ff; font-weight:bold;">${val1}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:9.5px;">
+            <span style="color:#475569;">${nodeInfo.m2}:</span>
+            <span style="color:#818cf8; font-weight:bold;">${val2}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:9.5px;">
+            <span style="color:#475569;">${nodeInfo.m3}:</span>
+            <span style="color:#ef4444; font-weight:bold;">${val3}</span>
+          </div>
+        </div>
+      `;
+      addLog("Node telemetry focus: [" + nodeInfo.name + "]");
+    }
+
+    window.closeNodeOfflineHTML = function() {
+      const hud = document.getElementById('node-overlay-hud');
+      if (hud) hud.style.display = 'none';
+      selectedNodeId = null;
+      const items = document.querySelectorAll('.node-item');
+      items.forEach(el => {
+        el.style.borderColor = '';
+        el.style.background = '';
+      });
+    };
+
+    // -------------------------------------------------------------
+    // standalone 3D engine rendered in standard Canvas (100% offline)
+    // -------------------------------------------------------------
+    const canvas = document.getElementById('gl-canvas');
+    const ctx = canvas.getContext('2d');
+
+    let rotX = -0.4;
+    let rotY = 0.6;
+    let zoom = 200;
+    let isDragging = false;
+    let lastMousePos = { x: 0, y: 0 };
+    let time = 0;
+
+    // Bacteria population
+    const bacteria = [];
+    function initBacteria() {
+      bacteria.length = 0;
+      for (let i = 0; i < 100; i++) {
+        bacteria.push({
+          x: (Math.random() - 0.5) * 160,
+          y: (Math.random() - 0.5) * 50,
+          z: (Math.random() - 0.5) * 50,
+          vx: (Math.random() - 0.5) * 1.5,
+          vy: (Math.random() - 0.5) * 1.5,
+          vz: (Math.random() - 0.5) * 1.5,
+          tailPhase: Math.random() * Math.PI * 2,
+          radius: 3 + Math.random() * 3
+        });
+      }
+    }
+
+    // Drag handlers
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      lastMousePos = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - lastMousePos.x;
+      const dy = e.clientY - lastMousePos.y;
+      rotY += dx * 0.007;
+      rotX += dy * 0.007;
+      lastMousePos = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      zoom = Math.max(50, Math.min(600, zoom - e.deltaY * 0.4));
+    });
+
+    // AR matrix generators
+    function drawARSimulator(w, h) {
+      // Offline fallback: draw procedural tabletop grid with radial glow to simulate desk surface
+      const gradient = ctx.createRadialGradient(w/2, h/2, 50, w/2, h/2, Math.max(w, h));
+      gradient.addColorStop(0, '#0c1524');
+      gradient.addColorStop(0.5, '#050a12');
+      gradient.addColorStop(1, '#020306');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+
+      // Desktop grid projection
+      ctx.strokeStyle = 'rgba(0, 255, 128, 0.1)';
+      ctx.lineWidth = 1;
+      for (let index = 0; index < w; index += 40) {
+        ctx.beginPath();
+        ctx.moveTo(index, 0);
+        ctx.lineTo(index, h);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(0, index);
+        ctx.lineTo(w, index);
+        ctx.stroke();
+      }
+    }
+
+    function render3D() {
+      time += 0.015;
+      const w = canvas.width = canvas.clientWidth;
+      const h = canvas.height = canvas.clientHeight;
+
+      ctx.clearRect(0, 0, w, h);
+
+      if (simParams.useAR) {
+        drawARSimulator(w, h);
+      } else {
+        // Black Titanium
+        const grad = ctx.createRadialGradient(w/2, h/2, 20, w/2, h/2, Math.max(w, h));
+        grad.addColorStop(0, '#090e17');
+        grad.addColorStop(1, '#010204');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      // Draw Grid on floor
+      if (simParams.useGrid) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.08)';
+        ctx.lineWidth = 1;
+        const gridSize = 40;
+        const perspectiveZ = 300;
+        
+        for (let g = -5; g <= 5; g++) {
+          const projectGrid = (x, y, z) => {
+            const cY = Math.cos(time * 0.12);
+            const sY = Math.sin(time * 0.12);
+            const cX = Math.cos(rotX);
+            const sX = Math.sin(rotX);
+
+            const x1 = x * cY - z * sY;
+            const z1 = x * sY + z * cY;
+            
+            const y2 = y * cX - z1 * sX;
+            const z2 = y * sX + z1 * cX;
+
+            const scale = zoom / (z2 + perspectiveZ);
+            return {
+              x: x1 * scale + w / 2,
+              y: y2 * scale + h * 0.55
+            };
+          };
+
+          const p1 = projectGrid(g * gridSize, 70, -200);
+          const p2 = projectGrid(g * gridSize, 70, 200);
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+
+          const q1 = projectGrid(-200, 70, g * gridSize);
+          const q2 = projectGrid(200, 70, g * gridSize);
+          ctx.beginPath();
+          ctx.moveTo(q1.x, q1.y);
+          ctx.lineTo(q2.x, q2.y);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // Trig variables
+      const cY = Math.cos(time * 0.12);
+      const sY = Math.sin(time * 0.12);
+      const cX = Math.cos(rotX);
+      const sX = Math.sin(rotX);
+      const d = 300;
+
+      const project = (x, y, z) => {
+        const x1 = x * cY - z * sY;
+        const z1 = x * sY + z * cY;
+
+        const y2 = y * cX - z1 * sX;
+        const z2 = y * sX + z1 * cX;
+
+        const scale = zoom / (z2 + d);
+        return {
+          x: x1 * scale + w / 2,
+          y: y2 * scale + h * 0.5,
+          zDepth: z2,
+          scale: scale
+        };
+      };
+
+      let bioColor = '#00f0ff';
+      let glowColor = 'rgba(0, 240, 255, ';
+      if (currentEmotion === 'joy') {
+        bioColor = '#ffd700';
+        glowColor = 'rgba(255, 215, 0, ';
+      } else if (currentEmotion === 'sadness') {
+        bioColor = '#a832ff';
+        glowColor = 'rgba(155, 89, 182, ';
+      } else if (currentEmotion === 'anger') {
+        bioColor = '#ff2828';
+        glowColor = 'rgba(255, 40, 40, ';
+      }
+
+      const elements = [];
+
+      // Add cylinder hoops
+      const cylinderRadius = 60;
+      const cylinderLength = 160;
+      const steps = 7;
+      const slices = 12;
+
+      for (let s = 0; s < steps; s++) {
+        const xPos = -cylinderLength / 2 + (s * cylinderLength) / (steps - 1);
+        elements.push({
+          depth: xPos * sY,
+          draw: () => {
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(0, 240, 255, ' + (0.15 + (1 - Math.abs(s - (steps-1)/2)/steps) * 0.25) + ')';
+            ctx.lineWidth = s === 0 || s === steps - 1 ? 2.5 : 1;
+
+            for (let i = 0; i <= slices; i++) {
+              const angle = (i * Math.PI * 2) / slices;
+              const r = cylinderRadius;
+              const yPos = Math.sin(angle) * r;
+              const zPos = Math.cos(angle) * r;
+              const p = project(xPos, yPos, zPos);
+              if (i === 0) ctx.moveTo(p.x, p.y);
+              else ctx.lineTo(p.x, p.y);
+            }
+            ctx.stroke();
+
+            // Acoustic cap transmitters
+            if (s === 0 || s === steps - 1) {
+              const c = project(xPos, 0, 0);
+              ctx.beginPath();
+              ctx.arc(c.x, c.y, Math.max(1, 4 * c.scale / 100), 0, Math.PI * 2);
+              ctx.fillStyle = s === 0 ? '#ff3b30' : bioColor;
+              ctx.fill();
+
+              // sound wave deforms
+              const waveRadius = ((time * 120 + s * 45) % 100) / 100 * cylinderRadius;
+              ctx.beginPath();
+              ctx.strokeStyle = glowColor + (0.7 * (1 - waveRadius/cylinderRadius)) + ')';
+              ctx.lineWidth = 1.5;
+              for (let i = 0; i <= slices; i++) {
+                const angle = (i * Math.PI * 2) / slices;
+                const p = project(xPos, Math.sin(angle) * waveRadius, Math.cos(angle) * waveRadius);
+                if (i === 0) ctx.moveTo(p.x, p.y);
+                else ctx.lineTo(p.x, p.y);
+              }
+              ctx.stroke();
+            }
+          }
+        });
+      }
+
+      // Central shaft
+      elements.push({
+        depth: 0,
+        draw: () => {
+          const pStart = project(-cylinderLength/2, 0, 0);
+          const pEnd = project(cylinderLength/2, 0, 0);
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
+          ctx.lineWidth = 2.5;
+          ctx.moveTo(pStart.x, pStart.y);
+          ctx.lineTo(pEnd.x, pEnd.y);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.strokeStyle = bioColor;
+          ctx.lineWidth = 1.2;
+          let helixFirst = true;
+          for (let xl = -cylinderLength/2; xl <= cylinderLength/2; xl += 6) {
+            const angle = xl * 0.15 + time * 3.5;
+            const pt = project(xl, Math.sin(angle)*11, Math.cos(angle)*11);
+            if (helixFirst) {
+              ctx.moveTo(pt.x, pt.y);
+              helixFirst = false;
+            } else {
+              ctx.lineTo(pt.x, pt.y);
+            }
+          }
+          ctx.stroke();
+        }
+      });
+
+      // Bacteria swarms physics
+      for (let k = 0; k < Math.min(bacteria.length, simParams.bacteriaCount); k++) {
+        const bact = bacteria[k];
+        
+        // Limits checks
+        const edgeLimit = cylinderLength / 2 - 10;
+        if (bact.x > edgeLimit) bact.vx -= 0.15;
+        if (bact.x < -edgeLimit) bact.vx += 0.15;
+
+        const dist = Math.sqrt(bact.y * bact.y + bact.z * bact.z);
+        const limitRadius = cylinderRadius - 12;
+        if (dist > limitRadius) {
+          bact.vx -= (bact.y/dist) * 1.5;
+          bact.vz -= (bact.z/dist) * 1.5;
+        }
+
+        const cohesionFrac = simParams.cohesion * 0.00035;
+        const friction = 1 - (simParams.viscosity * 0.0005);
+        bact.x += bact.vx * friction;
+        bact.y += bact.vy * friction;
+        bact.z += bact.vz * friction;
+        bact.tailPhase += 0.25;
+
+        const scr = project(bact.x, bact.y, bact.z);
+
+        elements.push({
+          depth: scr.zDepth,
+          draw: () => {
+            const r = Math.max(1, bact.radius * (scr.scale / 100));
+            
+            // Glow
+            const cellGrad = ctx.createRadialGradient(scr.x, scr.y, 0, scr.x, scr.y, r * 2.8);
+            cellGrad.addColorStop(0, '#ffffff');
+            cellGrad.addColorStop(0.35, bioColor);
+            cellGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = cellGrad;
+            ctx.beginPath();
+            ctx.arc(scr.x, scr.y, r * 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = bioColor;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(scr.x, scr.y, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          }
+        });
+      }
+
+      // Rotating active modular physical shield loops
+      for (let sIdx = 0; sIdx < 3; sIdx++) {
+        const shieldIsActive = offlineShields[sIdx];
+        const shX = -50 + sIdx * 50;
+        const shR = cylinderRadius + 15 + sIdx * 8;
+        const shRotSpeed = (sIdx + 1) * 0.4 * (shX < 0 ? -1 : 1);
+        const shRotAngle = time * shRotSpeed;
+
+        elements.push({
+          depth: shX * sY,
+          draw: () => {
+            ctx.beginPath();
+            ctx.lineWidth = 2;
+            if (shieldIsActive) {
+              ctx.strokeStyle = sIdx === 0 ? 'rgba(0, 240, 255, 0.35)' : sIdx === 1 ? 'rgba(129, 140, 248, 0.35)' : 'rgba(52, 211, 153, 0.35)';
+              ctx.setLineDash([8, 12]);
+            } else {
+              ctx.strokeStyle = 'rgba(239, 68, 68, 0.15)';
+              ctx.setLineDash([2, 8]);
+            }
+
+            for (let i = 0; i <= slices; i++) {
+              const angle = (i * Math.PI * 2) / slices + shRotAngle;
+              const yPos = Math.sin(angle) * shR;
+              const zPos = Math.cos(angle) * shR;
+              const p = project(shX, yPos, zPos);
+              if (i === 0) ctx.moveTo(p.x, p.y);
+              else ctx.lineTo(p.x, p.y);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset line dash
+          }
+        });
+      }
+
+      // Interactive nodes projection with 6-nodes configuration
+      const inlineNodes = [
+        { id: '1', name: currentLang === 'es' ? 'Voz' : currentLang === 'zh' ? '声纹' : 'Vocal', val: currentEmotion.toUpperCase(), x: -150, y: -45, z: 0 },
+        { id: '2', name: 'AI Dec', val: '94% Acc', x: -90, y: -45, z: 25 },
+        { id: '3', name: 'Piezo', val: simParams.frequency + 'Hz', x: -30, y: -45, z: -25 },
+        { id: '4', name: 'TRPA1', val: simParams.membrane + '%', x: 30, y: -45, z: 25 },
+        { id: '5', name: currentLang === 'es' ? 'Cascada' : currentLang === 'zh' ? '级联' : 'Cascade', val: 'TRANS', x: 90, y: -45, z: -25 },
+        { id: '6', name: currentLang === 'es' ? 'Comp.' : currentLang === 'zh' ? '目标' : 'Yield', val: offlineStorm ? '99%' : '78%', x: 150, y: -45, z: 0 }
+      ];
+
+      inlineNodes.forEach(node => {
+        const nodScr = project(node.x, node.y, node.z);
+        const nodeIsSelected = selectedNodeId === node.id;
+
+        elements.push({
+          depth: nodScr.zDepth + 15,
+          draw: () => {
+            // Standard or High-Glow Selection Halo Aura
+            ctx.beginPath();
+            ctx.arc(nodScr.x, nodScr.y, nodeIsSelected ? 22 : 16, 0, Math.PI * 2);
+            ctx.fillStyle = nodeIsSelected ? 'rgba(0, 240, 255, 0.22)' : 'rgba(0, 240, 255, 0.08)';
+            ctx.strokeStyle = nodeIsSelected ? '#ffffff' : '#00f0ff';
+            ctx.lineWidth = nodeIsSelected ? 2.5 : 1.2;
+            ctx.fill();
+            ctx.stroke();
+
+            // Dynamic Targeting reticle projections
+            if (nodeIsSelected) {
+              ctx.save();
+              ctx.strokeStyle = '#00f0ff';
+              ctx.lineWidth = 1;
+              ctx.setLineDash([4, 4]);
+              
+              // Draw targeted corner brackets
+              const bS = 6; // Bracket size
+              const rR = 26; // Radius offset
+              
+              // Top-Left corner bracket
+              ctx.beginPath();
+              ctx.moveTo(nodScr.x - rR, nodScr.y - rR + bS);
+              ctx.lineTo(nodScr.x - rR, nodScr.y - rR);
+              ctx.lineTo(nodScr.x - rR + bS, nodScr.y - rR);
+              ctx.stroke();
+
+              // Top-Right corner bracket
+              ctx.beginPath();
+              ctx.moveTo(nodScr.x + rR, nodScr.y - rR + bS);
+              ctx.lineTo(nodScr.x + rR, nodScr.y - rR);
+              ctx.lineTo(nodScr.x + rR - bS, nodScr.y - rR);
+              ctx.stroke();
+
+              // Bottom-Left corner bracket
+              ctx.beginPath();
+              ctx.moveTo(nodScr.x - rR, nodScr.y + rR - bS);
+              ctx.lineTo(nodScr.x - rR, nodScr.y + rR);
+              ctx.lineTo(nodScr.x - rR + bS, nodScr.y + rR);
+              ctx.stroke();
+
+              // Bottom-Right corner bracket
+              ctx.beginPath();
+              ctx.moveTo(nodScr.x + rR, nodScr.y + rR - bS);
+              ctx.lineTo(nodScr.x + rR, nodScr.y + rR);
+              ctx.lineTo(nodScr.x + rR - bS, nodScr.y + rR);
+              ctx.stroke();
+
+              // Draw ground projection reference line
+              const pBase = project(node.x, 70, node.z); // Project to ground floor grid
+              ctx.beginPath();
+              ctx.moveTo(nodScr.x, nodScr.y + 22);
+              ctx.lineTo(pBase.x, pBase.y);
+              ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
+              ctx.stroke();
+
+              ctx.setLineDash([]);
+              ctx.restore();
+            }
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 8.5px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText(node.name, nodScr.x, nodScr.y - 1.5);
+            ctx.fillStyle = nodeIsSelected ? '#ffffff' : '#00f0ff';
+            ctx.font = 'bold 7.5px Courier New';
+            ctx.fillText(node.val, nodScr.x, nodScr.y + 8);
+          }
+        });
+      });
+
+      // Depth sort
+      elements.sort((a,b) => b.depth - a.depth);
+      elements.forEach(el => el.draw());
+
+      // Bloom Effect overlays
+      if (simParams.useBloom) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.18;
+        ctx.filter = 'blur(8px)';
+        ctx.drawImage(canvas, 0, 0, w, h);
+        ctx.restore();
+      }
+
+      requestAnimationFrame(render3D);
+    }
+
+    // Initialize elements on DOM load
+    initBacteria();
+    render3D();
+
+    setLanguage('es');
+
+    // Simulate logs in background to mimic active biological telemetry
+    setInterval(() => {
+      const phrases = [
+        "Translocación de canal TRPA1 detectada con éxito.",
+        "Compresión de vectores en espacio PAD completados.",
+        "IA Afectiva ajustando matriz Q(S_t, A_t) -> Recompensa: +0.45",
+        "Tasa de expresión sintética modulándose por ondas de presión.",
+        "Interacción emotiva: equilibrio bioquímico óptimo detectado.",
+        "Mitigación de sesgos algorítmicos: calibración de prosodia OK.",
+        "Secreción metabólica del cultivo incrementada un 32%.",
+        "Sincronizando modulación mecanoacústica..."
+      ];
+      const selected = phrases[Math.floor(Math.random() * phrases.length)];
+      addLog(selected);
+    }, 4500);
+
+  </script>
+</body>
+</html>
