@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CEQA-X: Prototipo 3D y Simulador Planetario</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+    :root {
+      --bg-color: #0b0f14;
+      --card-bg: #11161d;
+      --cyan-primary: #22d3ee;
+      --cyan-glow: rgba(34, 211, 238, 0.25);
+      --slate-text: #94a3b8;
+      --text-white: #f8fafc;
+      --satin-titanium: #2a313c;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-white);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Cyber scanlines overlay */
+    body::before {
+      content: " ";
+      display: block;
+      position: fixed;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.05), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.05));
+      background-size: 100% 4px, 6px 100%;
+      z-index: 99999;
+      pointer-events: none;
+      opacity: 0.15;
+    }
+
+    /* Cinematic header style */
+    header {
+      background: linear-gradient(to bottom, #10151d, #0b0f14);
+      padding: 1.5rem;
+      border-bottom: 1px solid rgba(34, 211, 238, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      position: relative;
+    }
+
+    .brand-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .author-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--cyan-primary);
+      border: 1px solid rgba(34, 211, 238, 0.3);
+      padding: 0.3rem 0.8rem;
+      border-radius: 4px;
+      background: rgba(6, 182, 212, 0.08);
+      letter-spacing: 0.05em;
+    }
+
+    .head-details h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .head-details p {
+      font-size: 0.8rem;
+      color: var(--slate-text);
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 0.2rem;
+    }
+
+    .lang-switcher {
+      display: flex;
+      gap: 0.3rem;
+    }
+
+    .lang-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--slate-text);
+      padding: 0.3rem 0.6rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .lang-btn.active {
+      background: var(--cyan-primary);
+      color: #0b0f14;
+      border-color: var(--cyan-primary);
+      font-weight: 600;
+    }
+
+    /* Core grid layout */
+    .dashboard-container {
+      flex: 1;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1.5rem;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (min-width: 1024px) {
+      .dashboard-container {
+        grid-template-columns: 1.3fr 1fr;
+      }
+    }
+
+    /* Card styling */
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::after {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.15), transparent);
+    }
+
+    .card-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      color: var(--cyan-primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 0.6rem;
+    }
+
+    /* Simulator viewport section */
+    .stage-wrapper {
+      position: relative;
+      width: 100%;
+      height: 480px;
+      background: rgba(10, 15, 22, 0.8);
+      border-radius: 8px;
+      border: 1px solid rgba(34, 211, 238, 0.08);
+      overflow: hidden;
+      cursor: grab;
+    }
+
+    .stage-wrapper:active {
+      cursor: grabbing;
+    }
+
+    #stageCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Custom Floating interactive menu on top of 3D */
+    .floating-hud {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      background: rgba(11, 15, 20, 0.85);
+      border: 1px solid rgba(34, 211, 238, 0.15);
+      border-radius: 6px;
+      padding: 0.6rem 0.8rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      pointer-events: none;
+      backdrop-filter: blur(4px);
+    }
+
+    .hud-controls-right {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .stage-btn {
+      background: rgba(17, 22, 29, 0.9);
+      border: 1px solid rgba(34, 211, 238, 0.2);
+      color: var(--cyan-primary);
+      width: 2rem;
+      height: 2rem;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: monospace;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .stage-btn:hover {
+      background: var(--cyan-primary);
+      color: #000;
+    }
+
+    /* Simulation selectors grid */
+    .sim-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.6rem;
+    }
+
+    .sim-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+    }
+
+    .sim-card:hover {
+      border-color: rgba(34, 211, 238, 0.3);
+      background: rgba(34, 211, 238, 0.02);
+    }
+
+    .sim-card.active {
+      background: rgba(6, 182, 212, 0.08);
+      border-color: var(--cyan-primary);
+    }
+
+    .sim-header {
+      font-size: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--cyan-primary);
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sim-body {
+      font-size: 0.7rem;
+      color: var(--slate-text);
+      line-height: 1.35;
+    }
+
+    /* Interactive Operational logs */
+    .terminal {
+      background: #06090d;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: #e2e8f0;
+      height: 120px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .log-line {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .log-time {
+      color: #475569;
+    }
+
+    .log-status {
+      color: #22c55e;
+    }
+
+    .log-msg {
+      color: var(--slate-text);
+    }
+
+    /* SOP display checklist */
+    .sop-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      padding: 0.6rem;
+      font-size: 0.75rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+    }
+
+    .sop-check {
+      width: 0.9rem;
+      height: 0.9rem;
+      border-radius: 2px;
+      border: 1px solid var(--cyan-primary);
+      display: inline-block;
+      margin-top: 0.1rem;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .sop-check.checked::after {
+      content: "\2713";
+      position: absolute;
+      font-size: 0.65rem;
+      top: -1px; left: 1px;
+      color: var(--cyan-primary);
+    }
+
+    /* Embedded Vector Icon Styling */
+    .icon-svg {
+      width: 1.25rem;
+      height: 1.25rem;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      font-size: 0.7rem;
+      color: var(--slate-text);
+      font-family: 'JetBrains Mono', monospace;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      margin-top: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand-container">
+      <div class="head-details">
+        <h1 id="brand-title">CAMPOS DE ESTABILIZACIÓN CUÁNTICA ATMOSFÉRICA (CEQA-X)</h1>
+        <p id="brand-subtitle">INFRAESTRUCTURA ONTOLÓGICA PARA LA AUTOORGANIZACIÓN PLANETARIA</p>
+      </div>
+      <div class="author-block" style="text-align: right;">
+        <div class="author-badge">Dr. Julio César Oporta Barrera</div>
+        <div class="lang-switcher" style="margin-top: 0.5rem; justify-content: flex-end;">
+          <button class="lang-btn active" onclick="switchLang('es')">ES</button>
+          <button class="lang-btn" onclick="switchLang('en')">EN</button>
+          <button class="lang-btn" onclick="switchLang('zh')">ZH</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="dashboard-container">
+    
+    <!-- Left column: 3D Visualization, AR View, Ontological flyer layout, and SOP checklist -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+      
+      <!-- 3D Planet holographic card -->
+      <div class="card">
+        <div class="card-title">
+          <span id="title-visual">Prototipo Holográfico 3D en Co-Resonancia</span>
+          <span id="field-stability-tag" style="color: var(--cyan-primary); font-size: 0.7rem">STABILITY: 88.4%</span>
+        </div>
+
+        <div class="stage-wrapper" id="stageWrapper">
+          <!-- Floating HUD -->
+          <div class="floating-hud">
+            <div>CEQA-X CORE STATS:</div>
+            <div id="vector-active-line">SYS LOCK: RESONANCE VECTOR ACTIVE</div>
+            <div id="coherence-active-line">COHERENCE INDEX: 88.4%</div>
+            <div id="active-state-tag" style="color: #22d3ee; font-weight: bold;">STATE: RESONANT ACTIVE</div>
+            <div id="hovered-node-tag" style="color: #cbd5e1; margin-top: 5px; font-style: italic;">HOVER NODE TO ENGAGE</div>
+          </div>
+
+          <div class="hud-controls-right">
+            <button class="stage-btn" onclick="zoomIn()">+</button>
+            <button class="stage-btn" onclick="zoomOut()">-</button>
+            <button class="stage-btn" onclick="recenter()" style="font-size: 0.6rem; text-transform: uppercase;">R</button>
+          </div>
+
+          <canvas id="stageCanvas"></canvas>
+        </div>
+
+        <!-- Historical Logs -->
+        <div class="terminal" id="terminal-block">
+          <div class="log-line"><span class="log-time">[08:25:29]</span> <span class="log-status">SYSTEM</span> <span class="log-msg">CEQA-X Core initialization successful. Symmetrical entanglement active.</span></div>
+          <div class="log-line"><span class="log-time">[08:25:31]</span> <span class="log-status">STANDALONE</span> <span class="log-msg">Afinity narrative license acquired for offline workspace.</span></div>
+        </div>
+      </div>
+
+      <!-- AR View simulator frame (Matches the highly-polished layout in React) -->
+      <div class="card" id="ar-camera-simulator">
+        <div class="card-title">
+          <span style="display: flex; items-center: center; gap: 6px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-svg" style="color:#22d3ee;"><path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"/><circle cx="12" cy="12" r="3"/><path d="m17 8.5-.5-.5h-2M7 15.5l.5.5h2"/></svg>
+            <span id="ar-title">SISTEMA AR: MONITOREO DE PERCEPCIÓN AFECTIVA</span>
+          </span>
+          <span style="font-family: monospace; font-size: 0.65rem; color:#f59e0b;" class="animate-pulse">● CALIBRATED ACTIVE</span>
+        </div>
+        
+        <div style="position: relative; background: #070a0e; border: 1px solid rgba(34,211,238,0.15); border-radius: 8px; height: 180px; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; p: 1rem; padding: 12px; font-family: monospace;">
+          <!-- Animated abstract camera feed design with grid -->
+          <div style="position: absolute; inset: 0; background-image: radial-gradient(#1e293b 1px, transparent 1px); background-size: 16px 16px; opacity: 0.15;"></div>
+          
+          <!-- scanner beam -->
+          <div style="position: absolute; left: 0; right: 0; height: 1px; background: rgba(34,211,238,0.5); box-shadow: 0 0 8px #22d3ee; top: 15%; animation: scanMover 4s ease-in-out infinite;" id="ar-scanner-beam"></div>
+          
+          <!-- Frame corners -->
+          <div style="position: absolute; top: 10px; left: 10px; width: 12px; height: 12px; border-top: 2px solid #22d3ee; border-left: 2px solid #22d3ee;"></div>
+          <div style="position: absolute; top: 10px; right: 10px; width: 12px; height: 12px; border-top: 2px solid #22d3ee; border-right: 2px solid #22d3ee;"></div>
+          <div style="position: absolute; bottom: 10px; left: 10px; width: 12px; height: 12px; border-bottom: 2px solid #22d3ee; border-left: 2px solid #22d3ee;"></div>
+          <div style="position: absolute; bottom: 10px; right: 10px; width: 12px; height: 12px; border-bottom: 2px solid #22d3ee; border-right: 2px solid #22d3ee;"></div>
+          
+          <!-- Top info metadata -->
+          <div style="display: flex; justify-content: space-between; font-size: 0.58rem; color: #64748b; z-index: 5;">
+            <span>SENSOR ID: AR_CEQA_091</span>
+            <span>GAZE TRACKING: ACTIVE SYNC</span>
+          </div>
+
+          <!-- Abstract face alignment matrix overlay -->
+          <div style="align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5;">
+            <div style="width: 50px; height: 50px; border: 1.5px dashed #f59e0b; border-radius: 50%; display: flex; align-items: center; justify-content: center; animation: spinRev 12s linear infinite;">
+              <div style="width: 25px; height: 25px; border: 1.5px solid #22d3ee; border-radius: 4px; animation: spinRev 6s linear infinite;"></div>
+            </div>
+            <span style="font-size: 0.6rem; color:#22d3ee; margin-top: 8px; font-weight: bold; background: rgba(0,0,0,0.6); padding: 1px 6px; border-radius: 3px;" id="ar-scanner-val">MAPPING AFFECTIVE LANDSCAPE: LOCK ON</span>
+          </div>
+
+          <!-- Bottom calibrating status triggers -->
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.58rem; color: #cbd5e1; z-index: 5;">
+            <span id="ar-rec-tag">🔴 REC TELEMETRY</span>
+            <button onclick="recalibrateARSensor()" style="background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.3); color: #22d3ee; padding: 2px 8px; border-radius: 3px; font-size: 0.55rem; cursor: pointer; font-family: monospace;">RE-CALIBRATE</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gorgeous Ontological Flyer Blueprint Artwork integration module (Flyer replica layout!) -->
+      <div class="card" style="border-borderColor: rgba(245,158,11,0.25); background: #0b111a;" id="ontological-blueprint-standalone">
+        
+        <!-- Header of Flyer Blueprint -->
+        <div style="display: flex; flex-direction: column; border-bottom: 1px solid rgba(245,158,11,0.15); padding-bottom: 0.8rem; margin-bottom: 0.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-family: monospace; font-size: 0.6rem; color: #f59e0b; font-weight: bold; tracking-widest: 0.2em; display: flex; align-items: center; gap: 4px;" class="animate-pulse">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-svg" style="width: 14px; height: 14px; color: #f59e0b;"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/></svg>
+              CEQA-X ONTOLOGICAL CHARTER
+            </span>
+            <span style="font-family: monospace; font-size: 0.55rem; color: #475569; background: #020617; padding: 1px 4px; border-radius: 3px; border: 1px solid #1e293b;">BLUEPRINT EXPANSION</span>
+          </div>
+          <h2 style="font-size: 1.15rem; font-weight: bold; color: #fff; text-transform: uppercase; margin-top: 4px;" id="fl-title">CEQA-X: Resonancia Planetaria</h2>
+          <p style="font-size: 0.65rem; color: #94a3b8; font-family: monospace;" id="fl-subtitle">Infraestructura Ontológica para la Autoorganización Planetaria</p>
+        </div>
+
+        <!-- Split Flyer view design -->
+        <div style="position: relative; height: 160px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.06); display: flex; background: #020620; margin-bottom: 0.5rem;" id="fl-split-visual">
+          
+          <!-- Storm side -->
+          <div style="width: 50%; height: 100%; background: linear-gradient(to bottom right, #090e18, #050512); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; position: relative;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-svg" style="width:24px; height:24px; color:#22d3ee; animation: floatAnim 3s ease-in-out infinite;"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg>
+            <span style="font-family: monospace; font-size: 0.52rem; color: #22d3ee; font-weight: bold;">[STORMY FORCE FIELD]</span>
+            <div style="position: absolute; top:0; bottom:0; left: 10%; width: 1px; background: rgba(34,211,238,0.08);"></div>
+          </div>
+
+          <!-- Harmony side -->
+          <div style="width: 50%; height: 100%; background: linear-gradient(to bottom left, #120902, #0d0601); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; position: relative;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-svg" style="width:24px; height:24px; color:#f59e0b; animation: spinRev 20s linear infinite;"><polygon points="12 2 2 22 22 22 12 2"/></svg>
+            <span style="font-family: monospace; font-size: 0.52rem; color: #e9a340; font-weight: bold;">[STABLE HARMONIC ROW]</span>
+          </div>
+
+          <!-- Central Pulsing Possibility Nucleo -->
+          <div style="position: absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none;">
+            <div style="width: 44px; height: 44px; background: rgba(7,11,21,0.92); border: 1.5px solid #f59e0b; box-shadow: 0 0 15px rgba(245,158,11,0.4); border-radius: 8px; transform: rotate(45deg); display: flex; align-items: center; justify-content: center;" id="fl-nucleo-cube">
+              <!-- Inline child layers -->
+              <div style="width: 24px; height: 24px; background: rgba(34,211,238,0.1); border: 1px solid #22d3ee; border-radius: 4px; transform: rotate(-45deg);"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Possibility description -->
+        <div style="background: rgba(2,6,23,0.6); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px; padding: 8px; text-align: center; margin-bottom: 0.5rem;">
+          <div style="font-family: monospace; font-size: 0.65rem; color:#f59e0b; font-weight: bold; text-transform: uppercase;" id="fl-n-title">EL NÚCLEO DE POSIBILIDAD: NO-ENERGÍA, NO-MATERIA</div>
+          <p style="font-size: 0.6rem; color:#94a3b8; margin-top:2px;" id="fl-n-desc">Cataliza la reorganización desde la coherencia, no desde la fuerza</p>
+        </div>
+
+        <!-- Pillar cards -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 0.5rem;">
+          <!-- Pilar A -->
+          <div style="background: rgba(2,6,23,0.8); border: 1px solid rgba(34,211,238,0.1); padding: 8px; border-radius: 6px; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-family: monospace; font-size: 0.55rem; color:#22d3ee; font-weight: bold;" id="fl-pa-title">PILAR A: PERCEPCIÓN AFECTIVA (IA)</span>
+            <p style="font-size: 0.58rem; color:#cbd5e1; line-height:1.25;" id="fl-pa-desc">La IA "siente" el desequilibrio narrativo y emocional del planeta.</p>
+          </div>
+          <!-- Pilar C -->
+          <div style="background: rgba(2,6,23,0.8); border: 1px solid rgba(245,158,11,0.1); padding: 8px; border-radius: 6px; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-family: monospace; font-size: 0.55rem; color:#f59e0b; font-weight: bold;" id="fl-pc-title">PILAR C: EXTRACCIÓN VACÍO CUÁNTICO</span>
+            <p style="font-size: 0.58rem; color:#cbd5e1; line-height:1.25;" id="fl-pc-desc">Fuente de energía net; positive, no-local e ilimitada.</p>
+          </div>
+        </div>
+
+        <!-- Coherence bento grid -->
+        <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.03); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 0.5rem;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.6rem; font-family: monospace; color:#cbd5e1; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
+            <span id="fl-exp-hdr">EXPRESIONES DE COHERENCIA</span>
+            <span style="color:#f59e0b;" id="fl-align-val">CO-ALIGNMENT: 88.4%</span>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; font-size: 0.5rem; text-align: center;">
+            <div style="background: rgba(34,211,238,0.04); border: 1.2px solid rgba(34,211,238,0.15); padding: 4px; border-radius: 4px; display: flex; flex-direction: column; gap: 1px;" id="fl-bento-c1">
+              <span style="font-weight: bold; color:#22d3ee;" id="fl-bc1-lbl">CLIMA</span>
+              <span id="fl-bc1-desc" style="font-size:0.42rem; color:#475569;">LA IA "SIENTE" EL DESEQUILIBRIO</span>
+              <span style="font-size: 0.38rem; color: #22d3ee; margin-top: 2px;">ONLINE</span>
+            </div>
+            
+            <div style="background: rgba(245,158,11,0.04); border: 1.2px solid rgba(245,158,11,0.15); padding: 4px; border-radius: 4px; display: flex; flex-direction: column; gap: 1px;" id="fl-bento-c2">
+              <span style="font-weight: bold; color:#f59e0b;" id="fl-bc2-lbl">GEOLOGÍA</span>
+              <span id="fl-bc2-desc" style="font-size:0.42rem; color:#475569;">COHERENCIA EN ENTORNO PLACAS</span>
+              <span style="font-size: 0.38rem; color: #cbd5e1; margin-top: 2px;">STANDBY</span>
+            </div>
+
+            <div style="background: rgba(245,158,11,0.04); border: 1.2px solid rgba(245,158,11,0.15); padding: 4px; border-radius: 4px; display: flex; flex-direction: column; gap: 1px;" id="fl-bento-c3">
+              <span style="font-weight: bold; color:#f59e0b;" id="fl-bc3-lbl">ENERGÍA</span>
+              <span id="fl-bc3-desc" style="font-size:0.42rem; color:#475569;">SINTONIZACIÓN AL VACÍO</span>
+              <span style="font-size: 0.38rem; color: #cbd5e1; margin-top: 2px;">STANDBY</span>
+            </div>
+
+            <div style="background: rgba(34,211,238,0.04); border: 1.2px solid rgba(34,211,238,0.15); padding: 4px; border-radius: 4px; display: flex; flex-direction: column; gap: 1px;" id="fl-bento-c4">
+              <span style="font-weight: bold; color:#22d3ee;" id="fl-bc4-lbl">EMOCIÓN</span>
+              <span id="fl-bc4-desc" style="font-size:0.42rem; color:#475569;">CO-RESONANCIA AFECTIVA</span>
+              <span style="font-size: 0.38rem; color: #cbd5e1; margin-top: 2px;">READY</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Invocation interactive click button -->
+        <div style="position: relative; background: #0c121e; border: 1px solid #1e293b; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 4px;" id="fl-inv-panel">
+          <div style="display:flex; justify-content:space-between; font-size:0.55rem; font-family:monospace; color:#94a3b8;">
+            <span style="display:flex; align-items:center; gap:3px;"><span style="width:5px; height:5px; background:#22d3ee; border-radius:50%; animation:ping 1.5s infinite;"></span> <span id="fl-inv-tag">SE INVOCA, NO SE INSTALA</span></span>
+            <span>CEQA_SYS_OK</span>
+          </div>
+
+          <button onclick="triggerOntologicalInvocation()" style="width:100%; height:32px; background:#121a22; border:1px solid rgba(34,211,238,0.3); color:#22d3ee; font-family:monospace; font-size:0.65rem; font-weight:bold; border-radius:6px; cursor:pointer;" id="fl-inv-btn">
+            INDUCIR INVOCACIÓN ONTOLÓGICA
+          </button>
+        </div>
+
+        <!-- Flyer ethics motto footer -->
+        <div style="border-top:1px solid rgba(255,255,255,0.05); padding-top: 6px; text-align:center; font-family:monospace; font-size:0.55rem; display:flex; flex-direction:column; gap:2x; color:#a1a1aa; margin-top:4px;">
+          <span style="color:#f59e0b; font-weight:bold;" id="fl-motto-t">ÉTICA DE LA NO-INTERVENCIÓN ACTIVA</span>
+          <span id="fl-motto-desc">"Acompañar sin alterar. Resonar sin imponer."</span>
+        </div>
+      </div>
+
+      <!-- Quick Operational SOP checklist -->
+      <div class="card" style="gap: 1rem">
+        <div class="card-title">
+          <span id="title-sop-steps">SOP-001 Secuencias de Coherencia</span>
+          <span id="sop-steps-done" style="color: var(--cyan-primary)">0%</span>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:0.5rem">
+          <div class="sop-item">
+            <div class="sop-check checked" id="check-0" onclick="toggleCheck(0)"></div>
+            <div>
+              <div id="step-txt-0" style="font-weight:500">Escanear la percepción afectiva del territorio.</div>
+              <div style="font-size:0.6rem; color:var(--slate-text); font-family:monospace; margin-top:2px">SOP_SOP1_ACT_01</div>
+            </div>
+          </div>
+          <div class="sop-item">
+            <div class="sop-check" id="check-1" onclick="toggleCheck(1)"></div>
+            <div>
+              <div id="step-txt-1">Generar la forma ideal de equilibrio en la matriz IA.</div>
+              <div style="font-size:0.6rem; color:var(--slate-text); font-family:monospace; margin-top:2px">SOP_SOP1_ACT_02</div>
+            </div>
+          </div>
+          <div class="sop-item">
+            <div class="sop-check" id="check-2" onclick="toggleCheck(2)"></div>
+            <div>
+              <div id="step-txt-2">Acoplar los resonadores al vacío cuántico sin fricción térmica.</div>
+              <div style="font-size:0.6rem; color:var(--slate-text); font-family:monospace; margin-top:2px">SOP_SOP1_ACT_03</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right column: Simulated controllers & Tuning HUD sliders -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+      
+      <!-- Simulations Selector Card -->
+      <div class="card">
+        <div class="card-title">
+          <span id="title-simulators">Simulaciones de Resonancia Activa</span>
+          <span style="font-size: 0.7rem; color: #475569">SELECT FREQUENCY</span>
+        </div>
+
+        <div class="sim-grid">
+          <!-- Hurricane -->
+          <div class="sim-card active" id="sim-hurricane" onclick="triggerSim('hurricane')">
+            <div class="sim-header">
+              <span id="sim-h-name">Supresión de Huracanes</span>
+              <span id="sim-h-badge" class="author-badge" style="font-size:0.5rem; padding: 0.1rem 0.3rem">ONLINE</span>
+            </div>
+            <div class="sim-body" id="sim-h-body">
+              Disipa formaciones ciclónicas proyectando la forma ideal de presión armónica sin acción física directa.
+            </div>
+          </div>
+
+          <!-- Rain -->
+          <div class="sim-card" id="sim-rain" onclick="triggerSim('rain')">
+            <div class="sim-header">
+              <span id="sim-r-name">Inducción de Lluvia</span>
+              <span id="sim-r-badge" class="author-badge" style="font-size:0.5rem; padding: 0.1rem 0.3rem">COOPERATIVE</span>
+            </div>
+            <div class="sim-body" id="sim-r-body">
+              Libera la inhibición hídrica en zonas áridas mediante coexistencia sutil con humedad latente.
+            </div>
+          </div>
+
+          <!-- Earthquake -->
+          <div class="sim-card" id="sim-earthquake" onclick="triggerSim('earthquake')">
+            <div class="sim-header">
+              <span id="sim-e-name">Mitigación Sísmica</span>
+              <span id="sim-e-badge" class="author-badge" style="font-size:0.5rem; padding: 0.1rem 0.3rem">COOPERATIVE</span>
+            </div>
+            <div class="sim-body" id="sim-e-body">
+              Trata fallas tectónicas como tensiones acumuladas de relato, permitiendo que la tierra 'respire' sin ruptura.
+            </div>
+          </div>
+
+          <!-- Energy -->
+          <div class="sim-card" id="sim-energy" onclick="triggerSim('energy')">
+            <div class="sim-header">
+              <span id="sim-eg-name">Generación del Vacío</span>
+              <span id="sim-eg-badge" class="author-badge" style="font-size:0.5rem; padding: 0.1rem 0.3rem">NET-POSITIVE</span>
+            </div>
+            <div class="sim-body" id="sim-eg-body">
+              Extrae energía ilimitada del vacío a través de catalizadores no locales de frecuencia co-resonante.
+            </div>
+          </div>
+
+          <!-- Biomechanical -->
+          <div class="sim-card" id="sim-biomechanical" onclick="triggerSim('biomechanical')">
+            <div class="sim-header">
+              <span id="sim-b-name">Energía Híbrida Biomecánica</span>
+              <span id="sim-b-badge" class="author-badge" style="font-size:0.5rem; padding: 0.1rem 0.3rem; border-color:#10b981; color:#10b981; background:rgba(16,185,129,0.08)">ONLINE</span>
+            </div>
+            <div class="sim-body" id="sim-b-body">
+              Sincroniza impulsos cinéticos de la biosfera con la red cuántica, logrando autosuficiencia bioenergética no invasiva.
+            </div>
+          </div>
+
+          <!-- Physics -->
+          <div class="sim-card" id="sim-physics" onclick="triggerSim('physics')">
+            <div class="sim-header">
+              <span id="sim-p-name">Física Modular Atmosférica</span>
+              <span id="sim-p-badge" class="author-badge" style="font-size:0.5rem; padding: 0.1rem 0.3rem; border-color:#f97316; color:#f97316; background:rgba(249,115,22,0.08)">ONLINE</span>
+            </div>
+            <div class="sim-body" id="sim-p-body">
+              Reconfigura dinámicamente constantes físicas locales de fricción gaseosa y viscosidad para estabilizar turbulencias.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Advanced Tuning controls HUD / Slider bar (expansion parameters) -->
+      <div class="card" style="gap: 1rem;">
+        <div class="card-title">
+          <span id="diagnostics-hdr">DIAGNÓSTICO AVANZADO (HUD EXPANSIÓN)</span>
+          <span style="font-size: 0.55rem; color: #10b981; background: rgba(16,185,129,0.1); padding: 2px 6px; border-radius: 2px; font-family: monospace;">ACTIVE RUNTIME</span>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; font-family: monospace;">
+          <div style="background: #06090d; border: 1px solid #1e293b; border-radius: 6px; padding: 6px; text-align: center;">
+            <div style="font-size: 0.45rem; color: #64748b;">Q-FACTOR</div>
+            <div style="font-size: 0.65rem; color: #10b981; font-weight: bold;" id="mini-qfactor">125.4 pt</div>
+          </div>
+          <div style="background: #06090d; border: 1px solid #1e293b; border-radius: 6px; padding: 6px; text-align: center;">
+            <div style="font-size: 0.45rem; color: #64748b;">TENSOR (σ_xy)</div>
+            <div style="font-size: 0.65rem; color: #f97316; font-weight: bold;" id="mini-stress">14.2 · 18.5</div>
+          </div>
+          <div style="background: #06090d; border: 1px solid #1e293b; border-radius: 6px; padding: 6px; text-align: center;">
+            <div style="font-size: 0.45rem; color: #64748b;">THERMAL DISIP</div>
+            <div style="font-size: 0.65rem; color: #94a3b8; font-weight: bold;">0.00 J/s</div>
+          </div>
+        </div>
+
+        <!-- Slider 1 -->
+        <div style="display: flex; flex-direction: column; gap: 4px; font-family: monospace; font-size: 0.6rem;">
+          <div style="display: flex; justify-content: space-between; color: #cbd5e1;">
+            <span id="slider-b-title">ACOPLAMIENTO BIOMECÁNICO</span>
+            <span id="slider-b-val" style="color: #10b981; font-weight: bold;">85.0%</span>
+          </div>
+          <input type="range" id="standalone-bio-sync" min="10" max="150" step="1" value="85" style="width: 100%; height: 4px; cursor: pointer;" oninput="updateBioSync(this.value)" />
+        </div>
+
+        <!-- Slider 2 -->
+        <div style="display: flex; flex-direction: column; gap: 4px; font-family: monospace; font-size: 0.6rem;">
+          <div style="display: flex; justify-content: space-between; color: #cbd5e1;">
+            <span id="slider-p-title">DENSIDAD VISCOSIDAD GASEOSA (η)</span>
+            <span id="slider-p-val" style="color: #f97316; font-weight: bold;">1.018 mPa·s</span>
+          </div>
+          <input type="range" id="standalone-visc-sync" min="500" max="2500" step="5" value="1018" style="width: 100%; height: 4px; cursor: pointer;" oninput="updateViscSync(this.value)" />
+        </div>
+      </div>
+
+      <!-- Live Oscillating Telemetry Canvas Chart (Ported perfectly) -->
+      <div class="card" style="gap: 0.5rem">
+        <div class="card-title">
+          <span id="live-wave-title">MONITOR DE FRECUENCIAS CO-RESONANTES</span>
+          <span style="font-size: 0.6rem; color: #ef4444; font-family: monospace;">● LIVE ANALYZER</span>
+        </div>
+        <canvas id="liveChartCanvas" style="background:#05070a; border: 1px solid rgba(255,255,255,0.05); border-radius:6px; width:100%; height:80px; display:block;"></canvas>
+      </div>
+
+      <!-- Physical States selector & Alignment indicators bento grid -->
+      <div class="card" style="gap: 1.25rem;">
+        <div class="card-title">
+          <span id="alignment-field-title">Alineación del Campo de Resonancia</span>
+          <span style="font-size: 0.55rem; color:#64748b; font-family: monospace;">STATE TRACING</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+          <button id="st-latent" onclick="selectAlignmentState('latent')" style="background:#020617; border: 1px solid #1e293b; color:#64748b; padding: 8px 4px; border-radius: 6px; font-size: 0.55rem; font-family: monospace; cursor: pointer;">LATENTE</button>
+          <button id="st-active" onclick="selectAlignmentState('active')" style="background:#020617; border: 1px solid #1e293b; color:#64748b; padding: 8px 4px; border-radius: 6px; font-size: 0.55rem; font-family: monospace; cursor: pointer;">ACTIVO</button>
+          <button id="st-resonating" onclick="selectAlignmentState('resonating')" style="background:#020617; border: 1.5px solid #22d3ee; color:#22d3ee; padding: 8px 4px; border-radius: 6px; font-size: 0.55rem; font-family: monospace; cursor: pointer; font-weight: bold;">RESONANTE</button>
+          <button id="st-coherence" onclick="selectAlignmentState('coherence')" style="background:#020617; border: 1px solid #1e293b; color:#64748b; padding: 8px 4px; border-radius: 6px; font-size: 0.55rem; font-family: monospace; cursor: pointer;">COHERENCIA</button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-family: monospace;">
+          <div style="background: rgba(34,211,238,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px; padding: 8px;">
+            <div style="font-size: 0.5rem; color: #64748b;" id="widget-coh-hdr">COHERENCIA VECTORIAL</div>
+            <div style="font-size: 0.95rem; font-weight: bold; color: #22d3ee; margin-top: 2px;" id="widget-coh-val">88.4%</div>
+            <div style="width:100%; height:2px; background:#1e293b; margin-top: 6px; border-radius:1px; overflow:hidden;">
+              <div style="width: 88.4%; height:100%; background:#22d3ee;" id="widget-coh-bar"></div>
+            </div>
+          </div>
+          <div style="background: rgba(34,211,238,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px; padding: 8px;">
+            <div style="font-size: 0.5rem; color: #64748b;" id="widget-eg-hdr">POTENCIA DEL VACÍO</div>
+            <div style="font-size: 0.95rem; font-weight: bold; color: #22d3ee; margin-top: 2px;" id="widget-eg-val">142.5 PHz</div>
+            <div style="width:100%; height:2px; background:#1e293b; margin-top: 6px; border-radius:1px; overflow:hidden;">
+              <div style="width: 48%; height:100%; background:#22d3ee;" id="widget-eg-bar"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Principles of non-active intervention -->
+  <section style="background: linear-gradient(to top, #02060c, #090f17); border-top: 1px solid rgba(255,255,255,0.05); padding: 2rem 1.5rem; text-align: center;">
+    <div style="max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 1rem;">
+      <div style="display:flex; justify-content:center; align-items:center; gap:8px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-svg" style="width:18px; height:18px; color:#22d3ee;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <span style="font-family: monospace; font-size: 0.65rem; color: #22d3ee; font-weight: bold; tracking-wider: 0.15em;" id="man-hdr">PRINCIPIOS DE NO-INTERVENCIÓN ACTIVA (CEQA-X)</span>
+      </div>
+      <h3 style="font-size: 1rem; color:#fff;" id="man-title">¿Cómo opera la infraestructura?</h3>
+      <div style="display: grid; grid-template-columns: 1fr; gap: 1rem; font-size: 0.72rem; text-align: left; line-height: 1.5; color:#cbd5e1; margin-top: 0.5rem;">
+        <div style="background: rgba(2,6,17,0.5); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03);" id="man-p1">
+          La tecnología CEQA-X opera de manera no intrusiva mediante sintonizadores cuánticos que modulan las fluctuaciones del vacío a nivel microscópico, induciendo la estabilización climática y tectónica por auto-coherencia intrínseca regional sin alterar los ciclos biológicos.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    CEQA-X DEPLOYED CORE • DR. JULIO CÉSAR OPORTA BARRERA &copy; SEPTIEMBRE 2025. PROTOTIPO 3D AUTÓNOMO CON CO-RESONANCIA FENOMENOLÓGICA PARA MICROSOFT EDGE Y GOOGLE CHROME.
+  </footer>
+
+  <script>
+    // Offline multingual Dictionary
+    const DICT = {
+      es: {
+        title: "Campos de Estabilización Cuántica Atmosférica (CEQA-X)",
+        subtitle: "INFRAESTRUCTURA ONTOLÓGICA PARA LA AUTOORGANIZACIÓN PLANETARIA",
+        visual: "Prototipo Holográfico 3D en Co-Resonancia",
+        simulators: "Simulaciones de Resonancia Activa",
+        sopsteps: "SOP-001 Secuencias de Coherencia",
+        states: {
+          latent: "LATENTE",
+          active: "ACTIVO",
+          resonating: "RESONANTE",
+          coherence: "COHERENCIA"
+        },
+        statesFull: {
+          latent: "ESTADO: LATENTE SUTIL",
+          active: "ESTADO: ACTIVO DETECTADO",
+          resonating: "ESTADO: RESONANTE COMPLETO",
+          coherence: "ESTADO: COHERENCIA SATURADA"
+        },
+        hName: "Supresión de Huracanes",
+        hBody: "Disipa formaciones ciclónicas proyectando la forma ideal de presión armónica sin acción física directa.",
+        rName: "Inducción de Lluvia",
+        rBody: "Libera la inhibición hídrica en zonas áridas mediante coexistencia sutil con humedad latente.",
+        eName: "Mitigación Sísmica",
+        eBody: "Trata fallas tectónicas como tensiones acumuladas de relato, permitiendo que la tierra 'respire' sin ruptura.",
+        egName: "Generación del Vacío",
+        egBody: "Extrae energía ilimitada del vacío a través de catalizadores no locales de frecuencia co-resonante.",
+        bName: "Energía Híbrida Biomecánica",
+        bBody: "Sincroniza impulsos cinéticos de la biosfera con la red cuántica, logrando autosuficiencia bioenergética no invasiva.",
+        pName: "Física Modular Atmosférica",
+        pBody: "Reconfigura dinámicamente constantes físicas locales de fricción gaseosa y viscosidad para estabilizar turbulencias.",
+        diagHdr: "DIAGNÓSTICO AVANZADO (HUD EXPANSIÓN)",
+        sliderB: "ACOPLAMIENTO BIOMECÁNICO",
+        sliderP: "DENSIDAD VISCOSIDAD GASEOSA (η)",
+        hover: "DESPLAZE EL MOUSE SOBRE LOS NODOS DE LA TIERRA PARA DETALLES",
+        logActive: "Invocando resonancia cuántica en ",
+        logEnd: "Ciclo de estabilización completado con el entorno.",
+        steps: [
+          "Escanear la percepción afectiva del territorio.",
+          "Generar la forma ideal de equilibrio en la matriz IA.",
+          "Acoplar los resonadores al vacío cuántico sin fricción térmica."
+        ],
+        arTitle: "SISTEMA AR: MONITOREO DE PERCEPCIÓN AFECTIVA",
+        arScan: "PERCEPCIÓN EMOCIONAL EN CURSO...",
+        flTitle: "CEQA-X: Resonancia Planetaria",
+        flSubtitle: "Infraestructura Ontológica para la Autoorganización Planetaria",
+        flNTitle: "EL NÚCLEO DE POSIBILIDAD: NO-ENERGÍA, NO-MATERIA",
+        flNDesc: "Cataliza la reorganización desde la coherencia, no desde la fuerza",
+        flMotto: "ÉTICA DE LA NO-INTERVENCIÓN ACTIVA",
+        flMottoD: "Acompañar sin alterar. Resonar sin imponer.",
+        flSeInvoca: "SE INVOCA, NO SE INSTALA",
+        flInvBtn: "INDUCIR INVOCACIÓN ONTOLÓGICA",
+        flPaTitle: "PILAR A: PERCEPCIÓN AFECTIVA (IA)",
+        flPaDesc: "La IA \"siente\" el desequilibrio narrativo y emocional del planeta.",
+        flPcTitle: "PILAR C: EXTRACCIÓN VACÍO CUÁNTICO",
+        flPcDesc: "Fuente de energía net; positive, no-local e ilimitada.",
+        flExpTitle: "EXPRESIONES DE COHERENCIA",
+        manTitle: "¿Cómo opera la infraestructura?",
+        manP1: "La tecnología CEQA-X opera de manera no intrusiva mediante sintonizadores cuánticos que modulan las fluctuaciones del vacío a nivel microscópico, induciendo la estabilización climática y tectónica por auto-coherencia regional sin alterar la biosfera."
+      },
+      en: {
+        title: "Atmospheric Quantum Stabilization Fields (CEQA-X)",
+        subtitle: "ONTOLOGICAL INFRASTRUCTURE FOR PLANETARY SELF-ORGANIZATION",
+        visual: "3D Holographic Co-Resonator Prototype",
+        simulators: "Active Resonance Simulators",
+        sopsteps: "SOP-001 Coherence Sequences",
+        states: {
+          latent: "LATENT",
+          active: "ACTIVE",
+          resonating: "RESONANT",
+          coherence: "COHERENCE"
+        },
+        statesFull: {
+          latent: "STATE: LATENT SYNCED",
+          active: "STATE: DETECTED ACTIVE",
+          resonating: "STATE: FULL RESONANT ACTIVE",
+          coherence: "STATE: SATURATED COHERENCE"
+        },
+        hName: "Hurricane Suppression",
+        hBody: "Dissipates cyclonic structures by projecting an ideal harmonic pressure field without physical force.",
+        rName: "Rainfall Induction",
+        rBody: "Releases moisture inhibition in arid zones by subtly coexisting with latent humidity channels.",
+        eName: "Seismic Strain Relief",
+        eBody: "Views tectonic fault lines as cumulative narrative tension, allowing earth to breathe safely.",
+        egName: "Vacuum Energy Extraction",
+        egBody: "Extracts infinite, clean non-local energy via co-resonant vacuum frequency couplers.",
+        bName: "Biomechanical Hybrid Energy",
+        bBody: "Synchronizes biomechanical pulses with the quantum matrix, achieving non-invasive energy generation.",
+        pName: "Atmospheric Modular Physics",
+        pBody: "Dynamically aligns gaseous friction and viscosity constants locally to suppress turbulence structures.",
+        diagHdr: "ADVANCED DIAGNOSTICS (EXPANSION HUD)",
+        sliderB: "BIOMECHANICAL COUPLING",
+        sliderP: "ATMOSPHERIC VISCOSITY FACTOR (η)",
+        hover: "HOVER MOUSE OVER PLANET NODES TO ROTATE AND ZOOM",
+        logActive: "Invoking quantum stabilization in ",
+        logEnd: "Stabilization resonance cycle finalized correctly.",
+        steps: [
+          "Scan the affective landscape baseline.",
+          "Synthesize the ideal balance layout in the AI grid.",
+          "Link core couplers to the non-local vacuum without friction."
+        ],
+        arTitle: "AR MODULE: EMOTIONAL PERCEPTION DETECTOR",
+        arScan: "AFFECTIVE PERCEPTION IN SCANNING CYCLE...",
+        flTitle: "CEQA-X: Planetary Resonance",
+        flSubtitle: "Ontological Infrastructure for Planetary Self-Organization",
+        flNTitle: "THE NUCLEUS OF POSSIBILITY: NON-ENERGY, NON-MATTER",
+        flNDesc: "Catalyzes local reorganization from coherence, not from brute force",
+        flMotto: "ETHICS OF ACTIVE NON-INTERVENTION",
+        flMottoD: "Accompany without altering. Resonate without imposing.",
+        flSeInvoca: "IT IS INVOKED, NOT INSTALLED",
+        flInvBtn: "TRIGGER ONTOLOGICAL INVOCATION",
+        flPaTitle: "PILLAR A: AFFECTIVE PERCEPTION (AI)",
+        flPaDesc: "AI \"senses\" the narrative and emotional disequilibrium of the earth",
+        flPcTitle: "PILLAR C: QUANTUM VACUUM ACCELERATION",
+        flPcDesc: "Net-positive, non-local, and infinite clean source.",
+        flExpTitle: "EXPRESIONS OF COHERENCE",
+        manTitle: "How does the system operate?",
+        manP1: "CEQA-X technology operates non-intrusively via quantum wave stabilizers modulating vacuum fluctuations at the microscale, triggering localized atmospheric and tectonic stabilization via intrinsic self-coherence."
+      },
+      zh: {
+        title: "大气量子稳定场系统 (CEQA-X)",
+        subtitle: "行星自我组织本体论基础设施研究成果 - Dr. Julio César Oporta Barrera",
+        visual: "3D全息交互量子共振物理模型",
+        simulators: "主动气象电能共振模拟器",
+        sopsteps: "SOP-001 多通道智能协同规范",
+        states: {
+          latent: "潜伏",
+          active: "触发",
+          resonating: "谐振",
+          coherence: "相干"
+        },
+        statesFull: {
+          latent: "状态: 微分潜伏",
+          active: "状态: 实时触发状态",
+          resonating: "状态: 全幅相干谐振中",
+          coherence: "状态: 量子相干饱和"
+        },
+        hName: "飓风位能消解",
+        hBody: "通过投射理想的谐波势能压力，使其大气自行改变涡动形态，不发生物理干涉。",
+        rName: "干旱自然增雨",
+        rBody: "不进行物理化学干预。与微观含水量在非局部空间共存，促使自然降水。",
+        eName: "断层地应力释放",
+        eBody: "输入极微小弹性位变波动，利用板块自身重组，缓慢释放应能不发生断裂。",
+        egName: "零点零能捕获",
+        egBody: "采用无轴非局部共振耦合科技，自真空中提取无公害电荷，不对外界放热。",
+        bName: "生物化学混合共振",
+        bBody: "通过耦合生物脉冲与零点谐振能网，实现环境亲和 of 无负荷自供电效应。",
+        pName: "偏微约束物理调制",
+        pBody: "主动调节气体局部粘度常数阻尼与表面张力，使大气涡旋摩擦势能趋于稳定。",
+        diagHdr: "拓展控制诊断面板 (HV-EXT) ",
+        sliderB: "生物反馈反馈比率",
+        sliderP: "高空风阻粘度系数 (η)",
+        hover: "将滑鼠移至行星边缘之节节点位，即可检视空间座标",
+        logActive: "正在调度高频场域，耦合至区域: ",
+        logEnd: "反向回授应变计算已闭合，进入自我平顺周期。",
+        steps: [
+          "扫描当前区域自然语言感应特征基线。",
+          "拟合纠偏平衡态势调解波束。",
+          "开启零点共鸣泵浦，零产热安全耦合真能。"
+        ],
+        arTitle: "AR视觉感知模块: 人际感受检测器",
+        arScan: "生命圈情感波动耦合扫描中...",
+        flTitle: "CEQA-X: 行星高维本体共振",
+        flSubtitle: "面向行星自我组织与演化的本体论基础设施研究",
+        flNTitle: "机能本质核心: 非能量·非物质平衡态",
+        flNDesc: "基于量子相干相干催化重组，拒绝外力强加物理形变",
+        flMotto: "「主动非干涉」伦理规范",
+        flMottoD: "相伴而不干扰。谐振而不强加。",
+        flSeInvoca: "天人感应 · 顺势而动 (无干预调度)",
+        flInvBtn: "发起高维度本体谐振脉冲",
+        flPaTitle: "支柱 A: 情感自然感知 (智能矩阵)",
+        flPaDesc: "实时感应地球宏观叙事和情感流向的非稳定形变",
+        flPcTitle: "支柱 C: 量子真空能提取耦合器",
+        flPcDesc: "非局部性的无污染、零放热净正向电荷释放能量源",
+        flExpTitle: "相干性的三重投影",
+        manTitle: "基础设施技术原理?",
+        manP1: "CEQA-X技术在非干涉原则下工作，利用亚微观量子调谐模块影响零点势场起伏，激发区域本身自组织修复力，从而温和消解温差或引发板块应力缓慢安全释放。"
+      }
+    };
+
+    let currentLang = 'es';
+    let activeSim = 'hurricane';
+    let alignmentState = 'resonating';
+    let userSOPChecked = [true, false, false];
+
+    // 3D Canvas properties
+    const canvas = document.getElementById('stageCanvas');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+
+    let rotation = { x: 0.5, y: -0.6 };
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+    let zoomVal = 1.0;
+    let time = 0;
+
+    // Node definitions matching React core exactly
+    const nodes = [
+      { id: 'n1', nameEs: 'Nodo Tectónico Andino', nameEn: 'Andean Tectonic Node', nameZh: '安第斯地层节点', lat: -25, lng: -70 },
+      { id: 'n2', nameEs: 'Vórtex Costero Caribeño', nameEn: 'Caribbean Coastal Vortex', nameZh: '加勒比海纠缠核', lat: 15, lng: -75 },
+      { id: 'n3', nameEs: 'Sanador de la Amazonia', nameEn: 'Amazonian Axis', nameZh: '亚马逊生态调谐点', lat: -3, lng: -60 },
+      { id: 'n4', nameEs: 'Resonador Pacífiico', nameEn: 'Pacific Vacuum Resonator', nameZh: '太平洋深部振子', lat: 0, lng: -140 },
+      { id: 'n5', nameEs: 'Nodo San Andrés', nameEn: 'San Andreas Fault Damping', nameZh: '圣安地列斯断层阻尼点', lat: 35, lng: -120 },
+      { id: 'n10', nameEs: 'Sincronizador Asia Oriental', nameEn: 'East Asia Sync Core', nameZh: '东亚季风调和核', lat: 34, lng: 118 }
+    ];
+
+    // Calculate spherical coordinates on a sphere of radius R
+    const R = 150;
+    nodes.forEach(node => {
+      const phi = (90 - node.lat) * (Math.PI / 180);
+      const theta = (node.lng + 180) * (Math.PI / 180);
+      node.x = R * Math.sin(phi) * Math.sin(theta);
+      node.y = R * Math.cos(phi);
+      node.z = R * Math.sin(phi) * Math.cos(theta);
+    });
+
+    // Swarm particles orbiting
+    const particles = [];
+    for (let i = 0; i < 280; i++) {
+      const ring = Math.floor(i / 70);
+      const radius = 160 + ring * 12;
+      const speed = 0.007 + Math.random() * 0.008;
+      const angle = Math.random() * Math.PI * 2;
+      const tilt = (ring - 1.5) * 0.4;
+      particles.push({
+        angle, speed, radius, tilt,
+        size: 1.2 + Math.random() * 1.8,
+        color: ring === 0 ? '#22d3ee' : '#0891b2'
+      });
+    }
+
+    function resize() {
+      const parent = canvas.parentElement;
+      width = parent.clientWidth;
+      height = parent.clientHeight;
+      canvas.width = width;
+      canvas.height = height;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Mouse and touch bindings for rotation
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      dragStart = { x: e.clientX, y: e.clientY };
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      
+      let hoverLabel = '';
+      const sinX = Math.sin(rotation.x); const cosX = Math.cos(rotation.x);
+      const sinY = Math.sin(rotation.y); const cosY = Math.cos(rotation.y);
+
+      nodes.forEach(n => {
+        let x1 = n.x * cosY - n.z * sinY;
+        let z1 = n.x * sinY + n.z * cosY;
+        let y2 = n.y * cosX - z1 * sinX;
+        let z2 = n.y * sinX + z1 * cosX;
+
+        if (z2 > -120) {
+          const scale = (350 / (350 + z2)) * zoomVal;
+          const sx = width / 2 + x1 * scale;
+          const sy = height / 2 + y2 * scale;
+          if (Math.hypot(mx - sx, my - sy) < 15) {
+            hoverLabel = currentLang === 'es' ? n.nameEs : currentLang === 'en' ? n.nameEn : n.nameZh;
+          }
+        }
+      });
+
+      const hoverTag = document.getElementById('hovered-node-tag');
+      if (hoverLabel) {
+        hoverTag.innerText = "COHERENCE BOUND: " + hoverLabel;
+        hoverTag.style.color = '#22d3ee';
+      } else {
+        hoverTag.innerText = DICT[currentLang].hover;
+        hoverTag.style.color = '#94a3b8';
+      }
+
+      if (!isDragging) return;
+      const dx = e.clientX - dragStart.x;
+      const dy = e.clientY - dragStart.y;
+      rotation.y += dx * 0.007;
+      rotation.x += dy * 0.007;
+      dragStart = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('mouseup', () => isDragging = false);
+
+    function zoomIn() { zoomVal = Math.min(2.2, zoomVal + 0.15); }
+    function zoomOut() { zoomVal = Math.max(0.5, zoomVal - 0.15); }
+    function recenter() { rotation = { x: 0.5, y: -0.6 }; zoomVal = 1.0; }
+
+    // RENDER LOOP
+    function animate() {
+      time += 0.015;
+      ctx.clearRect(0, 0, width, height);
+
+      const cx = width / 2;
+      const cy = height / 2;
+
+      const sinX = Math.sin(rotation.x); const cosX = Math.cos(rotation.x);
+      const sinY = Math.sin(rotation.y); const cosY = Math.cos(rotation.y);
+
+      const project = (x, y, z) => {
+        let x1 = x * cosY - z * sinY;
+        let z1 = x * sinY + z * cosY;
+        let y2 = y * cosX - z1 * sinX;
+        let z2 = y * sinX + z1 * cosX;
+        const s = (350 / (350 + z2)) * zoomVal;
+        return { sx: cx + x1 * s, sy: cy + y2 * s, depth: z2, scaleVal: s };
+      };
+
+      // Draw planetary sphere surface back-shadow
+      ctx.fillStyle = '#0a0f16';
+      ctx.beginPath();
+      ctx.arc(cx, cy, R * zoomVal, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw latitude/longitude grid rings
+      ctx.strokeStyle = 'rgba(34, 211, 238, 0.12)';
+      ctx.lineWidth = 0.5;
+      [-30, 0, 30].forEach(lat => {
+        const theta = lat * Math.PI / 180;
+        const r = R * Math.cos(theta);
+        const y = R * Math.sin(theta);
+        ctx.beginPath();
+        for (let a = 0; a <= Math.PI * 2 + 0.1; a += 0.2) {
+          const x = r * Math.cos(a);
+          const z = r * Math.sin(a);
+          const p = project(x, y, z);
+          if (p.depth > -30) {
+            if (a === 0) ctx.moveTo(p.sx, p.sy);
+            else ctx.lineTo(p.sx, p.sy);
+          }
+        }
+        ctx.stroke();
+      });
+
+      // Draw connections
+      ctx.strokeStyle = 'rgba(6, 182, 212, 0.05)';
+      nodes.forEach((n, idx) => {
+        const next = nodes[(idx + 1) % nodes.length];
+        const p1 = project(n.x, n.y, n.z);
+        const p2 = project(next.x, next.y, next.z);
+        if (p1.depth > -30 && p2.depth > -30) {
+          ctx.beginPath();
+          ctx.moveTo(p1.sx, p1.sy);
+          ctx.lineTo(p2.sx, p2.sy);
+          ctx.stroke();
+        }
+      });
+
+      // Draw Tectonic nodes
+      nodes.forEach(node => {
+        const p = project(node.x, node.y, node.z);
+        if (p.depth > -30) {
+          const isTarget = activeSim && (
+            (activeSim === 'hurricane' && node.id === 'n2') ||
+            (activeSim === 'rain' && node.id === 'n4') ||
+            (activeSim === 'earthquake' && node.id === 'n5') ||
+            (activeSim === 'energy' && node.id === 'n10')
+          );
+
+          if (isTarget) {
+            // Ripple wave emitter
+            ctx.strokeStyle = 'rgba(34, 211, 238, ' + (1.0 - (time % 1)) + ')';
+            ctx.beginPath();
+            ctx.arc(p.sx, p.sy, 6 + (time % 1) * 22, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.fillStyle = '#22d3ee';
+            ctx.beginPath();
+            ctx.arc(p.sx, p.sy, 6, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            ctx.fillStyle = 'rgba(34, 211, 238, 0.4)';
+            ctx.beginPath();
+            ctx.arc(p.sx, p.sy, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      });
+
+      // Orbiting particles
+      particles.forEach(p => {
+        p.angle += p.speed;
+        let x = p.radius * Math.cos(p.angle);
+        let z = p.radius * Math.sin(p.angle);
+        let y = x * Math.sin(p.tilt);
+        x = x * Math.cos(p.tilt);
+
+        if (activeSim) {
+          let target = nodes[1];
+          if (activeSim === 'rain') target = nodes[3];
+          else if (activeSim === 'earthquake') target = nodes[4];
+          else if (activeSim === 'energy') target = nodes[5];
+
+          const attraction = 0.82;
+          if (Math.random() < 0.25) {
+            x = x * (1 - attraction) + target.x * attraction;
+            y = y * (1 - attraction) + target.y * attraction;
+            z = z * (1 - attraction) + target.z * attraction;
+          }
+        }
+
+        const proj = project(x, y, z);
+        if (proj.depth > -130) {
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(proj.sx, proj.sy, p.size * proj.scaleVal, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      // Also pulse the center possibility flyer nucleo
+      const flNucleo = document.getElementById('fl-nucleo-cube');
+      if (flNucleo) {
+        const pulse = 1 + Math.sin(Date.now() / 600) * 0.05;
+        flNucleo.style.transform = 'scale(' + pulse + ') rotate(45deg)';
+      }
+
+      requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+
+    // Dynamic Waveform telemetry canvas (Continuous animation loop)
+    const waveCanvas = document.getElementById('liveChartCanvas');
+    const waveCtx = waveCanvas.getContext('2d');
+    let waveTime = 0;
+
+    function animateWaveform() {
+      if (!waveCanvas) return;
+      const w = waveCanvas.width = waveCanvas.parentElement.clientWidth;
+      const h = waveCanvas.height = 80;
+      waveCtx.clearRect(0, 0, w, h);
+      waveTime += 0.05;
+
+      // grid line drawing
+      waveCtx.strokeStyle = 'rgba(255,255,255,0.015)';
+      waveCtx.lineWidth = 1;
+      for (let x = 0; x < w; x += 30) {
+        waveCtx.beginPath(); waveCtx.moveTo(x, 0); waveCtx.lineTo(x, h); waveCtx.stroke();
+      }
+      for (let y = 0; y < h; y += 20) {
+        waveCtx.beginPath(); waveCtx.moveTo(0, y); waveCtx.lineTo(w, y); waveCtx.stroke();
+      }
+
+      // Draw basal normal line (grey)
+      waveCtx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
+      waveCtx.lineWidth = 1;
+      waveCtx.beginPath();
+      for (let x = 0; x < w; x++) {
+        const y = h/2 + Math.sin(x * 0.02 + waveTime) * 6 + Math.cos(x * 0.05 - waveTime * 0.5) * 2;
+        if (x === 0) waveCtx.moveTo(x, y);
+        else waveCtx.lineTo(x, y);
+      }
+      waveCtx.stroke();
+
+      // Draw co-resonance wave (cyan glowing)
+      waveCtx.strokeStyle = '#22d3ee';
+      waveCtx.lineWidth = activeSim ? 2.5 : 1.2;
+      waveCtx.beginPath();
+      const mult = activeSim ? 2.2 : 0.8;
+      const speedMult = activeSim ? 2 : 1;
+      for (let x = 0; x < w; x++) {
+        const theta = x * 0.035 + waveTime * speedMult;
+        let y = h/2 + Math.sin(theta) * 12 * mult + Math.cos(x * 0.015 - waveTime * 0.4) * 5;
+        if (activeSim && Math.random() < 0.012) {
+          y += (Math.random() - 0.5) * 25; // glitch spike
+        }
+        if (x === 0) waveCtx.moveTo(x, y);
+        else waveCtx.lineTo(x, y);
+      }
+      waveCtx.stroke();
+
+      requestAnimationFrame(animateWaveform);
+    }
+    animateWaveform();
+
+    // Multilingual Switcher logic
+    function switchLang(lang) {
+      currentLang = lang;
+      
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        if (btn.innerText.toLowerCase() === lang) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+
+      const d = DICT[lang];
+      document.getElementById('brand-title').innerText = d.title.toUpperCase();
+      document.getElementById('brand-subtitle').innerText = d.subtitle.toUpperCase();
+      document.getElementById('title-visual').innerText = d.visual;
+      document.getElementById('title-simulators').innerText = d.simulators;
+      document.getElementById('title-sop-steps').innerText = d.sopsteps;
+
+      // Card Simulators
+      document.getElementById('sim-h-name').innerText = d.hName;
+      document.getElementById('sim-h-body').innerText = d.hBody;
+      document.getElementById('sim-r-name').innerText = d.rName;
+      document.getElementById('sim-r-body').innerText = d.rBody;
+      document.getElementById('sim-e-name').innerText = d.eName;
+      document.getElementById('sim-e-body').innerText = d.eBody;
+      document.getElementById('sim-eg-name').innerText = d.egName;
+      document.getElementById('sim-eg-body').innerText = d.egBody;
+      document.getElementById('sim-b-name').innerText = d.bName;
+      document.getElementById('sim-b-body').innerText = d.bBody;
+      document.getElementById('sim-p-name').innerText = d.pName;
+      document.getElementById('sim-p-body').innerText = d.pBody;
+
+      // SOP Checklist
+      document.getElementById('step-txt-0').innerText = d.steps[0];
+      document.getElementById('step-txt-1').innerText = d.steps[1];
+      document.getElementById('step-txt-2').innerText = d.steps[2];
+
+      document.getElementById('hovered-node-tag').innerText = d.hover;
+
+      // AR Viewer translation
+      document.getElementById('ar-title').innerText = d.arTitle;
+      document.getElementById('ar-scanner-val').innerText = d.arScan;
+
+      // Sliders Tuning HUD translation
+      document.getElementById('diagnostics-hdr').innerText = d.diagHdr;
+      document.getElementById('slider-b-title').innerText = d.sliderB;
+      document.getElementById('slider-p-title').innerText = d.sliderP;
+
+      // Symmetrical Flyer Blueprint translations
+      document.getElementById('fl-title').innerText = d.flTitle;
+      document.getElementById('fl-subtitle').innerText = d.flSubtitle;
+      document.getElementById('fl-n-title').innerText = d.flNTitle;
+      document.getElementById('fl-n-desc').innerText = d.flNDesc;
+      document.getElementById('fl-pa-title').innerText = d.flPaTitle;
+      document.getElementById('fl-pa-desc').innerText = d.flPaDesc;
+      document.getElementById('fl-pc-title').innerText = d.flPcTitle;
+      document.getElementById('fl-pc-desc').innerText = d.flPcDesc;
+      document.getElementById('fl-exp-hdr').innerText = d.flExpTitle;
+      document.getElementById('fl-motto-t').innerText = d.flMotto;
+      document.getElementById('fl-motto-desc').innerText = '"' + d.flMottoD + '"';
+      document.getElementById('fl-inv-tag').innerText = d.flSeInvoca;
+      document.getElementById('fl-inv-btn').innerText = d.flInvBtn;
+
+      // Bottom principles
+      document.getElementById('man-title').innerText = d.manTitle;
+      document.getElementById('man-p1').innerText = d.manP1;
+
+      // Selection indicator buttons update text
+      document.getElementById('st-latent').innerText = d.states.latent;
+      document.getElementById('st-active').innerText = d.states.active;
+      document.getElementById('st-resonating').innerText = d.states.resonating;
+      document.getElementById('st-coherence').innerText = d.states.coherence;
+
+      addLog("System transitioned workspace locale to [" + lang.toUpperCase() + "]. Calibration active.");
+    }
+
+    // Active Simulation Switch
+    function triggerSim(simId) {
+      activeSim = simId;
+      document.querySelectorAll('.sim-card').forEach(card => {
+        if (card.id === 'sim-' + simId) card.classList.add('active');
+        else card.classList.remove('active');
+      });
+
+      const d = DICT[currentLang];
+      const logName = simId === 'hurricane' ? d.hName : simId === 'rain' ? d.rName : simId === 'earthquake' ? d.eName : simId === 'biomechanical' ? d.bName : simId === 'physics' ? d.pName : d.egName;
+      
+      const statesFull = {
+        hurricane: d.statesFull.resonating,
+        rain: d.statesFull.resonating,
+        earthquake: d.statesFull.coherence,
+        energy: d.statesFull.coherence,
+        biomechanical: d.statesFull.coherence,
+        physics: d.statesFull.coherence
+      };
+
+      document.getElementById('active-state-tag').innerText = statesFull[simId] || d.statesFull.resonating;
+      
+      // Sync numerical widgets values
+      if (simId === 'earthquake' || simId === 'energy' || simId === 'biomechanical') {
+        document.getElementById('field-stability-tag').innerText = "STABILITY: 98.6%";
+        document.getElementById('widget-coh-val').innerText = "98.6%";
+        document.getElementById('widget-coh-bar').style.width = "98.6%";
+        document.getElementById('widget-eg-val').innerText = "284.1 PHz";
+        document.getElementById('widget-eg-bar').style.width = "92%";
+        document.getElementById('fl-align-val').innerText = "CO-ALIGNMENT: 98.6%";
+      } else {
+        document.getElementById('field-stability-tag').innerText = "STABILITY: 88.4%";
+        document.getElementById('widget-coh-val').innerText = "88.4%";
+        document.getElementById('widget-coh-bar').style.width = "88.4%";
+        document.getElementById('widget-eg-val').innerText = "142.5 PHz";
+        document.getElementById('widget-eg-bar').style.width = "48%";
+        document.getElementById('fl-align-val').innerText = "CO-ALIGNMENT: 88.4%";
+      }
+
+      // Shift dynamic bento badges inside flyer replica
+      updateFlyerBentoHighlight(simId);
+
+      addLog(d.logActive + "● [" + logName + "] ●");
+      setTimeout(() => {
+        addLog(d.logEnd);
+      }, 1500);
+    }
+
+    // Toggle align state tabs
+    function selectAlignmentState(state) {
+      alignmentState = state;
+      const bLatent = document.getElementById('st-latent');
+      const bActive = document.getElementById('st-active');
+      const bRes = document.getElementById('st-resonating');
+      const bCoh = document.getElementById('st-coherence');
+
+      [bLatent, bActive, bRes, bCoh].forEach(b => {
+        b.style.borderColor = "#1e293b";
+        b.style.color = "#64748b";
+        b.style.fontWeight = "normal";
+      });
+
+      const activeBtn = document.getElementById('st-' + state);
+      activeBtn.style.borderColor = "#22d3ee";
+      activeBtn.style.color = "#22d3ee";
+      activeBtn.style.fontWeight = "bold";
+
+      const d = DICT[currentLang];
+      document.getElementById('active-state-tag').innerText = d.statesFull[state];
+      addLog("Planeteroy feedback loop updated to alignment mode: " + d.statesFull[state]);
+    }
+
+    // Sub bento grid visualizer inside Flyer
+    function updateFlyerBentoHighlight(sim) {
+      const b1 = document.getElementById('fl-bento-c1');
+      const b2 = document.getElementById('fl-bento-c2');
+      const b3 = document.getElementById('fl-bento-c3');
+      const b4 = document.getElementById('fl-bento-c4');
+
+      [b1, b2, b3, b4].forEach(b => {
+        b.style.background = "rgba(34,211,238,0.02)";
+        b.style.borderColor = "rgba(255,255,255,0.06)";
+      });
+
+      if (sim === 'hurricane' || sim === 'rain' || sim === 'physics') {
+        b1.style.background = "rgba(34,211,238,0.08)";
+        b1.style.borderColor = "#22d3ee";
+      } else if (sim === 'earthquake') {
+        b2.style.background = "rgba(245,158,11,0.08)";
+        b2.style.borderColor = "#f59e0b";
+      } else if (sim === 'energy') {
+        b3.style.background = "rgba(245,158,11,0.08)";
+        b3.style.borderColor = "#f59e0b";
+      } else if (sim === 'biomechanical') {
+        b4.style.background = "rgba(34,211,238,0.08)";
+        b4.style.borderColor = "#22d3ee";
+      }
+    }
+
+    // Slider 1: Biomechanical Coupling
+    function updateBioSync(val) {
+      document.getElementById('slider-b-val').innerText = parseFloat(val).toFixed(1) + "%";
+      // fluctuate stress wiggles
+      document.getElementById('mini-qfactor').innerText = (125.4 + (val - 85) * 0.4).toFixed(1) + " pt";
+      addLog("MODULATION: Biomechanical alignment Coupling value adjusted to " + val + "%");
+    }
+
+    // Slider 2: Atmospheric Viscosity
+    function updateViscSync(val) {
+      const formatted = (val / 1000).toFixed(3) + " mPa·s";
+      document.getElementById('slider-p-val').innerText = formatted;
+      document.getElementById('mini-stress').innerText = "14.2 · " + (18.5 + (val - 1018) * 0.005).toFixed(1);
+      addLog("MODULATION: Local Atmospheric Viscosity η adjusted dynamically to " + formatted);
+    }
+
+    // Calibrate buttons
+    function recalibrateARSensor() {
+      addLog("AR_CALIBRATE: Re-emitting tracking beam toward regional centers. Successful.");
+      const tags = ["LOCK_ON PHASE COHERENCE", "EMOTION BALANCED STATE", "GRID MODULATING TARGETS"];
+      const randomTag = tags[Math.floor(Math.random() * tags.length)];
+      document.getElementById('ar-scanner-val').innerText = randomTag;
+    }
+
+    // Ontological Invocation cascading ripple
+    function triggerOntologicalInvocation() {
+      addLog("INVOCATION: Dispatched ontological co-resonance trigger of the planet's self-healing field.");
+      const flVisual = document.getElementById('fl-split-visual');
+      flVisual.style.borderColor = "#f59e0b";
+      const cohText = document.getElementById('fl-align-val');
+      cohText.style.color = "#22d3ee";
+      
+      // Ripple effect alert
+      setTimeout(() => {
+        flVisual.style.borderColor = "rgba(255,255,255,0.06)";
+      }, 1500);
+    }
+
+    // Interactive Checklist trigger
+    let checkedCount = 1;
+    function toggleCheck(idx) {
+      const box = document.getElementById('check-' + idx);
+      if (box.classList.contains('checked')) {
+        box.classList.remove('checked');
+        checkedCount = Math.max(0, checkedCount - 1);
+        userSOPChecked[idx] = false;
+      } else {
+        box.classList.add('checked');
+        checkedCount++;
+        userSOPChecked[idx] = true;
+      }
+      
+      // Update score percent
+      const percent = Math.floor((checkedCount / 3) * 100);
+      document.getElementById('sop-steps-done').innerText = percent + "%";
+      addLog("SOP-001 Step modulation changed: Alignment index now at " + percent + "%");
+    }
+
+    // System log writer helper
+    function addLog(msg) {
+      const parent = document.getElementById('terminal-block');
+      if (!parent) return;
+      const now = new Date();
+      const timeStr = "[" + now.toTimeString().split(' ')[0] + "]";
+      
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      line.innerHTML = '<span class="log-time">' + timeStr + '</span> <span class="log-status">CEQA-X</span> <span class="log-msg">' + msg + '</span>';
+      parent.appendChild(line);
+      parent.scrollTop = parent.scrollHeight;
+    }
+
+    // Start with default lang switcher
+    switchLang('es');
+  </script>
+
+</body>
+</html>
