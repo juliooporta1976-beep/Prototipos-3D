@@ -1,0 +1,1726 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BioPrint NutriCell v5.0 - Consola de Biofabricación Multidimensional Avanzada</title>
+    <style>
+        :root {
+            --neon-blue: #00f0ff;
+            --titanium-black: #08080c;
+            --dark-gray: #101015;
+            --hud-green: #39ff14;
+            --alert-red: #ff0055;
+            --warning-orange: #ffaa00;
+            --plasma-purple: #bd00ff;
+            --text-color: #e2e8f0;
+            --panel-bg: rgba(8, 8, 12, 0.94);
+            --border-glow: rgba(0, 240, 255, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--titanium-black);
+            font-family: 'Courier New', Courier, monospace;
+            color: var(--text-color);
+        }
+
+        #ar-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+            display: none;
+            transform: scaleX(-1);
+        }
+
+        #canvas3d {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            background: transparent;
+            cursor: grab;
+        }
+
+        #canvas3d:active {
+            cursor: grabbing;
+        }
+
+        /* Rejilla Principal del HUD */
+        .hud-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+            pointer-events: none;
+            display: grid;
+            grid-template-columns: 350px 1fr 370px;
+            grid-template-rows: 95px 1fr 140px;
+            padding: 15px;
+            gap: 15px;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* Estilos de Paneles con Estructura Militar/Científica */
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--neon-blue);
+            box-shadow: 0 0 15px var(--border-glow);
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Esquinas holográficas decorativas */
+        .panel::before, .panel::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-color: var(--neon-blue);
+            border-style: solid;
+            pointer-events: none;
+        }
+        .panel::before {
+            top: -1px; left: -1px;
+            border-width: 2px 0 0 2px;
+        }
+        .panel::after {
+            bottom: -1px; right: -1px;
+            border-width: 0 2px 2px 0;
+        }
+
+        /* Variaciones de Alerta en HUDs */
+        .panel.warning-alert { border-color: var(--warning-orange); box-shadow: 0 0 15px rgba(255, 170, 0, 0.3); }
+        .panel.warning-alert::before, .panel.warning-alert::after { border-color: var(--warning-orange); }
+
+        .panel.critical-alert { border-color: var(--alert-red); box-shadow: 0 0 15px rgba(255, 0, 85, 0.4); }
+        .panel.critical-alert::before, .panel.critical-alert::after { border-color: var(--alert-red); }
+
+        .panel.stealth-alert { border-color: var(--hud-green); box-shadow: 0 0 15px rgba(57, 255, 20, 0.3); }
+        .panel.stealth-alert::before, .panel.stealth-alert::after { border-color: var(--hud-green); }
+
+        /* Superior Izquierda: Logotipo e Identidad */
+        .header-left {
+            grid-column: 1;
+            grid-row: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .header-left h1 {
+            font-size: 13.5px;
+            color: #ffffff;
+            letter-spacing: 1.2px;
+            text-shadow: 0 0 8px var(--neon-blue);
+            font-weight: 900;
+        }
+
+        .header-left h2 {
+            font-size: 10.5px;
+            color: var(--neon-blue);
+            margin-top: 3px;
+            letter-spacing: 0.5px;
+        }
+
+        .header-left .author-tag {
+            font-size: 8px;
+            color: rgba(255, 255, 255, 0.45);
+            margin-top: 2px;
+            letter-spacing: 0.8px;
+        }
+
+        /* Superior Derecha: AR y Localización */
+        .header-right {
+            grid-column: 3;
+            grid-row: 1;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .btn {
+            background: transparent;
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            padding: 6px 14px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 11px;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 120%;
+            height: 0;
+            background: rgba(0, 240, 255, 0.12);
+            transform: translate(-50%, -50%) rotate(45deg);
+            transition: all 0.4s ease;
+            z-index: -1;
+        }
+
+        .btn:hover::after {
+            height: 350%;
+        }
+
+        .btn:hover, .btn.active {
+            background: var(--neon-blue);
+            color: var(--titanium-black);
+            box-shadow: 0 0 12px var(--neon-blue);
+        }
+
+        .btn-ar {
+            border-color: var(--hud-green);
+            color: var(--hud-green);
+        }
+
+        .btn-ar:hover, .btn-ar.active {
+            background: var(--hud-green);
+            color: var(--titanium-black);
+            box-shadow: 0 0 12px var(--hud-green);
+        }
+
+        .btn-action {
+            border-color: var(--plasma-purple);
+            color: var(--plasma-purple);
+        }
+        .btn-action:hover {
+            background: var(--plasma-purple);
+            color: #fff;
+            box-shadow: 0 0 12px var(--plasma-purple);
+        }
+
+        /* Lateral Izquierdo: Operaciones, Telemetría y AutoML Logger */
+        .sidebar-left {
+            grid-column: 1;
+            grid-row: 2 / 4;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .section-title {
+            font-size: 11px;
+            color: #fff;
+            border-bottom: 1px dashed var(--neon-blue);
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-title span.title-decor {
+            font-size: 9px;
+            color: var(--neon-blue);
+            opacity: 0.8;
+        }
+
+        .mode-container {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .mode-container .btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .mode-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+
+        .btn.active .mode-indicator {
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        .telemetry-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .telemetry-item {
+            font-size: 11px;
+            padding: 4px 6px;
+            border-left: 2px solid rgba(0, 240, 255, 0.35);
+            background: rgba(255,255,255,0.01);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .telemetry-val {
+            color: var(--neon-blue);
+            font-weight: bold;
+            font-size: 11px;
+            font-family: Consolas, monospace;
+        }
+
+        /* Terminal AutoML Log */
+        .terminal-panel {
+            flex-grow: 1;
+            min-height: 110px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .terminal-output {
+            flex-grow: 1;
+            font-size: 9px;
+            color: rgba(255,255,255,0.7);
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(0, 240, 255, 0.15);
+            padding: 8px;
+            overflow-y: auto;
+            max-height: 140px;
+            font-family: monospace;
+            line-height: 1.35;
+        }
+
+        .terminal-line {
+            margin-bottom: 4px;
+            border-bottom: 1px solid rgba(255,255,255,0.02);
+        }
+
+        .terminal-prefix {
+            color: var(--hud-green);
+        }
+
+        /* Lateral Derecho: Inteligencia de Nodos, Reología y Bio-Acústica */
+        .sidebar-right {
+            grid-column: 3;
+            grid-row: 2 / 4;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .node-display {
+            width: 100%;
+            height: 150px;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            background: rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        #canvas-nodes {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Selector e Inspector de Nodos */
+        .node-inspector {
+            background: rgba(4, 4, 6, 0.95);
+            border: 1px dashed var(--neon-blue);
+            padding: 8px;
+            font-size: 10px;
+            margin-top: 5px;
+        }
+
+        .inspector-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+        }
+
+        /* Panel de Bio-Acústica y Física de Ondas Estacionarias */
+        .acoustic-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.15);
+            padding: 10px;
+        }
+
+        .acoustic-waveform {
+            width: 100%;
+            height: 40px;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            background: rgba(0,0,0,0.6);
+            margin-top: 5px;
+        }
+
+        /* Medidores Reológicos */
+        .rheology-panel {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            padding: 10px;
+        }
+
+        .meter-bar-container {
+            width: 100%;
+            height: 8px;
+            background: #111;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            margin-top: 4px;
+            margin-bottom: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .meter-bar-fill {
+            height: 100%;
+            background: var(--neon-blue);
+            width: 0%;
+            transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 0 8px var(--neon-blue);
+        }
+
+        .patent-panel {
+            flex-grow: 1;
+            font-size: 10px;
+            line-height: 1.4;
+            overflow-y: auto;
+            max-height: 130px;
+            border-top: 1px solid rgba(0,240,255,0.15);
+            padding-top: 8px;
+        }
+
+        /* Controles Inferiores */
+        .footer-center {
+            grid-column: 2;
+            grid-row: 3;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .controls-panel {
+            background: rgba(8, 8, 12, 0.94);
+            border: 1px solid var(--neon-blue);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.35);
+            padding: 12px 25px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            position: relative;
+        }
+
+        .controls-panel::before {
+            content: 'NUTRICELL SYSTEM CORE ENGINE CONTROL v5.0';
+            position: absolute;
+            top: -7px;
+            left: 20px;
+            background: var(--titanium-black);
+            padding: 0 5px;
+            font-size: 8px;
+            color: var(--neon-blue);
+            letter-spacing: 1px;
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            font-size: 9px;
+            color: var(--neon-blue);
+            width: 125px;
+        }
+
+        .slider-group input {
+            background: #181822;
+            accent-color: var(--neon-blue);
+            cursor: pointer;
+            margin-top: 4px;
+            height: 4px;
+        }
+
+        .slider-group span.val-display {
+            color: #fff;
+            float: right;
+            font-family: monospace;
+        }
+
+        /* Efecto Scanlines */
+        .scanlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.25) 50%
+            ), linear-gradient(
+                90deg,
+                rgba(255, 0, 0, 0.02),
+                rgba(0, 255, 0, 0.01),
+                rgba(0, 0, 255, 0.02)
+            );
+            background-size: 100% 4px, 6px 100%;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0.75;
+        }
+
+        /* Grid Holográfico */
+        .hologrid {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 240, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.02) 1px, transparent 1px);
+            background-size: 50px 50px;
+            background-position: center center;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .screen-warning {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 0, 85, 0.15);
+            border: 1px solid var(--alert-red);
+            color: var(--alert-red);
+            padding: 4px 15px;
+            font-size: 10px;
+            letter-spacing: 2px;
+            font-weight: bold;
+            z-index: 5;
+            text-shadow: 0 0 8px var(--alert-red);
+            display: none;
+            animation: warningPulse 1.2s infinite;
+        }
+
+        @keyframes warningPulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: 135px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.45);
+            text-align: center;
+            text-shadow: 0 0 5px #000;
+            letter-spacing: 0.5px;
+        }
+
+        .lang-group {
+            display: flex;
+            gap: 4px;
+        }
+
+        /* Tooltip */
+        .cell-tooltip {
+            position: absolute;
+            background: rgba(8, 8, 12, 0.98);
+            border: 1px solid var(--neon-blue);
+            color: #fff;
+            padding: 8px;
+            font-size: 10px;
+            pointer-events: none;
+            z-index: 100;
+            font-family: monospace;
+            box-shadow: 0 0 10px rgba(0,240,255,0.4);
+            display: none;
+        }
+
+        /* Media Queries */
+        @media (max-width: 1024px) {
+            .hud-overlay {
+                grid-template-columns: 290px 1fr 290px;
+                padding: 10px;
+                gap: 10px;
+            }
+            .controls-panel { padding: 8px 15px; gap: 8px; }
+            .slider-group { width: 100px; }
+        }
+
+        @media (max-width: 768px) {
+            .hud-overlay {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto auto;
+                overflow-y: auto;
+                pointer-events: auto;
+            }
+            .sidebar-left, .sidebar-right { grid-column: 1; margin-top: 0; }
+            .footer-center { grid-column: 1; }
+            #canvas3d { position: fixed; }
+        }
+    </style>
+</head>
+<body>
+
+    <video id="ar-video" autoplay playsinline></video>
+    <canvas id="canvas3d"></canvas>
+    <div class="hologrid"></div>
+    <div class="scanlines"></div>
+
+    <div class="screen-warning" id="ui-screen-warning">WARNING: OVERDRIVE ACTIVE - MULTI-EXTRUDER STRESS LEVEL HIGH</div>
+
+    <div class="cell-tooltip" id="cell-node-tooltip"></div>
+
+    <div class="hud-overlay">
+        <!-- Identificación del Autor -->
+        <div class="panel header-left">
+            <h1>DR. JULIO CÉSAR OPORTA BARRERA</h1>
+            <h2 id="txt-project">BIOPRINT NUTRICELL ENGINE v5.0</h2>
+            <div class="author-tag">ESTRATÉGICO & VISIONARIO | INTEL INSIDE AUTO-ML</div>
+        </div>
+
+        <!-- Opciones de Idioma y AR -->
+        <div class="header-right interactive">
+            <button class="btn btn-ar" id="btn-ar" onclick="toggleAR()">AR: OFF</button>
+            <div class="lang-group">
+                <button class="btn active" id="btn-es" onclick="setLanguage('es')">ES</button>
+                <button class="btn" id="btn-en" onclick="setLanguage('en')">EN</button>
+                <button class="btn" id="btn-zh" onclick="setLanguage('zh')">ZH</button>
+            </div>
+        </div>
+
+        <!-- Panel Izquierdo: Control y Telemetría -->
+        <div class="sidebar-left interactive">
+            <div class="panel" id="panel-modes">
+                <div class="section-title">
+                    <span id="txt-title-modes">Modos Operativos</span>
+                    <span class="title-decor">⚙</span>
+                </div>
+                <div class="mode-container">
+                    <button class="btn active" id="mode-std" style="width:100%; text-align:left;" onclick="setMode('std')">
+                        <span>■ STANDARD PROTOCOL</span>
+                        <div class="mode-indicator" style="background-color: var(--neon-blue)"></div>
+                    </button>
+                    <button class="btn" id="mode-ovr" style="width:100%; text-align:left;" onclick="setMode('ovr')">
+                        <span>■ OVERDRIVE (MAX STRESS)</span>
+                        <div class="mode-indicator" style="background-color: var(--alert-red)"></div>
+                    </button>
+                    <button class="btn" id="mode-sth" style="width:100%; text-align:left;" onclick="setMode('sth')">
+                        <span>■ STEALTH TACTICAL</span>
+                        <div class="mode-indicator" style="background-color: var(--hud-green)"></div>
+                    </button>
+                    <button class="btn" id="mode-diag" style="width:100%; text-align:left;" onclick="setMode('diag')">
+                        <span>■ NEURAL AI DIAGNOSTIC</span>
+                        <div class="mode-indicator" style="background-color: var(--plasma-purple)"></div>
+                    </button>
+                </div>
+            </div>
+
+            <div class="panel" style="flex-grow: 1;" id="panel-telemetry">
+                <div class="section-title">
+                    <span id="txt-title-telemetry">Telemetría Mecatrónica</span>
+                    <span class="title-decor">📊</span>
+                </div>
+                <div class="telemetry-grid">
+                    <div class="telemetry-item"><span id="lbl-t1">Presión Extrusión:</span><span class="telemetry-val" id="val-pres">34.2 kPa</span></div>
+                    <div class="telemetry-item"><span id="lbl-t2">Temp. Plataforma:</span><span class="telemetry-val" id="val-temp">4.0 °C</span></div>
+                    <div class="telemetry-item"><span id="lbl-t3">Cohesión Enjambre:</span><span class="telemetry-val" id="val-coh">99.4 %</span></div>
+                    <div class="telemetry-item"><span id="lbl-t4">Energía Híbrida:</span><span class="telemetry-val" id="val-nrg">98.2 kW</span></div>
+                    <div class="telemetry-item"><span id="lbl-t5">Estrés Biomecánico:</span><span class="telemetry-val" id="val-str">0.12 MPa</span></div>
+                    <div class="telemetry-item"><span id="lbl-t6">Velocidad Flujo:</span><span class="telemetry-val" id="val-flow">12.4 mm/s</span></div>
+                    <div class="telemetry-item"><span id="lbl-t-extra1">Frecuencia Cuántica:</span><span class="telemetry-val" id="val-extra1">150 GHz</span></div>
+                    <div class="telemetry-item"><span id="lbl-t-extra2">Tensión de Membrana:</span><span class="telemetry-val" id="val-extra2">0.45 N/m</span></div>
+                </div>
+                
+                <div style="margin-top:10px; height:45px; border-top:1px solid rgba(0,240,255,0.15); padding-top:8px;">
+                    <canvas id="mini-graph" width="300" height="35"></canvas>
+                </div>
+            </div>
+
+            <!-- Terminal AutoML -->
+            <div class="panel terminal-panel">
+                <div class="section-title">
+                    <span id="txt-title-terminal">Consola AutoML Decision Engine</span>
+                    <span class="title-decor">&gt;_</span>
+                </div>
+                <div class="terminal-output" id="terminal-lines"></div>
+            </div>
+        </div>
+
+        <!-- Panel Derecho: Física Modular & Acústica -->
+        <div class="sidebar-right interactive">
+            <div class="panel" id="panel-ai-nodes">
+                <div class="section-title">
+                    <span id="txt-title-nodes">Sistema de Nodos IA</span>
+                    <span class="title-decor">🧠</span>
+                </div>
+                <div class="node-display">
+                    <canvas id="canvas-nodes" width="338" height="150"></canvas>
+                </div>
+                <div class="node-inspector">
+                    <div class="inspector-row"><strong>Nodo Enfocado:</strong> <span id="node-ins-name">Auto-Control Activo</span></div>
+                    <div class="inspector-row"><strong>Eficiencia Algoritmo:</strong> <span id="node-ins-eff">100%</span></div>
+                    <div class="inspector-row"><strong>Bucle Transmisión:</strong> <span id="node-ins-loop" style="color: var(--hud-green)">ESTABLE</span></div>
+                </div>
+            </div>
+
+            <!-- MÓDULO ADICIONAL: Levidador Bio-Acústico Ultrasónico -->
+            <div class="panel acoustic-panel" id="panel-acoustic">
+                <div class="section-title">
+                    <span id="txt-title-acoustic">Física Bio-Acústica (FRESH)</span>
+                    <span class="title-decor">(((🔊)))</span>
+                </div>
+                <div>
+                    <span style="font-size: 9px; opacity:0.85">Ondas Estacionarias Pre-Alineación</span>
+                    <canvas class="acoustic-waveform" id="canvas-acoustic"></canvas>
+                    <div style="display: flex; gap: 10px; margin-top: 8px;">
+                        <button class="btn btn-action" id="btn-acoustic-pulse" onclick="triggerAcousticShockwave()" style="flex-grow: 1; padding: 4px;">PULSO ACÚSTICO</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Física de Fluidos y Reología -->
+            <div class="panel rheology-panel" id="panel-rheology">
+                <div class="section-title">
+                    <span id="txt-title-rheology">Física de Fluido Bio-Material</span>
+                    <span class="title-decor">≈</span>
+                </div>
+                <div>
+                    <span style="font-size: 9px; opacity:0.8">Tasa de Esfuerzo de Cizallamiento (Shear Rate)</span>
+                    <div class="meter-bar-container">
+                        <div class="meter-bar-fill" id="shear-meter-fill"></div>
+                    </div>
+                    <span style="font-size: 9px; opacity:0.8">Polimerización Coaxial por Luz UV</span>
+                    <div class="meter-bar-container">
+                        <div class="meter-bar-fill" id="crosslinking-meter-fill" style="background: var(--plasma-purple); box-shadow: 0 0 8px var(--plasma-purple)"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel" style="flex-grow: 1;">
+                <div class="section-title">
+                    <span id="txt-title-spec">Especificación de Patente</span>
+                    <span class="title-decor">📝</span>
+                </div>
+                <div class="patent-panel" id="patent-text"></div>
+            </div>
+        </div>
+
+        <div class="instructions" id="txt-instruction"></div>
+
+        <!-- Barra de Control Inferior -->
+        <div class="footer-center">
+            <div class="controls-panel interactive">
+                <div class="slider-group">
+                    <label id="lbl-sl-speed">Velocidad Simulación</label>
+                    <input type="range" id="sl-speed" min="0" max="200" value="100" oninput="updateSlidersDisplay()">
+                </div>
+                <div class="slider-group">
+                    <label id="lbl-sl-energy">Frecuencia Cuántica</label>
+                    <input type="range" id="sl-energy" min="10" max="300" value="150" oninput="updateSlidersDisplay()">
+                </div>
+                <div class="slider-group">
+                    <label id="lbl-sl-shear">Esfuerzo Cizalla (Pa)</label>
+                    <input type="range" id="sl-shear" min="10" max="500" value="250" oninput="updateSlidersDisplay()">
+                </div>
+                <!-- Frecuencia de Levitación Acústica -->
+                <div class="slider-group">
+                    <label id="lbl-sl-acoustic">Frecuencia Acústica (kHz)</label>
+                    <input type="range" id="sl-acoustic" min="10" max="100" value="40" oninput="updateSlidersDisplay()">
+                </div>
+                <button class="btn" id="btn-reset" onclick="resetSimulation()" style="margin-left:10px;">RESET ENGINE</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- MULTILENGUAJE COMPLETO Y CORREGIDO ---
+        const langData = {
+            es: {
+                project: "MÓDULO DE BIOPROCESAMIENTO NUTRICELL",
+                titleModes: "Modos Operativos",
+                titleTelemetry: "Telemetría Mecatrónica",
+                titleNodes: "Sistema de Nodos IA",
+                titleSpec: "Especificación de Patente",
+                titleTerminal: "Consola AutoML Decision Engine",
+                titleRheology: "Física de Fluido Bio-Material",
+                titleAcoustic: "Física Bio-Acústica (FRESH)",
+                instruction: "Arrastra para rotar el prototipo 3D | Zoom con Scroll | Clic en los nodos para diagnóstico de viabilidad | Emite pulsos ultrasónicos",
+                lblSpeed: "Velocidad Simulación",
+                lblEnergy: "Frecuencia Cuántica",
+                lblShear: "Esfuerzo Cizalla (Pa)",
+                lblAcoustic: "Resonancia Acústica (kHz)",
+                btnPulse: "PULSO ACÚSTICO",
+                t1: "Presión Extrusión:", t2: "Temp. Plataforma:", t3: "Cohesión Enjambre:",
+                t4: "Energía Híbrida:", t5: "Estrés Biomecánico:", t6: "Velocidad Flujo:",
+                tExtra1: "Frecuencia Cuántica:", tExtra2: "Tensión Membrana:",
+                patent: "BioPrint NutriCell®: Sistema de biofabricación celular FRESH con estabilización activa por ondas acústicas ultrasónicas. Incorpora un bucle de compensación AutoML que controla dinámicamente el esfuerzo de cizalla del hidrogel para asegurar una viabilidad microtisular del 99%.",
+                arOff: "AR: APAGADO", arOn: "AR: ACTIVO"
+            },
+            en: {
+                project: "NUTRICELL BIOPROCESSING ENGINE v5.0",
+                titleModes: "Operational Modes",
+                titleTelemetry: "Mechatronic Telemetry",
+                titleNodes: "AI Node System",
+                titleSpec: "Patent Specification",
+                titleTerminal: "AutoML Decision Engine Console",
+                titleRheology: "Bio-Material Fluid Physics",
+                titleAcoustic: "Bio-Acoustic Physics (FRESH)",
+                instruction: "Drag to rotate 3D | Mouse wheel for Zoom | Click on tissue nodes for localized diagnostics | Emit ultrasonic shockwaves",
+                lblSpeed: "Simulation Speed",
+                lblEnergy: "Quantum Frequency",
+                lblShear: "Shear Force (Pa)",
+                lblAcoustic: "Acoustic Resonance (kHz)",
+                btnPulse: "ACOUSTIC PULSE",
+                t1: "Extrusion Pressure:", t2: "Platform Temp:", t3: "Swarm Cohesion:",
+                t4: "Hybrid Energy:", t5: "Biomechanical Stress:", t6: "Flow Velocity:",
+                tExtra1: "Quantum Frequency:", tExtra2: "Membrane Tension:",
+                patent: "BioPrint NutriCell®: FRESH cellular biofabrication system with active ultrasonic wave stabilization. Features an AutoML compensation loop that dynamically controls viscoelastic shear stress to guarantee 99% tissue viability.",
+                arOff: "AR: OFF", arOn: "AR: ACTIVE"
+            },
+            zh: {
+                project: "NUTRICELL 生物打印核心引擎 v5.0",
+                titleModes: "运行模式",
+                titleTelemetry: "机电遥测技术",
+                titleNodes: "AI 节点系统",
+                titleSpec: "专利规范",
+                titleTerminal: "AutoML 决策引擎终端",
+                titleRheology: "生物材料流体力学",
+                titleAcoustic: "声学物理控制 (FRESH)",
+                instruction: "拖动旋转3D模型 | 鼠标滚轮缩放 | 单击组织节点进行局部诊断 | 触发超声波冲击",
+                lblSpeed: "模拟速度",
+                lblEnergy: "量子频率",
+                lblShear: "剪切应力 (Pa)",
+                lblAcoustic: "声学共振频率 (kHz)",
+                btnPulse: "声学压力脉冲",
+                t1: "挤出压力:", t2: "平台温度:", t3: "集群凝聚力:",
+                t4: "混合能源:", t5: "生物力学应力:", t6: "流体速度:",
+                tExtra1: "量子频率:", tExtra2: "细胞膜张力:",
+                patent: "BioPrint NutriCell®: 采用超声波主动稳定技术的 FRESH 细胞生物制造系统。配备 AutoML 闭环补偿系统，实时调控生物材料粘弹性剪切应力，确保99%以上的微组织细胞活性。",
+                arOff: "增强现实: 关闭", arOn: "增强现实: 开启"
+            }
+        };
+
+        let currentLang = 'es';
+        function setLanguage(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.lang-group .btn').forEach(b => b.classList.remove('active'));
+            const langBtn = document.getElementById('btn-' + lang);
+            if (langBtn) langBtn.classList.add('active');
+            
+            const d = langData[lang];
+            document.getElementById('txt-project').innerText = d.project;
+            document.getElementById('txt-title-modes').innerText = d.titleModes;
+            document.getElementById('txt-title-telemetry').innerText = d.titleTelemetry;
+            document.getElementById('txt-title-nodes').innerText = d.titleNodes;
+            document.getElementById('txt-title-spec').innerText = d.titleSpec;
+            document.getElementById('txt-title-terminal').innerText = d.titleTerminal;
+            document.getElementById('txt-title-rheology').innerText = d.titleRheology;
+            document.getElementById('txt-title-acoustic').innerText = d.titleAcoustic;
+            document.getElementById('txt-instruction').innerText = d.instruction;
+            document.getElementById('btn-acoustic-pulse').innerText = d.btnPulse;
+            
+            document.getElementById('lbl-sl-speed').innerHTML = d.lblSpeed + ' <span class="val-display" id="sl-val-speed">1.0x</span>';
+            document.getElementById('lbl-sl-energy').innerHTML = d.lblEnergy + ' <span class="val-display" id="sl-val-energy">150 GHz</span>';
+            document.getElementById('lbl-sl-shear').innerHTML = d.lblShear + ' <span class="val-display" id="sl-val-shear">250 Pa</span>';
+            document.getElementById('lbl-sl-acoustic').innerHTML = d.lblAcoustic + ' <span class="val-display" id="sl-val-acoustic">40 kHz</span>';
+            
+            document.getElementById('lbl-t1').innerText = d.t1;
+            document.getElementById('lbl-t2').innerText = d.t2;
+            document.getElementById('lbl-t3').innerText = d.t3;
+            document.getElementById('lbl-t4').innerText = d.t4;
+            document.getElementById('lbl-t5').innerText = d.t5;
+            document.getElementById('lbl-t6').innerText = d.t6;
+            document.getElementById('lbl-t-extra1').innerText = d.tExtra1;
+            document.getElementById('lbl-t-extra2').innerText = d.tExtra2;
+            document.getElementById('patent-text').innerText = d.patent;
+            
+            updateARButtonText();
+            updateSlidersDisplay();
+            addTerminalLine("LANGUAGE_CALIB", "Sistemas reajustados a la interfaz: [" + lang.toUpperCase() + "]");
+        }
+
+        // --- CONSOLA AUTO-ML LOGGER ---
+        const terminalOutput = document.getElementById('terminal-lines');
+        function addTerminalLine(tag, msg) {
+            const time = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = 'terminal-line';
+            div.innerHTML = '<span class="terminal-prefix">[' + time + '] [' + tag + ']</span> ' + msg;
+            terminalOutput.appendChild(div);
+            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+            
+            if(terminalOutput.childNodes.length > 20) {
+                terminalOutput.removeChild(terminalOutput.firstChild);
+            }
+        }
+
+        // --- MANEJO DE ESTADOS ---
+        let currentMode = 'std';
+        let arActive = false;
+        let streamRef = null;
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-container .btn').forEach(b => b.classList.remove('active'));
+            
+            const warningBanner = document.getElementById('ui-screen-warning');
+            const panelModes = document.getElementById('panel-modes');
+            const panelTelemetry = document.getElementById('panel-telemetry');
+            const panelAINodes = document.getElementById('panel-ai-nodes');
+            const panelAcoustic = document.getElementById('panel-acoustic');
+
+            const panels = [panelModes, panelTelemetry, panelAINodes, panelAcoustic];
+            panels.forEach(p => {
+                if(p) p.classList.remove('critical-alert', 'warning-alert', 'stealth-alert');
+            });
+            if(warningBanner) warningBanner.style.display = "none";
+
+            if(mode === 'std') {
+                const b = document.getElementById('mode-std');
+                if(b) b.classList.add('active');
+                addTerminalLine("MODE_STD", "Algoritmos estándar activos. Frecuencia de curado nominal.");
+            }
+            if(mode === 'ovr') {
+                const b = document.getElementById('mode-ovr');
+                if(b) b.classList.add('active');
+                if(warningBanner) warningBanner.style.display = "block";
+                panels.forEach(p => { if(p) p.classList.add('critical-alert'); });
+                addTerminalLine("WARN_OVR", "Modo Overdrive forzado. Esfuerzo de corte límite en el inyector.");
+            }
+            if(mode === 'sth') {
+                const b = document.getElementById('mode-sth');
+                if(b) b.classList.add('active');
+                panels.forEach(p => { if(p) p.classList.add('stealth-alert'); });
+                addTerminalLine("MODE_STH", "Protocolo de bio-fricción controlada. Ajuste acústico silencioso.");
+            }
+            if(mode === 'diag') {
+                const b = document.getElementById('mode-diag');
+                if(b) b.classList.add('active');
+                panels.forEach(p => { if(p) p.classList.add('warning-alert'); });
+                addTerminalLine("AI_DIAG", "Inicializando matriz de covarianza para sensores bio-ópticos.");
+            }
+        }
+
+        function updateARButtonText() {
+            const btn = document.getElementById('btn-ar');
+            if(!btn) return;
+            if (arActive) {
+                btn.innerText = langData[currentLang].arOn;
+                btn.classList.add('active');
+            } else {
+                btn.innerText = langData[currentLang].arOff;
+                btn.classList.remove('active');
+            }
+        }
+
+        function toggleAR() {
+            const video = document.getElementById('ar-video');
+            arActive = !arActive;
+            if (arActive) {
+                // Validación estricta para evitar interrupción del script en protocolo local file://
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                    .then(stream => {
+                        streamRef = stream;
+                        video.srcObject = stream;
+                        video.style.display = "block";
+                        addTerminalLine("AR_LIVE", "Dispositivo de video acoplado para realidad mixta.");
+                    })
+                    .catch(err => {
+                        arActive = false;
+                        updateARButtonText();
+                        addTerminalLine("AR_ERR", "Permiso de cámara denegado o dispositivo no disponible.");
+                    });
+                } else {
+                    arActive = false;
+                    updateARButtonText();
+                    addTerminalLine("AR_WARN", "Seguridad local de Chrome/Edge restringe AR en protocolo local file://");
+                }
+            } else {
+                if (streamRef) {
+                    streamRef.getTracks().forEach(track => track.stop());
+                }
+                if(video) video.style.display = "none";
+                addTerminalLine("AR_OFF", "Proyección AR apagada.");
+            }
+            updateARButtonText();
+        }
+
+        // --- ACTUALIZADOR DE SLIDERS CON CONCATENACIÓN ROBUSTA ---
+        function updateSlidersDisplay() {
+            const speed = (document.getElementById('sl-speed').value / 100).toFixed(1);
+            const energy = document.getElementById('sl-energy').value;
+            const shear = document.getElementById('sl-shear').value;
+            const acousticFreq = document.getElementById('sl-acoustic').value;
+
+            const valSpeed = document.getElementById('sl-val-speed');
+            const valEnergy = document.getElementById('sl-val-energy');
+            const valShear = document.getElementById('sl-val-shear');
+            const valAcoustic = document.getElementById('sl-val-acoustic');
+
+            if(valSpeed) valSpeed.innerText = speed + "x";
+            if(valEnergy) valEnergy.innerText = energy + " GHz";
+            if(valShear) valShear.innerText = shear + " Pa";
+            if(valAcoustic) valAcoustic.innerText = acousticFreq + " kHz";
+
+            // Modulación de medidores reológicos
+            const shearMeter = document.getElementById('shear-meter-fill');
+            if(shearMeter) {
+                const shearPct = Math.min((shear / 500) * 100, 100);
+                shearMeter.style.width = shearPct + "%";
+                if (shearPct > 80) {
+                    shearMeter.style.background = "var(--alert-red)";
+                    shearMeter.style.boxShadow = "0 0 10px var(--alert-red)";
+                } else if (shearPct > 50) {
+                    shearMeter.style.background = "var(--warning-orange)";
+                    shearMeter.style.boxShadow = "0 0 10px var(--warning-orange)";
+                } else {
+                    shearMeter.style.background = "var(--neon-blue)";
+                    shearMeter.style.boxShadow = "0 0 10px var(--neon-blue)";
+                }
+            }
+
+            const crosslinkMeter = document.getElementById('crosslinking-meter-fill');
+            if(crosslinkMeter) {
+                const energyPct = Math.min((energy / 300) * 100, 100);
+                crosslinkMeter.style.width = energyPct + "%";
+            }
+        }
+
+        // --- MOTOR FÍSICO Y HOLOGRÁFICO DE PROYECCIÓN 3D ---
+        const canvas = document.getElementById('canvas3d');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        let angleX = -20;
+        let angleY = 45;
+        let zoom = 1.3;
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let selectedNode3D = null;
+        let acousticShockwaveTime = 0; // Control de animación de pulso físico
+
+        // Captura de eventos con normalización offsetX/offsetY para compatibilidad absoluta
+        window.addEventListener('mousedown', (e) => {
+            if(e.target.tagName === 'CANVAS' || e.target.tagName === 'BODY') {
+                const rect = canvas.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+
+                let nodeFound = checkLatticeCollision(clickX, clickY);
+                if (nodeFound) {
+                    selectedNode3D = nodeFound;
+                    addTerminalLine("DIAG_LOCAL", "Célula #" + selectedNode3D.id + " | Viabilidad: " + selectedNode3D.viability + "% | Cizallamiento: " + selectedNode3D.stress + " MPa");
+                } else {
+                    isDragging = true;
+                }
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const hoverX = e.clientX - rect.left;
+            const hoverY = e.clientY - rect.top;
+
+            let hoveredNode = checkLatticeCollision(hoverX, hoverY);
+            const tooltip = document.getElementById('cell-node-tooltip');
+            if (hoveredNode && tooltip) {
+                tooltip.style.display = "block";
+                tooltip.style.left = (e.clientX + 15) + "px";
+                tooltip.style.top = (e.clientY + 15) + "px";
+                tooltip.innerHTML = 
+                    '<div style="color: var(--neon-blue); font-weight: bold;">CÉLULA NÚCLEO #' + hoveredNode.id + '</div>' +
+                    '<div>Estado: <span style="color: var(--hud-green)">CRISTALIZADO</span></div>' +
+                    '<div>Viabilidad: ' + hoveredNode.viability + '%</div>' +
+                    '<div>Tensión Membrana: ' + hoveredNode.stress + ' MPa</div>' +
+                    '<div>Carga Biológica: ' + hoveredNode.cellsCount + 'k UFC</div>';
+            } else if(tooltip) {
+                tooltip.style.display = "none";
+            }
+
+            if (!isDragging) return;
+            let deltaX = e.clientX - previousMousePosition.x;
+            let deltaY = e.clientY - previousMousePosition.y;
+
+            angleY += deltaX * 0.45;
+            angleX += deltaY * 0.45;
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        });
+
+        window.addEventListener('mouseup', () => isDragging = false);
+        window.addEventListener('wheel', (e) => {
+            zoom -= e.deltaY * 0.0008;
+            zoom = Math.max(0.3, Math.min(zoom, 3.5));
+        });
+
+        // Soporte de gestos táctiles para móviles locales
+        window.addEventListener('touchstart', (e) => {
+            if(e.touches.length === 1) {
+                const rect = canvas.getBoundingClientRect();
+                const clickX = e.touches[0].clientX - rect.left;
+                const clickY = e.touches[0].clientY - rect.top;
+                let nodeFound = checkLatticeCollision(clickX, clickY);
+                if (nodeFound) {
+                    selectedNode3D = nodeFound;
+                } else {
+                    isDragging = true;
+                }
+                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+        });
+        window.addEventListener('touchmove', (e) => {
+            if (!isDragging || e.touches.length !== 1) return;
+            let deltaX = e.touches[0].clientX - previousMousePosition.x;
+            let deltaY = e.touches[0].clientY - previousMousePosition.y;
+            angleY += deltaX * 0.5;
+            angleX += deltaY * 0.5;
+            previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        });
+        window.addEventListener('touchend', () => isDragging = false);
+
+        // --- MODELADO GEOMÉTRICO 3D ---
+        let printerVertices = [
+            {x: -125, y: 125, z: -125}, {x: 125, y: 125, z: -125},
+            {x: 125, y: 125, z: 125}, {x: -125, y: 125, z: 125},
+            {x: -125, y: -135, z: -125}, {x: 125, y: -135, z: -125},
+            {x: 125, y: -135, z: 125}, {x: -125, y: -135, z: 125},
+        ];
+
+        let printerEdges = [
+            [0,1], [1,2], [2,3], [3,0],
+            [4,5], [5,6], [6,7], [7,4],
+            [0,4], [1,5], [2,6], [3,7]
+        ];
+
+        // Partículas del enjambre celular con campo de interacción
+        let cellSwarm = [];
+        const maxSwarmParticles = 160;
+        for(let i=0; i<maxSwarmParticles; i++) {
+            cellSwarm.push({
+                x: (Math.random() - 0.5) * 60,
+                y: -130 - Math.random()*50,
+                z: (Math.random() - 0.5) * 60,
+                vx: (Math.random() - 0.5) * 3,
+                vy: Math.random() * 4.2 + 1.2,
+                vz: (Math.random() - 0.5) * 3,
+                size: Math.random() * 2.8 + 1.2,
+                alpha: Math.random(),
+                pulsePhase: Math.random() * Math.PI
+            });
+        }
+
+        // Estructura del bio-andamio (Lattice)
+        let bioLattice = [];
+        const latticePointsCount = 60;
+        for(let r=0; r<latticePointsCount; r++) {
+            let theta = r * 0.42;
+            let radius = 32 * Math.sin(r * 0.08);
+            bioLattice.push({
+                id: r + 1,
+                x: radius * Math.cos(theta),
+                y: 115 - (r * 4.1),
+                z: radius * Math.sin(theta),
+                phase: Math.random() * Math.PI,
+                viability: (94.2 + Math.random() * 5.8).toFixed(1),
+                stress: (0.04 + Math.random() * 0.12).toFixed(3),
+                cellsCount: Math.floor(Math.random() * 15 + 5),
+                projX: 0,
+                projY: 0
+            });
+        }
+
+        // Calibración térmica de la plataforma
+        let bedTempHeatmap = [];
+        for (let x = -100; x <= 100; x += 25) {
+            for (let z = -100; z <= 100; z += 25) {
+                bedTempHeatmap.push({ x, y: 125, z, heatVal: 0 });
+            }
+        }
+
+        function checkLatticeCollision(mx, my) {
+            const hitRadius = 16;
+            for (let i = 0; i < bioLattice.length; i++) {
+                let node = bioLattice[i];
+                let dist = Math.hypot(mx - node.projX, my - node.projY);
+                if (dist < hitRadius) {
+                    return node;
+                }
+            }
+            return null;
+        }
+
+        // --- DISPARAR ONDA DE CHOQUE ACÚSTICA (NUEVA INTERACCIÓN AVANZADA) ---
+        function triggerAcousticShockwave() {
+            acousticShockwaveTime = 1; // Activa la animación en el bucle
+            addTerminalLine("ACOUSTIC_PULSE", "¡Emisión de onda transitoria! Relocalizando cúmulos de biotinta.");
+            
+            // Provocar desvío mecánico temporal en el enjambre celular
+            cellSwarm.forEach(p => {
+                let angle = Math.random() * Math.PI * 2;
+                p.vx += Math.cos(angle) * 12;
+                p.vy -= Math.random() * 6; // Empujar hacia arriba
+            });
+        }
+
+        // --- RENDIMIENTO BIO-ACÚSTICO EN TIEMPO REAL (NUEVO HUD CANVAS) ---
+        const acousticCanvas = document.getElementById('canvas-acoustic');
+        const acCtx = acousticCanvas.getContext('2d');
+        let acousticWavePhase = 0;
+
+        function drawAcousticMonitor() {
+            if(!acousticCanvas) return;
+            acCtx.clearRect(0, 0, acousticCanvas.width, acousticCanvas.height);
+            
+            const freq = document.getElementById('sl-acoustic').value;
+            const energy = document.getElementById('sl-energy').value;
+            
+            acCtx.strokeStyle = "rgba(0, 240, 255, 0.45)";
+            if(currentMode === 'ovr') acCtx.strokeStyle = "rgba(255, 0, 85, 0.6)";
+            if(currentMode === 'sth') acCtx.strokeStyle = "rgba(57, 255, 20, 0.6)";
+            
+            acCtx.lineWidth = 1.5;
+            acCtx.beginPath();
+            
+            // Dibujar patrón de interferencia ultrasónica standing wave
+            for(let x=0; x<acousticCanvas.width; x++) {
+                let wave1 = Math.sin(x * 0.04 * (freq/40) + acousticWavePhase);
+                let wave2 = Math.cos(x * 0.02 * (energy/150) - acousticWavePhase * 1.5);
+                let y = (acousticCanvas.height / 2) + (wave1 * wave2) * 12;
+                if(x === 0) acCtx.moveTo(x, y);
+                else acCtx.lineTo(x, y);
+            }
+            acCtx.stroke();
+            
+            acousticWavePhase += 0.08 * (document.getElementById('sl-speed').value / 100);
+        }
+
+        // --- SISTEMA DE NODOS IA (GRAFO INTERACTIVO DE CONTROL) ---
+        const nodeCanvas = document.getElementById('canvas-nodes');
+        const nodeCtx = nodeCanvas.getContext('2d');
+        let iaNodes = [
+            {name: "Acoustic Align", x: 45, y: 75, val: 0.98, active: true},
+            {name: "Viscous Comp", x: 140, y: 35, val: 0.85, active: false},
+            {name: "Flow Reg", x: 140, y: 115, val: 0.92, active: false},
+            {name: "Coring Target", x: 275, y: 75, val: 1.0, active: false}
+        ];
+
+        nodeCanvas.addEventListener('mousedown', (e) => {
+            const rect = nodeCanvas.getBoundingClientRect();
+            const clickX = (e.clientX - rect.left) * (nodeCanvas.width / rect.width);
+            const clickY = (e.clientY - rect.top) * (nodeCanvas.height / rect.height);
+
+            iaNodes.forEach(n => {
+                let dist = Math.hypot(clickX - n.x, clickY - n.y);
+                if (dist < 18) {
+                    iaNodes.forEach(node => node.active = false);
+                    n.active = true;
+                    document.getElementById('node-ins-name').innerText = n.name;
+                    document.getElementById('node-ins-eff').innerText = (n.val * 100).toFixed(0) + "%";
+                    addTerminalLine("IA_FOCUS", "Foco directo reajustado a [" + n.name + "]");
+                }
+            });
+        });
+
+        function drawIANodeSystem(time) {
+            if(!nodeCanvas) return;
+            nodeCtx.clearRect(0,0,nodeCanvas.width,nodeCanvas.height);
+            
+            nodeCtx.strokeStyle = "rgba(0, 240, 255, 0.2)";
+            nodeCtx.lineWidth = 1.5;
+            
+            let links = [[0,1], [0,2], [1,3], [2,3], [1,2]];
+            links.forEach(l => {
+                let n1 = iaNodes[l[0]];
+                let n2 = iaNodes[l[1]];
+                nodeCtx.beginPath();
+                nodeCtx.moveTo(n1.x, n1.y);
+                nodeCtx.lineTo(n2.x, n2.y);
+                nodeCtx.stroke();
+                
+                let pulsePos = (time * 0.002 + l[0]*0.45) % 1;
+                let px = n1.x + (n2.x - n1.x) * pulsePos;
+                let py = n1.y + (n2.y - n1.y) * pulsePos;
+                nodeCtx.fillStyle = currentMode === 'ovr' ? 'var(--alert-red)' : 'var(--hud-green)';
+                nodeCtx.beginPath();
+                nodeCtx.arc(px, py, 3.5, 0, Math.PI*2);
+                nodeCtx.fill();
+            });
+
+            iaNodes.forEach(n => {
+                let pulse = Math.sin(time*0.0055 + n.x) * 4;
+                nodeCtx.fillStyle = "rgba(8, 8, 12, 0.94)";
+                nodeCtx.strokeStyle = n.active ? 'var(--neon-blue)' : 'rgba(0, 240, 255, 0.35)';
+                if (currentMode === 'ovr') nodeCtx.strokeStyle = 'var(--alert-red)';
+                if (currentMode === 'sth') nodeCtx.strokeStyle = 'var(--hud-green)';
+                nodeCtx.lineWidth = n.active ? 2.5 : 1.2;
+                
+                nodeCtx.beginPath();
+                nodeCtx.arc(n.x, n.y, 15 + pulse*0.15, 0, Math.PI*2);
+                nodeCtx.fill();
+                nodeCtx.stroke();
+
+                nodeCtx.fillStyle = n.active ? 'var(--neon-blue)' : 'rgba(0, 240, 255, 0.2)';
+                if (currentMode === 'ovr') nodeCtx.fillStyle = 'var(--alert-red)';
+                if (currentMode === 'sth') nodeCtx.fillStyle = 'var(--hud-green)';
+                nodeCtx.beginPath();
+                nodeCtx.arc(n.x, n.y, 5, 0, Math.PI*2);
+                nodeCtx.fill();
+
+                nodeCtx.strokeStyle = 'rgba(255,255,255,0.12)';
+                nodeCtx.beginPath();
+                nodeCtx.arc(n.x, n.y, 20, time*0.0012, time*0.0012 + Math.PI*0.75);
+                nodeCtx.stroke();
+
+                nodeCtx.fillStyle = n.active ? "#ffffff" : "rgba(255,255,255,0.6)";
+                nodeCtx.font = "9px monospace";
+                nodeCtx.textAlign = "center";
+                nodeCtx.fillText(n.name, n.x, n.y - 23);
+            });
+        }
+
+        // Osciloscopio mini-graph
+        const miniGraph = document.getElementById('mini-graph');
+        const mgCtx = miniGraph.getContext('2d');
+        let historyData = Array(45).fill(15);
+
+        function drawMiniGraph() {
+            if(!miniGraph) return;
+            mgCtx.clearRect(0,0,miniGraph.width,miniGraph.height);
+            
+            mgCtx.strokeStyle = "rgba(0, 240, 255, 0.08)";
+            mgCtx.lineWidth = 1;
+            mgCtx.beginPath();
+            for(let i=0; i<miniGraph.width; i+=25) {
+                mgCtx.moveTo(i, 0); mgCtx.lineTo(i, miniGraph.height);
+            }
+            for(let j=0; j<miniGraph.height; j+=10) {
+                mgCtx.moveTo(0, j); mgCtx.lineTo(miniGraph.width, j);
+            }
+            mgCtx.stroke();
+
+            historyData.shift();
+            let nVal = 12 + Math.random() * 14;
+            if(currentMode === 'ovr') nVal += 16;
+            if(currentMode === 'sth') nVal -= 8;
+            historyData.push(nVal);
+
+            mgCtx.strokeStyle = currentMode === 'ovr' ? 'var(--alert-red)' : 'var(--neon-blue)';
+            if(currentMode === 'sth') mgCtx.strokeStyle = 'var(--hud-green)';
+            mgCtx.lineWidth = 1.8;
+            mgCtx.beginPath();
+            let step = miniGraph.width / (historyData.length - 1);
+            for(let i=0; i<historyData.length; i++) {
+                let x = i * step;
+                let y = miniGraph.height - historyData[i];
+                if(i===0) mgCtx.moveTo(x, y);
+                else mgCtx.lineTo(x, y);
+            }
+            mgCtx.stroke();
+        }
+
+        // --- PROYECCIÓN TRIGONOMÉTRICA EN PERSPECTIVA ---
+        function project(x, y, z) {
+            let radX = angleX * Math.PI / 180;
+            let radY = angleY * Math.PI / 180;
+
+            let cosY = Math.cos(radY), sinY = Math.sin(radY);
+            let x1 = x * cosY - z * sinY;
+            let z1 = x * sinY + z * cosY;
+
+            let cosX = Math.cos(radX), sinX = Math.sin(radX);
+            let y2 = y * cosX - z1 * sinX;
+            let z2 = y * sinX + z1 * cosX;
+
+            let camDist = 390;
+            let fovFactor = camDist / (camDist + z2);
+            
+            let screenX = canvas.width / 2 + x1 * fovFactor * zoom * 2.3;
+            let screenY = canvas.height / 2 + y2 * fovFactor * zoom * 2.3;
+
+            return { x: screenX, y: screenY, depth: z2 };
+        }
+
+        // --- BUCLE OPERATIVO DE RENDERIZADO v5.0 ---
+        let lastTime = 0;
+        let lastLogTime = 0;
+        const autoMLLogs = [
+            {tag: "SYS_HEALTH", msg: "Termorregulación de boquilla en niveles nominales (37.2°C)"},
+            {tag: "AUTO_ML", msg: "Optimizando tasa de flujo para el estrato de colágeno #12"},
+            {tag: "PHYSICS", msg: "Compensando deformación por corte de cizalla del hidrogel"},
+            {tag: "ACOUSTIC", msg: "Ondas estacionarias alineadas al andamio FRESH"},
+            {tag: "NEURAL_NET", msg: "Ajuste sináptico de presión piezoeléctrica por AutoML"},
+            {tag: "CROSS_LINK", msg: "Curado óptico UV coaxial estabilizado"},
+            {tag: "SYS_STRESS", msg: "Monitoreo biomecánico en tiempo real activo"}
+        ];
+
+        function renderLoop(timestamp) {
+            let simSpeed = document.getElementById('sl-speed').value / 100;
+            let quantumFreq = document.getElementById('sl-energy').value;
+            let shearForce = document.getElementById('sl-shear').value;
+            let acousticFreq = document.getElementById('sl-acoustic').value;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Fondo gradiente holográfico
+            if(!arActive) {
+                let grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 50, canvas.width/2, canvas.height/2, Math.max(canvas.width, canvas.height));
+                if(currentMode === 'std') {
+                    grad.addColorStop(0, '#07090f'); grad.addColorStop(1, '#020204');
+                } else if(currentMode === 'ovr') {
+                    grad.addColorStop(0, '#2b0914'); grad.addColorStop(1, '#020204');
+                } else if(currentMode === 'sth') {
+                    grad.addColorStop(0, '#031409'); grad.addColorStop(1, '#020204');
+                } else {
+                    grad.addColorStop(0, '#10041a'); grad.addColorStop(1, '#020204');
+                }
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            if (timestamp - lastLogTime > 5000) {
+                const log = autoMLLogs[Math.floor(Math.random() * autoMLLogs.length)];
+                addTerminalLine(log.tag, log.msg);
+                lastLogTime = timestamp;
+            }
+
+            // Actualizador de telemetría de HUD
+            if(timestamp - lastTime > 150) {
+                drawMiniGraph();
+                let pNoise = (Math.random() - 0.5) * 1.5;
+                let cNoise = (Math.random() - 0.5) * 0.4;
+
+                let basePres = (shearForce * 0.15).toFixed(1);
+                let baseNrg = (quantumFreq * 0.6).toFixed(1);
+                let baseStress = (shearForce * 0.0006).toFixed(3);
+
+                if(currentMode === 'std') {
+                    document.getElementById('val-pres').innerText = (parseFloat(basePres) + pNoise).toFixed(1) + " kPa";
+                    document.getElementById('val-temp').innerText = "4.0 °C";
+                    document.getElementById('val-coh').innerText = (99.4 + cNoise*0.2).toFixed(1) + " %";
+                    document.getElementById('val-nrg').innerText = (parseFloat(baseNrg) + pNoise).toFixed(1) + " kW";
+                    document.getElementById('val-str').innerText = (parseFloat(baseStress) + cNoise*0.01).toFixed(3) + " MPa";
+                    document.getElementById('val-flow').innerText = (12.4 * simSpeed).toFixed(1) + " mm/s";
+                    document.getElementById('val-extra1').innerText = quantumFreq + " GHz";
+                    document.getElementById('val-extra2').innerText = "0.45 N/m";
+                } else if(currentMode === 'ovr') {
+                    document.getElementById('val-pres').innerText = (parseFloat(basePres)*1.5 + pNoise*3).toFixed(1) + " kPa";
+                    document.getElementById('val-temp').innerText = "6.5 °C";
+                    document.getElementById('val-coh').innerText = (93.8 + cNoise).toFixed(1) + " %";
+                    document.getElementById('val-nrg').innerText = (parseFloat(baseNrg)*1.7 + pNoise).toFixed(1) + " kW";
+                    document.getElementById('val-str').innerText = (parseFloat(baseStress)*1.6 + cNoise*0.04).toFixed(3) + " MPa";
+                    document.getElementById('val-flow').innerText = (28.5 * simSpeed).toFixed(1) + " mm/s";
+                    document.getElementById('val-extra1').innerText = (quantumFreq*1.2).toFixed(0) + " GHz";
+                    document.getElementById('val-extra2').innerText = "0.75 N/m";
+                } else if(currentMode === 'sth') {
+                    document.getElementById('val-pres').innerText = (parseFloat(basePres)*0.7 + pNoise*0.2).toFixed(1) + " kPa";
+                    document.getElementById('val-temp').innerText = "3.8 °C";
+                    document.getElementById('val-coh').innerText = "99.9 %";
+                    document.getElementById('val-nrg').innerText = (parseFloat(baseNrg)*0.45).toFixed(1) + " kW";
+                    document.getElementById('val-str').innerText = (parseFloat(baseStress)*0.35).toFixed(3) + " MPa";
+                    document.getElementById('val-flow').innerText = (5.2 * simSpeed).toFixed(1) + " mm/s";
+                    document.getElementById('val-extra1').innerText = (quantumFreq*0.75).toFixed(0) + " GHz";
+                    document.getElementById('val-extra2').innerText = "0.25 N/m";
+                } else {
+                    document.getElementById('val-pres').innerText = "SYS_DIAGNOSTIC";
+                    document.getElementById('val-temp').innerText = "0.0 °C";
+                    document.getElementById('val-coh').innerText = "100.0 %";
+                    document.getElementById('val-nrg').innerText = "12.0 kW";
+                    document.getElementById('val-str').innerText = "0.000 MPa";
+                    document.getElementById('val-flow').innerText = "0.0 mm/s";
+                    document.getElementById('val-extra1').innerText = "SYS_CALIBRATING";
+                    document.getElementById('val-extra2').innerText = "READY";
+                }
+                lastTime = timestamp;
+            }
+
+            drawIANodeSystem(timestamp);
+            drawAcousticMonitor();
+
+            // Configuración de Paletas de Color
+            let colorPrimary = "rgba(0, 240, 255, 0.85)";
+            let colorGlow = "rgba(0, 240, 255, 0.2)";
+            let colorLaser = "rgba(189, 0, 255, 0.85)"; 
+
+            if(currentMode === 'ovr') { 
+                colorPrimary = "rgba(255, 0, 85, 0.9)"; 
+                colorGlow = "rgba(255,0,85,0.25)";
+                colorLaser = "rgba(255,100,0,0.85)";
+            }
+            if(currentMode === 'sth') { 
+                colorPrimary = "rgba(57, 255, 20, 0.95)"; 
+                colorGlow = "rgba(57,255,20,0.2)";
+                colorLaser = "rgba(0,255,180,0.75)";
+            }
+            if(currentMode === 'diag') {
+                colorPrimary = "rgba(189, 0, 255, 0.9)";
+                colorGlow = "rgba(189,0,255,0.25)";
+                colorLaser = "rgba(0,240,255,0.8)";
+            }
+
+            let timeFactor = timestamp * 0.0015 * simSpeed;
+            let extX = Math.sin(timeFactor) * 75;
+            let extZ = Math.cos(timeFactor * 1.25) * 75;
+            let extY = -120 + (Math.sin(timeFactor * 0.3) + 1) * 30;
+
+            // 1. DIBUJAR MAPA TÉRMICO DE LA CAMA EN 3D
+            bedTempHeatmap.forEach(point => {
+                let distToExtruder = Math.hypot(point.x - extX, point.z - extZ);
+                if (distToExtruder < 45) {
+                    point.heatVal += (45 - distToExtruder) * 0.08;
+                }
+                point.heatVal *= 0.95; // Disipación térmica
+                
+                let pBed = project(point.x, point.y, point.z);
+                let rVal = Math.floor(Math.min(point.heatVal * 15, 255));
+                let bVal = Math.floor(Math.max(120 - point.heatVal * 4, 35));
+                ctx.fillStyle = "rgba(" + rVal + ", 110, " + bVal + ", 0.28)";
+                ctx.beginPath();
+                ctx.arc(pBed.x, pBed.y, 2.5 * zoom, 0, Math.PI*2);
+                ctx.fill();
+            });
+
+            // 2. REJILLA ESTRUCTURAL
+            ctx.lineWidth = 1;
+            for(let g = -100; g <= 100; g += 25) {
+                let p1 = project(g, 125, -100);
+                let p2 = project(g, 125, 100);
+                let p3 = project(-100, 125, g);
+                let p4 = project(100, 125, g);
+
+                ctx.strokeStyle = "rgba(255,255,255,0.06)";
+                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.stroke();
+            }
+
+            // 3. ONDAS ESTACIONARIAS BIO-ACÚSTICAS (FÍSICA MODULAR)
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = colorGlow;
+            for (let w = -80; w <= 80; w += 40) {
+                let offset = Math.sin(timestamp * 0.01 * (acousticFreq / 40) + w) * 4;
+                let wp1 = project(-100, 125 + offset, w);
+                let wp2 = project(100, 125 + offset, w);
+                
+                ctx.beginPath();
+                ctx.moveTo(wp1.x, wp1.y);
+                ctx.lineTo(wp2.x, wp2.y);
+                ctx.stroke();
+            }
+
+            // 4. CHASIS METÁLICO ESTRUCTURAL v5.0
+            ctx.strokeStyle = colorPrimary;
+            ctx.shadowBlur = (currentMode === 'ovr') ? 18 : 8;
+            ctx.shadowColor = colorPrimary;
+            ctx.lineWidth = 1.8;
+            
+            printerEdges.forEach(edge => {
+                let pt1 = project(printerVertices[edge[0]].x, printerVertices[edge[0]].y, printerVertices[edge[0]].z);
+                let pt2 = project(printerVertices[edge[1]].x, printerVertices[edge[1]].y, printerVertices[edge[1]].z);
+                ctx.beginPath();
+                ctx.moveTo(pt1.x, pt1.y);
+                ctx.lineTo(pt2.x, pt2.y);
+                ctx.stroke();
+            });
+            ctx.shadowBlur = 0;
+
+            // 5. CABEZAL DE IMPRESIÓN Y LÁSER DE FOTOCURADO
+            let pHead = project(extX, extY, extZ);
+            let pNozzle = project(extX, extY + 30, extZ);
+
+            ctx.fillStyle = "rgba(14, 14, 20, 0.95)";
+            ctx.strokeStyle = colorPrimary;
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.arc(pHead.x, pHead.y, 17 * zoom, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(pHead.x, pHead.y);
+            ctx.lineTo(pNozzle.x, pNozzle.y);
+            ctx.stroke();
+
+            // Haz Láser de curado coaxial interactivo
+            ctx.strokeStyle = colorLaser;
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.moveTo(pNozzle.x, pNozzle.y);
+            let pLaserTarget = project(extX, 125, extZ);
+            ctx.lineTo(pLaserTarget.x, pLaserTarget.y);
+            ctx.stroke();
+
+            // Halo fluorescente activo en el plato de curado
+            let laserGlow = (Math.sin(timestamp * 0.012) + 1.2) * 11 * zoom;
+            ctx.fillStyle = colorLaser.replace("0.85", "0.22").replace("0.75", "0.22");
+            ctx.beginPath();
+            ctx.arc(pLaserTarget.x, pLaserTarget.y, laserGlow, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 6. ANIMACIÓN DE ONDA DE CHOQUE ACÚSTICA (NUEVO ESTADO DINÁMICO EXTRA)
+            if (acousticShockwaveTime > 0) {
+                ctx.strokeStyle = "rgba(189, 0, 255, " + acousticShockwaveTime + ")";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                let shockRadius = (1 - acousticShockwaveTime) * 140;
+                for (let a = 0; a < Math.PI * 2; a += 0.2) {
+                    let sp = project(Math.cos(a) * shockRadius, 125, Math.sin(a) * shockRadius);
+                    if (a === 0) ctx.moveTo(sp.x, sp.y);
+                    else ctx.lineTo(sp.x, sp.y);
+                }
+                ctx.closePath();
+                ctx.stroke();
+                
+                acousticShockwaveTime -= 0.02 * simSpeed;
+            }
+
+            // Anillos magnéticos coaxiales
+            let waveRadius = (Math.abs(Math.sin(timestamp * 0.005)) * 32 + 10) * zoom;
+            ctx.strokeStyle = colorGlow;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(pNozzle.x, pNozzle.y, waveRadius, 0, Math.PI*2);
+            ctx.stroke();
+
+            // 7. COMPORTAMIENTO DEL ENJAMBRE DE CÉLULAS (PRE-ALINEACIÓN BIO-ACÚSTICA)
+            cellSwarm.forEach(p => {
+                p.y += p.vy * simSpeed;
+                
+                let alignForce = 0.07 * (acousticFreq / 40);
+                p.x += (extX - p.x) * alignForce * simSpeed;
+                p.z += (extZ - p.z) * alignForce * simSpeed;
+
+                if (p.y >= extY + 30) {
+                    p.y = -135 - Math.random() * 30;
+                    p.x = extX + (Math.random() - 0.5) * 60;
+                    p.z = extZ + (Math.random() - 0.5) * 60;
+                }
+
+                let pPos = project(p.x, p.y, p.z);
+                ctx.fillStyle = currentMode === 'sth' ? "rgba(57, 255, 20, " + p.alpha + ")" : "rgba(0, 240, 255, " + p.alpha + ")";
+                if (currentMode === 'ovr') ctx.fillStyle = "rgba(255, 0, 85, " + p.alpha + ")";
+                
+                ctx.beginPath();
+                let sizeMod = Math.sin(timestamp * 0.015 + p.pulsePhase) * 0.4;
+                ctx.arc(pPos.x, pPos.y, Math.max(0.5, p.size + sizeMod) * zoom, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 8. RENDERIZADO DEL TEJIDO BIOIMPRESO (LATTICE TENSORIAL)
+            ctx.lineWidth = 2.8;
+            for(let i = 0; i < bioLattice.length - 1; i++) {
+                let node1 = bioLattice[i];
+                let node2 = bioLattice[i+1];
+
+                let cellOscillation = Math.sin(timestamp * 0.0035 * simSpeed + node1.phase) * (currentMode === 'ovr' ? 5.2 : 1.8);
+                
+                let pt1 = project(node1.x + cellOscillation, node1.y, node1.z);
+                let pt2 = project(node2.x + cellOscillation, node2.y, node2.z);
+
+                node1.projX = pt1.x;
+                node1.projY = pt1.y;
+
+                ctx.strokeStyle = "rgba(0, 240, 255, 0.8)";
+                if(currentMode === 'ovr') {
+                    // Concatenación robusta compatible con navegadores antiguos offline
+                    ctx.strokeStyle = "rgba(255, " + (100 - i) + ", 85, 0.95)";
+                }
+                if(currentMode === 'sth') ctx.strokeStyle = "rgba(57, 255, 20, 0.85)";
+                if(currentMode === 'diag') ctx.strokeStyle = "rgba(189, 0, 255, 0.85)";
+
+                ctx.beginPath();
+                ctx.moveTo(pt1.x, pt1.y);
+                ctx.lineTo(pt2.x, pt2.y);
+                ctx.stroke();
+
+                if(i % 3 === 0) {
+                    ctx.fillStyle = "#ffffff";
+                    ctx.beginPath();
+                    
+                    if (selectedNode3D && selectedNode3D.id === node1.id) {
+                        ctx.fillStyle = "var(--warning-orange)";
+                        ctx.arc(pt1.x, pt1.y, 6.5 * zoom, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.strokeStyle = "var(--warning-orange)";
+                        ctx.lineWidth = 1.5;
+                        ctx.beginPath();
+                        ctx.arc(pt1.x, pt1.y, 12 * zoom, 0, Math.PI * 2);
+                        ctx.stroke();
+                    } else {
+                        ctx.arc(pt1.x, pt1.y, 3.2 * zoom, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    if (currentMode === 'diag' || currentMode === 'ovr') {
+                        ctx.strokeStyle = "var(--alert-red)";
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(pt1.x, pt1.y);
+                        let vectorLen = node1.stress * 160 * zoom;
+                        ctx.lineTo(pt1.x + Math.cos(node1.phase)*vectorLen, pt1.y + Math.sin(node1.phase)*vectorLen);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            if(Math.random() > 0.985 && currentMode === 'ovr') {
+                ctx.fillStyle = "rgba(255, 255, 255, 0.07)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                addTerminalLine("SURGE_DET", "Pico transitorio de tensión piezoeléctrica detectado.");
+            }
+
+            requestAnimationFrame(renderLoop);
+        }
+
+        // --- INICIALIZACIÓN ---
+        requestAnimationFrame(renderLoop);
+        setLanguage('es');
+        setMode('std');
+
+        setTimeout(() => {
+            addTerminalLine("SYS_OK", "BioPrint NutriCell Engine v5.0 inicializado correctamente.");
+            addTerminalLine("REO_ACTIVE", "Controlador reológico acoplado al canal de levitación.");
+        }, 1000);
+    </script>
+</body>
+</html>
