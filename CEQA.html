@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CEQA-X: Prototipo 3D y Simulador Planetario</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+    :root {
+      --bg-color: #0b0f14;
+      --card-bg: #11161d;
+      --cyan-primary: #22d3ee;
+      --cyan-glow: rgba(34, 211, 238, 0.25);
+      --slate-text: #94a3b8;
+      --text-white: #f8fafc;
+      --satin-titanium: #2a313c;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-white);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Cyber scanlines overlay */
+    body::before {
+      content: " ";
+      display: block;
+      position: fixed;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.05), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.05));
+      background-size: 100% 4px, 6px 100%;
+      z-index: 99999;
+      pointer-events: none;
+      opacity: 0.15;
+    }
+
+    /* Cinematic header style */
+    header {
+      background: linear-gradient(to bottom, #10151d, #0b0f14);
+      padding: 1.5rem;
+      border-bottom: 1px solid rgba(34, 211, 238, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      position: relative;
+    }
+
+    .brand-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .author-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--cyan-primary);
+      border: 1px solid rgba(34, 211, 238, 0.3);
+      padding: 0.3rem 0.8rem;
+      border-radius: 4px;
+      background: rgba(6, 182, 212, 0.08);
+      letter-spacing: 0.05em;
+    }
+
+    .head-details h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .head-details p {
+      font-size: 0.8rem;
+      color: var(--slate-text);
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 0.2rem;
+    }
+
+    .lang-switcher {
+      display: flex;
+      gap: 0.3rem;
+    }
+
+    .lang-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--slate-text);
+      padding: 0.3rem 0.6rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .lang-btn.active {
+      background: var(--cyan-primary);
+      color: #0b0f14;
+      border-color: var(--cyan-primary);
+      font-weight: 600;
+    }
+
+    /* Core grid layout */
+    .dashboard-container {
+      flex: 1;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1.5rem;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (min-width: 1024px) {
+      .dashboard-container {
+        grid-template-columns: 1.3fr 1fr;
+      }
+    }
+
+    /* Card styling based on titanium dark satin */
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::after {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.15), transparent);
+    }
+
+    .card-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      color: var(--cyan-primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 0.6rem;
+    }
+
+    /* Simulator viewport section */
+    .stage-wrapper {
+      position: relative;
+      width: 100%;
+      height: 480px;
+      background: rgba(10, 15, 22, 0.8);
+      border-radius: 8px;
+      border: 1px solid rgba(34, 211, 238, 0.08);
+      overflow: hidden;
+      cursor: grab;
+    }
+
+    .stage-wrapper:active {
+      cursor: grabbing;
+    }
+
+    #stageCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Custom Floating interactive menu on top of 3D */
+    .floating-hud {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      background: rgba(11, 15, 20, 0.85);
+      border: 1px solid rgba(34, 211, 238, 0.15);
+      border-radius: 6px;
+      padding: 0.6rem 0.8rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      pointer-events: none;
+      backdrop-filter: blur(4px);
+    }
+
+    .hud-controls-right {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .stage-btn {
+      background: rgba(17, 22, 29, 0.9);
+      border: 1px solid rgba(34, 211, 238, 0.2);
+      color: var(--cyan-primary);
+      width: 2rem;
+      height: 2rem;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: monospace;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .stage-btn:hover {
+      background: var(--cyan-primary);
+      color: #000;
+    }
+
+    /* Simulation selectors grid */
+    .sim-grid {
+      display: grid;
+      grid-template-columns: 100%;
+      gap: 0.6rem;
+    }
+
+    @media (min-width: 640px) {
+      .sim-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .sim-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+    }
+
+    .sim-card:hover {
+      border-color: rgba(34, 211, 238, 0.3);
+      background: rgba(34, 211, 238, 0.02);
+    }
+
+    .sim-card.active {
+      background: rgba(6, 182, 212, 0.08);
+      border-color: var(--cyan-primary);
+    }
+
+    .sim-header {
+      font-size: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--cyan-primary);
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sim-body {
+      font-size: 0.7rem;
+      color: var(--slate-text);
+      line-height: 1.35;
+    }
+
+    /* Interactive Operational logs */
+    .terminal {
+      background: #06090d;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: #e2e8f0;
+      height: 120px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .log-line {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .log-time {
+      color: #475569;
+    }
+
+    .log-status {
+      color: #22c55e;
+    }
+
+    .log-status.warning {
+      color: #f59e0b;
+    }
+
+    .log-msg {
+      color: var(--slate-text);
+    }
+
+    /* SOP display checklist */
+    .sop-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      padding: 0.6rem;
+      font-size: 0.75rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+    }
+
+    .sop-check {
+      width: 0.9rem;
+      height: 0.9rem;
+      border-radius: 2px;
+      border: 1px solid var(--cyan-primary);
+      display: inline-block;
+      margin-top: 0.1rem;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .sop-check.checked::after {
+      content: "\2713";
+      position: absolute;
+      font-size: 0.65rem;
+      top: -1px; left: 1px;
+      color: var(--cyan-primary);
+    }
+
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      font-size: 0.7rem;
+      color: var(--slate-text);
+      font-family: 'JetBrains Mono', monospace;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      margin-top: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand-container">
+      <div class="head-details">
+        <h1 id="brand-title">CAMPOS DE ESTABILIZACIÓN CUÁNTICA ATMOSFÉRICA (CEQA-X)</h1>
+        <p id="brand-subtitle">INFRAESTRUCTURA ONTOLÓGICA PARA LA AUTOORGANIZACIÓN PLANETARIA</p>
+      </div>
+      <div class="author-block" style="text-align: right;">
+        <div class="author-badge">Dr. Julio César Oporta Barrera</div>
+        <div class="lang-switcher" style="margin-top: 0.5rem; justify-content: flex-end;">
+          <button class="lang-btn active" onclick="switchLang('es')">ES</button>
+          <button class="lang-btn" onclick="switchLang('en')">EN</button>
+          <button class="lang-btn" onclick="switchLang('zh')">ZH</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="dashboard-container">
+    
+    <!-- Left column: 3D Visualization -->
+    <div class="card">
+      <div class="card-title">
+        <span id="title-visual">Prototipo Holográfico 3D en Co-Resonancia</span>
+        <span id="field-stability-tag" style="color: var(--cyan-primary); font-size: 0.7rem">STABILITY: 85.2%</span>
+      </div>
+
+      <div class="stage-wrapper" id="stageWrapper">
+        <!-- Floating HUD -->
+        <div class="floating-hud">
+          <div>CEQA-X CORE STATS:</div>
+          <div id="vector-active-line">SYS LOCK: RESONANCE VECTOR ACTIVE</div>
+          <div id="coherence-active-line">COHERENCE INDEX: 88.4%</div>
+          <div id="active-state-tag" style="color: #22d3ee; font-weight: bold;">STATE: RESONANT ACTIVE</div>
+          <div id="hovered-node-tag" style="color: #cbd5e1; margin-top: 5px; font-style: italic;">HOVER NODE TO ENGAGE</div>
+        </div>
+
+        <div class="hud-controls-right">
+          <button class="stage-btn" onclick="zoomIn()">+</button>
+          <button class="stage-btn" onclick="zoomOut()">-</button>
+          <button class="stage-btn" onclick="recenter()" style="font-size: 0.6rem; text-transform: uppercase;">R</button>
+        </div>
+
+        <canvas id="stageCanvas"></canvas>
+      </div>
+
+      <!-- Historical Logs -->
+      <div class="terminal" id="terminal-block">
+        <div class="log-line"><span class="log-time">[08:25:29]</span> <span class="log-status">SYSTEM</span> <span class="log-msg">CEQA-X Core initialization successful. Symmetrical entanglement active.</span></div>
+        <div class="log-line"><span class="log-time">[08:25:31]</span> <span class="log-status">STANDALONE</span> <span class="log-msg">Afinity narrative license acquired for offline workspace.</span></div>
+      </div>
+    </div>
+
+    <!-- Right column: Simulated controllers & SOP steps -->
+    <div class="card" style="gap: 1.25rem">
+      <div class="card-title">
+        <span id="title-simulators">Simulaciones de Resonancia Activa</span>
+        <span style="font-size: 0.7rem; color: #475569">SELECT FREQUENCY</span>
+      </div>
+
+      <div class="sim-grid">
+        <!-- Hurricane -->
+        <div class="sim-card active" id="sim-hurricane" onclick="triggerSim('hurricane')">
+          <div class="sim-header">
+            <span id="sim-h-name">Supresión de Huracanes</span>
+            <span id="sim-h-badge" class="author-badge" style="font-size:0.5rem; padding: 0.1rem 0.3rem">ONLINE</span>
+          </div>
+          <div class="sim-body" id="sim-h-body">
+            Disipa formaciones ciclónicas proyectando la forma ideal de presión armónica sin acción física directa.
+          </div>
+        </div>
+
+        <!-- Rain -->
+        <div class="sim-card" id="sim-rain" onclick="triggerSim('rain')">
+          <div class="sim-header">
+            <span id="sim-r-name">Inducción de Lluvia</span>
+            <span id="sim-r-badge" class="author-badge" style="font-size:0.5rem; padding: 0.1rem 0.3rem">COOPERATIVE</span>
+          </div>
+          <div class="sim-body" id="sim-r-body">
+            Libera la inhibición hídrica en zonas áridas mediante coexistencia sutil con humedad latente.
+          </div>
+        </div>
+
+        <!-- Earthquake -->
+        <div class="sim-card" id="sim-earthquake" onclick="triggerSim('earthquake')">
+          <div class="sim-header">
+            <span id="sim-e-name">Mitigación Sísmica</span>
+            <span id="sim-e-badge" class="author-badge" style="font-size:0.5rem; padding: 0.1rem 0.3rem">COOPERATIVE</span>
+          </div>
+          <div class="sim-body" id="sim-e-body">
+            Trata fallas tectónicas como tensiones acumuladas de relato, permitiendo que la tierra 'respire' sin ruptura.
+          </div>
+        </div>
+
+        <!-- Energy -->
+        <div class="sim-card" id="sim-energy" onclick="triggerSim('energy')">
+          <div class="sim-header">
+            <span id="sim-eg-name">Generación del Vacío</span>
+            <span id="sim-eg-badge" class="author-badge" style="font-size:0.5rem; padding: 0.1rem 0.3rem">NET-POSITIVE</span>
+          </div>
+          <div class="sim-body" id="sim-eg-body">
+            Extrae energía ilimitada del vacío a través de catalizadores no locales de frecuencia co-resonante.
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Operational SOP checklist -->
+      <div class="card-title" style="margin-top: 0.5rem">
+        <span id="title-sop-steps">SOP-001 Secuencias de Coherencia</span>
+        <span id="sop-steps-done" style="color: var(--cyan-primary)">0%</span>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:0.5rem">
+        <div class="sop-item">
+          <div class="sop-check checked" id="check-0" onclick="toggleCheck(0)"></div>
+          <div>
+            <div id="step-txt-0" style="font-weight:500">Escanear la percepción afectiva del territorio.</div>
+            <div style="font-size:0.6rem; color:var(--slate-text); font-family:monospace; margin-top:2px">SOP_SOP1_ACT_01</div>
+          </div>
+        </div>
+        <div class="sop-item">
+          <div class="sop-check" id="check-1" onclick="toggleCheck(1)"></div>
+          <div>
+            <div id="step-txt-1">Generar la forma ideal de equilibrio en la matriz IA.</div>
+            <div style="font-size:0.6rem; color:var(--slate-text); font-family:monospace; margin-top:2px">SOP_SOP1_ACT_02</div>
+          </div>
+        </div>
+        <div class="sop-item">
+          <div class="sop-check" id="check-2" onclick="toggleCheck(2)"></div>
+          <div>
+            <div id="step-txt-2">Acoplar los resonadores al vacío cuántico sin fricción térmica.</div>
+            <div style="font-size:0.6rem; color:var(--slate-text); font-family:monospace; margin-top:2px">SOP_SOP1_ACT_03</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    CEQA-X - Dr. Julio César Oporta Barrera &copy; Septiembre 2025. Prototipo 3D Autónomo con Co-Resonancia Fenomenológica para Microsoft Edge y Google Chrome.
+  </footer>
+
+  <script>
+    // Offline multingual Dictionary
+    const DICT = {
+      es: {
+        title: "Campos de Estabilización Cuántica Atmosférica (CEQA-X)",
+        subtitle: "INFRAESTRUCTURA ONTOLÓGICA PARA LA AUTOORGANIZACIÓN PLANETARIA",
+        visual: "Prototipo Holográfico 3D en Co-Resonancia",
+        simulators: "Simulaciones de Resonancia Activa",
+        sopsteps: "SOP-001 Secuencias de Coherencia",
+        states: {
+          latent: "ESTADO: LATENTE SUTIL",
+          resonating: "ESTADO: RESONANTE COMPLETO",
+          coherence: "ESTADO: COHERENCIA SATURADA"
+        },
+        hName: "Supresión de Huracanes",
+        hBody: "Disipa formaciones ciclónicas proyectando la forma ideal de presión armónica sin acción física directa.",
+        rName: "Inducción de Lluvia",
+        rBody: "Libera la inhibición hídrica en zonas áridas mediante coexistencia sutil con humedad latente.",
+        eName: "Mitigación Sísmica",
+        eBody: "Trata fallas tectónicas como tensiones acumuladas de relato, permitiendo que la tierra 'respire' sin ruptura.",
+        egName: "Generación del Vacío",
+        egBody: "Extrae energía ilimitada del vacío a través de catalizadores no locales de frecuencia co-resonante.",
+        hover: "DESPLAZE EL MOUSE SOBRE LOS NODOS DE LA TIERRA PARA DETALLES",
+        logActive: "Invocando resonancia cuántica en ",
+        logEnd: "Ciclo de estabilización completado con el entorno.",
+        steps: [
+          "Escanear la percepción afectiva del territorio.",
+          "Generar la forma ideal de equilibrio en la matriz IA.",
+          "Acoplar los resonadores al vacío cuántico sin fricción térmica."
+        ]
+      },
+      en: {
+        title: "Atmospheric Quantum Stabilization Fields (CEQA-X)",
+        subtitle: "ONTOLOGICAL INFRASTRUCTURE FOR PLANETARY SELF-ORGANIZATION",
+        visual: "Interactive 3D Holographic Co-Resonator",
+        simulators: "Active Resonance Simulators",
+        sopsteps: "SOP-001 Coherence Sequences",
+        states: {
+          latent: "STATE: LATENT SYNC",
+          resonating: "STATE: RESONANT FIELD ACTIVE",
+          coherence: "STATE: COHERENCE SATURATED"
+        },
+        hName: "Hurricane Suppression",
+        hBody: "Dissipates cyclonic structures by projecting an ideal harmonic pressure field without physical force.",
+        rName: "Rainfall Induction",
+        rBody: "Releases moisture inhibition in arid zones by subtly coexisting with latent humidity channels.",
+        eName: "Seismic Strain Relief",
+        eBody: "Views tectonic fault lines as cumulative narrative tension, allowing earth to breathe safely.",
+        egName: "Vacuum Energy Extraction",
+        egBody: "Extracts infinite, clean non-local energy via co-resonant vacuum frequency couplers.",
+        hover: "HOVER MOUSE OVER PLANET NODOS TO ROTATE AND ZOOM",
+        logActive: "Invoking quantum stabilization in ",
+        logEnd: "Stabilization resonance cycle finalized correctly.",
+        steps: [
+          "Scan the affective landscape baseline.",
+          "Synthesize the ideal balance layout in the AI grid.",
+          "Link core couplers to the non-local vacuum without friction."
+        ]
+      },
+      zh: {
+        title: "大气量子稳定场系统 (CEQA-X)",
+        subtitle: "行星自我组织本体论基础设施研究成果 - julio Cesar Oporta Barrera 博士",
+        visual: "3D全息交互量子共振物理模型",
+        simulators: "主动气象电能共振模拟器",
+        sopsteps: "SOP-001 多通道智能协同规范",
+        states: {
+          latent: "状态: 微分潜伏",
+          resonating: "状态: 全幅相干谐振中",
+          coherence: "状态: 量子相干饱和"
+        },
+        hName: "飓风位能消解",
+        hBody: "通过投射理想的谐波势能压力，使其大气自行改变涡动形态，不发生物理干涉。",
+        rName: "干旱自然增雨",
+        rBody: "不进行物理化学干预。与微观含水量在非局部空间共存，促使自然降水。",
+        eName: "断层地应力释放",
+        eBody: "输入极微小弹性位变波动，利用板块自身重组，缓慢释放应能不发生断裂。",
+        egName: "零点零能捕获",
+        egBody: "采用无轴非局部共振耦合科技，自真空中提取无公害电荷，不对外界放热。",
+        hover: "将滑鼠移至行星边缘之节节点位，即可检视空间座标",
+        logActive: "正在调度高频场域，耦合至区域: ",
+        logEnd: "反向回授应变计算已闭合，进入自我平顺周期。",
+        steps: [
+          "扫描当前区域自然语言感应特征基线。",
+          "拟合纠偏平衡态势调解波束。",
+          "开启零点共鸣泵浦，零产热安全耦合真能。"
+        ]
+      }
+    };
+
+    let currentLang = 'es';
+    let activeSim = 'hurricane';
+
+    // 3D Canvas properties
+    const canvas = document.getElementById('stageCanvas');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+
+    let rotation = { x: 0.5, y: -0.6 };
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+    let zoomVal = 1.0;
+    let time = 0;
+
+    // Node definitions matching document
+    const nodes = [
+      { id: 'n1', nameEs: 'Nodo Tectónico Andino', nameEn: 'Andean Tectonic Node', nameZh: '安第斯地层节点', lat: -25, lng: -70 },
+      { id: 'n2', nameEs: 'Vórtex Costero Caribeño', nameEn: 'Caribbean Coastal Vortex', nameZh: '加勒比海纠缠核', lat: 15, lng: -75 },
+      { id: 'n3', nameEs: 'Sanador de la Amazonia', nameEn: 'Amazonian Axis', nameZh: '亚马逊生态调谐点', lat: -3, lng: -60 },
+      { id: 'n4', nameEs: 'Resonador Pacífiico', nameEn: 'Pacific Vacuum Resonator', nameZh: '太平洋深部振子', lat: 0, lng: -140 },
+      { id: 'n5', nameEs: 'Nodo San Andrés', nameEn: 'San Andreas Fault Damping', nameZh: '圣安地列斯断层阻尼点', lat: 35, lng: -120 },
+      { id: 'n10', nameEs: 'Sincronizador Asia Oriental', nameEn: 'East Asia Sync Core', nameZh: '东亚季风调和核', lat: 34, lng: 118 }
+    ];
+
+    // Calc spherical 3D points
+    const R = 150;
+    nodes.forEach(node => {
+      const phi = (90 - node.lat) * (Math.PI / 180);
+      const theta = (node.lng + 180) * (Math.PI / 180);
+      node.x = R * Math.sin(phi) * Math.sin(theta);
+      node.y = R * Math.cos(phi);
+      node.z = R * Math.sin(phi) * Math.cos(theta);
+    });
+
+    // Create swarm particles in 3D
+    const particles = [];
+    for (let i = 0; i < 280; i++) {
+      const ring = Math.floor(i / 70);
+      const radius = 160 + ring * 12;
+      const speed = 0.007 + Math.random() * 0.008;
+      const angle = Math.random() * Math.PI * 2;
+      const tilt = (ring - 1.5) * 0.4;
+      particles.push({
+        angle, speed, radius, tilt,
+        size: 1 + Math.random() * 2,
+        color: ring === 0 ? '#22d3ee' : '#0891b2'
+      });
+    }
+
+    // Adapt Resize Observer
+    function resize() {
+      const parent = canvas.parentElement;
+      width = parent.clientWidth;
+      height = parent.clientHeight;
+      canvas.width = width;
+      canvas.height = height;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Interaction dragging handlers
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      dragStart = { x: e.clientX, y: e.clientY };
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      // Find hovered node
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      
+      let hoverLabel = '';
+      const sinX = Math.sin(rotation.x); const cosX = Math.cos(rotation.x);
+      const sinY = Math.sin(rotation.y); const cosY = Math.cos(rotation.y);
+
+      nodes.forEach(n => {
+        // Rotations
+        let x1 = n.x * cosY - n.z * sinY;
+        let z1 = n.x * sinY + n.z * cosY;
+        let y2 = n.y * cosX - z1 * sinX;
+        let z2 = n.y * sinX + z1 * cosX;
+
+        if (z2 > -120) {
+          const scale = (350 / (350 + z2)) * zoomVal;
+          const sx = width / 2 + x1 * scale;
+          const sy = height / 2 + y2 * scale;
+          if (Math.hypot(mx - sx, my - sy) < 15) {
+            hoverLabel = currentLang === 'es' ? n.nameEs : currentLang === 'en' ? n.nameEn : n.nameZh;
+          }
+        }
+      });
+
+      const hoverTag = document.getElementById('hovered-node-tag');
+      if (hoverLabel) {
+        hoverTag.innerText = "COHERENCE BOUND: " + hoverLabel;
+        hoverTag.style.color = '#22d3ee';
+      } else {
+        hoverTag.innerText = DICT[currentLang].hover;
+        hoverTag.style.color = '#94a3b8';
+      }
+
+      if (!isDragging) return;
+      const dx = e.clientX - dragStart.x;
+      const dy = e.clientY - dragStart.y;
+      rotation.y += dx * 0.007;
+      rotation.x += dy * 0.007;
+      dragStart = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('mouseup', () => isDragging = false);
+
+    // Zoom controls
+    function zoomIn() { zoomVal = Math.min(2.2, zoomVal + 0.15); }
+    function zoomOut() { zoomVal = Math.max(0.5, zoomVal - 0.15); }
+    function recenter() { rotation = { x: 0.5, y: -0.6 }; zoomVal = 1.0; }
+
+    // RENDER LOOP
+    function animate() {
+      time += 0.015;
+      ctx.clearRect(0, 0, width, height);
+
+      const cx = width / 2;
+      const cy = height / 2;
+
+      const sinX = Math.sin(rotation.x); const cosX = Math.cos(rotation.x);
+      const sinY = Math.sin(rotation.y); const cosY = Math.cos(rotation.y);
+
+      const project = (x, y, z) => {
+        let x1 = x * cosY - z * sinY;
+        let z1 = x * sinY + z * cosY;
+        let y2 = y * cosX - z1 * sinX;
+        let z2 = y * sinX + z1 * cosX;
+        const s = (350 / (350 + z2)) * zoomVal;
+        return { sx: cx + x1 * s, sy: cy + y2 * s, depth: z2, scaleVal: s };
+      };
+
+      // Draw planet background core
+      ctx.fillStyle = '#0a0f16';
+      ctx.beginPath();
+      ctx.arc(cx, cy, R * zoomVal, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Earth latitude / longitude grids
+      ctx.strokeStyle = 'rgba(34, 211, 238, 0.12)';
+      ctx.lineWidth = 0.5;
+      [-30, 0, 30].forEach(lat => {
+        const theta = lat * Math.PI / 180;
+        const r = R * Math.cos(theta);
+        const y = R * Math.sin(theta);
+        ctx.beginPath();
+        for (let a = 0; a <= Math.PI * 2; a += 0.2) {
+          const x = r * Math.cos(a);
+          const z = r * Math.sin(a);
+          const p = project(x, y, z);
+          if (p.depth > -30) {
+            if (a === 0) ctx.moveTo(p.sx, p.sy);
+            else ctx.lineTo(p.sx, p.sy);
+          }
+        }
+        ctx.stroke();
+      });
+
+      // Draw connected tectonic ties
+      ctx.strokeStyle = 'rgba(6, 182, 212, 0.05)';
+      nodes.forEach((n, idx) => {
+        const next = nodes[(idx + 1) % nodes.length];
+        const p1 = project(n.x, n.y, n.z);
+        const p2 = project(next.x, next.y, next.z);
+        if (p1.depth > -30 && p2.depth > -30) {
+          ctx.beginPath();
+          ctx.moveTo(p1.sx, p1.sy);
+          ctx.lineTo(p2.sx, p2.sy);
+          ctx.stroke();
+        }
+      });
+
+      // Draw Tectonic nodes
+      nodes.forEach(node => {
+        const p = project(node.x, node.y, node.z);
+        if (p.depth > -30) {
+          const isTarget = activeSim && (
+            (activeSim === 'hurricane' && node.id === 'n2') ||
+            (activeSim === 'rain' && node.id === 'n4') ||
+            (activeSim === 'earthquake' && node.id === 'n5') ||
+            (activeSim === 'energy' && node.id === 'n10')
+          );
+
+          if (isTarget) {
+            // Ripple energy ring
+            ctx.strokeStyle = 'rgba(34, 211, 238, ' + (1.0 - (time % 1)) + ')';
+            ctx.beginPath();
+            ctx.arc(p.sx, p.sy, 8 + (time % 1) * 25, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.fillStyle = '#22d3ee';
+            ctx.beginPath();
+            ctx.arc(p.sx, p.sy, 7, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            ctx.fillStyle = 'rgba(34, 211, 238, 0.4)';
+            ctx.beginPath();
+            ctx.arc(p.sx, p.sy, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      });
+
+      // Swarm particles
+      particles.forEach(p => {
+        p.angle += p.speed;
+        let x = p.radius * Math.cos(p.angle);
+        let z = p.radius * Math.sin(p.angle);
+        let y = x * Math.sin(p.tilt);
+        x = x * Math.cos(p.tilt);
+
+        // Pulling towards selected active target
+        if (activeSim) {
+          let target = nodes[1]; // Hurricane target
+          if (activeSim === 'rain') target = nodes[3];
+          else if (activeSim === 'earthquake') target = nodes[4];
+          else if (activeSim === 'energy') target = nodes[5];
+
+          const attraction = 0.85;
+          if (Math.random() < 0.2) {
+            x = x * (1 - attraction) + target.x * attraction;
+            y = y * (1 - attraction) + target.y * attraction;
+            z = z * (1 - attraction) + target.z * attraction;
+          }
+        }
+
+        const proj = project(x, y, z);
+        if (proj.depth > -130) {
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(proj.sx, proj.sy, p.size * proj.scaleVal, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+
+    // Multilingual support trigger
+    function switchLang(lang) {
+      currentLang = lang;
+      
+      // Update buttons
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        if (btn.innerText.toLowerCase() === lang) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+
+      const d = DICT[lang];
+      document.getElementById('brand-title').innerText = d.title.toUpperCase();
+      document.getElementById('brand-subtitle').innerText = d.subtitle.toUpperCase();
+      document.getElementById('title-visual').innerText = d.visual;
+      document.getElementById('title-simulators').innerText = d.simulators;
+      document.getElementById('title-sop-steps').innerText = d.sopsteps;
+
+      // Update descriptions
+      document.getElementById('sim-h-name').innerText = d.hName;
+      document.getElementById('sim-h-body').innerText = d.hBody;
+
+      document.getElementById('sim-r-name').innerText = d.rName;
+      document.getElementById('sim-r-body').innerText = d.rBody;
+
+      document.getElementById('sim-e-name').innerText = d.eName;
+      document.getElementById('sim-e-body').innerText = d.eBody;
+
+      document.getElementById('sim-eg-name').innerText = d.egName;
+      document.getElementById('sim-eg-body').innerText = d.egBody;
+
+      // SOP Checklist update
+      document.getElementById('step-txt-0').innerText = d.steps[0];
+      document.getElementById('step-txt-1').innerText = d.steps[1];
+      document.getElementById('step-txt-2').innerText = d.steps[2];
+
+      document.getElementById('hovered-node-tag').innerText = d.hover;
+
+      // Add log
+      addLog("System switched language to [" + lang.toUpperCase() + "]. All telemetry translated.");
+    }
+
+    // Active simulation trigger
+    function triggerSim(simId) {
+      activeSim = simId;
+      document.querySelectorAll('.sim-card').forEach(card => {
+        if (card.id === 'sim-' + simId) card.classList.add('active');
+        else card.classList.remove('remove'), card.classList.remove('active');
+      });
+
+      const d = DICT[currentLang];
+      const logName = simId === 'hurricane' ? d.hName : simId === 'rain' ? d.rName : simId === 'earthquake' ? d.eName : d.egName;
+      
+      const states = {
+        hurricane: d.states.resonating,
+        rain: d.states.resonating,
+        earthquake: d.states.coherence,
+        energy: d.states.coherence
+      };
+
+      document.getElementById('active-state-tag').innerText = states[simId];
+      if (simId === 'earthquake' || simId === 'energy') {
+        document.getElementById('active-state-tag').style.color = '#38bdf8';
+        document.getElementById('field-stability-tag').innerText = "STABILITY: 98.6%";
+        document.getElementById('field-stability-tag').style.color = '#38bdf8';
+      } else {
+        document.getElementById('active-state-tag').style.color = '#22d3ee';
+        document.getElementById('field-stability-tag').innerText = "STABILITY: 88.4%";
+        document.getElementById('field-stability-tag').style.color = '#22d3ee';
+      }
+
+      addLog(d.logActive + "● [" + logName + "] ●");
+      setTimeout(() => {
+        addLog(d.logEnd);
+      }, 1500);
+    }
+
+    // Interactive Checklist trigger
+    let checkedCount = 1;
+    function toggleCheck(idx) {
+      const box = document.getElementById('check-' + idx);
+      if (box.classList.contains('checked')) {
+        box.classList.remove('checked');
+        checkedCount = Math.max(0, checkedCount - 1);
+      } else {
+        box.classList.add('checked');
+        checkedCount++;
+      }
+      
+      // Update score percent
+      const percent = Math.floor((checkedCount / 3) * 100);
+      document.getElementById('sop-steps-done').innerText = percent + "%";
+      addLog("SOP-001 Step modulation changed: Alignment index now at " + percent + "%");
+    }
+
+    // System log writer helper
+    function addLog(msg) {
+      const parent = document.getElementById('terminal-block');
+      const now = new Date();
+      const timeStr = "[" + now.toTimeString().split(' ')[0] + "]";
+      
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      line.innerHTML = '<span class="log-time">' + timeStr + '</span> <span class="log-status">CEQA-X</span> <span class="log-msg">' + msg + '</span>';
+      parent.appendChild(line);
+      parent.scrollTop = parent.scrollHeight;
+    }
+
+    // Default load matching translation select
+    switchLang('es');
+  </script>
+
+</body>
+</html>
