@@ -1,0 +1,2406 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuroBiome Therapy - Interactive Digital Twin</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts import -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              neonBlue: '#00f3ff',
+              titaniumBlack: '#0B0C10',
+              stealthGrey: '#1F2833',
+              alertRed: '#ff003c',
+              quantumPurple: '#b026ff',
+              bioGreen: '#39ff14',
+              goldWarning: '#ffb700',
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+              display: ['Space Grotesk', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    
+    <style>
+      body {
+        background-color: #0b0c10;
+        font-family: 'Inter', sans-serif;
+      }
+      
+      /* Glowing animations and visual effects */
+      .glow-border {
+        box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+        transition: all 0.3s ease;
+      }
+      .glow-border:hover {
+        box-shadow: 0 0 20px rgba(0, 243, 255, 0.25);
+        border-color: #00f3ff !important;
+      }
+      
+      .glow-border-alert {
+        box-shadow: 0 0 15px rgba(255, 0, 60, 0.1);
+        transition: all 0.3s ease;
+      }
+      .glow-border-alert:hover {
+        box-shadow: 0 0 20px rgba(255, 0, 60, 0.25);
+        border-color: #ff003c !important;
+      }
+      
+      .glow-border-purple {
+        box-shadow: 0 0 15px rgba(176, 38, 255, 0.1);
+        transition: all 0.3s ease;
+      }
+      .glow-border-purple:hover {
+        box-shadow: 0 0 20px rgba(176, 38, 255, 0.25);
+        border-color: #b026ff !important;
+      }
+
+      .glow-accent {
+        text-shadow: 0 0 10px rgba(0, 243, 255, 0.4);
+      }
+      
+      /* High-quality scrollbars */
+      ::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0B0C10;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #1F2833;
+        border-radius: 99px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #00f3ff;
+      }
+
+      .scanlines {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.15));
+        background-size: 100% 4px; pointer-events: none; z-index: 12; opacity: 0.15;
+      }
+    </style>
+</head>
+<body class="text-white relative min-h-screen flex flex-col overflow-x-hidden select-none bg-titaniumBlack">
+    <canvas id="canvas3d" class="absolute top-0 left-0 w-full h-full z-1 pointer-events-auto cursor-crosshair"></canvas>
+    <div class="scanlines"></div>
+    
+    <!-- Temporary floating diagnostics dialog -->
+    <div id="sysMsg" class="fixed top-1/4 left-1/2 transform -translate-x-1/2 z-50 hidden font-mono text-xs bg-[#111216]/95 border border-bioGreen text-bioGreen px-5 py-3 rounded shadow-2xl backdrop-blur-md glow-accent flex items-center gap-2">
+      <i data-lucide="sparkles" class="w-4 h-4 animate-spin"></i>
+      <span id="txt-sys-feedback">MATRIZ DE PATENTE DETECTADA</span>
+    </div>
+
+    <!-- MAIN UI HUDS CONTAINER -->
+    <div class="relative z-10 flex flex-col min-h-screen pointer-events-none p-4 max-w-7xl mx-auto w-full">
+      
+      <!-- HEADER -->
+      <header class="pointer-events-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-[#111216]/90 border border-neonBlue/20 rounded p-4 backdrop-blur-md shadow-2xl mb-3">
+        <div class="flex items-center gap-3">
+          <div class="p-2 bg-neonBlue/10 rounded border border-neonBlue/30 text-neonBlue">
+            <i data-lucide="activity" class="w-5 h-5 animate-pulse"></i>
+          </div>
+          <div>
+            <div class="text-[10px] text-gray-400 tracking-[0.2em] font-mono uppercase" id="txt-lbl-developer">
+              DR. JULIO CÉSAR OPERTA BARRERA
+            </div>
+            <h1 class="text-lg font-bold text-neonBlue tracking-wider font-display" id="txt-app-title">
+              NEUROBIOME THERAPY
+            </h1>
+            <div class="text-[11px] text-gray-500 font-mono tracking-wide" id="txt-app-subtitle">
+              Microbioma Psiquiátrico con IA de Perfil Emocional • <span class="text-goldWarning" id="txt-app-patent-brief">Prototipo Digital Twin - Patente Septiembre 2025</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <!-- Languages Switcher -->
+          <div class="flex bg-stealthGrey/80 p-0.5 rounded border border-white/5 mr-2">
+            <button onclick="setLang('es')" id="btn-lang-es" class="px-3 py-1 font-mono text-xs uppercase rounded transition-all cursor-pointer text-neonBlue bg-neonBlue/10 border border-neonBlue/20 font-bold">ES</button>
+            <button onclick="setLang('en')" id="btn-lang-en" class="px-3 py-1 font-mono text-xs uppercase rounded transition-all cursor-pointer text-gray-400 hover:text-white">EN</button>
+            <button onclick="setLang('zh')" id="btn-lang-zh" class="px-3 py-1 font-mono text-xs uppercase rounded transition-all cursor-pointer text-gray-400 hover:text-white">ZH</button>
+          </div>
+
+          <!-- Standalone badge indicator -->
+          <span class="flex items-center gap-1.5 px-3 py-1 bg-bioGreen/10 border border-bioGreen/30 text-bioGreen rounded font-mono text-[10px] font-bold">
+            <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+            STANDALONE OFFLINE
+          </span>
+        </div>
+      </header>
+
+      <!-- EVOLUTION PHASES BAR -->
+      <div class="pointer-events-auto bg-[#111216]/95 border border-neonBlue/30 rounded p-3.5 backdrop-blur-md shadow-2xl mb-4">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-3 pb-2 border-b border-white/5">
+          <div class="flex items-center gap-2">
+            <i data-lucide="cpu" class="w-4 h-4 text-neonBlue animate-spin"></i>
+            <span class="font-mono text-xs text-neonBlue font-bold tracking-[0.15em] uppercase" id="txt-lbl-evolution-title">
+              FASES DE BIOCLUSTER INDUSTRIAL Y CIUDAD-ESTADO
+            </span>
+          </div>
+          <div class="text-[10px] font-mono text-gray-400" id="txt-lbl-auth-tag">
+            Prototipo Dinámico Evolving Organism de Dr. Julio C. Oporta
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <!-- Alpha -->
+          <button onclick="setPhase('alpha')" id="btn-phase-alpha" class="py-2 px-3 text-left font-mono border rounded transition-all cursor-pointer relative group flex flex-col justify-between h-20 bg-neonBlue/10 border-neonBlue text-white font-bold shadow-[inset_0_0_12px_rgba(0,243,255,0.15)] ring-1 ring-neonBlue/30">
+            <div class="flex items-center justify-between w-full">
+              <span class="text-xs uppercase font-bold tracking-wider" id="txt-phase-alpha">Alfa</span>
+              <div id="dot-phase-alpha" class="w-2 h-2 rounded-full bg-neonBlue animate-ping"></div>
+            </div>
+            <span class="text-[9px] text-gray-400 group-hover:text-white transition-colors leading-tight mt-1 truncate-3-lines" id="txt-desc-alpha">
+              Iniciación sensorial. Monitoreo micro-biofísico local.
+            </span>
+            <span id="active-lbl-alpha" class="absolute bottom-1 right-2 text-[8px] text-bioGreen font-bold tracking-widest leading-none">ACTIVE</span>
+          </button>
+
+          <!-- Beta -->
+          <button onclick="setPhase('beta')" id="btn-phase-beta" class="py-2 px-3 text-left font-mono border rounded transition-all cursor-pointer relative group flex flex-col justify-between h-20 bg-stealthGrey/15 border-white/5 text-gray-300 hover:border-neonBlue/35 hover:text-white">
+            <div class="flex items-center justify-between w-full">
+              <span class="text-xs uppercase font-bold tracking-wider" id="txt-phase-beta">Beta</span>
+              <div id="dot-phase-beta" class="w-2 h-2 rounded-full bg-white/20"></div>
+            </div>
+            <span class="text-[9px] text-gray-400 group-hover:text-white transition-colors leading-tight mt-1 truncate-3-lines" id="txt-desc-beta">
+              Conexión sináptica. Tránsito dinámico de decisiones.
+            </span>
+            <span id="active-lbl-beta" class="absolute bottom-1 right-2 text-[8px] text-bioGreen font-bold tracking-widest leading-none hidden">ACTIVE</span>
+          </button>
+
+          <!-- Gamma -->
+          <button onclick="setPhase('gamma')" id="btn-phase-gamma" class="py-2 px-3 text-left font-mono border rounded transition-all cursor-pointer relative group flex flex-col justify-between h-20 bg-stealthGrey/15 border-white/5 text-gray-300 hover:border-neonBlue/35 hover:text-white">
+            <div class="flex items-center justify-between w-full">
+              <span class="text-xs uppercase font-bold tracking-wider" id="txt-phase-gamma">Gamma</span>
+              <div id="dot-phase-gamma" class="w-2 h-2 rounded-full bg-white/20"></div>
+            </div>
+            <span class="text-[9px] text-gray-400 group-hover:text-white transition-colors leading-tight mt-1 truncate-3-lines" id="txt-desc-gamma">
+              Núcleo de Orquestación Afirmativa habilitado.
+            </span>
+            <span id="active-lbl-gamma" class="absolute bottom-1 right-2 text-[8px] text-bioGreen font-bold tracking-widest leading-none hidden">ACTIVE</span>
+          </button>
+
+          <!-- Delta -->
+          <button onclick="setPhase('delta')" id="btn-phase-delta" class="py-2 px-3 text-left font-mono border rounded transition-all cursor-pointer relative group flex flex-col justify-between h-20 bg-stealthGrey/15 border-white/5 text-gray-300 hover:border-neonBlue/35 hover:text-white">
+            <div class="flex items-center justify-between w-full">
+              <span class="text-xs uppercase font-bold tracking-wider" id="txt-phase-delta">Delta</span>
+              <div id="dot-phase-delta" class="w-2 h-2 rounded-full bg-white/20"></div>
+            </div>
+            <span class="text-[9px] text-gray-400 group-hover:text-white transition-colors leading-tight mt-1 truncate-3-lines" id="txt-desc-delta">
+              Sincronización total del Gemelo Digital y Humano-Territorio.
+            </span>
+            <span id="active-lbl-delta" class="absolute bottom-1 right-2 text-[8px] text-bioGreen font-bold tracking-widest leading-none hidden">ACTIVE</span>
+          </button>
+
+          <!-- Omega -->
+          <button onclick="setPhase('omega')" id="btn-phase-omega" class="py-2 px-3 text-left font-mono border rounded transition-all cursor-pointer relative group flex flex-col justify-between h-20 bg-stealthGrey/15 border-white/5 text-gray-300 hover:border-neonBlue/35 hover:text-white">
+            <div class="flex items-center justify-between w-full">
+              <span class="text-xs uppercase font-bold tracking-wider" id="txt-phase-omega">Omega</span>
+              <div id="dot-phase-omega" class="w-2 h-2 rounded-full bg-white/20"></div>
+            </div>
+            <span class="text-[9px] text-gray-400 group-hover:text-white transition-colors leading-tight mt-1 truncate-3-lines" id="txt-desc-omega">
+              Orquestación consciente completa en cuerpo viviente autorregulado.
+            </span>
+            <span id="active-lbl-omega" class="absolute bottom-1 right-2 text-[8px] text-bioGreen font-bold tracking-widest leading-none hidden">ACTIVE</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- THREE-COLUMN GRID COCKPIT -->
+      <main class="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-4 min-h-0 mb-4">
+        
+        <!-- LEFT COLUMN: MODES & LAYERS & SLIDERS -->
+        <div class="lg:col-span-1 flex flex-col gap-4 pointer-events-auto overflow-y-auto max-h-[82vh] pr-1">
+          
+          <!-- SIMULATION MODES -->
+          <section class="bg-[#111216]/90 border border-neonBlue/25 rounded p-4 backdrop-blur-md shadow-2xl glow-border">
+            <h2 class="text-xs text-neonBlue font-mono tracking-widest border-b border-neonBlue/15 pb-2 mb-3 uppercase flex items-center justify-between">
+              <span id="txt-lbl-modes">MODOS DE SIMULACIÓN</span>
+              <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+            </h2>
+            
+            <div class="flex flex-col gap-2">
+              <button onclick="setMode('biomechanics')" id="btn-mode-biomechanics" class="w-full py-2 px-3 text-left font-mono text-xs border rounded transition-all cursor-pointer flex items-center gap-2 bg-neonBlue/10 border-neonBlue text-white font-bold shadow-[inset_0_0_10px_rgba(0,243,255,0.1)]">
+                <div class="w-1.5 h-1.5 rounded-full bg-neonBlue"></div>
+                <span id="txt-mode-bio">Biomecánica Riológica</span>
+              </button>
+
+              <button onclick="setMode('physics')" id="btn-mode-physics" class="w-full py-2 px-3 text-left font-mono text-xs border rounded transition-all cursor-pointer flex items-center gap-2 bg-stealthGrey/20 border-white/5 text-gray-300 hover:border-neonBlue/30 hover:text-white">
+                <div class="w-1.5 h-1.5 rounded-full bg-gray-500" id="dot-mode-physics"></div>
+                <span id="txt-mode-phys">Física Colisional</span>
+              </button>
+
+              <button onclick="setMode('energy')" id="btn-mode-energy" class="w-full py-2 px-3 text-left font-mono text-xs border rounded transition-all cursor-pointer flex items-center gap-2 bg-stealthGrey/20 border-white/5 text-gray-300 hover:border-neonBlue/30 hover:text-white">
+                <div class="w-1.5 h-1.5 rounded-full bg-gray-500" id="dot-mode-energy"></div>
+                <span id="txt-mode-ener">Energía Biomimética</span>
+              </button>
+
+              <button onclick="setMode('swarm')" id="btn-mode-swarm" class="w-full py-2 px-3 text-left font-mono text-xs border rounded transition-all cursor-pointer flex items-center gap-2 bg-stealthGrey/20 border-white/5 text-gray-300 hover:border-neonBlue/30 hover:text-white">
+                <div class="w-1.5 h-1.5 rounded-full bg-gray-500" id="dot-mode-swarm"></div>
+                <span id="txt-mode-swarm">Enjambre Inteligente</span>
+              </button>
+
+              <button onclick="setMode('hologram')" id="btn-mode-hologram" class="w-full py-2 px-3 text-left font-mono text-xs border rounded transition-all cursor-pointer flex items-center gap-2 bg-stealthGrey/20 border-white/5 text-gray-300 hover:border-neonBlue/30 hover:text-white">
+                <div class="w-1.5 h-1.5 rounded-full bg-gray-500" id="dot-mode-hologram"></div>
+                <span id="txt-mode-holo">Ajuste Holográfico</span>
+              </button>
+            </div>
+          </section>
+
+          <!-- BIOMIMETIC LAYER ARCHITECTURE -->
+          <section class="bg-[#111216]/90 border border-neonBlue/25 rounded p-4 backdrop-blur-md shadow-2xl glow-border">
+            <h2 class="text-xs text-neonBlue font-mono tracking-widest border-b border-neonBlue/15 pb-2 mb-3 uppercase flex items-center justify-between">
+              <span id="txt-lbl-layers-title">ARQUITECTURA BIOMIMÉTICA DE CAPAS</span>
+              <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+            </h2>
+            
+            <div class="flex flex-col gap-1.5 font-mono text-[10px]">
+              <button onclick="setLayerFilter('all')" id="btn-layer-all" class="w-full py-2 px-2.5 text-left border rounded transition-all cursor-pointer flex items-center justify-between bg-white/5 border-white/40 text-white font-bold">
+                <span id="txt-l-all">[ MOSTRAR TODAS / SHOW ALL ]</span>
+                <span>Active</span>
+              </button>
+              
+              <button onclick="setLayerFilter('sensory')" id="btn-layer-sensory" class="w-full py-2 px-2.5 text-left border rounded transition-all cursor-pointer flex items-center justify-between bg-transparent border-transparent text-gray-300 hover:text-neonBlue">
+                <span id="txt-l-sensory">Capa Física Neuro-Sensitiva</span>
+                <span class="text-neonBlue font-bold">0.0Hz - 22Hz</span>
+              </button>
+
+              <button onclick="setLayerFilter('kernel')" id="btn-layer-kernel" class="w-full py-2 px-2.5 text-left border rounded transition-all cursor-pointer flex items-center justify-between bg-transparent border-transparent text-gray-300 hover:text-quantumPurple">
+                <span id="txt-l-kernel">Núcleo Digital de Orquestación</span>
+                <span class="text-quantumPurple font-bold">AI Orchestration</span>
+              </button>
+
+              <button onclick="setLayerFilter('twin')" id="btn-layer-twin" class="w-full py-2 px-2.5 text-left border rounded transition-all cursor-pointer flex items-center justify-between bg-transparent border-transparent text-gray-300 hover:text-goldWarning">
+                <span id="txt-l-twin">Simulación de Gemelo Digital</span>
+                <span class="text-goldWarning font-bold">Mirror State</span>
+              </button>
+            </div>
+          </section>
+
+          <!-- DYNAMIC CONTROLS SLIDERS -->
+          <section class="bg-[#111216]/90 border border-neonBlue/25 rounded p-4 backdrop-blur-md shadow-2xl glow-border">
+            <h2 class="text-xs text-neonBlue font-mono tracking-widest border-b border-neonBlue/15 pb-2 mb-4 uppercase flex items-center justify-between">
+              <span id="txt-lbl-ctrl-title">PARÁMETROS DINÁMICOS</span>
+              <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>
+            </h2>
+            
+            <div class="flex flex-col gap-4">
+              <!-- Viscosity -->
+              <div>
+                <div class="flex justify-between items-center text-[11px] font-mono mb-1 text-gray-400">
+                  <span id="txt-lbl-ctrl-visc">Viscosidad del Medio</span>
+                  <span class="text-neonBlue font-bold" id="val-viscos">0.020</span>
+                </div>
+                <input type="range" id="input-viscos" min="0.005" max="0.1" step="0.005" value="0.02" oninput="updateSlider('viscos', this.value)" class="w-full accent-neonBlue bg-stealthGrey h-1 rounded cursor-pointer">
+              </div>
+
+              <!-- Temp / ATP -->
+              <div>
+                <div class="flex justify-between items-center text-[11px] font-mono mb-1 text-gray-400">
+                  <span id="txt-lbl-ctrl-temp">Tasa Bioenergía ATP</span>
+                  <span class="text-neonBlue font-bold" id="val-temp">1.5 eV</span>
+                </div>
+                <input type="range" id="input-temp" min="0.5" max="5.0" step="0.1" value="1.5" oninput="updateSlider('temp', this.value)" class="w-full accent-neonBlue bg-stealthGrey h-1 rounded cursor-pointer">
+              </div>
+
+              <!-- Elasticity -->
+              <div>
+                <div class="flex justify-between items-center text-[11px] font-mono mb-1 text-gray-400">
+                  <span id="txt-lbl-ctrl-elastic">Coeficiente Rebote</span>
+                  <span class="text-neonBlue font-bold" id="val-elastic">0.85</span>
+                </div>
+                <input type="range" id="input-elastic" min="0.1" max="1.5" step="0.05" value="0.85" oninput="updateSlider('elastic', this.value)" class="w-full accent-neonBlue bg-stealthGrey h-1 rounded cursor-pointer">
+              </div>
+
+              <!-- Noise -->
+              <div>
+                <div class="flex justify-between items-center text-[11px] font-mono mb-1 text-gray-400">
+                  <span id="txt-lbl-ctrl-noise">Interferencia BCI</span>
+                  <span class="text-neonBlue font-bold" id="val-noise">15%</span>
+                </div>
+                <input type="range" id="input-noise" min="0" max="100" step="5" value="15" oninput="updateSlider('noise', this.value)" class="w-full accent-neonBlue bg-stealthGrey h-1 rounded cursor-pointer">
+              </div>
+
+              <button onclick="resetModel3D()" class="w-full mt-2 py-2 border border-neonBlue/30 hover:border-neonBlue hover:bg-neonBlue/10 transition-all font-mono text-xs text-neonBlue font-medium uppercase rounded flex items-center justify-center gap-1.5 cursor-pointer" id="txt-btn-reset3d">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                REINICIAR MODELO DE DATOS
+              </button>
+            </div>
+          </section>
+
+        </div>
+
+        <!-- CENTER PANEL: 3D canvas viewport overlays, metrics, presets and action keys -->
+        <div class="lg:col-span-2 flex flex-col gap-4 pointer-events-auto justify-end">
+          
+          <!-- TELEMETRY FLOATING HUD OVERLAYS (absolute inside center column layout) -->
+          <div class="self-end bg-[#111216]/80 border border-neonBlue/15 rounded p-3 font-mono text-[10px] text-neonBlue leading-relaxed w-fit shadow-2xl backdrop-blur-sm mt-2 flex flex-col gap-0.5">
+            <div>SYS STATUS: <span class="text-bioGreen font-bold" id="txt-status-val">ÓPTIMO</span></div>
+            <div>SWARM NODES: <span class="text-white font-bold" id="txt-status-nodes">1,500</span></div>
+            <div>SIGNAL SYNC: <span class="text-neonBlue font-bold" id="txt-status-sync">97.7%</span></div>
+            <div>CAMERA SCALE: <span class="text-goldWarning font-bold" id="txt-status-field">600z</span></div>
+            <div>IMAGE TARGET: <span class="text-goldWarning font-bold" id="txt-status-target">PATENTFLOW</span></div>
+          </div>
+
+          <!-- SPACER TO PUSH CONTROLS DOWN -->
+          <div class="flex-1"></div>
+
+          <!-- THREE PILLARS CARD PANEL -->
+          <div class="bg-[#111216]/95 border border-neonBlue/20 rounded p-4 backdrop-blur-md shadow-2xl glow-border">
+            <h3 class="font-mono text-xs text-neonBlue font-bold uppercase tracking-widest pb-1.5 border-b border-neonBlue/10 mb-3 flex items-center justify-between">
+              <span id="txt-lbl-pillars-title">TRES PILARES DEL ENTORNO CONSCIENTE</span>
+              <span class="text-goldWarning">✦</span>
+            </h3>
+            <div class="grid grid-cols-3 gap-3">
+              <!-- Pillar 1 -->
+              <div class="bg-black/40 border border-white/5 p-2 rounded flex flex-col justify-between">
+                <span class="text-[9px] font-mono text-gray-400 uppercase tracking-wider leading-tight" id="txt-lbl-pillar-gov">Gobernanza Neuronal</span>
+                <div class="flex justify-between items-baseline mt-1.5 font-mono">
+                  <span class="text-xs font-bold text-neonBlue" id="txt-pillar-gov-val">95.70%</span>
+                  <span class="text-[8px] text-bioGreen font-bold">Stable</span>
+                </div>
+              </div>
+              <!-- Pillar 2 -->
+              <div class="bg-black/40 border border-white/5 p-2 rounded flex flex-col justify-between">
+                <span class="text-[9px] font-mono text-gray-400 uppercase tracking-wider leading-tight" id="txt-lbl-pillar-res">Resonancia Humano-Territorio</span>
+                <div class="flex justify-between items-baseline mt-1.5 font-mono">
+                  <span class="text-xs font-bold text-quantumPurple" id="txt-pillar-res-val">7.83 Hz</span>
+                  <span class="text-[8px] text-goldWarning font-bold">SHUMANN</span>
+                </div>
+              </div>
+              <!-- Pillar 3 -->
+              <div class="bg-black/40 border border-white/5 p-2 rounded flex flex-col justify-between">
+                <span class="text-[9px] font-mono text-gray-400 uppercase tracking-wider leading-tight" id="txt-lbl-pillar-bio">Interconexión Biológica</span>
+                <div class="flex justify-between items-baseline mt-1.5 font-mono">
+                  <span class="text-xs font-bold text-bioGreen" id="txt-pillar-bio-val">88.5%</span>
+                  <span class="text-[8px] text-white/40" id="txt-pillar-bio-state">SYNCED</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BCI WAVE GRAPH CONTENT -->
+          <div id="wave-graph-container" class="bg-[#111216]/50 border border-neonBlue/15 rounded p-2.5 relative overflow-hidden h-[75px] backdrop-blur-sm">
+            <div class="absolute top-2 left-3 text-[9px] font-mono text-gray-400 uppercase" id="txt-lbl-graph-title">
+              FRECUENCIA AFECTIVA DE SEÑALES CEREBRALES (BCI Hz)
+            </div>
+            <canvas id="waveCanvas" class="w-full h-full block mt-3"></canvas>
+          </div>
+
+          <!-- PATENT PRESETS SELECTION & IMAGE METRIC UPLOAD -->
+          <div class="bg-[#111216]/95 border border-neonBlue/20 rounded p-4 backdrop-blur-md shadow-2xl glow-border">
+            <h3 class="font-mono text-xs text-neonBlue font-bold uppercase tracking-widest mb-3 flex items-center justify-between" id="txt-lbl-presets-title">
+              PROYECCIÓN DE MATRIZ DE PATENTE
+            </h3>
+            
+            <div class="grid grid-cols-3 gap-2 mb-3">
+              <button onclick="loadHoloPreset('patentFlow')" id="preset-btn-patentflow" class="py-1.5 bg-stealthGrey/60 hover:bg-quantumPurple/10 border border-white/15 hover:border-quantumPurple font-mono text-[10px] text-gray-300 rounded transition-all cursor-pointer text-center font-medium uppercase active">
+                Diseño Patente
+              </button>
+              <button onclick="loadHoloPreset('gutBrain')" id="preset-btn-gutbrain" class="py-1.5 bg-stealthGrey/60 hover:bg-quantumPurple/10 border border-white/10 hover:border-quantumPurple font-mono text-[10px] text-gray-300 rounded transition-all cursor-pointer text-center font-medium uppercase">
+                Modelo Eje
+              </button>
+              <button onclick="loadHoloPreset('neuroColon')" id="preset-btn-neurocolon" class="py-1.5 bg-stealthGrey/60 hover:bg-quantumPurple/10 border border-white/10 hover:border-quantumPurple font-mono text-[10px] text-gray-300 rounded transition-all cursor-pointer text-center font-medium uppercase">
+                Estructura
+              </button>
+            </div>
+
+            <div class="flex items-center justify-between gap-3 pt-2.5 border-t border-white/5">
+              <span class="text-[10px] font-mono text-gray-400" id="txt-lbl-upload-desc">
+                Cargar imagen de patente propia para proyección estructural...
+              </span>
+              <label class="cursor-pointer flex items-center gap-1.5 py-1 px-3 border border-bioGreen/40 hover:border-bioGreen hover:bg-bioGreen/10 font-mono text-[10px] text-bioGreen rounded transition-all uppercase font-bold whitespace-nowrap">
+                <i data-lucide="upload" class="w-3 h-3"></i>
+                <span id="txt-lbl-btn-upload">[ SUBIR DETALLE ]</span>
+                <input type="file" id="img-upload" accept="image/png, image/jpeg" onchange="processLocalImage(event)" class="hidden">
+              </label>
+            </div>
+          </div>
+
+          <!-- ACTION SYSTEM KEYS GRID -->
+          <div class="grid grid-cols-3 gap-3">
+            <button onclick="toggleResonance()" id="btn-act-resonance" class="py-2.5 px-3 border border-goldWarning text-goldWarning hover:bg-goldWarning hover:text-black font-mono text-xs uppercase font-bold transition-all duration-300 rounded shadow-lg backdrop-blur-md cursor-pointer text-center">
+              Resonancia de Fase
+            </button>
+            <button onclick="triggerDeepScan()" id="btn-act-scan" class="py-2.5 px-3 border border-neonBlue text-neonBlue hover:bg-neonBlue hover:text-black font-mono text-xs uppercase font-bold transition-all duration-300 rounded shadow-lg backdrop-blur-md cursor-pointer text-center">
+              Escaneo Profundo
+            </button>
+            <button onclick="toggleARView()" id="btn-act-ar" class="py-2.5 px-3 border border-quantumPurple text-quantumPurple hover:bg-quantumPurple hover:text-black font-mono text-xs uppercase font-bold transition-all duration-300 rounded shadow-lg backdrop-blur-md cursor-pointer text-center">
+              Cámara AR
+            </button>
+          </div>
+
+          <!-- AR PORT CAMERA VIEWPORT CONTAINER  -->
+          <div id="ar-viewport-container" class="hidden flex flex-col gap-1.5 mt-2 bg-black border border-neonBlue/30 rounded p-2.5 shadow-2xl">
+            <div class="flex justify-between items-center px-1">
+              <span class="text-[10px] font-mono text-quantumPurple font-bold" id="txt-lbl-ar-playing">SIMULADOR DE REALIDAD AUMENTADA (WEBO / WEBXR)</span>
+              <span class="w-2.5 h-2.5 bg-quantumPurple rounded-full animate-ping"></span>
+            </div>
+            <div class="relative rounded overflow-hidden aspect-[16/6] bg-black border border-white/5 flex items-center justify-center">
+              <video id="ar-camera-feed" class="absolute top-0 left-0 w-full h-full object-cover opacity-60 hidden" autoplay playsinline></video>
+              
+              <!-- AR Sim Floor perspective grid -->
+              <div class="absolute w-full h-full hidden" id="ar-floor-grid" style="background-image: linear-gradient(rgba(0, 243, 255, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 243, 255, 0.08) 1px, transparent 1px); background-size: 20px 20px; background-position: center; transform: perspective(100px) rotateX(60deg); transform-origin: center bottom;"></div>
+              
+              <div class="relative z-10 text-[11px] font-mono text-center text-gray-300 uppercase px-4 leading-relaxed" id="txt-ar-status">
+                Buscando plano horizontal... Enfoque una superficie plana.
+              </div>
+            </div>
+            <div class="flex justify-between items-center text-[9px] font-mono text-gray-500 px-1 mt-1 pt-1.5 border-t border-white/5">
+              <span id="txt-ar-detail-cap">VISTA PREVIA SIMULADA</span>
+              <button onclick="activateRealCamera()" id="btn-allow-cam-ar" class="text-neonBlue hover:underline">[ HABILITAR CÁMARA FÍSICA ]</button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN: BIOLOGICAL METABOLIC EJE, CIRCUIT LOGIC & AUTO-ML EVENT LOGS -->
+        <div class="lg:col-span-1 flex flex-col gap-4 pointer-events-auto overflow-y-auto max-h-[82vh] pr-1">
+          
+          <!-- GUT-BRAIN AXIS MICROBIOMA PROFILE METABOLICS -->
+          <section class="bg-[#111216]/90 border border-neonBlue/25 rounded p-4 backdrop-blur-md shadow-2xl glow-border">
+            <div class="flex justify-between items-center border-b border-neonBlue/15 pb-2 mb-3">
+              <h2 class="text-xs text-neonBlue font-mono tracking-widest uppercase flex items-center gap-1.5">
+                <i data-lucide="heart-pulse" class="w-3.5 h-3.5"></i>
+                <span id="txt-lbl-axis">EJE CEREBRO-INTESTINO</span>
+              </h2>
+            </div>
+            
+            <div class="flex flex-col gap-3 font-mono text-xs">
+              <!-- Buttirae SCFA -->
+              <div>
+                <div class="flex justify-between items-center text-[10px] text-gray-300 mb-1">
+                  <span id="txt-axis-scfa">Butiratos (SCFA)</span>
+                  <span class="text-bioGreen font-bold" id="val-axis-scfa">85%</span>
+                </div>
+                <div class="w-full bg-black h-2 rounded-full overflow-hidden border border-white/5">
+                  <div id="bar-axis-scfa" class="h-full bg-bioGreen transition-all duration-500" style="width: 85%;"></div>
+                </div>
+              </div>
+
+              <!-- Serotonina -->
+              <div>
+                <div class="flex justify-between items-center text-[10px] text-gray-300 mb-1">
+                  <span id="txt-axis-serotonin">Síntesis de Serotonina</span>
+                  <span class="text-neonBlue font-bold" id="val-axis-serotonin">78%</span>
+                </div>
+                <div class="w-full bg-black h-2 rounded-full overflow-hidden border border-white/5">
+                  <div id="bar-axis-serotonin" class="h-full bg-neonBlue transition-all duration-500" style="width: 78%;"></div>
+                </div>
+              </div>
+
+              <!-- GABA entérica -->
+              <div>
+                <div class="flex justify-between items-center text-[10px] text-gray-300 mb-1">
+                  <span id="txt-axis-gaba">Producción de GABA</span>
+                  <span class="text-quantumPurple font-bold" id="val-axis-gaba">55%</span>
+                </div>
+                <div class="w-full bg-black h-2 rounded-full overflow-hidden border border-white/5">
+                  <div id="bar-axis-gaba" class="h-full bg-quantumPurple transition-all duration-500" style="width: 55%;"></div>
+                </div>
+              </div>
+
+              <!-- Cortisol -->
+              <div>
+                <div class="flex justify-between items-center text-[10px] text-gray-300 mb-1">
+                  <span id="txt-axis-cortisol">Regulación del Cortisol</span>
+                  <span class="text-bioGreen font-bold" id="val-axis-cortisol">15%</span>
+                </div>
+                <div class="w-full bg-black h-2 rounded-full overflow-hidden border border-white/5">
+                  <div id="bar-axis-cortisol" class="h-full bg-bioGreen transition-all duration-500" style="width: 15%;"></div>
+                </div>
+              </div>
+
+              <!-- Estrés Oxidativo -->
+              <div>
+                <div class="flex justify-between items-center text-[10px] text-gray-300 mb-1">
+                  <span id="txt-axis-stress">Tensión Oxidativa</span>
+                  <span class="text-goldWarning font-bold" id="val-axis-stress">32%</span>
+                </div>
+                <div class="w-full bg-black h-2 rounded-full overflow-hidden border border-white/5">
+                  <div id="bar-axis-stress" class="h-full bg-goldWarning transition-all duration-500" style="width: 32%;"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- BIOPHYSICAL LOGIC GATE CIRCUITS -> INTERACTIVE BIO-TRANSISTORS -->
+          <section class="bg-[#111216]/90 border border-neonBlue/25 rounded p-4 backdrop-blur-md shadow-2xl glow-border">
+            <h2 class="text-xs text-neonBlue font-mono tracking-widest border-b border-neonBlue/15 pb-2 mb-2 uppercase flex items-center justify-between">
+              <span id="txt-lbl-circuits">LOGIC CIRCUIT SIMULATOR</span>
+              <i data-lucide="lightbulb" class="w-3.5 h-3.5"></i>
+            </h2>
+            <p class="text-[9px] font-mono text-gray-500 mb-3 leading-snug" id="txt-desc-circuits-prompt">
+              Las bacterias del psicobioma actúan como biotransistores que computan and/or lógicos en el intestino.
+            </p>
+            
+            <div class="flex flex-col gap-3 font-mono">
+              <!-- AND CIRCUIT CARD -->
+              <div class="bg-black/40 border border-neonBlue/15 rounded p-3 relative group overflow-hidden">
+                <div class="text-[10px] uppercase font-bold text-bioGreen mb-2 flex items-center justify-between">
+                  <span id="txt-gate-and-title">AND Gate (System Stability)</span>
+                  <span class="text-[8px] tracking-widest text-[#39ff14] font-normal">[ACT]</span>
+                </div>
+                
+                <div class="flex flex-col gap-1.5 text-[10px] text-gray-300">
+                  <div class="flex justify-between items-center py-0.5 border-b border-white/5">
+                    <span id="txt-lbl-and-cond1">Muestra [L. rhamnosus]</span>
+                    <button onclick="toggleGateInput('and', 'valA')" id="btn-gate-and-a" class="px-2 py-0.5 rounded text-[8px] bg-bioGreen/10 border border-bioGreen/30 text-bioGreen font-bold cursor-pointer">TRUE</button>
+                  </div>
+                  <div class="flex justify-between items-center py-0.5">
+                    <span id="txt-lbl-and-cond2">SCFA Biomarker > 60%</span>
+                    <button onclick="toggleGateInput('and', 'valB')" id="btn-gate-and-b" class="px-2 py-0.5 rounded text-[8px] bg-bioGreen/10 border border-bioGreen/30 text-bioGreen font-bold cursor-pointer">TRUE</button>
+                  </div>
+                </div>
+                
+                <div class="mt-2.5 pt-2 border-t border-white/5 flex justify-between items-center text-[10px]">
+                  <span class="text-gray-400" id="txt-lbl-gate-out">Gate Output:</span>
+                  <span class="text-bioGreen font-bold tracking-wider" id="txt-lbl-and-result">ACTIVE (CORTISOL BAJO)</span>
+                </div>
+              </div>
+
+              <!-- OR CIRCUIT CARD -->
+              <div class="bg-black/40 border border-quantumPurple/20 rounded p-3 relative group overflow-hidden">
+                <div class="text-[10px] uppercase font-bold text-quantumPurple mb-2 flex items-center justify-between">
+                  <span id="txt-gate-or-title">OR Gate (Antidepressant)</span>
+                  <span class="text-[8px] tracking-widest text-quantumPurple font-normal">[ACT]</span>
+                </div>
+                
+                <div class="flex flex-col gap-1.5 text-[10px] text-gray-300">
+                  <div class="flex justify-between items-center py-0.5 border-b border-white/5">
+                    <span id="txt-lbl-or-cond1">Muestra [B. infantis]</span>
+                    <button onclick="toggleGateInput('or', 'valA')" id="btn-gate-or-a" class="px-2 py-0.5 rounded text-[8px] bg-stealthGrey/60 border border-white/10 text-gray-400 cursor-pointer">FALSE</button>
+                  </div>
+                  <div class="flex justify-between items-center py-0.5">
+                    <span id="txt-lbl-or-cond2">Serotonin Receptor Active</span>
+                    <button onclick="toggleGateInput('or', 'valB')" id="btn-gate-or-b" class="px-2 py-0.5 rounded text-[8px] bg-bioGreen/10 border border-bioGreen/30 text-bioGreen font-bold cursor-pointer">TRUE</button>
+                  </div>
+                </div>
+                
+                <div class="mt-2.5 pt-2 border-t border-white/5 flex justify-between items-center text-[10px]">
+                  <span class="text-gray-400" id="txt-lbl-gate-out-or">Gate Output:</span>
+                  <span class="text-quantumPurple font-bold tracking-wider" id="txt-lbl-or-result">ACTIVE (ANTI-ESTRÉS)</span>
+                </div>
+              </div>
+
+              <p class="text-[9px] text-gray-500 leading-tight border-l-2 border-neonBlue/15 pl-1.5" id="txt-desc-circuits-footer">
+                Las puertas regulan la secreción de neurotransmisores basados en condiciones del microbioma.
+              </p>
+            </div>
+          </section>
+
+          <!-- AUTO-ML SYSTEM INTERACTIVE LOGS PORTAL  -->
+          <section class="bg-[#111216]/90 border border-neonBlue/25 rounded p-4 backdrop-blur-md shadow-2xl glow-border flex flex-col min-h-[290px]">
+            <h2 class="text-xs text-neonBlue font-mono tracking-widest border-b border-neonBlue/15 pb-2 mb-3 uppercase flex items-center justify-between">
+              <span id="txt-lbl-console-title">AUTO-ML EVENTS CONSOLE</span>
+              <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+            </h2>
+
+            <!-- Event Filters and text Search input -->
+            <div class="flex flex-col gap-2 mb-3">
+              <input type="text" id="console-search-input" onkeyup="filterLogsList()" placeholder="Buscar log..." class="px-2.5 py-1 text-[10px] font-mono rounded bg-black border border-white/10 hover:border-neonBlue/40 text-white outline-none placeholder-gray-500">
+              
+              <!-- Service filter selectors -->
+              <div class="flex flex-wrap gap-1 font-mono text-[8px]">
+                <button onclick="setServiceFilter('ALL')" id="filter-btn-all" class="px-1.5 py-0.5 bg-neonBlue/20 border border-neonBlue/30 hover:border-neonBlue text-neonBlue rounded cursor-pointer font-bold select-none">ALL</button>
+                <button onclick="setServiceFilter('AUTO-ML')" id="filter-btn-automl" class="px-1.5 py-0.5 bg-[#1F2833]/40 border border-transparent text-gray-400 hover:text-white rounded cursor-pointer select-none">AUTO-ML</button>
+                <button onclick="setServiceFilter('BCI')" id="filter-btn-bci" class="px-1.5 py-0.5 bg-[#1F2833]/40 border border-transparent text-gray-400 hover:text-white rounded cursor-pointer select-none">BCI</button>
+                <button onclick="setServiceFilter('DSS')" id="filter-btn-dss" class="px-1.5 py-0.5 bg-[#1F2833]/40 border border-transparent text-gray-400 hover:text-white rounded cursor-pointer select-none">DSS</button>
+                <button onclick="setServiceFilter('METABOLIC')" id="filter-btn-metabolic" class="px-1.5 py-0.5 bg-[#1F2833]/40 border border-transparent text-gray-400 hover:text-white rounded cursor-pointer select-none">BIOME</button>
+              </div>
+            </div>
+
+            <!-- Scroll wrapping list of events logs -->
+            <div id="console-logs-list" class="flex-1 overflow-y-auto max-h-[160px] bg-black/60 rounded p-2.5 border border-white/5 flex flex-col gap-2 font-mono text-[9px] pointer-events-auto">
+              <!-- Rendered logs dynamic inject here -->
+            </div>
+          </section>
+
+        </div>
+
+      </main>
+
+    </div>
+
+    <!-- SCRIPT CORAZÓN DE COMPATIBILIDAD DINÁMICA -->
+    <!-- Recreates the logic exactly, with zero dependencies, fully bilingual -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        // EMBED AND INJECT BACKEND STRUCTURES
+        const dictionary = {
+  "es": {
+    "title": "NEUROBIOME THERAPY",
+    "subtitle": "Microbioma Psiquiátrico con IA de Perfil Emocional",
+    "developer": "Dr. Julio César Oporta Barrera",
+    "patentBrief": "Prototipo Digital Twin - Patente Septiembre 2025",
+    "modeBiomechanics": "Biomecánica Básica",
+    "modePhysics": "Física Colisional",
+    "modeEnergy": "Energía Híbrida",
+    "modeSwarm": "IA de Enjambre",
+    "modeHologram": "Holografía Estructural",
+    "sysStatus": "SISTEMA:",
+    "sysStatusVal": "ÓPTIMO",
+    "nodesActive": "NODOS ENJAMBRE:",
+    "syncRate": "SINCRONIZACIÓN BCI:",
+    "depthZ": "PROFUNDIDAD DE CAMPO:",
+    "holoMatrix": "MATRIZ PATENTE:",
+    "holoMatrixDetected": "ASIMILADA",
+    "holoMatrixNotDetected": "NO DETECTADA",
+    "gGutBrainAxis": "SITUACIÓN DEL EJE CEREBRO-INTESTINO",
+    "scfa": "Ácidos Grasos Cortos (SCFA)",
+    "serotonin": "Síntesis de Serotonina",
+    "gaba": "Producción de GABA",
+    "oxidative": "Tensión Oxidativa",
+    "cortisol": "Regulación del Cortisol",
+    "btnInjectMatrix": "Inyectar Matriz (Patente)",
+    "btnResonance": "Resonancia de Fase",
+    "btnDeepScan": "Escaneo de Frecuencia",
+    "btnArMode": "Modo Realidad Aumentada (AR)",
+    "btnDownloadOffline": "Exportar HTML Offline Standalone",
+    "ctrlTitle": "CENTRAL DE SIMULACIÓN TÁCTICA",
+    "ctrlViscosity": "Viscosidad Reológica:",
+    "ctrlTemp": "Temperatura Térmica:",
+    "ctrlCollision": "Elasticidad de Colisión:",
+    "ctrlAtpRate": "Generación ATP:",
+    "ctrlNoise": "Ruido Afectivo BCI:",
+    "ctrlReset": "Reiniciar Modelo 3D",
+    "logicTitle": "COMPUTACIÓN PSIQUIÁTRICA: PUERTAS LÓGICAS BIOLÓGICAS",
+    "logicPrompt": "Las bacterias del psicobioma actúan como biotransistores que computan and/or lógicos en el intestino.",
+    "logicGateAnd": "Compuerta AND (Estabilidad)",
+    "logicGateOr": "Compuerta OR (Antidepresivo)",
+    "logicConditionA": "Muestra [L. rhamnosus]",
+    "logicConditionB": "Biomarcador SCFA > 60%",
+    "logicConditionC": "Muestra [B. infantis]",
+    "logicConditionD": "Receptor Serotonina Activo",
+    "logicInput": "Señal de entrada",
+    "logicOutputState": "Salida de Compuerta:",
+    "logicDescription": "Las puertas regulan la secreción de neurotransmisores basados en condiciones del microbioma.",
+    "consoleTitle": "CONSOLA DE LA IA DE AUTO-ML RESPONSABLE",
+    "consoleFilter": "Filtrar servicio...",
+    "consoleSearch": "Buscar log...",
+    "arSimulating": "SIMULADOR DE REALIDAD AUMENTADA (WEBO / WEBXR)",
+    "arInstructions": "Enfoque el dispositivo a una superficie plana. La matriz de perfil emocional se proyectará tridimensionalmente sobre la superficie.",
+    "arAllowCam": "Habilitar Cámara del Dispositivo",
+    "arSimSurface": "Simular Superficie de Oficina en 3D",
+    "arStatusWaiting": "Buscando plano horizontal...",
+    "arStatusActive": "Modelo proyectado en superficie de mesa con éxito.",
+    "holoPresetTitle": "SELECCIONE MAPA DE PATENTE O SUBA NUEVO",
+    "holoSelectLabel": "Cargar imagen de patente propia para proyección estructural...",
+    "holoPreset1": "Diagrama de Flujo de Patente",
+    "holoPreset2": "Eje Cerebro-Intestino Humano",
+    "holoPreset3": "Estructura Neuronal y Colon",
+    "offlineSuccess": "¡Prototipo Standalone Generado! El archivo se descargará automáticamente como un documento HTML que funciona 100% independiente, con simulador 3D, lógica interactiva y soporte para ES/EN/ZH.",
+    "evolutionPhase": "FASES DE BIOCLUSTER INDUSTRIAL Y CIUDAD-ESTADO",
+    "phaseAlpha": "Alfa",
+    "phaseBeta": "Beta",
+    "phaseGamma": "Gamma",
+    "phaseDelta": "Delta",
+    "phaseOmega": "Omega",
+    "phaseAlphaBrief": "Iniciación sensorial. Monitoreo micro-biofísico local.",
+    "phaseBetaBrief": "Conexión sináptica. Tránsito dinámico de decisiones.",
+    "phaseGammaBrief": "Núcleo de Orquestación Afirmativa habilitado.",
+    "phaseDeltaBrief": "Sincronización total del Gemelo Digital y Humano-Territorio.",
+    "phaseOmegaBrief": "Orquestación consciente completa en cuerpo viviente autorregulado.",
+    "pillarsTitle": "TRES PILARES DEL ENTORNO CONSCIENTE Y EVOLUTIVO",
+    "pillarGov": "Gobernanza Neuronal (Consenso)",
+    "pillarRes": "Resonancia Humano-Territorio",
+    "pillarBio": "Interconexión Biológica Integrada",
+    "layersTitle": "ARQUITECTURA BIOMIMÉTICA DE CAPAS",
+    "layerSensory": "Capa Física Neuro-Sensitiva",
+    "layerKernel": "Núcleo Digital de Orquestación Afirmativa",
+    "layerTwin": "Simulación de Gemelo Digital",
+    "msgAssimilated": "MODELO 3D DE ENTORNO EVOLUTIVO DE LA CIUDAD RECREADO",
+    "modes": "MODOS DE SIMULACIÓN",
+    "presets": "PROYECCIÓN DE MATRIZ DE PATENTE",
+    "upload": "[ SUBIR DETALLE ]",
+    "bci": "FRECUENCIA AFECTIVA DE SEÑALES CEREBRALES (BCI Hz)",
+    "msg": "MATRIZ DE PATENTE DETECTADA - ASIMILANDO ENTORNO",
+    "pf": "Diseño Patente",
+    "gb": "Modelo Eje",
+    "nc": "Estructura"
+  },
+  "en": {
+    "title": "NEUROBIOME THERAPY",
+    "subtitle": "Psychiatric Microbiome with Emotional Profile AI",
+    "developer": "Dr. Julio Cesar Oporta Barrera",
+    "patentBrief": "Digital Twin Prototype - Patent September 2025",
+    "modeBiomechanics": "Basic Biomechanics",
+    "modePhysics": "Collisional Physics",
+    "modeEnergy": "Hybrid Energy",
+    "modeSwarm": "Swarm AI",
+    "modeHologram": "Structural Holography",
+    "sysStatus": "SYSTEM STATUS:",
+    "sysStatusVal": "OPTIMAL",
+    "nodesActive": "SWARM NODES:",
+    "syncRate": "BCI SYNC RATE:",
+    "depthZ": "FIELD DEPTH Z:",
+    "holoMatrix": "PATENT MATRIX:",
+    "holoMatrixDetected": "ASSIMILATED",
+    "holoMatrixNotDetected": "NOT DETECTED",
+    "gGutBrainAxis": "GUT-BRAIN AXIS ECOSYSTEM",
+    "scfa": "Short-Chain Fatty Acids (SCFA)",
+    "serotonin": "Serotonin Synthesis",
+    "gaba": "GABA Production",
+    "oxidative": "Oxidative Stress",
+    "cortisol": "Cortisol Regulation",
+    "btnInjectMatrix": "Inject Matrix (Patent)",
+    "btnResonance": "Phase Resonance",
+    "btnDeepScan": "Frequency Deep Scan",
+    "btnArMode": "Augmented Reality (AR) Mode",
+    "btnDownloadOffline": "Export Standalone Offline HTML",
+    "ctrlTitle": "TACTICAL SIMULATION CONTROL BOARD",
+    "ctrlViscosity": "Rheological Viscosity:",
+    "ctrlTemp": "Thermal Temperature:",
+    "ctrlCollision": "Collision Elasticity:",
+    "ctrlAtpRate": "ATP Generation Speed:",
+    "ctrlNoise": "BCI Affective Noise:",
+    "ctrlReset": "Reset 3D Model",
+    "logicTitle": "PSYCHIATRIC COMPUTATION: BIOLOGICAL LOGIC GATES",
+    "logicPrompt": "Psychobiome bacteria act as biotransistors computing logic AND/OR circuits in the enteric system.",
+    "logicGateAnd": "AND Gate (System Stability)",
+    "logicGateOr": "OR Gate (Antidepressant)",
+    "logicConditionA": "[L. rhamnosus] Culture",
+    "logicConditionB": "SCFA Biomarker > 60%",
+    "logicConditionC": "[B. infantis] Culture",
+    "logicConditionD": "Serotonin Receptor Active",
+    "logicInput": "Input Signal",
+    "logicOutputState": "Gate Output:",
+    "logicDescription": "Gates regulate neurotransmitter secretion based on active psychiatric microbiome inputs.",
+    "consoleTitle": "RESPONSIBLE AUTO-ML AI CONSOLE",
+    "consoleFilter": "Filter service...",
+    "consoleSearch": "Search logs...",
+    "arSimulating": "AUGMENTED REALITY COCKPIT (WEBO / WEBXR)",
+    "arInstructions": "Point your device at a flat surface. The emotional profile matrix will be projected three-dimensionally onto the surface.",
+    "arAllowCam": "Enable Device Camera Feed",
+    "arSimSurface": "Simulate 3D Office Workspace Floor",
+    "arStatusWaiting": "Scanning for horizontal plane...",
+    "arStatusActive": "Holographic model successfully locked onto physical tabletop plane.",
+    "holoPresetTitle": "CHOOSE PATENT SCHEMATIC MAP OR UPLOAD CUSTOM",
+    "holoSelectLabel": "Upload your own patent file for structural alignment...",
+    "holoPreset1": "Official Patent Flowchart",
+    "holoPreset2": "Human Gut-Brain Pathway Map",
+    "holoPreset3": "Colon & Synaptic Interface Structure",
+    "offlineSuccess": "Standalone Prototype Generated! The file will download automatically as an independent HTML document that works 100% offline with 3D simulation, interactive logic, and full ES/EN/ZH functionality.",
+    "evolutionPhase": "INDUSTRIAL BIOCLUSTER & CITY-STATE EVOLUTION PHASES",
+    "phaseAlpha": "Alpha",
+    "phaseBeta": "Beta",
+    "phaseGamma": "Gamma",
+    "phaseDelta": "Delta",
+    "phaseOmega": "Omega",
+    "phaseAlphaBrief": "Sensory initialization. Local micro-biophysical monitoring.",
+    "phaseBetaBrief": "Synaptic connection. Dynamic decision flow routing.",
+    "phaseGammaBrief": "Digital Affirmative Orchestration Core enabled.",
+    "phaseDeltaBrief": "Full digital twin mirroring and human-territory sync.",
+    "phaseOmegaBrief": "Complete conscious orchestration in a self-regulated living organism body.",
+    "pillarsTitle": "THREE PILLARS OF THE CONSCIOUS EVOLVING ENVIRONMENT",
+    "pillarGov": "Neuronal Governance (Consensus Index)",
+    "pillarRes": "Human-Territory Resonance Frequency",
+    "pillarBio": "Integrated Biological Interconnection",
+    "layersTitle": "BIOMIMETIC LAYERED ARCHITECTURE",
+    "layerSensory": "Physical Neuro-Sensory Layer",
+    "layerKernel": "Digital Affirmative Orchestration Core",
+    "layerTwin": "Simulated Dynamic Digital Twin Mirror",
+    "msgAssimilated": "3D EVOLVING ENVIRONMENT RECREATED IN VIRTUAL SPACE",
+    "modes": "SIMULATION MODES",
+    "presets": "PATENT MATRIX PROJECTION",
+    "upload": "[ UPLOAD DETAIL ]",
+    "bci": "AFFECTIVE BRAIN SIGNAL FREQUENCY (BCI Hz)",
+    "msg": "PATENT MATRIX DETECTED - ASSIMILATING ENVIRONMENT",
+    "pf": "Patent Design",
+    "gb": "Axis Model",
+    "nc": "Structure"
+  },
+  "zh": {
+    "title": "NEUROBIOME THERAPY (神经生物群系疗法)",
+    "subtitle": "结合情绪画像人工智能的精神病学微生态平台",
+    "developer": "Dr. Julio César Oporta Barrera (胡里奥·塞萨尔·奥波塔·巴雷拉博士)",
+    "patentBrief": "数字孪生虚拟样机 - 专利日期 2025年9月",
+    "modeBiomechanics": "基础生物力学",
+    "modePhysics": "碰撞物理模型",
+    "modeEnergy": "仿生混合能量",
+    "modeSwarm": "群集人工智能",
+    "modeHologram": "结构全息投影",
+    "sysStatus": "系统状态:",
+    "sysStatusVal": "运行极佳",
+    "nodesActive": "群集智能节点数:",
+    "syncRate": "脑机接口同步率:",
+    "depthZ": "三维景深深度:",
+    "holoMatrix": "专利图像矩阵:",
+    "holoMatrixDetected": "已同化融合",
+    "holoMatrixNotDetected": "未检测到",
+    "gGutBrainAxis": "脑-肠轴生态圈状况",
+    "scfa": "短链脂肪酸合成 (SCFA)",
+    "serotonin": "脑内五羟色胺合成",
+    "gaba": "氨基丁酸 (GABA) 释放率",
+    "oxidative": "自由基氧化应激水准",
+    "cortisol": "皮质醇应激负反馈调节",
+    "btnInjectMatrix": "注入专利图像矩阵",
+    "btnResonance": "多维相位共振",
+    "btnDeepScan": "频率深度扫描检测",
+    "btnArMode": "启用移动物理AR投影模式",
+    "btnDownloadOffline": "导出离线纯单文件 HTML",
+    "ctrlTitle": "战术模拟控制中心面板",
+    "ctrlViscosity": "流体力学粘稠度:",
+    "ctrlTemp": "宏观局部温度:",
+    "ctrlCollision": "粒子分子弹性碰撞率:",
+    "ctrlAtpRate": "ATP线粒体能量转化效率功率:",
+    "ctrlNoise": "BCI 感应通道噪声干扰:",
+    "ctrlReset": "恢复默认仿真模型",
+    "logicTitle": "细胞级别计算: 肠道生物逻辑门电路控制",
+    "logicPrompt": "精神微生态中的有益菌株群在此扮演生物“晶体管”，在回盲部系统中完成高级逻辑逻辑门的自迭代。",
+    "logicGateAnd": "细菌与逻辑控制闸 AND (极稳定性)",
+    "logicGateOr": "细菌或逻辑控制闸 OR (抗抑郁缓解)",
+    "logicConditionA": "[鼠李糖乳杆菌 L. rhamnosus] 分数",
+    "logicConditionB": "SCFA 标志物占比 > 60%",
+    "logicConditionC": "[婴儿双歧杆菌 B. infantis] 活性",
+    "logicConditionD": "突触间隙五羟色胺体开放",
+    "logicInput": "信号控制输入",
+    "logicOutputState": "控制网关输出状态:",
+    "logicDescription": "物理控制闸负责在条件合规时自行开启或封锁脑肠内核心情绪介质分泌。",
+    "consoleTitle": "高信度责任型 AutoML 人工智能控制台输出",
+    "consoleFilter": "筛选分析目标...",
+    "consoleSearch": "搜索事件日志...",
+    "arSimulating": "网页端移动混合增强现实 AR 控制室 (WEBXR)",
+    "arInstructions": "将镜头对准地面或平坦桌面，脑肠轴数字微生态的立体像素点和情感分析全息矩阵就会自动在其上进行锁定渲染。",
+    "arAllowCam": "授权调取手机或电脑摄像头",
+    "arSimSurface": "启动虚拟三维办公室网格表面仿真投影",
+    "arStatusWaiting": "正在全向探查感知适宜的水平几何平面...",
+    "arStatusActive": "增强全息模型已成功在当前捕获的平面上物理锚定并持续渲染中。",
+    "holoPresetTitle": "选择预置专利特征底图或上传自主图谱集",
+    "holoSelectLabel": "加载个人或官方最新的科研微生态图形以供像素投影...",
+    "holoPreset1": "官方专利核心架构流图",
+    "holoPreset2": "人体腹腔脑肠轴互连示意图",
+    "holoPreset3": "回肠网及微突触生物接线架构图",
+    "offlineSuccess": "成功生成单文件全功能仿真套件！浏览器已为您激活下载该 HTML 文档。用户在无网环境下无需任何额外配置直接点击即可畅玩三维视效、中英双语、逻辑仿真和完备计算流。",
+    "evolutionPhase": "工业生物集群与城市国家演变阶段",
+    "phaseAlpha": "阿尔法 (Alfa)",
+    "phaseBeta": "贝塔 (Beta)",
+    "phaseGamma": "伽马 (Gamma)",
+    "phaseDelta": "德尔塔 (Delta)",
+    "phaseOmega": "欧米伽 (Omega)",
+    "phaseAlphaBrief": "感知初始化。本地微观生物物理多维度监测。",
+    "phaseBetaBrief": "突触连接构建。决策流动方向的高速引导。",
+    "phaseGammaBrief": "肯定性编排数字核心已成功激活。",
+    "phaseDeltaBrief": "数字孪生双重镜像以及人类-领土多频段共振。",
+    "phaseOmegaBrief": "在自我调节的生命体结构中实现完整的意识自主编排。",
+    "pillarsTitle": "意识演化环境的三大核心支柱",
+    "pillarGov": "神经元治理 (共识指数平衡度)",
+    "pillarRes": "人类-领土谐振响应频率",
+    "pillarBio": "整体化仿生互连生态网络",
+    "layersTitle": "仿生多层组织架构模式",
+    "layerSensory": "物理神经感官末梢层",
+    "layerKernel": "肯定性编排数字信息核心层",
+    "layerTwin": "动态数字孪生镜像仿真层",
+    "msgAssimilated": "可在虚拟三维空间中实时观察多维度动态演化环境",
+    "modes": "模拟模式",
+    "presets": "专利矩阵投影",
+    "upload": "[ 上传特征底图 ]",
+    "bci": "脑机接口信号频率 (BCI Hz)",
+    "msg": "检测到专利特征设计图 - 正在融合环境",
+    "pf": "专利流图",
+    "gb": "脑肠模型",
+    "nc": "生物结构"
+  }
+};
+        const sampleLogsBase = [
+  {
+    "service": "BCI",
+    "message": "Frecuencia de ondas BCI delta detectada en 3.4Hz. Inicializando análisis afectivo.",
+    "level": "info"
+  },
+  {
+    "service": "PSYCH-BIOME",
+    "message": "Tasa de colonización de L. rhamnosus aumentada en 22% tras simulación de \"Calma\".",
+    "level": "success"
+  },
+  {
+    "service": "AUTO-ML",
+    "message": "Ejecutando etapa 1: Ingesta de datos de microbioma metagenómico 16S - Orquestación iniciada.",
+    "level": "info"
+  },
+  {
+    "service": "AUTO-ML",
+    "message": "Etapa 2 (QC): Validando nulos y outliers en variables neuropsiquiátricas... Validación cruzada aprobada.",
+    "level": "success"
+  },
+  {
+    "service": "AUTO-ML",
+    "message": "Etapa 3: Feature engineering completado. Matriz de embedding emocional generada con SHAP.",
+    "level": "info"
+  },
+  {
+    "service": "AUTO-ML",
+    "message": "Etapa 4: AutoML Modelado iniciado. Algoritmo XGBoost y Red Neuronal. AUC alcanzo 0.91.",
+    "level": "success"
+  },
+  {
+    "service": "ETHICS-GARD",
+    "message": "Filtro de privacidad cognitiva activo: encriptación homomórfica aplicada a neurodatos.",
+    "level": "success"
+  },
+  {
+    "service": "DSS",
+    "message": "Puerta lógica AND activada: Síntesis de Serotonina y GABA reajustadas de acuerdo al psicobioma.",
+    "level": "success"
+  },
+  {
+    "service": "PSYCH-BIOME",
+    "message": "Presencia oxidativa alta detectada (24%). Activando bucle de amortiguación metabólica.",
+    "level": "warn"
+  },
+  {
+    "service": "ETHICS-GARD",
+    "message": "Consentimiento multicapa del paciente validado digitalmente por blockchain.",
+    "level": "success"
+  },
+  {
+    "service": "AUTO-ML",
+    "message": "Evaluación: Concordancia diagnóstica humana = 89.2% (Meta mínima de 85% superada).",
+    "level": "success"
+  },
+  {
+    "service": "DSS",
+    "message": "Simulando escenario adverso: Interrupción de influjos de SCFA. Respuesta adaptativa en progreso.",
+    "level": "warn"
+  }
+];
+        const patentPresets = {
+  "patentFlow": [
+    {
+      "x": 30,
+      "y": 15,
+      "color": "#00f3ff"
+    },
+    {
+      "x": 35,
+      "y": 15,
+      "color": "#00f3ff"
+    },
+    {
+      "x": 40,
+      "y": 15,
+      "color": "#00f3ff"
+    },
+    {
+      "x": 45,
+      "y": 15,
+      "color": "#00f3ff"
+    },
+    {
+      "x": 50,
+      "y": 15,
+      "color": "#00f3ff"
+    },
+    {
+      "x": 30,
+      "y": 30,
+      "color": "#ffb700"
+    },
+    {
+      "x": 50,
+      "y": 30,
+      "color": "#ffb700"
+    },
+    {
+      "x": 70,
+      "y": 30,
+      "color": "#ffb700"
+    },
+    {
+      "x": 20,
+      "y": 50,
+      "color": "#39ff14"
+    },
+    {
+      "x": 30,
+      "y": 50,
+      "color": "#39ff14"
+    },
+    {
+      "x": 40,
+      "y": 50,
+      "color": "#39ff14"
+    },
+    {
+      "x": 60,
+      "y": 50,
+      "color": "#b026ff"
+    },
+    {
+      "x": 70,
+      "y": 50,
+      "color": "#b026ff"
+    },
+    {
+      "x": 80,
+      "y": 50,
+      "color": "#b026ff"
+    },
+    {
+      "x": 50,
+      "y": 70,
+      "color": "#ff003c"
+    },
+    {
+      "x": 50,
+      "y": 80,
+      "color": "#ff003c"
+    },
+    {
+      "x": 50,
+      "y": 90,
+      "color": "#ff003c"
+    }
+  ],
+  "gutBrain": [
+    {
+      "x": 50,
+      "y": 10,
+      "color": "#ffffff"
+    },
+    {
+      "x": 45,
+      "y": 15,
+      "color": "#ffffff"
+    },
+    {
+      "x": 55,
+      "y": 15,
+      "color": "#ffffff"
+    },
+    {
+      "x": 40,
+      "y": 20,
+      "color": "#ffffff"
+    },
+    {
+      "x": 60,
+      "y": 20,
+      "color": "#ffffff"
+    },
+    {
+      "x": 50,
+      "y": 35,
+      "color": "#00f3ff"
+    },
+    {
+      "x": 50,
+      "y": 45,
+      "color": "#00f3ff"
+    },
+    {
+      "x": 50,
+      "y": 55,
+      "color": "#00f3ff"
+    },
+    {
+      "x": 35,
+      "y": 70,
+      "color": "#39ff14"
+    },
+    {
+      "x": 40,
+      "y": 65,
+      "color": "#39ff14"
+    },
+    {
+      "x": 45,
+      "y": 70,
+      "color": "#39ff14"
+    },
+    {
+      "x": 50,
+      "y": 75,
+      "color": "#39ff14"
+    },
+    {
+      "x": 55,
+      "y": 70,
+      "color": "#39ff14"
+    },
+    {
+      "x": 60,
+      "y": 65,
+      "color": "#39ff14"
+    },
+    {
+      "x": 65,
+      "y": 70,
+      "color": "#39ff14"
+    },
+    {
+      "x": 40,
+      "y": 80,
+      "color": "#b026ff"
+    },
+    {
+      "x": 50,
+      "y": 85,
+      "color": "#b026ff"
+    },
+    {
+      "x": 60,
+      "y": 80,
+      "color": "#b026ff"
+    }
+  ],
+  "neuroColon": [
+    {
+      "x": 20,
+      "y": 20,
+      "color": "#00f3ff"
+    },
+    {
+      "x": 25,
+      "y": 25,
+      "color": "#00f3ff"
+    },
+    {
+      "x": 30,
+      "y": 30,
+      "color": "#00f3ff"
+    },
+    {
+      "x": 80,
+      "y": 20,
+      "color": "#00f3ff"
+    },
+    {
+      "x": 75,
+      "y": 25,
+      "color": "#00f3ff"
+    },
+    {
+      "x": 70,
+      "y": 30,
+      "color": "#00f3ff"
+    },
+    {
+      "x": 50,
+      "y": 30,
+      "color": "#ffffff"
+    },
+    {
+      "x": 48,
+      "y": 33,
+      "color": "#ffffff"
+    },
+    {
+      "x": 52,
+      "y": 33,
+      "color": "#ffffff"
+    },
+    {
+      "x": 45,
+      "y": 50,
+      "color": "#39ff14"
+    },
+    {
+      "x": 55,
+      "y": 50,
+      "color": "#39ff14"
+    },
+    {
+      "x": 50,
+      "y": 55,
+      "color": "#39ff14"
+    },
+    {
+      "x": 40,
+      "y": 70,
+      "color": "#ffb700"
+    },
+    {
+      "x": 60,
+      "y": 70,
+      "color": "#ffb700"
+    },
+    {
+      "x": 50,
+      "y": 80,
+      "color": "#ffb700"
+    }
+  ]
+};
+
+        // SETUP STANDALONE VARIABLES MATCHING STATE
+        let canvas3d;
+        let ctx;
+        let currentLang = "es";
+        let currentMode = "biomechanics";
+        let currentPhase = "alpha";
+        let activeLayer = "all";
+        let isResonance = false;
+        let deepScanActive = false;
+        
+        let viscosity = 0.020;
+        let atpRate = 1.5;
+        let scoreElastic = 0.85;
+        let bciNoise = 15;
+        let cameraZ = 600;
+
+        let rotationX = 0;
+        let rotationY = 0;
+        let mouseX = 0;
+        let mouseY = 0;
+
+        // Interactive Logic values
+        const logicAND = { valA: true, valB: true, active: true };
+        const logicOR = { valA: false, valB: true, active: true };
+
+        // Logs list array
+        const stateLogs = [];
+        let activeServiceFilter = "ALL";
+
+        // CANVAS 3D PARTICLE ENGINE SEEDING
+        const nodes = [];
+        const numNodes = 1200;
+
+        class Node {
+            constructor(id) {
+                this.id = id;
+                this.x = (Math.random() - 0.5) * 800;
+                this.y = (Math.random() - 0.5) * 800;
+                this.z = (Math.random() - 0.5) * 800;
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                this.vz = (Math.random() - 0.5) * 4;
+                this.baseX = this.x;
+                this.baseY = this.y;
+                this.baseZ = this.z;
+                
+                this.targetX = this.x;
+                this.targetY = this.y;
+                this.targetZ = this.z;
+                
+                this.size = Math.random() * 2.2 + 0.6;
+                this.isCore = id % 25 === 0;
+                this.color = this.isCore ? '#ffffff' : '#00f3ff';
+            }
+        }
+
+        for (let i = 0; i < numNodes; i++) {
+            nodes.push(new Node(i));
+        }
+
+        // Initialize sample logs list with correct timestamp offsets
+        function initLogsList() {
+            const now = new Date();
+            sampleLogsBase.forEach((logItem, index) => {
+                const ts = new Date(now.getTime() - (10 - index) * 45000);
+                const timeStr = String(ts.getHours()).padStart(2, '0') + ':' + 
+                                String(ts.getMinutes()).padStart(2, '0') + ':' + 
+                                String(ts.getSeconds()).padStart(2, '0');
+                stateLogs.push({ ...logItem, timestamp: timeStr });
+            });
+            renderLogsUI();
+        }
+
+        // Render console log entries depending on query filters and search string
+        function renderLogsUI() {
+            const listContainer = document.getElementById("console-logs-list");
+            if (!listContainer) return;
+            
+            const query = document.getElementById("console-search-input").value.toLowerCase();
+            listContainer.innerHTML = "";
+            
+            const filtered = stateLogs.filter(log => {
+                if (activeServiceFilter !== "ALL" && log.service !== activeServiceFilter) {
+                    if (activeServiceFilter === "METABOLIC" && log.service !== "PSYCH-BIOME") return false;
+                    if (activeServiceFilter !== "METABOLIC") return false;
+                }
+                if (query && !log.message.toLowerCase().includes(query) && !log.service.toLowerCase().includes(query)) {
+                    return false;
+                }
+                return true;
+            });
+
+            // Re-render
+            filtered.slice().reverse().forEach(log => {
+                const row = document.createElement("div");
+                row.className = "flex flex-col gap-0.5 border-l-2 p-1 pl-2.5 bg-white/[0.02] border-gray-600";
+                
+                let textCol = "text-gray-300";
+                if (log.level === 'success') {
+                    textCol = "text-bioGreen";
+                    row.style.borderColor = "#39ff14";
+                } else if (log.level === 'warn') {
+                    textCol = "text-goldWarning";
+                    row.style.borderColor = "#ffb700";
+                } else if (log.level === 'alert') {
+                    textCol = "text-alertRed animate-pulse";
+                    row.style.borderColor = "#ff003c";
+                } else {
+                    row.style.borderColor = "#00f3ff";
+                }
+
+                row.innerHTML = `<div class="flex justify-between text-[8px] text-gray-500 font-mono">
+                    <span class="font-bold text-[#00f3ff]">${log.service}</span>
+                    <span>${log.timestamp}</span>
+                </div>
+                <div class="text-[9.5px]/1.3 ${textCol}">${log.message}</div>`;
+                listContainer.appendChild(row);
+            });
+
+            if (filtered.length === 0) {
+                listContainer.innerHTML = `<div class="text-[10px] text-gray-600 text-center py-5">NO LOGS FOUND</div>`;
+            }
+        }
+
+        function pushLog(service, message, level) {
+            const now = new Date();
+            const timeStr = String(now.getHours()).padStart(2, '0') + ':' + 
+                            String(now.getMinutes()).padStart(2, '0') + ':' + 
+                            String(now.getSeconds()).padStart(2, '0');
+            stateLogs.push({ service, message, level, timestamp: timeStr });
+            renderLogsUI();
+            
+            // Keep logs array compact
+            if (stateLogs.length > 30) {
+                stateLogs.shift();
+            }
+        }
+
+        // Apply interactive Service Filters
+        function setServiceFilter(svc) {
+            activeServiceFilter = svc;
+            const buttonsMap = {
+                'ALL': 'filter-btn-all',
+                'AUTO-ML': 'filter-btn-automl',
+                'BCI': 'filter-btn-bci',
+                'DSS': 'filter-btn-dss',
+                'METABOLIC': 'filter-btn-metabolic'
+            };
+            
+            Object.keys(buttonsMap).forEach(key => {
+                const btn = document.getElementById(buttonsMap[key]);
+                if (key === svc) {
+                    btn.className = "px-1.5 py-0.5 bg-neonBlue/20 border border-neonBlue/30 hover:border-neonBlue text-neonBlue rounded cursor-pointer font-bold select-none";
+                } else {
+                    btn.className = "px-1.5 py-0.5 bg-[#1F2833]/40 border border-transparent text-gray-400 hover:text-white rounded cursor-pointer select-none";
+                }
+            });
+            
+            renderLogsUI();
+        }
+
+        function filterLogsList() {
+            renderLogsUI();
+        }
+
+        // BILINGUAL LANGUAGE SWITCHING SYSTEM
+        function setLang(langCode) {
+            currentLang = langCode;
+            
+            // Switch button classes
+            const btns = ['es', 'en', 'zh'];
+            btns.forEach(b => {
+                const el = document.getElementById("btn-lang-" + b);
+                if (b === langCode) {
+                    el.className = "px-3 py-1 font-mono text-xs uppercase rounded transition-all cursor-pointer text-neonBlue bg-neonBlue/10 border border-neonBlue/20 font-bold";
+                } else {
+                    el.className = "px-3 py-1 font-mono text-xs uppercase rounded transition-all cursor-pointer text-gray-400 hover:text-white";
+                }
+            });
+
+            // Refresh text literals in the HTML
+            const trans = dictionary[langCode];
+            
+            // Header Content
+            document.getElementById("txt-lbl-developer").innerText = trans.developer.toUpperCase();
+            document.getElementById("txt-app-title").innerText = trans.title;
+            document.getElementById("txt-app-subtitle").innerHTML = trans.subtitle + ` • <span class="text-goldWarning">${trans.patentBrief}</span>`;
+            
+            // Evolution Phase title
+            document.getElementById("txt-lbl-evolution-title").innerText = trans.evolutionPhase;
+            document.getElementById("txt-lbl-auth-tag").innerText = trans.patentBrief;
+
+            // Phase labels and briefs
+            document.getElementById("txt-phase-alpha").innerText = trans.phaseAlpha;
+            document.getElementById("txt-phase-beta").innerText = trans.phaseBeta;
+            document.getElementById("txt-phase-gamma").innerText = trans.phaseGamma;
+            document.getElementById("txt-phase-delta").innerText = trans.phaseDelta;
+            document.getElementById("txt-phase-omega").innerText = trans.phaseOmega;
+
+            document.getElementById("txt-desc-alpha").innerText = trans.phaseAlphaBrief;
+            document.getElementById("txt-desc-beta").innerText = trans.phaseBetaBrief;
+            document.getElementById("txt-desc-gamma").innerText = trans.phaseGammaBrief;
+            document.getElementById("txt-desc-delta").innerText = trans.phaseDeltaBrief;
+            document.getElementById("txt-desc-omega").innerText = trans.phaseOmegaBrief;
+
+            // Mode titles
+            document.getElementById("txt-lbl-modes").innerText = trans.modes;
+            document.getElementById("txt-mode-bio").innerText = trans.modeBiomechanics;
+            document.getElementById("txt-mode-phys").innerText = trans.modePhysics;
+            document.getElementById("txt-mode-ener").innerText = trans.modeEnergy;
+            document.getElementById("txt-mode-swarm").innerText = trans.modeSwarm;
+            document.getElementById("txt-mode-holo").innerText = trans.modeHologram;
+
+            // Architecture Layers Panel
+            document.getElementById("txt-lbl-layers-title").innerText = trans.layersTitle;
+            document.getElementById("txt-l-all").innerText = "[ MOSTRAR TODAS / SHOW ALL ]";
+            document.getElementById("txt-l-sensory").innerText = trans.layerSensory;
+            document.getElementById("txt-l-kernel").innerText = trans.layerKernel;
+            document.getElementById("txt-l-twin").innerText = trans.layerTwin;
+
+            // Adjustable Sliders Panel
+            document.getElementById("txt-lbl-ctrl-title").innerText = trans.ctrlTitle;
+            document.getElementById("txt-lbl-ctrl-visc").innerText = trans.ctrlViscosity;
+            document.getElementById("txt-lbl-ctrl-temp").innerText = trans.ctrlAtpRate;
+            document.getElementById("txt-lbl-ctrl-elastic").innerText = trans.ctrlCollision;
+            document.getElementById("txt-lbl-ctrl-noise").innerText = trans.ctrlNoise;
+            document.getElementById("txt-btn-reset3d").innerHTML = `<i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>${trans.ctrlReset}`;
+
+            // Gut-Brain Axis Titles
+            document.getElementById("txt-lbl-axis").innerText = trans.gGutBrainAxis;
+            document.getElementById("txt-axis-scfa").innerText = trans.scfa;
+            document.getElementById("txt-axis-serotonin").innerText = trans.serotonin;
+            document.getElementById("txt-axis-gaba").innerText = trans.gaba;
+            document.getElementById("txt-axis-stress").innerText = trans.oxidative;
+            document.getElementById("txt-axis-cortisol").innerText = trans.cortisol;
+
+            // Biological Logic Simulator
+            document.getElementById("txt-lbl-circuits").innerText = trans.logicTitle;
+            document.getElementById("txt-desc-circuits-prompt").innerText = trans.logicPrompt;
+            document.getElementById("txt-lbl-and-cond1").innerText = trans.logicConditionA;
+            document.getElementById("txt-lbl-and-cond2").innerText = trans.logicConditionB;
+            document.getElementById("txt-lbl-or-cond1").innerText = trans.logicConditionC;
+            document.getElementById("txt-lbl-or-cond2").innerText = trans.logicConditionD;
+            document.getElementById("txt-gate-and-title").innerText = trans.logicGateAnd;
+            document.getElementById("txt-gate-or-title").innerText = trans.logicGateOr;
+            document.getElementById("txt-lbl-gate-out").innerText = trans.logicOutputState;
+            document.getElementById("txt-lbl-gate-out-or").innerText = trans.logicOutputState;
+            document.getElementById("txt-desc-circuits-footer").innerText = trans.logicDescription;
+
+            // AutoML event log
+            document.getElementById("txt-lbl-console-title").innerText = trans.consoleTitle;
+            document.getElementById("console-search-input").placeholder = trans.consoleSearch;
+
+            // Presets and Upload titles
+            document.getElementById("txt-lbl-presets-title").innerText = trans.presets;
+            document.getElementById("txt-lbl-upload-desc").innerText = trans.holoSelectLabel;
+            document.getElementById("txt-lbl-btn-upload").innerText = trans.upload;
+
+            document.getElementById("preset-btn-patentflow").innerText = trans.pf;
+            document.getElementById("preset-btn-gutbrain").innerText = trans.gb;
+            document.getElementById("preset-btn-neurocolon").innerText = trans.nc;
+
+            // Three Pillars
+            document.getElementById("txt-lbl-pillars-title").innerText = trans.pillarsTitle;
+            document.getElementById("txt-lbl-pillar-gov").innerText = trans.pillarGov;
+            document.getElementById("txt-lbl-pillar-res").innerText = trans.pillarRes;
+            document.getElementById("txt-lbl-pillar-bio").innerText = trans.pillarBio;
+
+            // Wave Graph Title
+            document.getElementById("txt-lbl-graph-title").innerText = trans.bci;
+
+            // Action system keys
+            document.getElementById("btn-act-resonance").innerText = trans.reso;
+            document.getElementById("btn-act-scan").innerText = trans.scan;
+            document.getElementById("btn-act-ar").innerText = trans.ar;
+
+            // AR simulator instructions
+            document.getElementById("txt-lbl-ar-playing").innerText = trans.arSimulating;
+            document.getElementById("txt-ar-status").innerText = trans.arStatusWaiting;
+            document.getElementById("btn-allow-cam-ar").innerText = trans.arAllowCam;
+
+            // Spawn log event
+            pushLog('ETHICS-GARD', 'Idioma cambiado con éxito / Language changed to ' + langCode.toUpperCase(), 'success');
+            
+            // Redraw icons
+            lucide.createIcons();
+            
+            // Re-evaluate logic to sync translations
+            evaluateLogicGates();
+        }
+
+        // SET EVOLUTION PHASES SELECTOR
+        function setPhase(phaseName) {
+            currentPhase = phaseName;
+            
+            const list = ['alpha', 'beta', 'gamma', 'delta', 'omega'];
+            list.forEach(p => {
+                const btn = document.getElementById("btn-phase-" + p);
+                const dot = document.getElementById("dot-phase-" + p);
+                const activeLabel = document.getElementById("active-lbl-" + p);
+                
+                if (p === phaseName) {
+                    btn.className = "py-2 px-3 text-left font-mono border rounded transition-all cursor-pointer relative group flex flex-col justify-between h-20 bg-neonBlue/10 border-neonBlue text-white font-bold shadow-[inset_0_0_12px_rgba(0,243,255,0.15)] ring-1 ring-neonBlue/30";
+                    dot.className = "w-2 h-2 rounded-full bg-neonBlue animate-ping";
+                    activeLabel.className = "absolute bottom-1 right-2 text-[8px] text-bioGreen font-bold tracking-widest leading-none block animate-pulse";
+                } else {
+                    btn.className = "py-2 px-3 text-left font-mono border rounded transition-all cursor-pointer relative group flex flex-col justify-between h-20 bg-stealthGrey/15 border-white/5 text-gray-300 hover:border-neonBlue/35 hover:text-white";
+                    dot.className = "w-2 h-2 rounded-full bg-white/20";
+                    activeLabel.className = "absolute bottom-1 right-2 text-[8px] text-bioGreen font-bold tracking-widest leading-none hidden";
+                }
+            });
+
+            const trans = dictionary[currentLang];
+            const keyDesc = "phase" + phaseName.charAt(0).toUpperCase() + phaseName.slice(1) + "Brief";
+            pushLog("AUTO-ML", "Ajustando matriz bioarquitectónica a la fase " + phaseName.toUpperCase() + ": " + trans[keyDesc], "success");
+            
+            // Trigger 3D adjustments size scaling
+            triggerMetricsRecalculation();
+        }
+
+        // SET SIMULATION MODE SELECTOR
+        function setMode(modeName) {
+            currentMode = modeName;
+            
+            const modes = ['biomechanics', 'physics', 'energy', 'swarm', 'hologram'];
+            modes.forEach(m => {
+                const btn = document.getElementById("btn-mode-" + m);
+                const d = document.getElementById("dot-mode-" + m);
+                
+                if (m === modeName) {
+                    // Active style matches Tailwind class values
+                    btn.className = "w-full py-2 px-3 text-left font-mono text-xs border rounded transition-all cursor-pointer flex items-center gap-2 bg-neonBlue/10 border-neonBlue text-white font-bold shadow-[inset_0_0_10px_rgba(0,243,255,0.1)]";
+                    if (d) {
+                        d.className = "w-1.5 h-1.5 rounded-full " + (m === 'physics' ? 'bg-[#ff003c]' : (m === 'energy' ? 'bg-[#39ff14]' : (m === 'swarm' ? 'bg-[#b026ff]' : (m === 'hologram' ? 'bg-[#ffb700]' : 'bg-[#00f3ff]'))));
+                    }
+                } else {
+                    // Non active styles
+                    btn.className = "w-full py-2 px-3 text-left font-mono text-xs border rounded transition-all cursor-pointer flex items-center gap-2 bg-stealthGrey/20 border-white/5 text-gray-300 hover:border-neonBlue/30 hover:text-white";
+                    if (d) {
+                        d.className = "w-1.5 h-1.5 rounded-full bg-gray-500";
+                    }
+                }
+            });
+
+            // Random movement impulse for dramatic effect
+            nodes.forEach(n => {
+                n.vx = (Math.random() - 0.5) * 6;
+                n.vy = (Math.random() - 0.5) * 6;
+                n.vz = (Math.random() - 0.5) * 6;
+            });
+
+            // Log event
+            const trans = dictionary[currentLang];
+            const transKey = "mode" + modeName.charAt(0).toUpperCase() + modeName.slice(1);
+            pushLog("DSS", "Simulador táctico reconfigurado para usar " + trans[transKey].toUpperCase(), "success");
+        }
+
+        // SET LAYER ISOLATION FILTER
+        function setLayerFilter(layer) {
+            activeLayer = layer;
+            
+            const layers = ['all', 'sensory', 'kernel', 'twin'];
+            layers.forEach(l => {
+                const btn = document.getElementById("btn-layer-" + l);
+                if (l === layer) {
+                    btn.className = "w-full py-2 px-2.5 text-left border rounded transition-all cursor-pointer flex items-center justify-between " + 
+                                    (l === 'sensory' ? "bg-neonBlue/15 border-neonBlue text-white font-bold" : 
+                                    (l === 'kernel' ? "bg-quantumPurple/15 border-quantumPurple text-white font-bold" : 
+                                    (l === 'twin' ? "bg-goldWarning/15 border-goldWarning text-white font-bold" : "bg-white/5 border-white/40 text-white font-bold")));
+                    btn.lastElementChild.innerText = "Active";
+                    btn.lastElementChild.className = "text-[#39ff14] font-bold";
+                } else {
+                    btn.className = "w-full py-2 px-2.5 text-left border rounded transition-all cursor-pointer flex items-center justify-between bg-transparent border-transparent text-gray-400 hover:text-white";
+                    btn.lastElementChild.innerText = l === 'sensory' ? '0.0Hz - 22Hz' : (l === 'kernel' ? 'AI Orchestration' : (l === 'twin' ? 'Mirror State' : ''));
+                    btn.lastElementChild.className = l === 'sensory' ? 'text-neonBlue font-bold' : (l === 'kernel' ? 'text-[#b026ff] font-bold' : (l === 'twin' ? 'text-[#ffb700] font-bold' : ''));
+                }
+            });
+
+            pushLog("DSS", "Aislada capa biomimética: " + layer.toUpperCase(), "info");
+        }
+
+        // ADJUSTIVE SLIDERS
+        function updateSlider(param, val) {
+            const num = parseFloat(val);
+            if (param === 'viscos') {
+                viscosity = num;
+                document.getElementById("val-viscos").innerText = viscosity.toFixed(3);
+                pushLog("METABOLIC", "Ajustada viscosidad del medio microbiótico: " + viscosity.toFixed(3), "info");
+            } else if (param === 'temp') {
+                atpRate = num;
+                document.getElementById("val-temp").innerText = atpRate.toFixed(1) + " eV";
+                pushLog("METABOLIC", "Coeficiente de bioenergía ATP: " + atpRate.toFixed(1) + " eV", "success");
+            } else if (param === 'elastic') {
+                scoreElastic = num;
+                document.getElementById("val-elastic").innerText = scoreElastic.toFixed(2);
+                pushLog("AUTO-ML", "Coeficiente elasticidad colisiones: " + scoreElastic.toFixed(2), "info");
+            } else if (param === 'noise') {
+                bciNoise = num;
+                document.getElementById("val-noise").innerText = bciNoise + "%";
+                document.getElementById("txt-status-sync").innerText = (99.9 - bciNoise * 0.15).toFixed(1) + "%";
+                pushLog("BCI", "Nivel de ruido del sensor BCI: " + bciNoise + "%", "warn");
+            }
+            triggerMetricsRecalculation();
+        }
+
+        // BIOLOGICAL LOGIC GATE SIMULATION SWITCHES
+        function toggleGateInput(gateType, inputChannel) {
+            if (gateType === 'and') {
+                logicAND[inputChannel] = !logicAND[inputChannel];
+                const btn = document.getElementById("btn-gate-and-" + (inputChannel === 'valA' ? 'a' : 'b'));
+                
+                if (logicAND[inputChannel]) {
+                    btn.className = "px-2 py-0.5 rounded text-[8px] bg-bioGreen/10 border border-bioGreen/30 text-bioGreen font-bold cursor-pointer";
+                    btn.innerText = "TRUE";
+                } else {
+                    btn.className = "px-2 py-0.5 rounded text-[8px] bg-stealthGrey/60 border border-white/10 text-gray-400 cursor-pointer";
+                    btn.innerText = "FALSE";
+                }
+            } else {
+                logicOR[inputChannel] = !logicOR[inputChannel];
+                const btn = document.getElementById("btn-gate-or-" + (inputChannel === 'valA' ? 'a' : 'b'));
+                
+                if (logicOR[inputChannel]) {
+                    btn.className = "px-2 py-0.5 rounded text-[8px] bg-bioGreen/10 border border-bioGreen/30 text-bioGreen font-bold cursor-pointer";
+                    btn.innerText = "TRUE";
+                } else {
+                    btn.className = "px-2 py-0.5 rounded text-[8px] bg-stealthGrey/60 border border-white/10 text-gray-400 cursor-pointer";
+                    btn.innerText = "FALSE";
+                }
+            }
+            
+            evaluateLogicGates();
+        }
+
+        function evaluateLogicGates() {
+            // AND logic gate evaluation
+            logicAND.active = logicAND.valA && logicAND.valB;
+            const andResultLabel = document.getElementById("txt-lbl-and-result");
+            if (logicAND.active) {
+                andResultLabel.innerText = currentLang === 'en' ? "ACTIVE (LOW CORTISOL)" : (currentLang === 'zh' ? "激活运行 (皮质醇极低)" : "ACTIVE (CORTISOL BAJO)");
+                andResultLabel.className = "text-bioGreen font-bold tracking-wider";
+                pushLog("DSS", "Compuerta AND estable: Regulación de Cortisol óptima en intestino caudal.", "success");
+            } else {
+                andResultLabel.innerText = currentLang === 'en' ? "INACTIVE (HIGH STRESS)" : (currentLang === 'zh' ? "惰性不启动 (皮质醇危机)" : "INACTIVE (CORTISOL CRÍTICO)");
+                andResultLabel.className = "text-alertRed animate-pulse font-bold tracking-wider";
+                pushLog("DSS", "Compuerta AND inactiva: Interinflujo de Butiratos SCFA degradado.", "warn");
+            }
+
+            // OR logic gate evaluation
+            logicOR.active = logicOR.valA || logicOR.valB;
+            const orResultLabel = document.getElementById("txt-lbl-or-result");
+            if (logicOR.active) {
+                orResultLabel.innerText = currentLang === 'en' ? "ACTIVE (WELLBEING)" : (currentLang === 'zh' ? "激活运行 (极富快乐度)" : "ACTIVE (ANTI-ESTRÉS)");
+                orResultLabel.className = "text-quantumPurple font-bold tracking-wider";
+                pushLog("DSS", "Compuerta OR estimulada: Secreciones entéricas de Serotonina y GABA activas.", "success");
+            } else {
+                orResultLabel.innerText = currentLang === 'en' ? "DEPLETED (TENSE)" : (currentLang === 'zh' ? "脱靶关闭 (焦虑态危机)" : "DEPLETED (RÍGIDO)");
+                orResultLabel.className = "text-alertRed animate-pulse font-bold tracking-wider";
+                pushLog("DSS", "Compuerta OR apagada: Bajón metabólico grave por falta de Lactobacillus e infantis.", "alert");
+            }
+
+            // Sync reactive metabolic progress bars
+            syncMetabolicValues();
+        }
+
+        function syncMetabolicValues() {
+            const scfa = logicAND.active ? 85 : 45;
+            const serotonin = logicOR.active ? 78 : 35;
+            const gaba = logicOR.active ? 55 : 22;
+            const cortisol = logicAND.active ? 15 : 68;
+            const oxidative = isResonance ? 12 : 32;
+
+            // Update DOM text labels
+            document.getElementById("val-axis-scfa").innerText = scfa + "%";
+            document.getElementById("val-axis-serotonin").innerText = serotonin + "%";
+            document.getElementById("val-axis-gaba").innerText = gaba + "%";
+            document.getElementById("val-axis-cortisol").innerText = cortisol + "%";
+            document.getElementById("val-axis-stress").innerText = oxidative + "%";
+
+            // Update DOM progress widths
+            document.getElementById("bar-axis-scfa").style.width = scfa + "%";
+            document.getElementById("bar-axis-serotonin").style.width = serotonin + "%";
+            document.getElementById("bar-axis-gaba").style.width = gaba + "%";
+            
+            const cortBar = document.getElementById("bar-axis-cortisol");
+            cortBar.style.width = cortisol + "%";
+            cortBar.className = "h-full transition-all duration-500 " + (logicAND.active ? "bg-bioGreen" : "bg-alertRed");
+
+            document.getElementById("bar-axis-stress").style.width = oxidative + "%";
+
+            triggerMetricsRecalculation();
+        }
+
+        // RECALCULATE THE DEV THREE PILLARS VALUES BASED ON PARAMS
+        function triggerMetricsRecalculation() {
+            // Neural Governance pillar
+            const gov = (97.50 - bciNoise * 0.12 - (logicAND.active ? 0 : 8.5)).toFixed(2) + "%";
+            document.getElementById("txt-pillar-gov-val").innerText = gov;
+
+            // Resonance Frequency pillar
+            const freq = isResonance ? "14.30 Hz" : "7.83 Hz";
+            const freqState = isResonance ? "RESONATING" : "SHUMANN";
+            document.getElementById("txt-pillar-res-val").innerText = freq;
+            document.getElementById("txt-pillar-res-val").nextElementSibling.innerText = freqState;
+
+            // Biological Integrated connection
+            let bioVal = "88.5%";
+            let bioState = "SYNCED";
+            if (currentPhase === 'omega') {
+                bioVal = "125.0%";
+                bioState = "COEVOLVED";
+            } else if (currentPhase === 'delta') {
+                bioVal = "104.2%";
+                bioState = "RESONATING";
+            } else if (currentPhase === 'alpha') {
+                bioVal = "64.1%";
+                bioState = "SENSING";
+            }
+            document.getElementById("txt-pillar-bio-val").innerText = bioVal;
+            const bioLbl = document.getElementById("txt-pillar-bio-val").nextElementSibling;
+            bioLbl.innerText = bioState;
+            bioLbl.className = "text-[8px] font-bold " + (currentPhase === 'omega' ? "text-quantumPurple" : "text-white/40");
+        }
+
+        // PATENT PRESETS INGESTION COORDINATES TARGETS
+        function loadHoloPreset(presetName) {
+            // Remove active classes
+            const btns = ['patentFlow', 'gutBrain', 'neuroColon'];
+            btns.forEach(b => {
+                const button = document.getElementById("preset-btn-" + b.toLowerCase());
+                if (b === presetName) {
+                    button.className = "py-1.5 bg-stealthGrey/60 border border-quantumPurple font-mono text-[10px] text-white rounded transition-all cursor-pointer text-center font-medium uppercase active bg-quantumPurple/10";
+                } else {
+                    button.className = "py-1.5 bg-stealthGrey/60 hover:bg-quantumPurple/10 border border-white/10 hover:border-quantumPurple font-mono text-[10px] text-gray-300 transition-all cursor-pointer text-center font-medium uppercase";
+                }
+            });
+
+            document.getElementById("txt-status-target").innerText = presetName.toUpperCase();
+            
+            const rawPairs = patentPresets[presetName];
+            nodes.forEach((n, idx) => {
+                const targetPoint = rawPairs[idx % rawPairs.length];
+                n.targetX = targetPoint.x * 9 + (Math.random() - 0.5) * 15;
+                n.targetY = targetPoint.y * 9 + (Math.random() - 0.5) * 15;
+                n.targetZ = (Math.random() - 0.5) * 50;
+                n.color = targetPoint.color;
+            });
+
+            setMode('hologram');
+            pushLog("AUTO-ML", "Matriz estructural [" + presetName.toUpperCase() + "] asimilada por el AutoML offline de Dr. Oporta.", "success");
+        }
+
+        // IMAGE FILE UPLOAD AND METRIC ANALYZER
+        function processLocalImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const tempCanvas = document.createElement('canvas');
+                    const tCtx = tempCanvas.getContext('2d');
+                    tempCanvas.width = 60;
+                    tempCanvas.height = 60;
+                    tCtx.drawImage(img, 0, 0, 60, 60);
+                    const pixelData = tCtx.getImageData(0, 0, 60, 60).data;
+                    
+                    let nodeCount = 0;
+                    for (let y = 0; y < 60; y += 2) {
+                        for (let x = 0; x < 60; x += 2) {
+                            if (nodeCount >= numNodes) break;
+                            const idx = (y * 60 + x) * 4;
+                            const r = pixelData[idx];
+                            const g = pixelData[idx+1];
+                            const b = pixelData[idx+2];
+                            const a = pixelData[idx+3];
+                            
+                            if (a > 60) {
+                                let n = nodes[nodeCount];
+                                // Center and scale coord spacing
+                                n.targetX = (x - 30) * 12 + (Math.random() - 0.5) * 10;
+                                n.targetY = (y - 30) * 12 + (Math.random() - 0.5) * 10;
+                                n.targetZ = (Math.random() - 0.5) * 40;
+                                n.color = 'rgb(' + r + ',' + g + ',' + b + ')';
+                                nodeCount++;
+                            }
+                        }
+                    }
+                    
+                    // Hide unused remaining nodes to avoid spatial clutter
+                    for (let i = nodeCount; i < numNodes; i++) {
+                        let n = nodes[i];
+                        n.targetX = (Math.random() - 0.5) * 100;
+                        n.targetY = (Math.random() - 0.5) * 100;
+                        n.targetZ = -10000; // push into deep space out of sight
+                        n.color = 'rgba(0,0,0,0)';
+                    }
+                    
+                    document.getElementById("txt-status-target").innerText = "CUSTOM IMAGE";
+                    
+                    const dialogMsg = document.getElementById("sysMsg");
+                    dialogMsg.classList.remove("hidden");
+                    setTimeout(() => { dialogMsg.classList.add("hidden"); }, 3000);
+                    
+                    setMode('hologram');
+                    pushLog("AUTO-ML", "Imagen holográfica de microbioma patentado cargado externamente con éxito.", "success");
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ACTION BUTTONS EVENTS TRIGGER KEYS
+        function toggleResonance() {
+            isResonance = !isResonance;
+            const btn = document.getElementById("btn-act-resonance");
+            if (isResonance) {
+                btn.className = "py-2.5 px-3 bg-goldWarning text-black font-mono text-xs uppercase font-bold transition-all duration-300 rounded shadow-lg backdrop-blur-md cursor-pointer text-center";
+                canvas3d.style.filter = "contrast(1.4) hue-rotate(45deg)";
+                pushLog("BCI", "Onda electromagnética de fase activada: Sintonización de campos de conciencia cortical.", "warn");
+            } else {
+                btn.className = "py-2.5 px-3 border border-goldWarning text-goldWarning hover:bg-goldWarning hover:text-black font-mono text-xs uppercase font-bold transition-all duration-300 rounded shadow-lg backdrop-blur-md cursor-pointer text-center";
+                canvas3d.style.filter = "none";
+                pushLog("BCI", "Acoplo de sintonizador magnético apagado. Retornando a señal de Shumann estándar.", "info");
+            }
+            evaluateLogicGates();
+        }
+
+        function triggerDeepScan() {
+            deepScanActive = true;
+            document.getElementById("btn-act-scan").className = "py-2.5 px-3 bg-neonBlue text-black font-mono text-xs uppercase font-bold transition-all duration-300 rounded shadow-lg backdrop-blur-md cursor-pointer text-center animate-pulse";
+            pushLog("METABOLIC", "Comenzando telemetría por barrido láser espectroscópico en colon ascendente...", "info");
+            
+            setTimeout(() => {
+                deepScanActive = false;
+                document.getElementById("btn-act-scan").className = "py-2.5 px-3 border border-neonBlue text-neonBlue hover:bg-neonBlue hover:text-black font-mono text-xs uppercase font-bold transition-all duration-300 rounded shadow-lg backdrop-blur-md cursor-pointer text-center";
+                pushLog("DSS", "Barrido completado en 1200 puntos. Estado de sintonía en espejo asentado al 99.8%.", "success");
+            }, 1500);
+        }
+
+        let arActive = false;
+        let arCameraStream = null;
+        async function toggleARView() {
+            arActive = !arActive;
+            const viewEl = document.getElementById("ar-viewport-container");
+            const btn = document.getElementById("btn-act-ar");
+            
+            if (arActive) {
+                viewEl.classList.remove("hidden");
+                btn.className = "py-2.5 px-3 bg-quantumPurple text-black font-mono text-xs uppercase font-bold transition-all duration-300 rounded shadow-lg backdrop-blur-md cursor-pointer text-center";
+                pushLog("DSS", "Abriendo puerto del sistema de Realidad Aumentada...", "info");
+                
+                // Try and play camera stream if browser permits
+                try {
+                    arCameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                    const videoEl = document.getElementById("ar-camera-feed");
+                    videoEl.srcObject = arCameraStream;
+                    videoEl.classList.remove("hidden");
+                    
+                    document.getElementById("ar-floor-grid").classList.remove("hidden");
+                    document.getElementById("txt-ar-status").innerText = dictionary[currentLang].arStatusActive;
+                    document.getElementById("txt-ar-detail-cap").innerText = "FEED CÁMARA ACTIVO";
+                    pushLog("ETHICS-GARD", "Canal de video física acoplado a la proyección táctica.", "success");
+                } catch(err) {
+                    // Fallback simulated layout
+                    document.getElementById("ar-camera-feed").classList.add("hidden");
+                    document.getElementById("ar-floor-grid").classList.remove("hidden");
+                    document.getElementById("txt-ar-status").innerText = dictionary[currentLang].arStatusWaiting;
+                    document.getElementById("txt-ar-detail-cap").innerText = "VISTA PREVIA SIMULADA INDEPENDIENTE";
+                    pushLog("DSS", "Acceso a cámara rechazado o bloqueado por el protocolo de seguridad. Simulando giroscopio.", "warn");
+                }
+            } else {
+                viewEl.classList.add("hidden");
+                btn.className = "py-2.5 px-3 border border-quantumPurple text-quantumPurple hover:bg-quantumPurple hover:text-black font-mono text-xs uppercase font-bold transition-all duration-300 rounded shadow-lg backdrop-blur-md cursor-pointer text-center";
+                
+                if (arCameraStream) {
+                    arCameraStream.getTracks().forEach(track => track.stop());
+                }
+                document.getElementById("ar-camera-feed").classList.add("hidden");
+                document.getElementById("ar-floor-grid").classList.add("hidden");
+                pushLog("DSS", "Apagado sensor de vídeo y telemetría de realidad aumentada.", "info");
+            }
+        }
+
+        async function activateRealCamera() {
+            if (!arActive) toggleARView();
+            else {
+                pushLog("DSS", "Reintentando conectar dispositivo óptico...", "info");
+                toggleARView(); setTimeout(() => { toggleARView(); }, 150);
+            }
+        }
+
+        // RESET 3D MODEL DATA
+        function resetModel3D() {
+            nodes.forEach((n, idx) => {
+                n.x = (Math.random() - 0.5) * 800;
+                n.y = (Math.random() - 0.5) * 800;
+                n.z = (Math.random() - 0.5) * 800;
+                n.vx = (Math.random() - 0.5) * 4;
+                n.vy = (Math.random() - 0.5) * 4;
+                n.vz = (Math.random() - 0.5) * 4;
+                n.color = idx % 25 === 0 ? '#ffffff' : '#00f3ff';
+            });
+            
+            setMode('biomechanics');
+            setPhase('alpha');
+            
+            pushLog("AUTO-ML", "Estado cuántico de partículas y base vectorial del microbioma reseteado.", "warn");
+        }
+
+        // BCI WAVE GRAPH DRAWING LOOP
+        function drawWaveGraph() {
+            const wv = document.getElementById("waveCanvas");
+            const wctx = wv.getContext("2d");
+            
+            // Adjust canvas inner dimensions based on parent client dimensions dynamically
+            wv.width = wv.offsetWidth;
+            wv.height = wv.offsetHeight;
+            
+            wctx.clearRect(0, 0, wv.width, wv.height);
+            wctx.beginPath();
+            wctx.moveTo(0, wv.height / 2);
+            
+            const wavesFreq = isResonance ? 0.35 : 0.088;
+            const wavesMag = isResonance ? 24 : 10;
+            const rate = isResonance ? 0.22 : 0.06;
+            
+            for (let i = 0; i < wv.width; i++) {
+                const val = (wv.height / 2) + Math.sin(i * wavesFreq + rotationX*2 + Date.now() * 0.003) * wavesMag + Math.cos(i * 0.05 + Date.now()*0.001) * 3;
+                wctx.lineTo(i, val);
+            }
+            
+            wctx.strokeStyle = isResonance ? '#ffb700' : '#00f3ff';
+            wctx.lineWidth = 1.6;
+            wctx.stroke();
+        }
+
+        // PROJECT COORD FORMULA
+        function projectCoord(x, y, z, w, h) {
+            const scale = cameraZ / (cameraZ + z);
+            return {
+                x: x * scale + w / 2,
+                y: y * scale + h / 2,
+                scale
+            };
+        }
+
+        // MAIN 3D RENDERING MATRIX LOOP
+        function renderLoop() {
+            const w = canvas3d.width = window.innerWidth;
+            const h = canvas3d.height = window.innerHeight;
+            
+            ctx.fillStyle = `rgba(11, 12, 16, ${isResonance ? '0.12' : '0.22'})`;
+            ctx.fillRect(0, 0, w, h);
+
+            // Chroma Composites
+            ctx.globalCompositeOperation = isResonance ? 'screen' : 'lighter';
+
+            // Auto rotation and mouse interaction tracking
+            rotationY += (0.001 + mouseX * 0.05);
+            rotationX += (mouseY * 0.05);
+
+            const cosY = Math.cos(rotationY);
+            const sinY = Math.sin(rotationY);
+            const cosX = Math.cos(rotationX);
+            const sinX = Math.sin(rotationX);
+
+            // 3D targeting system hud rings
+            ctx.beginPath();
+            ctx.strokeStyle = isResonance ? 'rgba(255, 183, 0, 0.05)' : 'rgba(0, 243, 255, 0.05)';
+            ctx.lineWidth = 1;
+            const ringProj = projectCoord(0, 0, 0, w, h);
+            if (ringProj.scale > 0) {
+                // Inner circle
+                ctx.arc(ringProj.x, ringProj.y, 80 * ringProj.scale, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Dash orbit
+                ctx.beginPath();
+                ctx.strokeStyle = isResonance ? 'rgba(255, 183, 0, 0.04)' : 'rgba(0, 243, 255, 0.04)';
+                ctx.setLineDash([4, 12]);
+                ctx.arc(ringProj.x, ringProj.y, 180 * ringProj.scale, Date.now() * 0.0002, Date.now() * 0.0002 + Math.PI * 2);
+                ctx.stroke();
+                
+                // Outermost ring
+                ctx.beginPath();
+                ctx.strokeStyle = isResonance ? 'rgba(255, 183, 0, 0.02)' : 'rgba(0, 243, 255, 0.02)';
+                ctx.setLineDash([1, 19]);
+                ctx.arc(ringProj.x, ringProj.y, 300 * ringProj.scale, -Date.now() * 0.0001, -Date.now() * 0.0001 + Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]); // clear dash preset
+            }
+
+            // Simulated desk horizontal grid when in AR Mode
+            if (arActive) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(0, 243, 255, 0.08)';
+                ctx.lineWidth = 1;
+                for (let j = -400; j <= 400; j += 100) {
+                    const pStart1 = projectCoord(j, 320, -400, w, h);
+                    const pEnd1 = projectCoord(j, 320, 400, w, h);
+                    if (pStart1.scale > 0 && pEnd1.scale > 0) {
+                        ctx.moveTo(pStart1.x, pStart1.y);
+                        ctx.lineTo(pEnd1.x, pEnd1.y);
+                    }
+                    const pStart2 = projectCoord(-400, 320, j, w, h);
+                    const pEnd2 = projectCoord(400, 320, j, w, h);
+                    if (pStart2.scale > 0 && pEnd2.scale > 0) {
+                        ctx.moveTo(pStart2.x, pStart2.y);
+                        ctx.lineTo(pEnd2.x, pEnd2.y);
+                    }
+                }
+                ctx.stroke();
+            }
+
+            // Barrier deep scanning laser bar
+            if (deepScanActive) {
+                const laserY = (Math.sin(Date.now() * 0.008) * h / 2) + h / 2;
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(57, 255, 20, 0.35)';
+                ctx.shadowColor = 'rgba(57, 255, 20, 0.8)';
+                ctx.shadowBlur = 12;
+                ctx.lineWidth = 2.5;
+                ctx.moveTo(0, laserY);
+                ctx.lineTo(w, laserY);
+                ctx.stroke();
+                ctx.shadowColor = "transparent"; // restore shadow
+                ctx.shadowBlur = 0;
+            }
+
+            // ANIMATE AND DEPLOY PARTICLES IN THE VECTOR SPACE
+            for (let i = 0; i < numNodes; i++) {
+                const n = nodes[i];
+
+                // Node layer grouping
+                let nodeLayer = 'sensory';
+                if (i >= 400 && i < 800) nodeLayer = 'kernel';
+                else if (i >= 800) nodeLayer = 'twin';
+
+                // Check layer filters
+                if (activeLayer !== 'all' && activeLayer !== nodeLayer) {
+                    continue;
+                }
+
+                // SMOOTHLY BLEND PHYSICS FORCES WITH TARGET COORDINATES BASED ON PHASE
+                let tx = n.x;
+                let ty = n.y;
+                let tz = n.z;
+
+                let phaseWeight = 0;
+                if (currentMode !== 'hologram') {
+                    if (currentPhase === 'beta') phaseWeight = 0.5;
+                    else if (currentPhase === 'gamma') phaseWeight = 0.7;
+                    else if (currentPhase === 'delta') phaseWeight = 0.85;
+                    else if (currentPhase === 'omega') phaseWeight = 0.95;
+                } else {
+                    phaseWeight = 1.0;
+                }
+
+                // Phase specific layouts math
+                if (currentMode !== 'hologram' && currentPhase !== 'alpha') {
+                    if (currentPhase === 'beta') {
+                        // Circulatory rings
+                        const layerIndex = i % 400;
+                        const angle = layerIndex * 0.16 + (Date.now() * 0.0003);
+                        const r = 50 + (layerIndex % 15) * 18;
+                        tx = Math.cos(angle) * r;
+                        tz = Math.sin(angle) * r;
+                        ty = i < 400 ? 140 : (i < 800 ? 0 : -140);
+                    } else if (currentPhase === 'gamma') {
+                        // Sphere orchestrator
+                        if (i < 400) {
+                            const angle = (i % 400) * 0.16 + (Date.now() * 0.0002);
+                            const r = 50 + (i % 15) * 18;
+                            tx = Math.cos(angle) * r;
+                            ty = 130;
+                            tz = Math.sin(angle) * r;
+                        } else if (i < 800) {
+                            const phi = Math.acos(-1 + (2 * (i - 400)) / 400);
+                            const theta = Math.sqrt(400 * Math.PI) * phi + (Date.now() * 0.0004);
+                            tx = 130 * Math.sin(phi) * Math.cos(theta);
+                            ty = 130 * Math.cos(phi);
+                            tz = 130 * Math.sin(phi) * Math.sin(theta);
+                        } else {
+                            const angle = (i - 800) * 0.16 + (Date.now() * -0.0002);
+                            const r = 50 + (i % 15) * 18;
+                            tx = Math.cos(angle) * r;
+                            ty = -130;
+                            tz = Math.sin(angle) * r;
+                        }
+                    } else if (currentPhase === 'delta') {
+                        // Double plates and columns
+                        if (i < 400) {
+                            const r = 6 * Math.sqrt(i % 400);
+                            tx = Math.cos(i) * r;
+                            tz = Math.sin(i) * r;
+                            ty = 130;
+                        } else if (i >= 800) {
+                            const r = 6 * Math.sqrt(i % 400);
+                            tx = Math.cos(i) * r;
+                            tz = Math.sin(i) * r;
+                            ty = -130;
+                        } else {
+                            const angle = (i - 400) * 0.15 + (Date.now() * 0.001);
+                            tx = Math.cos(angle) * 70;
+                            tz = Math.sin(angle) * 70;
+                            ty = -130 + 260 * ((i - 400) / 400);
+                        }
+                    } else if (currentPhase === 'omega') {
+                        // Torus synapse structure
+                        const u = (i / numNodes) * 2 * Math.PI * 3;
+                        const v = (i / numNodes) * 2 * Math.PI;
+                        const rTorus = 160 + 40 * Math.cos(v);
+                        const breath = 1.0 + Math.sin(Date.now() * 0.0015) * 0.15;
+                        tx = rTorus * Math.cos(u) * breath;
+                        ty = rTorus * Math.sin(u) * breath;
+                        tz = 40 * Math.sin(v) * breath;
+                    }
+                }
+
+                // Handle modes physics movement
+                if (currentMode === 'biomechanics') {
+                    n.x += n.vx * viscosity;
+                    n.y += n.vy * viscosity;
+                    n.z += n.vz * viscosity;
+
+                    if (Math.abs(n.x) > 351) n.vx *= -1;
+                    if (Math.abs(n.y) > 351) n.vy *= -1;
+                    if (Math.abs(n.z) > 351) n.vz *= -1;
+
+                    n.x += (n.baseX - n.x) * 0.008;
+                    n.y += (n.baseY - n.y) * 0.008;
+                } 
+                else if (currentMode === 'physics') {
+                    n.x += n.vx * (1.2 - viscosity);
+                    n.y += n.vy * (1.2 - viscosity);
+                    n.z += n.vz * (1.2 - viscosity);
+
+                    if (Math.abs(n.x) > 400) { n.vx *= -scoreElastic; n.x = Math.sign(n.x)*399; }
+                    if (Math.abs(n.y) > 400) { n.vy *= -scoreElastic; n.y = Math.sign(n.y)*399; }
+                    if (Math.abs(n.z) > 400) { n.vz *= -scoreElastic; n.z = Math.sign(n.z)*399; }
+                }
+                else if (currentMode === 'energy') {
+                    const angle = Date.now() * 0.001 * atpRate + (i * 0.05);
+                    const r = 250 + Math.sin(angle * 2) * 80;
+                    n.x += ((Math.cos(angle) * r) - n.x) * 0.05;
+                    n.y += ((Math.sin(angle) * r) - n.y) * 0.05;
+                    n.z += (Math.sin(angle) * 100 - n.z) * 0.05;
+                }
+                else if (currentMode === 'swarm') {
+                    const noiseStrength = bciNoise * 0.08;
+                    n.x += n.vx * 0.55 + (Math.random() - 0.5) * noiseStrength;
+                    n.y += n.vy * 0.55 + (Math.random() - 0.5) * noiseStrength;
+                    n.z += n.vz * 0.55 + (Math.random() - 0.5) * noiseStrength;
+
+                    if (!n.isCore) {
+                        const c = nodes[(i - (i % 25)) % numNodes];
+                        n.x += (c.x - n.x) * 0.015;
+                        n.y += (c.y - n.y) * 0.015;
+                        n.z += (c.z - n.z) * 0.015;
+                    }
+
+                    if (Math.abs(n.x) > 450) n.vx *= -0.8;
+                    if (Math.abs(n.y) > 450) n.vy *= -0.8;
+                    if (Math.abs(n.z) > 450) n.vz *= -0.8;
+                }
+                else if (currentMode === 'hologram') {
+                    n.x += (n.targetX - n.x) * 0.05;
+                    n.y += (n.targetY - n.y) * 0.05;
+                    n.z += (n.targetZ - n.z) * 0.05;
+                    
+                    n.y += Math.sin(Date.now() * 0.002 + n.x * 0.015) * 0.5;
+                }
+
+                // Blend targeted coordinates on phaseweight
+                if (phaseWeight > 0) {
+                    n.x += (tx - n.x) * 0.08 * phaseWeight;
+                    n.y += (ty - n.y) * 0.08 * phaseWeight;
+                    n.z += (tz - n.z) * 0.08 * phaseWeight;
+                }
+
+                // Applying rotation matrix projections onto canvas
+                const rx1 = n.x * cosY - n.z * sinY;
+                const rz1 = n.z * cosY + n.x * sinY;
+                const ry1 = n.y * cosX - rz1 * sinX;
+                const rz2 = rz1 * cosX + n.y * sinX;
+
+                if (rz2 < -cameraZ + 30) continue;
+
+                const proj = projectCoord(rx1, ry1, rz2, w, h);
+
+                if (proj.scale > 0) {
+                    let sizeScale = 1.0;
+                    if (currentPhase === 'beta') sizeScale = 1.25;
+                    else if (currentPhase === 'gamma' && n.isCore) sizeScale = 1.75;
+                    else if (currentPhase === 'delta') sizeScale = 1.1 + 0.35 * Math.sin(Date.now() * 0.005 + i);
+                    else if (currentPhase === 'omega') sizeScale = 1.3 + 0.45 * Math.sin(Date.now() * 0.003);
+
+                    const opac = Math.min(1.0, proj.scale * 1.5);
+                    const nodeSize = n.size * proj.scale * (isResonance ? 1.3 : 1.0) * sizeScale;
+
+                    ctx.beginPath();
+                    ctx.arc(proj.x, proj.y, nodeSize, 0, Math.PI * 2);
+
+                    if (currentMode === 'hologram') {
+                        ctx.fillStyle = n.color;
+                    } else if (isResonance) {
+                        ctx.fillStyle = i % 2 === 0 ? 'rgba(255, 183, 0, ' + opac + ')' : 'rgba(176, 38, 255, ' + opac + ')';
+                    } else if (currentMode === 'energy') {
+                        ctx.fillStyle = 'rgba(57, 255, 20, ' + opac + ')';
+                    } else {
+                        // Standard matching multi-layer biomimetic layout colors
+                        if (i < 400) {
+                            ctx.fillStyle = 'rgba(0, 243, 255, ' + opac + ')';
+                        } else if (i < 800) {
+                            ctx.fillStyle = 'rgba(176, 38, 255, ' + opac + ')';
+                        } else {
+                            ctx.fillStyle = 'rgba(255, 183, 0, ' + opac + ')';
+                        }
+                    }
+                    ctx.fill();
+
+                    // Connecting lines web
+                    const hops = [1, 2, 4];
+                    for (const hop of hops) {
+                        const nextIdx = (i + hop) % numNodes;
+                        const connectedNode = nodes[nextIdx];
+
+                        // Target node layer filtering
+                        let connLayer = 'sensory';
+                        if (nextIdx >= 400 && nextIdx < 800) connLayer = 'kernel';
+                        else if (nextIdx >= 800) connLayer = 'twin';
+
+                        if (activeLayer !== 'all' && activeLayer !== connLayer) {
+                            continue;
+                        }
+
+                        const dx = n.x - connectedNode.x;
+                        const dy = n.y - connectedNode.y;
+                        const dz = n.z - connectedNode.z;
+                        const distSq = dx*dx + dy*dy + dz*dz;
+
+                        if (distSq < 15000) {
+                            const nrx1 = connectedNode.x * cosY - connectedNode.z * sinY;
+                            const nrz1 = connectedNode.z * cosY + connectedNode.x * sinY;
+                            const nry1 = connectedNode.y * cosX - nrz1 * sinX;
+                            const nrz2 = nrz1 * cosX + connectedNode.y * sinX;
+
+                            const nextProj = projectCoord(nrx1, nry1, nrz2, w, h);
+                            if (nextProj.scale > 0 && nrz2 > -cameraZ + 30) {
+                                ctx.beginPath();
+                                const ratio = 1.0 - Math.sqrt(distSq) / 122.5;
+                                const linkOpac = Math.max(0.01, Math.min(0.25, ratio * 0.22)) * proj.scale;
+                                ctx.lineWidth = 0.5 * proj.scale * (isResonance ? 1.5 : 1.0);
+
+                                if (currentMode === 'hologram') {
+                                    ctx.strokeStyle = 'rgba(0, 243, 255, ' + linkOpac + ')';
+                                } else if (isResonance) {
+                                    ctx.strokeStyle = 'rgba(176, 38, 255, ' + linkOpac + ')';
+                                } else if (currentMode === 'energy') {
+                                    ctx.strokeStyle = 'rgba(57, 255, 20, ' + linkOpac + ')';
+                                } else {
+                                    if (i < 400) {
+                                        ctx.strokeStyle = 'rgba(0, 243, 255, ' + linkOpac + ')';
+                                    } else if (i < 800) {
+                                        ctx.strokeStyle = 'rgba(176, 38, 255, ' + linkOpac + ')';
+                                    } else {
+                                        ctx.strokeStyle = 'rgba(255, 183, 0, ' + linkOpac + ')';
+                                    }
+                                }
+
+                                ctx.moveTo(proj.x, proj.y);
+                                ctx.lineTo(nextProj.x, nextProj.y);
+                                ctx.stroke();
+
+                                // Draw digital data packet pulses flowing along active synapses
+                                if (i % 3 === 0 && currentPhase !== 'alpha') {
+                                    const pulsePos = (Date.now() * 0.0012 + i * 0.17) % 1.0;
+                                    const pX = proj.x + (nextProj.x - proj.x) * pulsePos;
+                                    const pY = proj.y + (nextProj.y - proj.y) * pulsePos;
+                                    ctx.beginPath();
+                                    ctx.arc(pX, pY, 1.2 * proj.scale, 0, Math.PI * 2);
+                                    ctx.fillStyle = isResonance ? '#ffb700' : (currentMode === 'energy' ? '#39ff14' : '#ffffff');
+                                    ctx.fill();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            ctx.globalCompositeOperation = 'source-over';
+            drawWaveGraph();
+            requestAnimationFrame(renderLoop);
+        }
+
+        // EVENT LISTENERS HOVER & SCROLLS
+        window.addEventListener("resize", () => {
+            canvas3d.width = window.innerWidth;
+            canvas3d.height = window.innerHeight;
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (e.target.closest("header") || e.target.closest("main") || e.target.closest("div.pointer-events-auto")) return;
+            const rx = e.clientX - window.innerWidth / 2;
+            const ry = e.clientY - window.innerHeight / 2;
+            mouseX = rx * 0.0012;
+            mouseY = ry * 0.0012;
+        });
+
+        document.addEventListener("wheel", (e) => {
+            if (e.target.closest("main") || e.target.closest("header") || e.target.closest("div.pointer-events-auto")) return;
+            cameraZ += e.deltaY * 0.45;
+            if (cameraZ < 150) cameraZ = 150;
+            if (cameraZ > 1200) cameraZ = 1200;
+            document.getElementById("txt-status-field").innerText = Math.floor(cameraZ) + "z";
+        }, { passive: true });
+
+        // INITIAL ONLOAD STARTUP SEED
+        window.onload = () => {
+            // Initialize canvas and 2D context
+            canvas3d = document.getElementById("canvas3d");
+            ctx = canvas3d.getContext("2d");
+
+            // Setup Lucide SVGs
+            lucide.createIcons();
+
+            // Register double-click listener on 3D canvas
+            canvas3d.addEventListener("dblclick", (e) => {
+                const rect = canvas3d.getBoundingClientRect();
+                const sx = e.clientX - (rect.left + rect.width / 2);
+                const sy = e.clientY - (rect.top + rect.height / 2);
+                
+                pushLog("BCI", "Estimulación cortical profunda desencadenando micro-pulsión de electrones.", "warn");
+                
+                nodes.forEach(n => {
+                    const scale = cameraZ / (cameraZ + n.z);
+                    const projX = n.x * scale;
+                    const projY = n.y * scale;
+                    const dx = projX - sx;
+                    const dy = projY - sy;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (dist < 280) {
+                        const force = (280 - dist) * 0.28;
+                        n.vx += (dx / dist) * force;
+                        n.vy += (dy / dist) * force;
+                        n.vz += (Math.random() - 0.5) * force;
+                    }
+                });
+            });
+
+            // Populate sample logs
+            initLogsList();
+
+            // Set language default
+            setLang(currentLang);
+
+            // Seed first preset
+            loadHoloPreset('patentFlow');
+
+            // Boot render scene
+            renderLoop();
+        };
+    </script>
+</body>
+</html>
