@@ -1,0 +1,1911 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LyricForge 3000 - Prototipo 3D Interactivo Offline</title>
+  <style>
+    /* Premium Tactical Stealth Design System */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+    
+    :root {
+      --titan-graphite: #1E2120;
+      --titan-graphite-dark: #121414;
+      --titan-light: #2D3130;
+      --luminous-cyan: #4FC3F7;
+      --luminous-cyan-dim: rgba(79, 195, 247, 0.25);
+      --soft-silver: #B0BEC5;
+      --clinical-white: #ECEFF1;
+      --anthracite: #0F1111;
+      --emerald-green: #00E676;
+      --coral-red: #FF1744;
+      --font-sans: 'Inter', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--titan-graphite-dark);
+      color: var(--clinical-white);
+      font-family: var(--font-sans);
+      overflow-x: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--titan-graphite-dark);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--titan-light);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--luminous-cyan);
+    }
+
+    header {
+      background: linear-gradient(to bottom, var(--anthracite), transparent);
+      border-bottom: 1px solid rgba(176, 190, 197, 0.1);
+      padding: 1rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .author-tag {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--luminous-cyan);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .author-tag::before {
+      content: "";
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background-color: var(--luminous-cyan);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--luminous-cyan);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+
+    .title-group h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      color: var(--clinical-white);
+    }
+
+    .title-group p {
+      font-size: 0.75rem;
+      color: var(--soft-silver);
+      margin-top: 0.15rem;
+    }
+
+    .lang-selector {
+      display: flex;
+      gap: 0.25rem;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 0.25rem;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .lang-btn {
+      background: transparent;
+      border: none;
+      color: var(--soft-silver);
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 0.35rem 0.65rem;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.2s ease;
+    }
+
+    .lang-btn.active {
+      background: var(--luminous-cyan);
+      color: var(--anthracite);
+      font-weight: 600;
+      box-shadow: 0 0 10px rgba(79, 195, 247, 0.3);
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 310px 1fr 325px;
+      height: calc(100vh - 70px);
+      position: relative;
+    }
+
+    @media (max-width: 1024px) {
+      main {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 500px auto;
+        overflow-y: auto;
+        height: auto;
+      }
+    }
+
+    /* Panels style */
+    .panel {
+      background-color: rgba(30, 33, 32, 0.75);
+      border-right: 1px solid var(--titan-light);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      overflow-y: auto;
+    }
+
+    .panel-right {
+      border-right: none;
+      border-left: 1px solid var(--titan-light);
+    }
+
+    .section-title {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--luminous-cyan);
+      letter-spacing: 1.5px;
+      border-b: 1px solid rgba(79, 195, 247, 0.15);
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--soft-silver);
+    }
+
+    .control-val {
+      font-family: var(--font-mono);
+      color: var(--luminous-cyan);
+      font-weight: 500;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--titan-light);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--luminous-cyan);
+      transition: all 0.1s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      box-shadow: 0 0 8px var(--luminous-cyan);
+    }
+
+    /* Toggles */
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.65rem;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 6px;
+      margin-top: 0.5rem;
+    }
+
+    .toggle-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .toggle-title {
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: var(--clinical-white);
+    }
+
+    .toggle-sub {
+      font-size: 0.6rem;
+      color: var(--soft-silver);
+      margin-top: 0.15rem;
+    }
+
+    /* Switch styling */
+    .switch {
+      position: relative;
+      inline-size: 34px;
+      block-size: 20px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: var(--titan-light);
+      transition: .3s;
+      border-radius: 20px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 14px; width: 14px;
+      left: 3px; bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--luminous-cyan);
+    }
+
+    input:checked + .slider.green {
+      background-color: var(--emerald-green);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(14px);
+    }
+
+    /* Mode and Archetype Cards */
+    .modes-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .mode-card {
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      padding: 0.65rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .mode-card:hover {
+      border-color: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .mode-card.active {
+      background: rgba(79, 195, 247, 0.06);
+      border-color: var(--luminous-cyan);
+    }
+
+    .mode-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: var(--clinical-white);
+    }
+
+    .mode-indicator {
+      width: 6px;
+      height: 6px;
+      background-color: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+    }
+
+    .mode-card.active .mode-indicator {
+      background-color: var(--luminous-cyan);
+      box-shadow: 0 0 6px var(--luminous-cyan);
+    }
+
+    .mode-desc {
+      font-size: 0.65rem;
+      color: var(--soft-silver);
+      margin-top: 0.3rem;
+      line-height: 1.4;
+    }
+
+    .archetype-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+
+    .arch-card {
+      background: rgba(0,0,0,0.2);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      padding: 0.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .arch-card:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .arch-card.active {
+      border-color: var(--luminous-cyan);
+      background: rgba(79, 195, 247, 0.1);
+      font-weight: bold;
+    }
+
+    .arch-name {
+      font-size: 0.7rem;
+      color: var(--soft-silver);
+    }
+
+    .arch-card.active .arch-name {
+      color: var(--luminous-cyan);
+    }
+
+    /* 3D Viewport container */
+    .viewport-container {
+      flex: 1;
+      position: relative;
+      background-color: #121414;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+
+    canvas:active {
+      cursor: grabbing;
+    }
+
+    /* HUD overlay layers */
+    .tactical-hud {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      right: 1rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .hud-card {
+      background: rgba(18, 20, 20, 0.9);
+      border: 1px solid rgba(79, 195, 247, 0.2);
+      border-radius: 6px;
+      padding: 0.75rem;
+      min-width: 200px;
+      max-width: 260px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    .hud-title {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--luminous-cyan);
+      border-bottom: 1px solid rgba(79, 195, 247, 0.1);
+      padding-bottom: 0.25rem;
+      margin-bottom: 0.4rem;
+      letter-spacing: 1px;
+      font-weight: bold;
+    }
+
+    .hud-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.25rem;
+      font-size: 0.65rem;
+    }
+
+    .hud-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .hud-val {
+      font-family: var(--font-mono);
+      font-weight: 500;
+      color: var(--clinical-white);
+    }
+
+    /* Selected Node Inspector HUD Card (OFFLINE) */
+    .node-inspector-hud {
+      position: absolute;
+      bottom: 5.5rem;
+      right: 1.25rem;
+      background: rgba(18, 20, 20, 0.95);
+      border: 2px solid var(--emerald-green);
+      border-radius: 6px;
+      padding: 0.85rem;
+      width: 290px;
+      box-shadow: 0 10px 30px rgba(0, 230, 118, 0.15);
+      backdrop-filter: blur(8px);
+      z-index: 25;
+      display: none; /* Controlled via state */
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .inspector-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(0, 230, 118, 0.2);
+      padding-bottom: 0.35rem;
+    }
+
+    .inspector-title {
+      font-family: var(--font-mono);
+      color: var(--emerald-green);
+      font-weight: bold;
+      font-size: 0.65rem;
+      letter-spacing: 1px;
+    }
+
+    .inspector-close {
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      color: var(--soft-silver);
+      font-weight: bold;
+      font-size: 0.9rem;
+    }
+
+    .inspector-body {
+      font-size: 0.7rem;
+    }
+
+    .inspector-node-name {
+      font-size: 0.85rem;
+      font-weight: bold;
+      color: white;
+      margin-bottom: 0.4rem;
+    }
+
+    .inspector-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.4rem;
+    }
+
+    .inspector-cell {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.04);
+      padding: 0.4rem;
+      border-radius: 4px;
+    }
+
+    .cell-title {
+      color: var(--soft-silver);
+      font-size: 0.55rem;
+      text-transform: uppercase;
+      display: block;
+    }
+
+    .cell-val {
+      font-family: var(--font-mono);
+      font-weight: bold;
+      font-size: 0.8rem;
+      color: white;
+      margin-top: 0.15rem;
+      display: block;
+    }
+
+    /* Pulse wave success overlay */
+    .pulse-alert {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 230, 118, 0.95);
+      color: #121414;
+      font-weight: bold;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      padding: 0.6rem 1.2rem;
+      border-radius: 20px;
+      box-shadow: 0 0 20px rgba(0, 230, 118, 0.5);
+      z-index: 50;
+      display: none;
+      pointer-events: none;
+      animation: bounce 1s infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.05); }
+    }
+
+    /* AR Viewport Overlay */
+    .ar-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background-color: #000;
+      z-index: 30;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ar-overlay.active {
+      display: flex;
+    }
+
+    .ar-camera-view {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      object-fit: cover;
+    }
+
+    .ar-frame {
+      border: 2px dashed var(--luminous-cyan);
+      width: 280px;
+      height: 280px;
+      position: relative;
+      border-radius: 8px;
+      box-shadow: 0 0 20px rgba(79, 195, 247, 0.2);
+      animation: scan 4s infinite linear;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+
+    @keyframes scan {
+      0% { border-color: var(--luminous-cyan); }
+      50% { border-color: var(--soft-silver); }
+      100% { border-color: var(--luminous-cyan); }
+    }
+
+    .ar-frame-corner {
+      position: absolute;
+      width: 15px;
+      height: 15px;
+      border: 3px solid var(--luminous-cyan);
+    }
+
+    .ar-frame-corner.tl { top: -3px; left: -3px; border-right: none; border-bottom: none; }
+    .ar-frame-corner.tr { top: -3px; right: -3px; border-left: none; border-bottom: none; }
+    .ar-frame-corner.bl { bottom: -3px; left: -3px; border-right: none; border-top: none; }
+    .ar-frame-corner.br { bottom: -3px; right: -3px; border-left: none; border-top: none; }
+
+    .ar-btn {
+      background: var(--luminous-cyan);
+      color: var(--anthracite);
+      border: none;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 0.6rem 1.2rem;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: 0 4px 15px rgba(79, 195, 247, 0.4);
+      transition: all 0.2s;
+    }
+
+    .ar-btn:hover {
+      background: #80D8FF;
+      transform: translateY(-1px);
+    }
+
+    .ar-btn-close {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--clinical-white);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin-top: 1rem;
+    }
+
+    .ar-btn-close:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Info card */
+    .info-card {
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px dashed rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      padding: 0.8rem;
+      font-size: 0.7rem;
+      line-height: 1.4;
+      color: var(--soft-silver);
+    }
+
+    .highlight-cyan {
+      color: var(--luminous-cyan);
+      font-weight: 500;
+    }
+
+    /* Quantum pulse button styling */
+    .pulse-btn {
+      width: 100%;
+      background: rgba(79, 195, 247, 0.15);
+      border: 1px solid rgba(79, 195, 247, 0.4);
+      color: var(--luminous-cyan);
+      font-weight: bold;
+      font-size: 0.75rem;
+      padding: 0.6rem;
+      border-radius: 6px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      transition: all .2s;
+    }
+
+    .pulse-btn:hover {
+      background: rgba(79, 195, 247, 0.3);
+      border-color: var(--luminous-cyan);
+    }
+
+    .pulse-btn:active {
+      transform: scale(0.98);
+    }
+
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="title-group">
+      <div class="author-tag" id="authorLabel">Dr. Julio César Oporta Barrera</div>
+      <h1 id="mainTitle">LyricForge 3000</h1>
+      <p id="subTitle">Composición Emocional y Sanación Asistida por IA</p>
+    </div>
+
+    <div class="lang-selector">
+      <button class="lang-btn active" onclick="switchLanguage('es')">ES</button>
+      <button class="lang-btn" onclick="switchLanguage('en')">EN</button>
+      <button class="lang-btn" onclick="switchLanguage('zh')">ZH</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- LEFT PANEL: Configuration -->
+    <div class="panel">
+      <!-- PERFIL DEL USUARIO Section -->
+      <div>
+        <div class="section-title">
+          <span>PERFIL DEL USUARIO</span>
+          <span style="color: var(--emerald-green)">ACTIVO</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.8rem; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 6px; padding: 0.75rem;">
+          <div class="control-group">
+            <label style="font-size: 0.75rem; color: var(--soft-silver); font-weight: bold;" for="edad">Edad</label>
+            <input type="number" id="edad" min="5" max="100" value="28" style="background: rgba(18, 20, 20, 0.9); border: 1px solid var(--titan-light); border-radius: 4px; padding: 0.35rem 0.5rem; color: var(--clinical-white); font-family: var(--font-mono); font-size: 0.75rem; outline: none;" oninput="updateUserProfile('age', this.value)">
+          </div>
+
+          <div class="control-group">
+            <label style="font-size: 0.75rem; color: var(--soft-silver); font-weight: bold;" for="sexo">Sexo</label>
+            <select id="sexo" style="background: rgba(18, 20, 20, 0.9); border: 1px solid var(--titan-light); border-radius: 4px; padding: 0.35rem 0.5rem; color: var(--clinical-white); font-size: 0.75rem; outline: none; cursor: pointer;" onchange="updateUserProfile('gender', this.value)">
+              <option value="Masculino">Masculino</option>
+              <option value="Femenino">Femenino</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label style="font-size: 0.75rem; color: var(--soft-silver); font-weight: bold;" for="emocion">Estado emocional</label>
+            <select id="emocion" style="background: rgba(18, 20, 20, 0.9); border: 1px solid var(--titan-light); border-radius: 4px; padding: 0.35rem 0.5rem; color: var(--clinical-white); font-size: 0.75rem; outline: none; cursor: pointer;" onchange="updateUserProfile('emotion', this.value)">
+              <option value="Alegría" selected>Alegría</option>
+              <option value="Tristeza">Tristeza</option>
+              <option value="Ansiedad">Ansiedad</option>
+              <option value="Esperanza">Esperanza</option>
+              <option value="Gratitud">Gratitud</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">
+          <span id="titleConfig">CONFIGURACIONES</span>
+          <span style="color: var(--soft-silver)">LF3000</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <div class="control-group">
+            <div class="control-label">
+              <span id="lblSpeed">Velocidad de Rotación</span>
+              <span class="control-val" id="valSpeed">1.0x</span>
+            </div>
+            <input type="range" id="inputSpeed" min="0" max="3" step="0.1" value="1.0" oninput="updateParam('speed', this.value)">
+          </div>
+
+          <div class="control-group">
+            <div class="control-label">
+              <span id="lblNode">Amplitud de Red Nodos</span>
+              <span class="control-val" id="valNode">1.5x</span>
+            </div>
+            <input type="range" id="inputNode" min="0.5" max="3" step="0.1" value="1.5" oninput="updateParam('nodeSize', this.value)">
+          </div>
+
+          <div class="control-group">
+            <div class="control-label">
+              <span id="lblWave">Onda Biomecánica</span>
+              <span class="control-val" id="valWave">1.2x</span>
+            </div>
+            <input type="range" id="inputWave" min="0.2" max="3" step="0.1" value="1.2" oninput="updateParam('waveFreq', this.value)">
+          </div>
+
+          <div class="control-group">
+            <div class="control-label">
+              <span id="lblEnergy">Energía Híbrida</span>
+              <span class="control-val" id="valEnergy">80%</span>
+            </div>
+            <input type="range" id="inputEnergy" min="10" max="150" step="1" value="80" oninput="updateParam('energy', this.value)">
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">
+          <span id="titleCinematic">ILUMINACIÓN CINEMATOGRÁFICA</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+          <div class="control-group">
+            <div class="control-label">
+              <span id="lblAmbient">Brillo Ambiental</span>
+              <span class="control-val" id="valAmbient">40%</span>
+            </div>
+            <input type="range" id="inputAmbient" min="10" max="90" step="5" value="40" oninput="updateParam('ambient', this.value)">
+          </div>
+
+          <div class="control-group">
+            <div class="control-label">
+              <span id="lblSpot">Intensidad Foco</span>
+              <span class="control-val" id="valSpot">85%</span>
+            </div>
+            <input type="range" id="inputSpot" min="20" max="150" step="5" value="85" oninput="updateParam('spot', this.value)">
+          </div>
+          
+          <div class="control-group">
+            <div class="control-label">
+              <span id="lblCyan">Intensidad Cian Luminous</span>
+              <span class="control-val" id="valCyan">100%</span>
+            </div>
+            <input type="range" id="inputCyan" min="10" max="150" step="5" value="100" oninput="updateParam('cyan', this.value)">
+          </div>
+        </div>
+      </div>
+
+      <!-- NEW: Advanced Modular Toggles and Actions Section -->
+      <div>
+        <div class="section-title">
+          <span id="titleAdvanced" style="color: var(--emerald-green);">MÓDULOS EXPANDIDOS</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <span class="toggle-title" id="lblHelixToggle">Energía Híbrida</span>
+              <span class="toggle-sub">Hélice Conductora</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="toggleHelix" checked onchange="toggleFeature('helix', this.checked)">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <span class="toggle-title" id="lblPhysicsToggle">Física Modular</span>
+              <span class="toggle-sub">Soportes Acoplados</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="togglePhysics" onchange="toggleFeature('physics', this.checked)">
+              <span class="slider green"></span>
+            </label>
+          </div>
+
+          <button class="pulse-btn" id="btnPulse" onclick="fireQuantumPulse()" style="margin-top: 0.5rem;">Disparar Pulso Cuántico</button>
+        </div>
+      </div>
+
+      <div class="info-card">
+        <span class="highlight-cyan" id="lblMaterial">Aeroespacial Stealth</span>:
+        <span id="txtMaterial">Estructuras modeladas en titanio satinado grafito pulido. El color cian (#4FC3F7) interactúa según la actividad de los nodos.</span>
+      </div>
+    </div>
+
+    <!-- MAIN VIEWPORT: 3D Scene -->
+    <div class="viewport-container">
+      <div class="tactical-hud">
+        <div class="hud-card">
+          <div class="hud-title" id="lblTelemetry">TELEMETRÍA TÁCTICA</div>
+          <div class="hud-row">
+            <span id="hudResonance">Resonancia Emocional</span>
+            <span class="hud-val" id="hudResonanceVal">92.4%</span>
+          </div>
+          <div class="hud-row">
+            <span id="hudNodes">Activación de Nodos</span>
+            <span class="hud-val" id="hudNodesVal">12 / 16 Activos</span>
+          </div>
+          <div class="hud-row">
+            <span id="hudSwarm">Fuerza del Enjambre</span>
+            <span class="hud-val" id="hudSwarmVal">88.2 K-Pps</span>
+          </div>
+          <div class="hud-row">
+            <span id="hudFreq">Frecuencia Base</span>
+            <span class="hud-val" id="hudFreqVal">528 Hz (Reparación)</span>
+          </div>
+          <!-- EXPEDIENTE DE USUARIO RECEPTOR -->
+          <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(79, 195, 247, 0.15); display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.6rem;">
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--soft-silver)">EDAD RECEPTOR:</span>
+              <span class="hud-val" id="hudUserAge" style="font-weight: bold;">28 AÑOS</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--soft-silver)">SEXO RECEPTOR:</span>
+              <span class="hud-val" id="hudUserGender" style="font-weight: bold; text-transform: uppercase;">MASCULINO</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--soft-silver)">ESTADO EMOCIONAL:</span>
+              <span class="hud-val" id="hudUserEmotion" style="font-weight: bold; color: #ffeb3b; text-transform: uppercase;">ALEGRÍA</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud-card" style="text-align: right;">
+          <div class="hud-title" id="lblCosmicTitle">CICLOS CÓSMICOS</div>
+          <div class="hud-row">
+            <span id="hudLunar">Fase Lunar</span>
+            <span class="hud-val" id="hudLunarVal">Luna Creciente</span>
+          </div>
+          <div class="hud-row">
+            <span id="hudCircadian">Ritmo Circadiano</span>
+            <span class="hud-val" id="hudCircadianVal">Mediodía Afectivo</span>
+          </div>
+          <div class="hud-row">
+            <span id="hudStatus">Biomecánica</span>
+            <span class="hud-val" id="hudStatusVal" style="color: var(--luminous-cyan);">Sincronizada</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quantum pulse notification -->
+      <div class="pulse-alert" id="pulseAlert">¡PULSO CUÁNTICO PROCESADO CON ÉXITO!</div>
+
+      <!-- NEW: Node/Satellite Inspector Card in Offline Port -->
+      <div class="node-inspector-hud" id="nodeInspector">
+        <div class="inspector-header">
+          <span class="inspector-title" id="lblInspectorTitle">NODO ACTIVO DETECTADO</span>
+          <button class="inspector-close" onclick="clearOfflineSelection()">×</button>
+        </div>
+        <div class="inspector-body">
+          <div class="inspector-node-name" id="inspectNodeName">Amígdala Emocional</div>
+          <div class="inspector-grid">
+            <div class="inspector-cell">
+              <span class="cell-title" id="lblCoherence">Coherencia de Resonancia</span>
+              <span class="cell-val" id="inspectCoherence">87.4%</span>
+            </div>
+            <div class="inspector-cell">
+              <span class="cell-title" id="lblTemp">Temperatura Criogénica</span>
+              <span class="cell-val" id="inspectTemp" style="color: var(--luminous-cyan);">-145.2°C</span>
+            </div>
+            <div class="inspector-cell">
+              <span class="cell-title" id="lblStability">Estabilidad Gravitacional</span>
+              <span class="cell-val" id="inspectStability">96.8%</span>
+            </div>
+            <div class="inspector-cell">
+              <span class="cell-title">Rendimiento Armónico</span>
+              <span class="cell-val" id="inspectHarmonic">91.4%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CANVAS FOR 100% OFFLINE 3D RENDERING -->
+      <canvas id="canvas3d"></canvas>
+
+      <!-- Overlay for AR Mode -->
+      <div class="ar-overlay" id="arOverlay">
+        <video class="ar-camera-view" id="arVideo" autoplay playsinline></video>
+        <div class="ar-frame">
+          <div class="ar-frame-corner tl"></div>
+          <div class="ar-frame-corner tr"></div>
+          <div class="ar-frame-corner bl"></div>
+          <div class="ar-frame-corner br"></div>
+          <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--luminous-cyan); text-transform: uppercase;" id="arScanningLabel">
+            Escaneando Mesa...
+          </div>
+        </div>
+        <h3 id="arActiveLabel" style="margin-bottom: 0.5rem; color: var(--luminous-cyan);">Realidad Aumentada Activa</h3>
+        <p id="arDeskPlaceholder" style="font-size: 0.8rem; color: var(--soft-silver); max-width: 320px; margin-bottom: 1.5rem;">
+          Mueva el móvil para detectar superficies. LyricForge 3000 se proyectará sobre su mesa de trabajo.
+        </p>
+        <button class="ar-btn ar-btn-close" onclick="toggleAR(false)" id="arCloseBtn">Cerrar AR</button>
+      </div>
+
+      <!-- Bottom controls inside Viewport -->
+      <div style="position: absolute; bottom: 1.25rem; left: 1.25rem; right: 1.25rem; display: flex; justify-content: space-between; align-items: center; pointer-events: none; z-index: 20;">
+        <button class="ar-btn" style="pointer-events: auto;" onclick="toggleAR(true)" id="btnActivateAR">
+          <span style="font-size: 1.1rem;">📷</span> <span id="arLabel">Visualizar en AR (Mesa)</span>
+        </button>
+        <div style="color: var(--soft-silver); font-family: var(--font-mono); font-size: 0.65rem;" id="offlineAlert">PROTOTIPO 3D OFFLINE</div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: Modes & States -->
+    <div class="panel panel-right">
+      <div>
+        <div class="section-title">
+          <span id="titleModes">MODOS OPERATIVOS</span>
+          <span style="color: var(--soft-silver)">STEALTH</span>
+        </div>
+        <div class="modes-grid">
+          <div class="mode-card active" onclick="switchMode('stealth')" id="cardStealth">
+            <div class="mode-header">
+              <span>STEALTH CORE</span>
+              <div class="mode-indicator"></div>
+            </div>
+            <div class="mode-desc" id="descStealth">Bajo consumo aeroespacial. Configuración silenciosa con predominancia de titanio grafito mate.</div>
+          </div>
+
+          <div class="mode-card" onclick="switchMode('hybrid')" id="cardHybrid">
+            <div class="mode-header">
+              <span>HYBRID COSMIC</span>
+              <div class="mode-indicator"></div>
+            </div>
+            <div class="mode-desc" id="descHybrid">Sincronización cuántica de energía híbrida con ciclos de frecuencias estelares.</div>
+          </div>
+
+          <div class="mode-card" onclick="switchMode('supercharge')" id="cardSupercharge">
+            <div class="mode-header">
+              <span>SUPERCHARGE AI</span>
+              <div class="mode-indicator"></div>
+            </div>
+            <div class="mode-desc" id="descSupercharge">Activación total del motor de enjambre de letras. Máxima modulación cian y resonancia lírica.</div>
+          </div>
+
+          <div class="mode-card" onclick="switchMode('diagnostics')" id="cardDiagnostics">
+            <div class="mode-header">
+              <span>DIAGNOSTICS</span>
+              <div class="mode-indicator"></div>
+            </div>
+            <div class="mode-desc" id="descDiagnostics">Auditoría en tiempo real. Evaluación topológica de nodos de red y flujo de bits armónicos.</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">
+          <span id="titleStates">ESTADOS DINÁMICOS IA</span>
+        </div>
+        <div class="archetype-grid">
+          <div class="arch-card active" onclick="switchState('curandero')" id="archCurandero">
+            <div class="arch-name" id="nameCurandero">Curandero Digital</div>
+          </div>
+          <div class="arch-card" onclick="switchState('futuro')" id="archFuturo">
+            <div class="arch-name" id="nameFuturo">Voz del Futuro</div>
+          </div>
+          <div class="arch-card" onclick="switchState('niño')" id="archNiño">
+            <div class="arch-name" id="nameNiño">Niño Estelar</div>
+          </div>
+          <div class="arch-card" onclick="switchState('guerrero')" id="archGuerrero">
+            <div class="arch-name" id="nameGuerrero">Guerrero Sensible</div>
+          </div>
+          <div class="arch-card" onclick="switchState('alquimista')" id="archAlquimista" style="grid-column: span 2;">
+            <div class="arch-name" id="nameAlquimista">Alquimista Ancestral</div>
+          </div>
+        </div>
+        <div class="info-card" style="margin-top: 0.65rem;" id="archDesc">
+          Canaliza sanación afectiva y reconciliación a través de frecuencias armónicas (528Hz).
+        </div>
+      </div>
+
+      <div class="info-card">
+        <div style="font-weight: 600; color: var(--clinical-white); margin-bottom: 0.25rem;" id="titleBrief">LyricForge 3000</div>
+        <span id="txtBrief">Modelo interactivo tridimensional. Arrastre para rotar, use controles para simular dinámicas físicas de resonancia afectiva. Funciona sin internet.</span>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Embedded Offline Translation dictionary
+    const translations = {"es":{"author":"Dr. Julio César Oporta Barrera","title":"LyricForge 3000","subtitle":"Plataforma de Composición Emocional y Sanación Asistida por IA","downloadBtn":"Descargar Prototipo 3D Offline (.html)","downloadDesc":"Descarga un archivo HTML autónomo, ejecutable sin internet con doble clic.","arBtn":"Activar Realidad Aumentada (AR)","arDesc":"Visualiza el prototipo 3D sobre tu escritorio utilizando la cámara del móvil.","arClose":"Cerrar AR","arScanning":"Escaneando superficie de trabajo...","arActive":"Modo AR Activo","arDeskPlaceholder":"Apunte la cámara a su mesa. Toque para anclar el LyricForge 3000.","arCameraError":"No se pudo acceder a la cámara. Se activó el Entorno Virtual 3D de Escritorio.","activeLanguage":"Español","telemetry":"TELEMETRÍA TÁCTICA DE IMPACTO","resonance":"Resonancia Emocional","nodeActivation":"Activación de Nodos IA","swarmForce":"Fuerza del Enjambre Lírico","healingFreq":"Frecuencia de Reparación","biomechanicsStatus":"Estado Biomecánico","emotionalVector":"Vector Emocional (Intensidad/Polaridad)","cosmicSync":"Sincronización Cósmica","moonPhase":"Fase Lunar","circadianRhythm":"Ritmo Circadiano","controls":"PANEL DE CONTROL SIMULADOR","simSpeed":"Velocidad de Rotación","nodeSize":"Amplitud de Red de Nodos","waveFreq":"Frecuencia de Onda Biomecánica","energyLevel":"Nivel de Energía Híbrida","lightingType":"Estilo de Iluminación","cinematicLight":"Iluminación Cinematográfica","ambientIntensity":"Brillo Ambiental","lightIntensity":"Intensidad del Foco","cyanIntensity":"Acentuación Cian Luminous","brushedMetal":"Rugosidad de Titanio Satinado","operationalModes":"MODOS OPERATIVOS STEALTH TÁCTICOS","stealthDesc":"Modo sigiloso aeroespacial. Configuración de bajo consumo, titanio mate grafito predominante.","hybridDesc":"Sincronización de energía híbrida y ciclos cósmicos activos con modulación biológica.","superchargeDesc":"Activación del motor IA al 100%. Generación masiva y máxima resonancia cian.","diagnosticsDesc":"Pruebas de latencia, topología de nodos y visualización del flujo de datos en tiempo real.","tabVisualization":"Prototipo 3D","tabNodeSystem":"Sistema de Nodos IA","tabBiomechanics":"Biomecánica y Física","tabFrecuencias":"Frecuencias de Sanación","stateCurandero":"El Curandero Digital","stateCuranderoDesc":"Canaliza sanación afectiva y reconciliación a través de frecuencias armónicas (528Hz).","stateFuturo":"Voz del Futuro Olvidado","stateFuturoDesc":"Mensajes de civilizaciones venideras expresados en flujos de datos estructurados.","stateNiño":"El Niño Estelar","stateNiñoDesc":"Inocencia cósmica reconectadora con ritmos circadianos y biorritmos naturales.","stateGuerrero":"El Guerrero Sensible","stateGuerreroDesc":"Fuerza y resiliencia mental a través de la integración de vulnerabilidad profunda.","stateAlquimista":"El Alquimista Ancestral","stateAlquimistaDesc":"Sintetiza la ciencia cuántica de la IA con la sabiduría mística ancestral, transmutando frecuencias afectivas y colectivas (741Hz).","projectBrief":"LyricForge 3000 representa la revolución musical del milenio. Fusiona Inteligencia Artificial, Psicología Emocional Aplicada y Arquetipos Universales para generar letras musicales con propiedades de sanación colectiva, emocional y territorial.","archVision":"Arquitectura Biomimética Futurista con acabados en Titanio Satinado gris grafito (#2D3130), Plata Metálica suave (#B0BEC5), y acentos en Azul Cian Luminoso (#4FC3F7). Diseñado bajo rigor técnico de inspiración aeroespacial.","biomimeticTitle":"Biomímesis e Inteligencia","materialsTitle":"Materiales y Acabados Satinados","moduleHybridEnergy":"Energía Híbrida Biomecánica","moduleModularPhysics":"Física Modular de Acoplamiento","quantumPulse":"Disparar Pulso Cuántico","quantumPulseSuccess":"¡PULSO CUÁNTICO PROCESADO CON ÉXITO!","selectedNodeLabel":"NODO ACTIVO","nodeStatsCoherence":"Coherencia de Resonancia","nodeStatsTemp":"Temperatura Criogénica","nodeStatsGravity":"Estabilidad Gravitacional","systemFlux":"Flujo de Red Cuántica"},"en":{"author":"Dr. Julio Cesar Oporta Barrera","title":"LyricForge 3000","subtitle":"AI-Assisted Emotional Composition and Healing Platform","downloadBtn":"Download 3D Offline Prototype (.html)","downloadDesc":"Download a self-contained HTML file that runs perfectly offline with a double-click.","arBtn":"Activate Augmented Reality (AR)","arDesc":"Visualize the 3D prototype on your work desk using your smartphone's camera.","arClose":"Close AR","arScanning":"Scanning work surface...","arActive":"AR Mode Active","arDeskPlaceholder":"Point camera at your desk. Tap to anchor the LyricForge 3000.","arCameraError":"Could not access camera. Desktop 3D Virtual Environment activated.","activeLanguage":"English","telemetry":"TACTICAL IMPACT TELEMETRY","resonance":"Emotional Resonance","nodeActivation":"AI Node Activation","swarmForce":"Lyrical Swarm Strength","healingFreq":"Repairing Frequency","biomechanicsStatus":"Biomechanics Status","emotionalVector":"Emotional Vector (Intensity/Polarity)","cosmicSync":"Cosmic Synchronization","moonPhase":"Moon Phase","circadianRhythm":"Circadian Rhythm","controls":"SIMULATOR CONTROL PANEL","simSpeed":"Rotation Speed","nodeSize":"Node Network Amplitude","waveFreq":"Biomechanical Wave Freq","energyLevel":"Hybrid Energy Level","lightingType":"Lighting Style","cinematicLight":"Cinematic Lighting","ambientIntensity":"Ambient Brightness","lightIntensity":"Spotlight Intensity","cyanIntensity":"Luminous Cyan Accents","brushedMetal":"Satin Titanium Roughness","operationalModes":"TACTICAL OPERATIONAL STEALTH MODES","stealthDesc":"Aerospace stealth configuration. Low-power, dark graphite matte titanium dominancy.","hybridDesc":"Active sync between hybrid energy, cosmic cycles, and biological rhythms.","superchargeDesc":"100% AI core output. Massive lyrics generation and maximum cyan resonance.","diagnosticsDesc":"Latency evaluation, node topology mapping, and real-time data flow telemetry.","tabVisualization":"3D Prototype","tabNodeSystem":"AI Node System","tabBiomechanics":"Biomechanics & Physics","tabFrecuencias":"Healing Frequencies","stateCurandero":"The Digital Healer","stateCuranderoDesc":"Channels affective healing and historical reconciliation through harmonic frequencies (528Hz).","stateFuturo":"Voice of the Forgotten Future","stateFuturoDesc":"Messages from upcoming civilizations expressed in structured data streams.","stateNiño":"The Star Child","stateNiñoDesc":"Reconnecting cosmic innocence aligned with circadian cycles and natural biorhythms.","stateGuerrero":"The Sensitive Warrior","stateGuerreroDesc":"Strength and mental resilience via the active integration of deep vulnerability.","stateAlquimista":"The Ancestral Alchemist","stateAlquimistaDesc":"Synthesizes advanced AI quantum science with ancestral hermetic wisdom, transmuting collective emotional frequencies (741Hz).","projectBrief":"LyricForge 3000 represents the musical revolution of the millennium. It merges Artificial Intelligence, Applied Emotional Psychology, and Universal Archetypes to generate song lyrics with collective, emotional, and territorial healing properties.","archVision":"Biomimetic Futuristic Architecture finished in graphite grey satin titanium (#2D3130), soft metallic silver (#B0BEC5), and luminous cyan accents (#4FC3F7). High-tech aeroespacial inspiration.","biomimeticTitle":"Biomimicry and AI","materialsTitle":"Materials and Satin Finishes","moduleHybridEnergy":"Biomechanical Hybrid Energy","moduleModularPhysics":"Modular Coupling Physics","quantumPulse":"Trigger Quantum Pulse","quantumPulseSuccess":"QUANTUM PULSE PROCESSED SUCCESSFULLY!","selectedNodeLabel":"ACTIVE NODE","nodeStatsCoherence":"Resonance Coherence","nodeStatsTemp":"Cryogenic Temperature","nodeStatsGravity":"Gravitational Stability","systemFlux":"Quantum Net Flux"},"zh":{"author":"Julio César Oporta Barrera 博士","title":"LyricForge 3000","subtitle":"人工智能辅助情感创作与音乐疗愈平台","downloadBtn":"下载离线 3D 原型 (.html)","downloadDesc":"下载独立完整的 HTML 文件，双击即可在无网络环境下完美运行。","arBtn":"激活增强现实 (AR)","arDesc":"使用智能手机的相机在您的工作桌面上可视化 3D 模型原型。","arClose":"关闭 AR","arScanning":"正在扫描工作台表面...","arActive":"AR 模式已激活","arDeskPlaceholder":"将相机对准桌面。点击以锚定 LyricForge 3000 核心模块。","arCameraError":"无法访问相机。已切换至桌面 3D 虚拟环境。","activeLanguage":"中文","telemetry":"战术影响数据遥测","resonance":"情绪共鸣指数","nodeActivation":"智能节点激活率","swarmForce":"歌词蜂群集聚力","healingFreq":"疗愈修复频率","biomechanicsStatus":"生物力学运作状态","emotionalVector":"情绪向量 (强度/极性)","cosmicSync":"宇宙天体同步率","moonPhase":"月相周期","circadianRhythm":"昼夜节律","controls":"模拟器控制面板","simSpeed":"自转速度","nodeSize":"节点网络覆盖幅度","waveFreq":"生物力学波动频率","energyLevel":"混合能源能级","lightingType":"照明风格","cinematicLight":"电影级照明渲染","ambientIntensity":"环境光亮度","lightIntensity":"聚光灯强度","cyanIntensity":"发光青色度 (Cyan)","brushedMetal":"磨砂钛合金粗糙度","operationalModes":"战术隐形运行模式","stealthDesc":"航空级隐形配置。低能耗运行，以石墨哑光钛灰色为主色调。","hybridDesc":"混合能源与宇宙周期的完美同步，带有生物节律调节作用。","superchargeDesc":"AI 核心模块100%全功率输出。歌词海量生成，最大化青色光共鸣。","diagnosticsDesc":"进行延迟评估、节点拓扑绘图和实时数据流可视化遥测。","tabVisualization":"3D 交互原型","tabNodeSystem":"AI 智能节点系统","tabBiomechanics":"生物力学与物理力学","tabFrecuencias":"特定音频疗愈频率","stateCurandero":"数字疗愈师 (Curandero)","stateCuranderoDesc":"通过特定谐振频率（528Hz）引导情感修复与历史性心理和解。","stateFuturo":"被遗忘的未来之声","stateFuturoDesc":"以结构化数据流形式传递来自人类未来文明的启示性信息。","stateNiño":"星际之童 (Star Child)","stateNiñoDesc":"重塑宇宙般纯真，与昼夜周期和自然人体生物钟高度对齐。","stateGuerrero":"感性战士 (Warrior)","stateGuerreroDesc":"通过深度接纳自我脆弱，重建精神韧性与内心力量的通道。","stateAlquimista":"古老炼金术士 (Alchemist)","stateAlquimistaDesc":"融合最前沿的AI量子科学与古老的神秘智慧，进行集体情感频率的转化与升华 (741Hz)。","projectBrief":"LyricForge 3000 代表了新千年的音乐变革。它融合了人工智能、应用情感心理学和宇宙通用原型，致力于生成具有集体、情感及地域性自我修复功效的专属歌词。","archVision":"仿生未来主义建筑结构，精饰以石墨灰哑光钛合金 (#2D3130)、轻柔金属银色 (#B0BEC5) 和炫目发光青色 (#4FC3F7) 细节。具有极高科技质感的航空航天和生物医疗美学设计。","biomimeticTitle":"仿生学与人工智能","materialsTitle":"材料质感与磨砂饰面","moduleHybridEnergy":"仿生混合能源能级","moduleModularPhysics":"模块化耦合物理力学","quantumPulse":"触发量子共振脉冲","quantumPulseSuccess":"量子脉冲成功处理！","selectedNodeLabel":"活跃节点","nodeStatsCoherence":"共振相干性","nodeStatsTemp":"低温超导温度","nodeStatsGravity":"引力稳定性系数","systemFlux":"量子网络流量"}};
+    let currentLang = 'es';
+
+    // System States
+    let simParams = {
+      speed: 1.0,
+      nodeSize: 1.5,
+      waveFreq: 1.2,
+      energy: 80,
+      ambient: 40,
+      spot: 85,
+      cyan: 100
+    };
+
+    let activeMode = 'stealth';
+    let activeState = 'curandero';
+
+    // Advanced modular properties
+    let features = {
+      helix: true,
+      physics: false,
+      pulseTimer: 0
+    };
+
+    // Selected state
+    let selectedNodeIdx = null;
+    let selectedSatIdx = null;
+
+    // User Profile variables
+    let userAge = 28;
+    let userGender = 'Masculino';
+    let userEmotion = 'Alegría';
+
+    function updateUserProfile(type, value) {
+      if (type === 'age') {
+        userAge = parseInt(value) || 28;
+        const el = document.getElementById('hudUserAge');
+        if (el) el.innerText = userAge + ' AÑOS';
+      } else if (type === 'gender') {
+        userGender = value;
+        const el = document.getElementById('hudUserGender');
+        if (el) el.innerText = userGender.toUpperCase();
+      } else if (type === 'emotion') {
+        userEmotion = value;
+        const el = document.getElementById('hudUserEmotion');
+        if (el) el.innerText = userEmotion.toUpperCase();
+
+        // Recommendations based on emotion
+        if (userEmotion === 'Tristeza') {
+          switchState('curandero');
+          simParams.waveFreq = 1.2;
+          simParams.energy = 110;
+        } else if (userEmotion === 'Ansiedad') {
+          switchState('niño');
+          simParams.waveFreq = 0.6;
+          simParams.energy = 60;
+        } else if (userEmotion === 'Alegría') {
+          switchState('alquimista');
+          simParams.waveFreq = 1.5;
+          simParams.energy = 120;
+        } else if (userEmotion === 'Esperanza') {
+          switchState('futuro');
+          simParams.waveFreq = 1.8;
+          simParams.energy = 95;
+        } else if (userEmotion === 'Gratitud') {
+          switchState('guerrero');
+          simParams.waveFreq = 2.2;
+          simParams.energy = 100;
+        }
+        document.getElementById('inputWave').value = simParams.waveFreq;
+        document.getElementById('inputEnergy').value = simParams.energy;
+        updateParamLabels();
+      }
+    }
+
+    // 3D Engine Variables
+    const canvas = document.getElementById('canvas3d');
+    const ctx = canvas.getContext('2d');
+    let width = 0;
+    let height = 0;
+
+    let rx = 0.5; // Rotations
+    let ry = 0.5;
+    let targetRx = 0.5;
+    let targetRy = 0.5;
+    let isDragging = false;
+    let prevMouseX = 0;
+    let prevMouseY = 0;
+    let mouseDownX = 0;
+    let mouseDownY = 0;
+
+    // Procedural vertices representing the biomimetic core
+    let nodes3d = [];
+    let shellNodes = [];
+    let swarmParticles = [];
+    let waves = [];
+
+    // Emotional center names matching the online nodeNames array
+    const offlineNodeNames = [
+      "Amígdala Emocional", "Córtex Prefrontal", "Hipoestesia Acústica", "Resonancia Cardíaca",
+      "Núcleo Accumbens", "Sincronía Tálamo", "Giro Cíngulo", "Lóbulo Temporal DX",
+      "Lóbulo Temporal SX", "Frecuencia Pineal", "Biorritmo Alfa", "Estabilidad Beta",
+      "Canal Gamma", "Modulación Theta", "Sensibilidad Delta", "Puente Neuronal"
+    ];
+
+    const colors = ['#4FC3F7', '#00E676', '#FFEB3B', '#FF1744'];
+
+    function resize() {
+      width = canvas.parentElement.clientWidth;
+      height = canvas.parentElement.clientHeight;
+      canvas.width = width;
+      canvas.height = height;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Mouse interactive grab rotation
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
+      mouseDownX = e.clientX;
+      mouseDownY = e.clientY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - prevMouseX;
+      const dy = e.clientY - prevMouseY;
+      targetRy += dx * 0.005;
+      targetRx += dy * 0.005;
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      isDragging = false;
+      const dist = Math.hypot(e.clientX - mouseDownX, e.clientY - mouseDownY);
+      if (dist < 4) {
+        handleCanvasClick(e);
+      }
+    });
+
+    // Touch events for mobile support
+    canvas.addEventListener('touchstart', (e) => {
+      if(e.touches.length === 1) {
+        isDragging = true;
+        prevMouseX = e.touches[0].clientX;
+        prevMouseY = e.touches[0].clientY;
+        mouseDownX = e.touches[0].clientX;
+        mouseDownY = e.touches[0].clientY;
+      }
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (!isDragging || e.touches.length !== 1) return;
+      const dx = e.touches[0].clientX - prevMouseX;
+      const dy = e.touches[0].clientY - prevMouseY;
+      targetRy += dx * 0.005;
+      targetRx += dy * 0.005;
+      prevMouseX = e.touches[0].clientX;
+      prevMouseY = e.touches[0].clientY;
+    });
+
+    canvas.addEventListener('touchend', (e) => {
+      isDragging = false;
+      if (e.changedTouches.length === 1) {
+        const dist = Math.hypot(e.changedTouches[0].clientX - mouseDownX, e.changedTouches[0].clientY - mouseDownY);
+        if (dist < 8) {
+          handleCanvasClick(e.changedTouches[0]);
+        }
+      }
+    });
+
+    // Click handler to Raycast Node selection in 100% offline Javascript
+    function handleCanvasClick(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      let closestNodeIdx = -1;
+      let minNodeDist = 18; // 18px threshold
+
+      for (let i = 0; i < nodes3d.length; i++) {
+        const pt = nodes3d[i].projectedPt;
+        if (pt && pt.visible) {
+          const dist = Math.hypot(clickX - pt.sx, clickY - pt.sy);
+          if (dist < minNodeDist) {
+            minNodeDist = dist;
+            closestNodeIdx = i;
+          }
+        }
+      }
+
+      // Check satellites
+      let closestSatIdx = -1;
+      let minSatDist = 20;
+      for (let i = 0; i < 4; i++) {
+        const pt = satellitesProj[i];
+        if (pt && pt.visible) {
+          const dist = Math.hypot(clickX - pt.sx, clickY - pt.sy);
+          if (dist < minSatDist) {
+            minSatDist = dist;
+            closestSatIdx = i;
+          }
+        }
+      }
+
+      if (closestNodeIdx !== -1) {
+        selectOfflineNode(closestNodeIdx);
+      } else if (closestSatIdx !== -1) {
+        selectOfflineSatellite(closestSatIdx);
+      } else {
+        clearOfflineSelection();
+      }
+    }
+
+    function selectOfflineNode(idx) {
+      selectedNodeIdx = idx;
+      selectedSatIdx = null;
+      
+      const inspector = document.getElementById('nodeInspector');
+      inspector.style.display = 'flex';
+      
+      document.getElementById('inspectNodeName').innerText = offlineNodeNames[idx];
+      document.getElementById('inspectCoherence').innerText = (85 + Math.sin(idx) * 12).toFixed(1) + '%';
+      document.getElementById('inspectTemp').innerText = (-170 + Math.abs(Math.cos(idx)) * 50).toFixed(1) + '°C';
+      document.getElementById('inspectStability').innerText = (95 + Math.sin(idx * 2) * 4).toFixed(1) + '%';
+      document.getElementById('inspectHarmonic').innerText = (88 + Math.cos(idx) * 10).toFixed(1) + '%';
+    }
+
+    function selectOfflineSatellite(idx) {
+      selectedSatIdx = idx;
+      selectedNodeIdx = null;
+
+      const satNames = ["Curandero Digital", "Voz del Futuro", "Niño Estelar", "Guerrero Sensible"];
+      const states = ['curandero', 'futuro', 'niño', 'guerrero'];
+
+      const inspector = document.getElementById('nodeInspector');
+      inspector.style.display = 'flex';
+
+      document.getElementById('inspectNodeName').innerText = satNames[idx] + " (ARQUETIPO)";
+      document.getElementById('inspectCoherence').innerText = "94.5%";
+      document.getElementById('inspectTemp').innerText = "Estable";
+      document.getElementById('inspectStability').innerText = "100.0%";
+      document.getElementById('inspectHarmonic').innerText = "Resonancia Máxima";
+
+      switchState(states[idx]);
+    }
+
+    function clearOfflineSelection() {
+      selectedNodeIdx = null;
+      selectedSatIdx = null;
+      document.getElementById('nodeInspector').style.display = 'none';
+    }
+
+    // Toggle features like helix or physics modular joints
+    function toggleFeature(featureName, active) {
+      features[featureName] = active;
+      const statusText = document.getElementById('hudStatusVal');
+      if (features.helix && features.physics) {
+        statusText.innerText = '● CONECTADA HÍBRIDA';
+        statusText.style.color = '#00E676';
+      } else if (features.helix) {
+        statusText.innerText = '● ENERGÍA ACTIVA';
+        statusText.style.color = 'var(--luminous-cyan)';
+      } else {
+        statusText.innerText = '● SINCRONIZADA';
+        statusText.style.color = 'var(--soft-silver)';
+      }
+    }
+
+    // Quantum pulse logic
+    function fireQuantumPulse() {
+      features.pulseTimer = 1.0;
+      const alert = document.getElementById('pulseAlert');
+      alert.style.display = 'block';
+
+      const prevEnergy = simParams.energy;
+      const prevNode = simParams.nodeSize;
+      simParams.energy = 150;
+      simParams.nodeSize = 2.8;
+
+      setTimeout(() => {
+        alert.style.display = 'none';
+        simParams.energy = prevEnergy;
+        simParams.nodeSize = prevNode;
+      }, 1500);
+    }
+
+    // Initialize procedural shapes
+    function init3D() {
+      // 1. Central AI Nodes (Spherical wireframe core representing brain)
+      const numCentral = 16;
+      for (let i = 0; i < numCentral; i++) {
+        const u = Math.random();
+        const v = Math.random();
+        const theta = u * 2.0 * Math.PI;
+        const phi = Math.acos(2.0 * v - 1.0);
+        const r = 50 + Math.random() * 15;
+        nodes3d.push({
+          x: r * Math.sin(phi) * Math.cos(theta),
+          y: r * Math.sin(phi) * Math.sin(theta),
+          z: r * Math.cos(phi),
+          baseX: r * Math.sin(phi) * Math.cos(theta),
+          baseY: r * Math.sin(phi) * Math.sin(theta),
+          baseZ: r * Math.cos(phi),
+          pulseOffset: Math.random() * Math.PI * 2,
+          active: Math.random() > 0.3
+        });
+      }
+
+      // 2. Double-circular orbital rails representing cosmic synchronization
+      const shellCount = 24;
+      for (let i = 0; i < shellCount; i++) {
+        const theta = (i / shellCount) * Math.PI * 2;
+        shellNodes.push({
+          x: 150 * Math.cos(theta),
+          y: 0,
+          z: 150 * Math.sin(theta),
+          angle: theta,
+          axis: 'XZ'
+        });
+        shellNodes.push({
+          x: 0,
+          y: 130 * Math.cos(theta),
+          z: 130 * Math.sin(theta),
+          angle: theta,
+          axis: 'YZ'
+        });
+      }
+
+      // 3. Swarm Particles (organically orbiting surrounding space)
+      const particleCount = 60;
+      for (let i = 0; i < particleCount; i++) {
+        swarmParticles.push({
+          angle: Math.random() * Math.PI * 2,
+          speed: 0.01 + Math.random() * 0.02,
+          radius: 180 + Math.random() * 60,
+          height: (Math.random() - 0.5) * 80,
+          size: 1.5 + Math.random() * 2,
+          phase: Math.random() * Math.PI * 2
+        });
+      }
+
+      // 4. Biomechanical Wave base grid
+      for (let x = -10; x <= 10; x++) {
+        for (let z = -10; z <= 10; z++) {
+          if (x * x + z * z < 100) {
+            waves.push({
+              gridX: x * 20,
+              gridZ: z * 20,
+              phase: Math.random() * Math.PI
+            });
+          }
+        }
+      }
+    }
+
+    // 3D Coordinate Rotation & Projection
+    function project(x, y, z) {
+      // Rotation Y
+      let x1 = x * Math.cos(ry) - z * Math.sin(ry);
+      let z1 = x * Math.sin(ry) + z * Math.cos(ry);
+
+      // Rotation X
+      let y2 = y * Math.cos(rx) - z1 * Math.sin(rx);
+      let z2 = y * Math.sin(rx) + z1 * Math.cos(rx);
+
+      // Perspective Projection
+      const fov = 400;
+      const distance = 300;
+      const scale = fov / (fov + z2 + distance);
+      
+      return {
+        sx: width / 2 + x1 * scale * 1.3,
+        sy: height / 2 + y2 * scale * 1.3,
+        visible: z2 + distance > 50,
+        depth: z2
+      };
+    }
+
+    let frameCount = 0;
+    let satellitesProj = [null, null, null, null];
+
+    // Simulation Loop
+    function renderLoop() {
+      frameCount++;
+      ctx.clearRect(0, 0, width, height);
+
+      // Interpolate rotation drag
+      rx += (targetRx - rx) * 0.15;
+      ry += (targetRy - ry) * 0.15;
+
+      // Slowly rotate automatically when not dragging
+      if (!isDragging) {
+        targetRy += 0.002 * simParams.speed;
+      }
+
+      const activeColor = 'rgba(79, 195, 247, ' + (simParams.cyan / 100) + ')';
+      const dimColor = 'rgba(79, 195, 247, ' + (simParams.cyan / 250) + ')';
+      const silverColor = 'rgba(176, 190, 197, 0.4)';
+      const titaniumColor = 'rgba(45, 49, 48, 0.6)';
+
+      // 1. Draw Biomechanical Waves (Bottom Grid)
+      waves.forEach(w => {
+        const waveHeight = Math.sin(frameCount * 0.03 * simParams.waveFreq + w.phase) * 15 * (simParams.waveFreq / 1.5);
+        const pt = project(w.gridX, 100 + waveHeight, w.gridZ);
+        if (pt.visible) {
+          ctx.beginPath();
+          ctx.arc(pt.sx, pt.sy, 1, 0, Math.PI * 2);
+          ctx.fillStyle = activeMode === 'supercharge' ? activeColor : dimColor;
+          ctx.fill();
+        }
+      });
+
+      // 2. Draw Orbit Rings
+      ctx.lineWidth = 1.0;
+      ctx.strokeStyle = activeMode === 'stealth' ? 'rgba(255,255,255,0.05)' : 'rgba(79, 195, 247, 0.08)';
+      
+      // XZ Ring projection
+      ctx.beginPath();
+      for (let i = 0; i <= 36; i++) {
+        const theta = (i / 36) * Math.PI * 2;
+        const pt = project(150 * Math.cos(theta), 0, 150 * Math.sin(theta));
+        if (i === 0) ctx.moveTo(pt.sx, pt.sy);
+        else ctx.lineTo(pt.sx, pt.sy);
+      }
+      ctx.stroke();
+
+      // YZ Ring projection
+      ctx.beginPath();
+      for (let i = 0; i <= 36; i++) {
+        const theta = (i / 36) * Math.PI * 2;
+        const pt = project(0, 130 * Math.cos(theta), 130 * Math.sin(theta));
+        if (i === 0) ctx.moveTo(pt.sx, pt.sy);
+        else ctx.lineTo(pt.sx, pt.sy);
+      }
+      ctx.stroke();
+
+      // 3. Draw connecting structural lines (Modular Physics/AI Nodes)
+      ctx.lineWidth = 0.5;
+      ctx.strokeStyle = activeMode === 'diagnostics' ? 'rgba(79, 195, 247, 0.25)' : 'rgba(176, 190, 197, 0.1)';
+      
+      const projectedNodes = nodes3d.map(n => {
+        // dynamic pulsing
+        const pulse = Math.sin(frameCount * 0.04 + n.pulseOffset) * 12 * (simParams.nodeSize / 1.5);
+        const currX = n.baseX * (1 + pulse * 0.02);
+        const currY = n.baseY * (1 + pulse * 0.02);
+        const currZ = n.baseZ * (1 + pulse * 0.02);
+        return {
+          proj: project(currX, currY, currZ),
+          active: n.active
+        };
+      });
+
+      // Save for click calculations
+      for (let i = 0; i < nodes3d.length; i++) {
+        nodes3d[i].projectedPt = projectedNodes[i].proj;
+      }
+
+      // Draw lines between central nodes
+      for (let i = 0; i < projectedNodes.length; i++) {
+        for (let j = i + 1; j < projectedNodes.length; j++) {
+          const dist = Math.hypot(nodes3d[i].x - nodes3d[j].x, nodes3d[i].y - nodes3d[j].y, nodes3d[i].z - nodes3d[j].z);
+          if (dist < 85 * (simParams.nodeSize / 1.5)) {
+            ctx.beginPath();
+            ctx.moveTo(projectedNodes[i].proj.sx, projectedNodes[i].proj.sy);
+            ctx.lineTo(projectedNodes[j].proj.sx, projectedNodes[j].proj.sy);
+            ctx.stroke();
+          }
+        }
+      }
+
+      // 4. Advanced Biomechanical Hybrid Helix Core
+      if (features.helix) {
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(79, 195, 247, 0.5)';
+        ctx.beginPath();
+        let lastPt1 = null, lastPt2 = null;
+        for (let i = 0; i <= 30; i++) {
+          const t = (i / 30) * Math.PI * 6 + (frameCount * 0.05);
+          const y = (i / 30 - 0.5) * 80;
+          const r = 25 * (1 - Math.abs(y) / 70);
+          
+          const pt1 = project(r * Math.sin(t), y, r * Math.cos(t));
+          const pt2 = project(r * Math.sin(t + Math.PI), y, r * Math.cos(t + Math.PI));
+
+          if (i > 0 && pt1.visible && lastPt1 && lastPt1.visible) {
+            ctx.beginPath();
+            ctx.moveTo(lastPt1.sx, lastPt1.sy);
+            ctx.lineTo(pt1.sx, pt1.sy);
+            ctx.stroke();
+          }
+          if (i > 0 && pt2.visible && lastPt2 && lastPt2.visible) {
+            ctx.beginPath();
+            ctx.moveTo(lastPt2.sx, lastPt2.sy);
+            ctx.lineTo(pt2.sx, pt2.sy);
+            ctx.stroke();
+          }
+          lastPt1 = pt1;
+          lastPt2 = pt2;
+        }
+      }
+
+      // 5. Draw Central Node Spheres (Neural Network Core)
+      projectedNodes.forEach((pn, idx) => {
+        if (pn.proj.visible) {
+          ctx.beginPath();
+          const isSelected = selectedNodeIdx === idx;
+          const baseRadius = isSelected ? 8.5 : (3.5 + (simParams.nodeSize / 2));
+          ctx.arc(pn.proj.sx, pn.proj.sy, baseRadius, 0, Math.PI * 2);
+          
+          if (isSelected) {
+            ctx.fillStyle = '#00E676';
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 1.5;
+          } else if (pn.active && activeMode !== 'stealth') {
+            ctx.fillStyle = '#4FC3F7';
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 0.5;
+          } else {
+            ctx.fillStyle = '#2D3130';
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 0.5;
+          }
+          ctx.fill();
+          ctx.stroke();
+        }
+      });
+
+      // 6. Draw Orbiting Satellites (Curandero, Futuro, Niño, Guerrero)
+      const satAngles = [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
+      const satRadii = [150, 130, 150, 130];
+      for (let i = 0; i < 4; i++) {
+        const theta = satAngles[i] + (frameCount * 0.008 * simParams.speed);
+        let x = 0, y = 0, z = 0;
+        if (i % 2 === 0) {
+          x = satRadii[i] * Math.cos(theta);
+          z = satRadii[i] * Math.sin(theta);
+        } else {
+          y = satRadii[i] * Math.cos(theta);
+          z = satRadii[i] * Math.sin(theta);
+        }
+
+        const pt = project(x, y, z);
+        satellitesProj[i] = pt; // save for click checks
+
+        if (pt.visible) {
+          // NEW: Modular Joint Rod lines
+          if (features.physics) {
+            ctx.lineWidth = 1.0;
+            ctx.strokeStyle = 'rgba(0, 230, 118, 0.5)';
+            const centerPt = project(0,0,0);
+            ctx.beginPath();
+            ctx.moveTo(centerPt.sx, centerPt.sy);
+            ctx.lineTo(pt.sx, pt.sy);
+            ctx.stroke();
+          }
+
+          ctx.beginPath();
+          const isSelected = selectedSatIdx === i;
+          const r = isSelected ? 12 : 7.5;
+          ctx.arc(pt.sx, pt.sy, r, 0, Math.PI * 2);
+          ctx.fillStyle = isSelected ? '#00E676' : colors[i];
+          ctx.fill();
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = isSelected ? 1.5 : 0.5;
+          ctx.stroke();
+
+          // Text label
+          ctx.font = '9px monospace';
+          ctx.fillStyle = '#ECEFF1';
+          ctx.fillText(i === 0 ? "CURANDERO" : i === 1 ? "FUTURO" : i === 2 ? "NIÑO" : "GUERRERO", pt.sx + 10, pt.sy + 3);
+        }
+      }
+
+      // 7. Quantum Pulse expanding ring wave
+      if (features.pulseTimer > 0) {
+        features.pulseTimer -= 0.025;
+        const waveScale = (1.0 - features.pulseTimer) * 180;
+        const ptCenter = project(0, 0, 0);
+        if (ptCenter.visible) {
+          ctx.strokeStyle = 'rgba(79, 195, 247, ' + features.pulseTimer + ')';
+          ctx.lineWidth = 3.0;
+          ctx.beginPath();
+          ctx.arc(ptCenter.sx, ptCenter.sy, waveScale, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+
+      // 8. Orbiting Swarm Particles
+      swarmParticles.forEach(p => {
+        p.angle += p.speed * simParams.speed;
+        const pulseH = Math.sin(frameCount * 0.02 + p.phase) * 15;
+        const x = p.radius * Math.cos(p.angle);
+        const z = p.radius * Math.sin(p.angle);
+        const y = p.height + pulseH;
+
+        const pt = project(x, y, z);
+        if (pt.visible) {
+          ctx.beginPath();
+          ctx.arc(pt.sx, pt.sy, p.size, 0, Math.PI * 2);
+          ctx.fillStyle = activeMode === 'supercharge' ? '#4FC3F7' : 'rgba(255,255,255,0.45)';
+          ctx.fill();
+        }
+      });
+
+      // Update HUD numerical simulations dynamically for realistic cybernetic immersion
+      if (frameCount % 15 === 0) {
+        document.getElementById('hudResonanceVal').innerText = (85 + Math.sin(frameCount * 0.01) * 7 + (simParams.energy * 0.05)).toFixed(1) + '%';
+        const numActive = Math.round(10 + Math.sin(frameCount * 0.02) * 3 + (simParams.nodeSize * 1));
+        document.getElementById('hudNodesVal').innerText = Math.min(16, Math.max(4, numActive)) + ' / 16 Activos';
+        document.getElementById('hudSwarmVal').innerText = (80 + Math.sin(frameCount * 0.015) * 10 + (simParams.speed * 8)).toFixed(1) + ' K-Pps';
+      }
+
+      requestAnimationFrame(renderLoop);
+    }
+
+    // Switch Operational Modes
+    function switchMode(mode) {
+      activeMode = mode;
+      document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
+      
+      const targetCard = document.getElementById('card' + mode.charAt(0).toUpperCase() + mode.slice(1));
+      if (targetCard) targetCard.classList.add('active');
+
+      // Update parameters smoothly depending on selected mode
+      if (mode === 'stealth') {
+        simParams.speed = 0.5;
+        simParams.nodeSize = 1.0;
+        simParams.waveFreq = 0.6;
+        simParams.energy = 45;
+        simParams.ambient = 20;
+        simParams.spot = 40;
+        simParams.cyan = 20;
+        features.helix = false;
+        features.physics = false;
+        document.getElementById('toggleHelix').checked = false;
+        document.getElementById('togglePhysics').checked = false;
+      } else if (mode === 'hybrid') {
+        simParams.speed = 1.0;
+        simParams.nodeSize = 1.5;
+        simParams.waveFreq = 1.2;
+        simParams.energy = 90;
+        simParams.ambient = 45;
+        simParams.spot = 80;
+        simParams.cyan = 90;
+        features.helix = true;
+        features.physics = true;
+        document.getElementById('toggleHelix').checked = true;
+        document.getElementById('togglePhysics').checked = true;
+      } else if (mode === 'supercharge') {
+        simParams.speed = 2.2;
+        simParams.nodeSize = 2.2;
+        simParams.waveFreq = 2.0;
+        simParams.energy = 140;
+        simParams.ambient = 75;
+        simParams.spot = 135;
+        simParams.cyan = 140;
+        features.helix = true;
+        features.physics = true;
+        document.getElementById('toggleHelix').checked = true;
+        document.getElementById('togglePhysics').checked = true;
+      } else if (mode === 'diagnostics') {
+        simParams.speed = 1.2;
+        simParams.nodeSize = 1.8;
+        simParams.waveFreq = 1.5;
+        simParams.energy = 100;
+        simParams.ambient = 55;
+        simParams.spot = 95;
+        simParams.cyan = 110;
+        features.helix = true;
+        features.physics = false;
+        document.getElementById('toggleHelix').checked = true;
+        document.getElementById('togglePhysics').checked = false;
+      }
+
+      // Update slider positions
+      document.getElementById('inputSpeed').value = simParams.speed;
+      document.getElementById('inputNode').value = simParams.nodeSize;
+      document.getElementById('inputWave').value = simParams.waveFreq;
+      document.getElementById('inputEnergy').value = simParams.energy;
+      document.getElementById('inputAmbient').value = simParams.ambient;
+      document.getElementById('inputSpot').value = simParams.spot;
+      document.getElementById('inputCyan').value = simParams.cyan;
+
+      // Update numeric output indicators
+      updateParamLabels();
+      toggleFeature('helix', features.helix);
+    }
+
+    function switchState(state) {
+      activeState = state;
+      document.querySelectorAll('.arch-card').forEach(c => c.classList.remove('active'));
+      const card = document.getElementById('arch' + state.charAt(0).toUpperCase() + state.slice(1));
+      if (card) card.classList.add('active');
+
+      const set = translations[currentLang];
+      const descMap = {
+        curandero: set.stateCuranderoDesc,
+        futuro: set.stateFuturoDesc,
+        niño: set.stateNiñoDesc,
+        guerrero: set.stateGuerreroDesc,
+        alquimista: set.stateAlquimistaDesc
+      };
+      
+      document.getElementById('archDesc').innerHTML = descMap[state] || "";
+
+      // Alter base wave structures dynamically
+      if (state === 'curandero') {
+        simParams.waveFreq = 1.2;
+        document.getElementById('hudFreqVal').innerText = "528 Hz (Reparación)";
+      } else if (state === 'futuro') {
+        simParams.waveFreq = 1.8;
+        document.getElementById('hudFreqVal').innerText = "963 Hz (Conexión)";
+      } else if (state === 'niño') {
+        simParams.waveFreq = 0.8;
+        document.getElementById('hudFreqVal').innerText = "432 Hz (Armonía)";
+      } else if (state === 'guerrero') {
+        simParams.waveFreq = 2.4;
+        document.getElementById('hudFreqVal').innerText = "285 Hz (Seguridad)";
+      } else if (state === 'alquimista') {
+        simParams.waveFreq = 1.5;
+        document.getElementById('hudFreqVal').innerText = "741 Hz (Alquimia)";
+      }
+      document.getElementById('inputWave').value = simParams.waveFreq;
+      updateParamLabels();
+    }
+
+    // Param updating from Sliders
+    function updateParam(param, value) {
+      simParams[param] = parseFloat(value);
+      updateParamLabels();
+    }
+
+    function updateParamLabels() {
+      document.getElementById('valSpeed').innerText = simParams.speed.toFixed(1) + 'x';
+      document.getElementById('valNode').innerText = simParams.nodeSize.toFixed(1) + 'x';
+      document.getElementById('valWave').innerText = simParams.waveFreq.toFixed(1) + 'x';
+      document.getElementById('valEnergy').innerText = Math.round(simParams.energy) + '%';
+      document.getElementById('valAmbient').innerText = Math.round(simParams.ambient) + '%';
+      document.getElementById('valSpot').innerText = Math.round(simParams.spot) + '%';
+      document.getElementById('valCyan').innerText = Math.round(simParams.cyan) + '%';
+    }
+
+    // Augmented Reality Simulator
+    function toggleAR(active) {
+      const overlay = document.getElementById('arOverlay');
+      const video = document.getElementById('arVideo');
+      if (active) {
+        overlay.classList.add('active');
+        // Request actual mobile camera if available, otherwise mock
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(stream => {
+              video.srcObject = stream;
+            })
+            .catch(err => {
+              console.log("No physical camera - loaded simulated tabletop desk.", err);
+            });
+        }
+      } else {
+        overlay.classList.remove('active');
+        if (video.srcObject) {
+          video.srcObject.getTracks().forEach(track => track.stop());
+          video.srcObject = null;
+        }
+      }
+    }
+
+    // Multi-Language Switch Engine (100% Offline)
+    function switchLanguage(lang) {
+      currentLang = lang;
+      
+      // Update language buttons active classes
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        if (btn.innerText.toLowerCase() === lang) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+
+      const set = translations[lang];
+
+      // Update text variables dynamically
+      document.getElementById('authorLabel').innerText = set.author;
+      document.getElementById('subTitle').innerText = set.subtitle;
+      document.getElementById('titleConfig').innerText = set.controls;
+      document.getElementById('lblSpeed').innerText = set.simSpeed;
+      document.getElementById('lblNode').innerText = set.nodeSize;
+      document.getElementById('lblWave').innerText = set.waveFreq;
+      document.getElementById('lblEnergy').innerText = set.energyLevel;
+      document.getElementById('titleCinematic').innerText = set.cinematicLight;
+      document.getElementById('lblAmbient').innerText = set.ambientIntensity;
+      document.getElementById('lblSpot').innerText = set.lightIntensity;
+      document.getElementById('lblCyan').innerText = set.cyanIntensity;
+      
+      document.getElementById('lblTelemetry').innerText = set.telemetry;
+      document.getElementById('hudResonance').innerText = set.resonance;
+      document.getElementById('hudNodes').innerText = set.nodeActivation;
+      document.getElementById('hudSwarm').innerText = set.swarmForce;
+      document.getElementById('hudFreq').innerText = set.healingFreq;
+      
+      document.getElementById('lblCosmicTitle').innerText = set.cosmicSync;
+      document.getElementById('hudLunar').innerText = set.moonPhase;
+      document.getElementById('hudCircadian').innerText = set.circadianRhythm;
+      document.getElementById('hudStatus').innerText = set.biomechanicsStatus;
+      
+      document.getElementById('titleModes').innerText = set.operationalModes;
+      document.getElementById('descStealth').innerText = set.stealthDesc;
+      document.getElementById('descHybrid').innerText = set.hybridDesc;
+      document.getElementById('descSupercharge').innerText = set.superchargeDesc;
+      document.getElementById('descDiagnostics').innerText = set.diagnosticsDesc;
+      
+      document.getElementById('titleStates').innerText = set.titleStates || "ESTADOS DINÁMICOS IA";
+      document.getElementById('nameCurandero').innerText = set.stateCurandero;
+      document.getElementById('nameFuturo').innerText = "Voz del Futuro";
+      document.getElementById('nameNiño').innerText = set.stateNiño;
+      document.getElementById('nameGuerrero').innerText = set.stateGuerrero;
+      if (document.getElementById('nameAlquimista')) {
+        document.getElementById('nameAlquimista').innerText = set.stateAlquimista || "Alquimista Ancestral";
+      }
+
+      // Update labels of new modules
+      document.getElementById('titleAdvanced').innerText = "MÓDULOS EXPANDIDOS";
+      document.getElementById('lblHelixToggle').innerText = set.moduleHybridEnergy || "Energía Híbrida";
+      document.getElementById('lblPhysicsToggle').innerText = set.moduleModularPhysics || "Física Modular";
+      document.getElementById('btnPulse').innerText = set.quantumPulse || "Disparar Pulso Cuántico";
+      document.getElementById('pulseAlert').innerText = set.quantumPulseSuccess || "¡PULSO CUÁNTICO PROCESADO CON ÉXITO!";
+      document.getElementById('lblInspectorTitle').innerText = set.selectedNodeLabel || "NODO ACTIVO DETECTADO";
+      document.getElementById('lblCoherence').innerText = set.nodeStatsCoherence || "Coherencia de Resonancia";
+      document.getElementById('lblTemp').innerText = set.nodeStatsTemp || "Temperatura Criogénica";
+      document.getElementById('lblStability').innerText = set.nodeStatsGravity || "Estabilidad Gravitacional";
+
+      // Update current active state description
+      switchState(activeState);
+
+      document.getElementById('titleBrief').innerText = "LyricForge 3000";
+      document.getElementById('txtBrief').innerText = set.projectBrief.substring(0, 160) + "...";
+      document.getElementById('lblMaterial').innerText = set.materialsTitle;
+      document.getElementById('txtMaterial').innerText = set.archVision;
+      document.getElementById('arLabel').innerText = set.arBtn;
+      document.getElementById('arCloseBtn').innerText = set.arClose;
+      document.getElementById('arScanningLabel').innerText = set.arScanning;
+      document.getElementById('arActiveLabel').innerText = set.arActive;
+      document.getElementById('arDeskPlaceholder').innerText = set.arDeskPlaceholder;
+    }
+
+    // Initialize 
+    init3D();
+    renderLoop();
+    switchLanguage('es');
+
+  </script>
+</body>
+</html>
