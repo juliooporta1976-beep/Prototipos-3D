@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AETHOS - Dr. Julio César Oporta Barrera // Pitch Visionario Interactivo</title>
+    <style>
+        :root {
+            --cyan: #4FC3F7;
+            --cyan-glow: rgba(79, 195, 247, 0.6);
+            --grafito: #1A1A1D;
+            --plata: #CFD8DC;
+            --clinico: #FFFFFF;
+            --antracita: #050506;
+            --hud-bg: rgba(10, 10, 12, 0.75);
+            --border-glow: rgba(79, 195, 247, 0.25);
+            --alert: #F48FB1;
+        }
+        
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: var(--antracita); font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: var(--plata); user-select: none; cursor: crosshair; }
+        canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
+
+        /* HUD: HEADER */
+        #hud-header { position: absolute; top: 25px; left: 25px; z-index: 10; pointer-events: none; }
+        .autor-title { font-size: 24px; font-weight: 900; letter-spacing: 4px; color: var(--clinico); text-shadow: 0 0 15px var(--cyan-glow); margin: 0; text-transform: uppercase; }
+        .sub-title { font-size: 11px; letter-spacing: 5px; color: var(--cyan); margin-top: 8px; font-weight: 600; font-family: monospace; }
+
+        /* HUD: MULTILENGUAJE */
+        #hud-lang { position: absolute; top: 25px; right: 25px; z-index: 10; display: flex; gap: 10px; pointer-events: auto; }
+        .btn-lang { background: rgba(5,5,6,0.8); border: 1px solid var(--border-glow); color: var(--plata); padding: 8px 16px; font-size: 10px; font-weight: 800; letter-spacing: 1px; cursor: pointer; transition: all 0.3s ease; backdrop-filter: blur(10px); text-transform: uppercase; }
+        .btn-lang.active, .btn-lang:hover { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 20px rgba(79, 195, 247, 0.3); background: rgba(79, 195, 247, 0.1); }
+
+        /* HUD: PANELES LATERALES (TELEMETRÍA) */
+        .hud-panel { position: absolute; top: 120px; z-index: 10; width: 260px; background: linear-gradient(180deg, var(--hud-bg) 0%, rgba(5,5,6,0.9) 100%); border: 1px solid var(--border-glow); padding: 18px; backdrop-filter: blur(12px); font-family: monospace; font-size: 11px; pointer-events: none; transition: all 0.3s ease; }
+        #hud-left { left: 25px; border-left: 3px solid var(--cyan); box-shadow: 10px 10px 30px rgba(0,0,0,0.8); }
+        #hud-right { right: 25px; border-right: 3px solid var(--plata); box-shadow: -10px 10px 30px rgba(0,0,0,0.8); }
+        
+        .hud-section-title { color: var(--cyan); font-size: 12px; font-weight: 800; letter-spacing: 3px; margin-bottom: 15px; border-bottom: 1px solid rgba(79,195,247,0.15); padding-bottom: 6px; text-transform: uppercase; text-shadow: 0 0 8px var(--cyan-glow); }
+        .metric-row { display: flex; justify-content: space-between; margin-bottom: 10px; align-items: center; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 4px;}
+        .metric-label { color: rgba(207, 216, 220, 0.7); font-size: 10px; }
+        .metric-value { color: var(--clinico); font-weight: bold; text-shadow: 0 0 5px rgba(255,255,255,0.3); }
+        .metric-value.highlight { color: var(--cyan); text-shadow: 0 0 10px var(--cyan-glow); }
+        .metric-value.critical { color: var(--alert); text-shadow: 0 0 10px rgba(244, 143, 177, 0.6); }
+
+        /* HUD: INSPECTOR DE NODOS (INTERACTIVO) */
+        #node-inspector { position: absolute; top: 50%; right: 310px; transform: translateY(-50%); width: 220px; background: rgba(5,5,6,0.85); border: 1px solid var(--cyan); padding: 15px; font-family: monospace; font-size: 10px; color: var(--plata); display: none; pointer-events: none; z-index: 20; box-shadow: 0 0 25px rgba(79, 195, 247, 0.2); backdrop-filter: blur(5px); }
+        .node-title { color: var(--cyan); font-weight: bold; font-size: 12px; margin-bottom: 8px; letter-spacing: 1px; border-bottom: 1px solid var(--cyan); padding-bottom: 4px; }
+        .node-data { margin-bottom: 4px; display: flex; justify-content: space-between; }
+
+        /* HUD: PANEL CENTRAL INFERIOR (MÓDULOS) */
+        #control-center { position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); z-index: 10; background: var(--hud-bg); border: 1px solid rgba(79, 195, 247, 0.2); border-radius: 4px; padding: 20px; width: 94%; max-width: 1200px; backdrop-filter: blur(15px); box-shadow: 0 20px 50px rgba(0,0,0,0.9); pointer-events: auto; }
+        .grid-modules { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; width: 100%; }
+        
+        .btn-mod { background: var(--grafito); border: 1px solid rgba(207,216,220,0.15); color: var(--plata); padding: 12px 6px; font-size: 9px; font-weight: 800; font-family: 'Segoe UI', sans-serif; cursor: pointer; text-transform: uppercase; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); text-align: center; letter-spacing: 1px; position: relative; overflow: hidden; }
+        .btn-mod::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(79, 195, 247, 0.2), transparent); transition: left 0.5s; }
+        .btn-mod:hover::before { left: 100%; }
+        .btn-mod:hover { background: rgba(79, 195, 247, 0.05); border-color: var(--cyan); color: var(--cyan); }
+        .btn-mod.active { background: rgba(79, 195, 247, 0.15); border-color: var(--cyan); color: var(--clinico); box-shadow: inset 0 0 15px rgba(79,195,247,0.3); }
+        
+        .btn-mod.new-mod { border-color: #B39DDB; color: #B39DDB; }
+        .btn-mod.new-mod.active { background: rgba(179, 157, 219, 0.15); border-color: #B39DDB; color: #FFF; box-shadow: inset 0 0 15px rgba(179, 157, 219, 0.3); }
+        
+        .btn-mod.critical { border-color: var(--alert); color: var(--alert); }
+        .btn-mod.critical.active { background: rgba(244, 143, 177, 0.15); border-color: var(--alert); color: #FFF; box-shadow: inset 0 0 20px rgba(244, 143, 177, 0.4); }
+
+        .panel-actions { margin-top: 15px; display: flex; gap: 10px; }
+        .btn-action { flex: 1; padding: 12px; font-size: 11px; font-weight: 800; background: rgba(79,195,247,0.08); border: 1px solid var(--cyan); color: var(--cyan); cursor: pointer; text-transform: uppercase; font-family: monospace; letter-spacing: 2px; transition: all 0.3s; }
+        .btn-action:hover { background: var(--cyan); color: var(--antracita); box-shadow: 0 0 20px var(--cyan); }
+
+        /* GRÁFICO DINÁMICO */
+        .graph-container { width: 100%; height: 50px; display: flex; align-items: flex-end; gap: 3px; margin-top: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .graph-bar { flex: 1; background: var(--cyan); opacity: 0.8; transition: height 0.1s ease; }
+        .graph-bar.alert { background: var(--alert); }
+
+        @media (max-width: 1024px) {
+            .hud-panel { display: none; }
+            #node-inspector { right: 20px; top: 100px; transform: none; }
+            .grid-modules { grid-template-columns: repeat(3, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="hud-header">
+        <h1 class="autor-title">Dr. Julio César Oporta Barrera</h1>
+        <div class="sub-title" id="txt-subtitle">AETHOS // ARQUITECTURA EXISTENCIAL PROTOCONECTADA</div>
+    </div>
+
+    <div id="hud-lang">
+        <button class="btn-lang active" onclick="translateSys('es')">ES</button>
+        <button class="btn-lang" onclick="translateSys('en')">EN</button>
+        <button class="btn-lang" onclick="translateSys('zh')">中文</button>
+    </div>
+
+    <div id="hud-left" class="hud-panel">
+        <div class="hud-section-title" id="txt-telemetry">TELEMETRÍA EXISTENCIAL</div>
+        <div class="metric-row"><span class="metric-label">ESTADO DEL CORE:</span><span class="metric-value highlight">ONLINE</span></div>
+        <div class="metric-row"><span class="metric-label">COEF. COHERENCIA (C.C.):</span><span class="metric-value" id="val-cco">0.84</span></div>
+        <div class="metric-row"><span class="metric-label">LÚMINA_KYBER:</span><span class="metric-value highlight">SINCRONIZADO</span></div>
+        <div class="metric-row"><span class="metric-label">RESONANCIA VIRAL:</span><span class="metric-value" id="val-viral">24.5k Nodos/s</span></div>
+        <div class="metric-row"><span class="metric-label">VALOR DESCENTRALIZADO:</span><span class="metric-value highlight" id="val-fiat">1.42M Vol.</span></div>
+    </div>
+
+    <div id="hud-right" class="hud-panel">
+        <div class="hud-section-title" id="txt-ops">MÉTRICAS DE RENDIMIENTO</div>
+        <div class="metric-row"><span class="metric-label">NODOS ACTIVOS:</span><span class="metric-value" id="val-nodes">300</span></div>
+        <div class="metric-row"><span class="metric-label">CARGA DE SHADERS:</span><span class="metric-value">PBR NATIVO</span></div>
+        <div class="metric-row"><span class="metric-label">FÍSICA TOPOLÓGICA:</span><span class="metric-value" id="val-phys">ESTABLE</span></div>
+        <div class="metric-row"><span class="metric-label">ESTRÉS BIOMECÁNICO:</span><span class="metric-value" id="val-stress">Bajo (0.12)</span></div>
+        <div class="graph-container" id="performance-graph"></div>
+    </div>
+
+    <div id="node-inspector">
+        <div class="node-title" id="insp-title">NODO SELECCIONADO</div>
+        <div class="node-data"><span style="color:#CFD8DC">ID:</span><span id="insp-id">---</span></div>
+        <div class="node-data"><span style="color:#CFD8DC">Frecuencia:</span><span id="insp-freq" style="color:var(--cyan)">---</span></div>
+        <div class="node-data"><span style="color:#CFD8DC">Estado:</span><span id="insp-status">---</span></div>
+        <div class="node-data"><span style="color:#CFD8DC">Vector Vel:</span><span id="insp-vel">---</span></div>
+    </div>
+
+    <div id="control-center">
+        <div class="grid-modules">
+            <button class="btn-mod active" id="mod-patent" onclick="toggleMod('patent')">MÓDULO PATENTE</button>
+            <button class="btn-mod" id="mod-bio" onclick="toggleMod('bio')">BIOMECÁNICA</button>
+            <button class="btn-mod" id="mod-phys" onclick="toggleMod('phys')">FÍSICA MODULAR</button>
+            <button class="btn-mod" id="mod-energy" onclick="toggleMod('energy')">ENERGÍA HÍBRIDA</button>
+            <button class="btn-mod" id="mod-swarm" onclick="toggleMod('swarm')">IA DE ENJAMBRE</button>
+            <button class="btn-mod new-mod" id="mod-net" onclick="toggleMod('net')">RED TRANSACCIONAL</button>
+            <button class="btn-mod new-mod" id="mod-grid" onclick="toggleMod('grid')">MALLA TOPOLÓGICA</button>
+            <button class="btn-mod critical" id="mod-singularity" onclick="toggleMod('singularity')">SINGULARIDAD SOMA</button>
+            <button class="btn-mod critical" id="mod-overdrive" onclick="toggleMod('overdrive')">SOBRECARGA NEURAL</button>
+        </div>
+        <div class="panel-actions">
+            <button class="btn-action" id="btn-ar" onclick="toggleAR()">SIMULADOR DE REALIDAD AUMENTADA (AR PASSTHROUGH)</button>
+        </div>
+    </div>
+
+    <canvas id="coreCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('coreCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // DICCIONARIO MULTILENGUAJE EXPANDIDO
+        const dict = {
+            es: { sub: "AETHOS // ARQUITECTURA EXISTENCIAL PROTOCONECTADA", tel: "TELEMETRÍA EXISTENCIAL", ops: "MÉTRICAS DE RENDIMIENTO",
+                m_pat: "MÓDULO PATENTE", m_bio: "BIOMECÁNICA", m_phy: "FÍSICA MODULAR", m_ene: "ENERGÍA HÍBRIDA", m_swa: "IA DE ENJAMBRE", 
+                m_net: "RED TRANSACCIONAL", m_gri: "MALLA TOPOLÓGICA", m_sin: "SINGULARIDAD SOMA", m_ove: "SOBRECARGA NEURAL", btn_ar: "SIMULADOR DE REALIDAD AUMENTADA (AR PASSTHROUGH)",
+                q1: "INSPECCIÓN [Espejo sin Distancia]", q2: "PILOTAJE [Campo del Pavor]", q3: "REVELACIÓN [Oráculo Verdad]", q4: "ACTIVACIÓN [Narrativa]"
+            },
+            en: { sub: "AETHOS // PROTOCONNECTED EXISTENTIAL ARCHITECTURE", tel: "EXISTENTIAL TELEMETRY", ops: "PERFORMANCE METRICS",
+                m_pat: "PATENT MODULE", m_bio: "BIOMECHANICS", m_phy: "MODULAR PHYSICS", m_ene: "HYBRID ENERGY", m_swa: "SWARM AI", 
+                m_net: "TRANSACTIONAL NET", m_gri: "TOPOLOGICAL GRID", m_sin: "SOMA SINGULARITY", m_ove: "NEURAL OVERDRIVE", btn_ar: "AUGMENTED REALITY SIMULATOR (AR PASSTHROUGH)",
+                q1: "INSPECTION [No-Distance Mirror]", q2: "PILOTING [Field of Dread]", q3: "REVELATION [Oracle of Truth]", q4: "ACTIVATION [Narrative]"
+            },
+            zh: { sub: "AETHOS // 原生连接 Existential 架构", tel: "存在遥测系统", ops: "性能指标分析",
+                m_pat: "专利结构模块", m_bio: "生物力学", m_phy: "模块化物理", m_ene: "混合能源", m_swa: "群集人工智能", 
+                m_net: "交易网络价值", m_gri: "拓扑网格", m_sin: "SOMA 奇点", m_ove: "神经超载运行", btn_ar: "增强现实模拟器 (AR 透视)",
+                q1: "检查 [无距离反射镜]", q2: "领航 [恐惧场域控制]", q3: "启示 [应用真理神谕]", q4: "激活 [选择你的叙事]"
+            }
+        };
+        let lang = 'es';
+
+        function translateSys(l) {
+            lang = l;
+            document.querySelectorAll('.btn-lang').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('txt-subtitle').innerText = dict[l].sub;
+            document.getElementById('txt-telemetry').innerText = dict[l].tel;
+            document.getElementById('txt-ops').innerText = dict[l].ops;
+            document.getElementById('mod-patent').innerText = dict[l].m_pat;
+            document.getElementById('mod-bio').innerText = dict[l].m_bio;
+            document.getElementById('mod-phys').innerText = dict[l].m_phy;
+            document.getElementById('mod-energy').innerText = dict[l].m_ene;
+            document.getElementById('mod-swarm').innerText = dict[l].m_swa;
+            document.getElementById('mod-net').innerText = dict[l].m_net;
+            document.getElementById('mod-grid').innerText = dict[l].m_gri;
+            document.getElementById('mod-singularity').innerText = dict[l].m_sin;
+            document.getElementById('mod-overdrive').innerText = dict[l].m_ove;
+            document.getElementById('btn-ar').innerText = dict[l].btn_ar;
+        }
+
+        // ESTADOS DE SIMULACIÓN
+        let mods = { patent: true, bio: false, phys: false, energy: false, swarm: false, net: false, grid: false, singularity: false, overdrive: false, ar: false };
+        function toggleMod(id) {
+            mods[id] = !mods[id];
+            document.getElementById('mod-' + id).classList.toggle('active', mods[id]);
+        }
+        function toggleAR() {
+            mods.ar = !mods.ar;
+            let b = document.getElementById('btn-ar');
+            if(mods.ar){ b.style.background = '#FFF'; b.style.color = '#000'; } 
+            else { b.style.background = 'rgba(79,195,247,0.08)'; b.style.color = 'var(--cyan)'; }
+        }
+
+        // CONTROL MATRICIAL 3D NATIVO Y CÁMARA
+        let w, h;
+        let rotX = 0.5, rotY = 0.6, zoom = 1.0;
+        let isDragging = false, lastMouse = {x:0, y:0}, currentMouse = {x:0, y:0};
+        let hoveredNodeData = null; // Interacción Avanzada
+
+        function resize() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize); resize();
+
+        // EVENTOS DE INTERACCIÓN FÍSICA Y PUNTERO
+        window.addEventListener('mousedown', e => { if(e.clientY < h - 150) { isDragging = true; lastMouse = {x: e.clientX, y: e.clientY}; } });
+        window.addEventListener('mousemove', e => {
+            currentMouse = {x: e.clientX, y: e.clientY};
+            if(isDragging) {
+                rotY += (e.clientX - lastMouse.x) * 0.005;
+                rotX += (e.clientY - lastMouse.y) * 0.005;
+                lastMouse = {x: e.clientX, y: e.clientY};
+            }
+        });
+        window.addEventListener('mouseup', () => isDragging = false);
+        window.addEventListener('wheel', e => { zoom = Math.max(0.4, Math.min(zoom - e.deltaY * 0.001, 2.5)); });
+
+        // MOTOR DE PROYECCIÓN 3D -> 2D
+        function project(x, y, z) {
+            let cy = Math.cos(rotY), sy = Math.sin(rotY);
+            let x1 = x*cy - z*sy, z1 = x*sy + z*cy;
+            let cx = Math.cos(rotX), sx = Math.sin(rotX);
+            let y2 = y*cx - z1*sx, z2 = y*sx + z1*cx;
+            let scale = (450 * zoom) / (600 + z2);
+            return { x: x1*scale + w/2, y: y2*scale + h/2, scale: scale, depth: z2, origX: x, origY: y, origZ: z };
+        }
+
+        // GENERACIÓN DE ENJAMBRES CON ESTELAS (PARTICLE TRAILS)
+        let nodes = [];
+        for(let i=0; i<300; i++) {
+            let th = Math.random() * Math.PI * 2, ph = Math.acos(Math.random() * 2 - 1);
+            let r = 120 + Math.random() * 80;
+            nodes.push({ id: "ND-"+Math.floor(Math.random()*9999), x: r*Math.sin(ph)*Math.cos(th), y: r*Math.sin(ph)*Math.sin(th), z: r*Math.cos(ph), spd: 0.005 + Math.random()*0.02, phase: Math.random()*100, history: [] });
+        }
+
+        // GRÁFICO DE RENDIMIENTO HUD
+        const graphEl = document.getElementById('performance-graph');
+        for(let i=0; i<35; i++) {
+            let bar = document.createElement('div');
+            bar.className = 'graph-bar';
+            graphEl.appendChild(bar);
+        }
+
+        // BUCLE PRINCIPAL DE SIMULACIÓN Y SHADERS
+        function render() {
+            requestAnimationFrame(render);
+            let t = Date.now() * 0.001;
+
+            // Variabilidad Dinámica HUD
+            document.getElementById('val-cco').innerText = (0.84 + Math.sin(t*2)*0.05).toFixed(3);
+            document.getElementById('val-viral').innerText = (24.5 + Math.cos(t*5)*2).toFixed(1) + "k N/s";
+            document.getElementById('val-fiat').innerText = (1.42 + Math.sin(t)*0.1).toFixed(2) + "M Vol";
+            
+            if(mods.singularity || mods.overdrive) {
+                document.getElementById('val-phys').innerText = "VORTEX_ACTIVO";
+                document.getElementById('val-stress').innerText = "CRÍTICO (0.98)";
+                document.getElementById('val-stress').classList.add('critical');
+            } else {
+                document.getElementById('val-phys').innerText = mods.phys ? "MÓDULO FLUIDO" : "ESTABLE";
+                document.getElementById('val-stress').innerText = "Bajo (0.12)";
+                document.getElementById('val-stress').classList.remove('critical');
+            }
+
+            // Actualizar gráfico de barras
+            if(t % 0.1 < 0.02) {
+                let bars = graphEl.children;
+                for(let i=0; i<bars.length; i++) {
+                    bars[i].style.height = (Math.random() * 40 + 10) + 'px';
+                    if(mods.overdrive) bars[i].classList.add('alert'); else bars[i].classList.remove('alert');
+                }
+            }
+
+            // Movimiento pasivo
+            if(!isDragging) { rotY += mods.overdrive ? 0.02 : 0.002; rotX += mods.overdrive ? 0.01 : 0.001; }
+
+            // Limpiar Lienzo con Color Estilizado
+            ctx.fillStyle = mods.ar ? '#111312' : '#050506';
+            ctx.fillRect(0,0,w,h);
+
+            // Shader de Fondo Cinemático
+            let bgGlow = ctx.createRadialGradient(w/2, h/2, 10, w/2, h/2, 500*zoom);
+            bgGlow.addColorStop(0, mods.overdrive ? 'rgba(244, 143, 177, 0.15)' : 'rgba(79, 195, 247, 0.1)');
+            bgGlow.addColorStop(1, 'transparent');
+            ctx.fillStyle = bgGlow;
+            ctx.fillRect(0,0,w,h);
+
+            let renderQ = [];
+            hoveredNodeData = null; // Reset hover cada frame
+
+            // NUEVO MÓDULO: MALLA TOPOLÓGICA (GRID 3D)
+            if(mods.grid) {
+                let gridSize = 400, step = 40;
+                ctx.strokeStyle = 'rgba(207, 216, 220, 0.08)';
+                ctx.lineWidth = 1;
+                for(let i = -gridSize; i <= gridSize; i+=step) {
+                    let p1 = project(i, 200, -gridSize), p2 = project(i, 200, gridSize);
+                    let p3 = project(-gridSize, 200, i), p4 = project(gridSize, 200, i);
+                    renderQ.push({ d: p1.depth, draw: () => { ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); }});
+                    renderQ.push({ d: p3.depth, draw: () => { ctx.beginPath(); ctx.moveTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.stroke(); }});
+                }
+            }
+
+            // SIMULACIÓN DE IA DE ENJAMBRE + ESTELAS
+            if(mods.swarm || mods.net) {
+                nodes.forEach((n, idx) => {
+                    let angle = t * n.spd + n.phase;
+                    let tx = n.x * Math.cos(angle) - n.z * Math.sin(angle);
+                    let tz = n.x * Math.sin(angle) + n.z * Math.cos(angle);
+                    let ty = n.y + Math.sin(t*2 + idx)*15;
+
+                    if(mods.singularity) { tx *= 0.2; ty *= 0.2; tz *= 0.2; } // Vórtice gravitacional
+                    if(mods.phys) { ty += Math.cos(t*3)*30; } // Ondulación física
+
+                    // Guardar historial para estelas (Particle Trails)
+                    n.history.push({x: tx, y: ty, z: tz});
+                    if(n.history.length > 15) n.history.shift();
+
+                    let proj = project(tx, ty, tz);
+
+                    // Interacción Raycasting: Detectar Hover del Mouse
+                    let distMouse = Math.hypot(proj.x - currentMouse.x, proj.y - currentMouse.y);
+                    let isHovered = distMouse < 15;
+                    if(isHovered) hoveredNodeData = { id: n.id, freq: (n.spd*1000).toFixed(2)+"Hz", stat: mods.singularity?"COMPRESO":"ACTIVO", vel: `[${tx.toFixed(0)}, ${ty.toFixed(0)}]`, px: proj.x, py: proj.y };
+
+                    renderQ.push({
+                        d: proj.depth,
+                        draw: () => {
+                            // Dibujar Estelas (Trails)
+                            if(mods.energy && n.history.length > 1) {
+                                ctx.beginPath();
+                                let firstP = project(n.history[0].x, n.history[0].y, n.history[0].z);
+                                ctx.moveTo(firstP.x, firstP.y);
+                                for(let k=1; k<n.history.length; k++) {
+                                    let hp = project(n.history[k].x, n.history[k].y, n.history[k].z);
+                                    ctx.lineTo(hp.x, hp.y);
+                                }
+                                ctx.strokeStyle = mods.overdrive ? 'rgba(244,143,177,0.3)' : 'rgba(79,195,247,0.3)';
+                                ctx.lineWidth = 1.5 * proj.scale;
+                                ctx.stroke();
+                            }
+
+                            // Dibujar Nodo Central
+                            ctx.fillStyle = isHovered ? '#FFFFFF' : (mods.overdrive ? '#F48FB1' : ((idx%7===0) ? '#4FC3F7' : '#CFD8DC'));
+                            if(mods.net && idx%3===0) ctx.fillRect(proj.x, proj.y, 3*proj.scale, 3*proj.scale); // Cuadrados para red transaccional
+                            else { ctx.beginPath(); ctx.arc(proj.x, proj.y, 1.5*proj.scale, 0, Math.PI*2); ctx.fill(); }
+
+                            // Conexiones de Red Transaccional
+                            if(mods.net && idx > 0 && idx % 10 === 0) {
+                                let prevProj = project(nodes[idx-1].history[nodes[idx-1].history.length-1].x, nodes[idx-1].history[nodes[idx-1].history.length-1].y, nodes[idx-1].history[nodes[idx-1].history.length-1].z);
+                                ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+                                ctx.beginPath(); ctx.moveTo(proj.x, proj.y); ctx.lineTo(prevProj.x, prevProj.y); ctx.stroke();
+                            }
+                        }
+                    });
+                });
+            }
+
+            let cP = project(0,0,0);
+
+            // MÓDULO PATENTE INTEGRADO Y DINÁMICO
+            if(mods.patent) {
+                let dist = mods.phys ? 200 + Math.sin(t*3)*30 : 160;
+                if(mods.singularity) dist = 90;
+                let quads = [ {x:-dist, y:-dist, txt:dict[lang].q1}, {x:dist, y:-dist, txt:dict[lang].q2}, {x:-dist, y:dist, txt:dict[lang].q3}, {x:dist, y:dist, txt:dict[lang].q4} ];
+                
+                quads.forEach(q => {
+                    let pq = project(q.x, q.y, 0);
+                    renderQ.push({
+                        d: pq.depth,
+                        draw: () => {
+                            // Línea de enlace
+                            ctx.strokeStyle = mods.overdrive ? 'rgba(244,143,177,0.4)' : 'rgba(79,195,247,0.4)';
+                            ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cP.x, cP.y); ctx.lineTo(pq.x, pq.y); ctx.stroke();
+                            
+                            // Interfaz Stealth de Cuadrante
+                            let wQ = 140*pq.scale, hQ = 35*pq.scale;
+                            ctx.fillStyle = 'rgba(10,10,12,0.85)'; ctx.fillRect(pq.x-wQ/2, pq.y-hQ/2, wQ, hQ);
+                            ctx.strokeStyle = mods.overdrive ? '#F48FB1' : '#4FC3F7'; ctx.strokeRect(pq.x-wQ/2, pq.y-hQ/2, wQ, hQ);
+                            
+                            ctx.fillStyle = '#FFF'; ctx.font = (9*pq.scale)+"px monospace"; ctx.textAlign="center";
+                            ctx.fillText(q.txt, pq.x, pq.y+3*pq.scale);
+                        }
+                    });
+                });
+            }
+
+            // NÚCLEO CENTRAL LÚMINA KYBER
+            renderQ.push({
+                d: cP.depth,
+                draw: () => {
+                    // Pulso Biomecánico Central
+                    if(mods.bio) {
+                        ctx.beginPath();
+                        ctx.arc(cP.x, cP.y, (20 + Math.sin(t*6)*10) * cP.scale, 0, Math.PI*2);
+                        ctx.fillStyle = 'rgba(79,195,247,0.15)'; ctx.fill();
+                    }
+                    
+                    ctx.shadowBlur = mods.energy ? 40 : 15;
+                    ctx.shadowColor = mods.overdrive ? '#F48FB1' : '#4FC3F7';
+                    ctx.fillStyle = mods.overdrive ? '#FFFFFF' : '#4FC3F7';
+                    ctx.beginPath(); ctx.arc(cP.x, cP.y, 14*cP.scale, 0, Math.PI*2); ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    ctx.strokeStyle = '#CFD8DC'; ctx.lineWidth = 2;
+                    ctx.strokeRect(cP.x - 18*cP.scale, cP.y - 18*cP.scale, 36*cP.scale, 36*cP.scale);
+                    ctx.fillStyle = '#FFF'; ctx.font = "bold 10px monospace"; ctx.fillText("CORE", cP.x, cP.y-25*cP.scale);
+                }
+            });
+
+            // EJECUTAR RENDER ORDENADO (PAINTER'S ALGORITHM)
+            renderQ.sort((a,b) => b.d - a.d).forEach(q => q.draw());
+
+            // LÓGICA DE INTERACCIÓN AVANZADA HUD (OVERLAYS)
+            const insp = document.getElementById('node-inspector');
+            if(hoveredNodeData) {
+                // Dibujar Retícula de Selección Puntero -> Nodo
+                ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 0.5;
+                ctx.beginPath(); ctx.moveTo(currentMouse.x, currentMouse.y); ctx.lineTo(hoveredNodeData.px, hoveredNodeData.py); ctx.stroke();
+                ctx.beginPath(); ctx.arc(hoveredNodeData.px, hoveredNodeData.py, 10, 0, Math.PI*2); ctx.stroke();
+
+                // Actualizar HUD
+                document.getElementById('insp-id').innerText = hoveredNodeData.id;
+                document.getElementById('insp-freq').innerText = hoveredNodeData.freq;
+                document.getElementById('insp-status').innerText = hoveredNodeData.stat;
+                document.getElementById('insp-vel').innerText = hoveredNodeData.vel;
+                insp.style.display = 'block';
+            } else {
+                insp.style.display = 'none';
+            }
+        }
+
+        render();
+    </script>
+</body>
+</html>
