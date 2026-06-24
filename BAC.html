@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BAC BIOSFERA™ - Prototipo 3D Dr. Julio César Oporta Barrera</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            titanium: '#374151',
+            cyanLight: '#4FC3F7',
+            anthracite: '#111827',
+            bioGreen: '#10b981',
+            alertRed: '#ef4444'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #030712;
+      overflow: hidden;
+      cursor: crosshair;
+    }
+    .hud-glass {
+      background: rgba(17, 24, 39, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(79, 195, 247, 0.25);
+      transition: all 0.3s ease;
+    }
+    .hud-glass:hover {
+      border-color: rgba(79, 195, 247, 0.5);
+      box-shadow: 0 0 20px rgba(79, 195, 247, 0.15);
+    }
+    .border-glow {
+      box-shadow: 0 0 15px rgba(79, 195, 247, 0.3);
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.1);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(79, 195, 247, 0.4);
+      border-radius: 4px;
+    }
+    #webcam-feed {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 0;
+      display: none;
+      transform: scaleX(-1);
+    }
+    canvas {
+      z-index: 10;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    /* Añadido: Animaciones de pulso y advertencia */
+    @keyframes pulse-ring {
+      0% { transform: scale(0.9); opacity: 1; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+    .animate-pulse-ring::before {
+      content: '';
+      position: absolute;
+      left: -4px; top: -4px; right: -4px; bottom: -4px;
+      border: 2px solid #4FC3F7;
+      border-radius: inherit;
+      animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+    @keyframes text-glitch {
+      0% { opacity: 1; }
+      50% { opacity: 0.8; transform: translateX(1px); }
+      100% { opacity: 1; transform: translateX(0); }
+    }
+    .glitch { animation: text-glitch 2s infinite; }
+  </style>
+</head>
+<body class="text-white select-none">
+
+  <video id="webcam-feed" autoplay playsinline></video>
+
+  <div class="absolute top-4 left-4 z-50 flex flex-col pointer-events-auto">
+    <div class="hud-glass px-4 py-2 rounded-lg border border-l-4 border-l-cyanLight shadow-lg flex flex-col">
+      <span class="text-xs font-mono tracking-widest text-cyanLight uppercase font-semibold glitch" id="trans-author">Dr. Julio César Oporta Barrera</span>
+      <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+        <span id="trans-title">BAC BIOSFERA™</span>
+        <span class="bg-cyanLight/20 text-cyanLight text-[10px] px-1.5 py-0.5 rounded border border-cyanLight/30">PROTOTIPO 3D v2.0</span>
+      </h1>
+      <span class="text-[9px] text-gray-400 font-medium max-w-sm" id="trans-subtitle">Finanzas Regenerativas para la Seguridad Alimentaria Centroamericana</span>
+    </div>
+  </div>
+
+  <div class="absolute top-4 right-4 z-50 flex gap-2 pointer-events-auto">
+    <div class="hud-glass p-1 rounded-lg flex gap-1 border border-cyanLight/20 shadow-md">
+      <button onclick="setLanguage('es')" id="btn-lang-es" class="px-2.5 py-1 text-xs rounded font-medium transition-all bg-cyanLight text-black">ES</button>
+      <button onclick="setLanguage('en')" id="btn-lang-en" class="px-2.5 py-1 text-xs rounded font-medium text-gray-400 hover:text-white transition-all">EN</button>
+      <button onclick="setLanguage('zh')" id="btn-lang-zh" class="px-2.5 py-1 text-xs rounded font-medium text-gray-400 hover:text-white transition-all">ZH</button>
+    </div>
+  </div>
+
+  <div id="canvas-container" class="w-full h-screen absolute inset-0 z-10"></div>
+
+  <div class="absolute left-4 top-24 bottom-4 w-80 z-40 flex flex-col gap-3 pointer-events-none">
+    
+    <div class="hud-glass p-1 rounded-lg flex w-full border border-cyanLight/20 shadow-md pointer-events-auto">
+      <button onclick="switchTab('sim')" id="tab-sim" class="flex-1 py-1 text-[10px] uppercase tracking-wider rounded font-semibold transition-all bg-cyanLight text-black">SIM</button>
+      <button onclick="switchTab('phys')" id="tab-phys" class="flex-1 py-1 text-[10px] uppercase tracking-wider rounded font-semibold text-gray-400 hover:text-white transition-all">PHYS/ENG</button>
+      <button onclick="switchTab('ar')" id="tab-ar" class="flex-1 py-1 text-[10px] uppercase tracking-wider rounded font-semibold text-gray-400 hover:text-white transition-all">AR</button>
+    </div>
+
+    <div id="panel-sim" class="hud-glass p-4 rounded-xl border border-cyanLight/20 shadow-xl flex flex-col gap-4 pointer-events-auto flex-1 overflow-y-auto custom-scrollbar relative">
+      <div>
+        <h2 class="text-sm font-bold uppercase tracking-wider text-cyanLight flex items-center gap-1.5 border-b border-cyanLight/10 pb-1.5" id="lbl-simulator-title">
+          <span>⚙️</span> CONTROL DE SIMULACIÓN
+        </h2>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <div class="flex flex-col gap-1">
+          <div class="flex justify-between text-xs font-mono">
+            <span id="lbl-speed">Velocidad del Motor</span>
+            <span id="val-speed" class="text-cyanLight">1.0x</span>
+          </div>
+          <input type="range" id="input-speed" min="0" max="3" step="0.1" value="1" oninput="updateSpeed(this.value)" class="accent-cyanLight w-full bg-gray-800 rounded-lg appearance-none h-1.5 cursor-pointer">
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[11px] font-mono text-gray-400" id="lbl-opmode">MODO OPERATIVO</label>
+          <div class="flex flex-col gap-1">
+            <button onclick="setOpMode('consolidation')" id="btn-mode-consolidation" class="w-full text-left text-xs px-2.5 py-1.5 rounded border border-cyanLight/40 bg-cyanLight/10 text-white font-medium transition-all hover:bg-cyanLight/20 relative overflow-hidden group">
+              <span class="relative z-10">Fase 1: Consolidación (5 Años)</span>
+              <div class="absolute inset-0 bg-gradient-to-r from-transparent via-cyanLight/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+            </button>
+            <button onclick="setOpMode('expansion')" id="btn-mode-expansion" class="w-full text-left text-xs px-2.5 py-1.5 rounded border border-gray-700 bg-transparent text-gray-400 font-medium transition-all hover:bg-gray-800">
+              Fase 2: Expansión (10 Años)
+            </button>
+            <button onclick="setOpMode('legacy')" id="btn-mode-legacy" class="w-full text-left text-xs px-2.5 py-1.5 rounded border border-gray-700 bg-transparent text-gray-400 font-medium transition-all hover:bg-gray-800">
+              Fase 3: Legado Continental (20 Años)
+            </button>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <div class="flex justify-between text-xs font-mono">
+            <span id="lbl-biomech">Crecimiento Biomecánico</span>
+            <span id="val-biomech" class="text-cyanLight">50%</span>
+          </div>
+          <input type="range" id="input-biomech" min="0" max="100" value="50" oninput="updateBiomechanical(this.value)" class="accent-cyanLight w-full bg-gray-800 rounded-lg appearance-none h-1.5 cursor-pointer">
+        </div>
+
+        <div class="flex flex-col gap-1 mt-2">
+          <div class="flex justify-between text-xs font-mono">
+            <span id="lbl-dataflux" class="text-bioGreen">Flujo de Bio-Datos (Red)</span>
+            <span id="val-dataflux" class="text-bioGreen">Normal</span>
+          </div>
+          <input type="range" id="input-dataflux" min="0" max="100" value="50" oninput="updateDataFlux(this.value)" class="accent-bioGreen w-full bg-gray-800 rounded-lg appearance-none h-1.5 cursor-pointer">
+        </div>
+
+        <div class="flex items-center justify-between border-t border-cyanLight/10 pt-3">
+          <span class="text-xs font-mono" id="lbl-shaders">Luz Cinematográfica</span>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="check-shaders" checked onchange="toggleShaders(this.checked)" class="sr-only peer">
+            <div class="w-8 h-4 bg-gray-800 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-gray-300 after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-cyanLight"></div>
+          </label>
+        </div>
+      </div>
+
+      <div class="flex gap-2 border-t border-cyanLight/10 pt-3 mt-auto">
+        <button onclick="togglePlay()" id="btn-play" class="flex-1 bg-cyanLight text-black py-1.5 rounded font-bold text-xs hover:bg-white transition-all uppercase shadow-[0_0_10px_rgba(79,195,247,0.4)]">
+          Pausar
+        </button>
+        <button onclick="resetSim()" id="btn-reset" class="flex-1 bg-gray-800 border border-gray-700 py-1.5 rounded font-bold text-xs hover:bg-gray-700 transition-all uppercase">
+          Reiniciar
+        </button>
+      </div>
+    </div>
+
+    <div id="panel-phys" class="hud-glass p-4 rounded-xl border border-cyanLight/20 shadow-xl flex flex-col gap-4 pointer-events-auto flex-1 overflow-y-auto custom-scrollbar hidden">
+      <div>
+        <h2 class="text-sm font-bold uppercase tracking-wider text-cyanLight flex items-center gap-1.5 border-b border-cyanLight/10 pb-1.5" id="lbl-physics-title">
+          ⚙️ FÍSICA Y ENERGÍA
+        </h2>
+      </div>
+
+      <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-1">
+          <div class="flex justify-between text-xs font-mono">
+            <span id="lbl-tension">Tensión de Física Modular</span>
+            <span id="val-tension" class="text-cyanLight">60%</span>
+          </div>
+          <input type="range" id="input-tension" min="0" max="100" value="60" oninput="updatePhysicsTension(this.value)" class="accent-cyanLight w-full bg-gray-800 rounded-lg appearance-none h-1.5">
+        </div>
+        <div class="flex flex-col gap-1">
+          <div class="flex justify-between text-xs font-mono">
+            <span id="lbl-density">Densidad de Enjambre IA</span>
+            <span id="val-density" class="text-cyanLight">40%</span>
+          </div>
+          <input type="range" id="input-density" min="10" max="100" value="40" oninput="updateSwarmDensity(this.value)" class="accent-cyanLight w-full bg-gray-800 rounded-lg appearance-none h-1.5">
+        </div>
+        <div class="flex flex-col gap-1">
+          <div class="flex justify-between text-xs font-mono">
+            <span id="lbl-hybrid">Balance Solar / Bioenergía</span>
+            <span id="val-hybrid" class="text-cyanLight">50:50</span>
+          </div>
+          <input type="range" id="input-hybrid" min="0" max="100" value="50" oninput="updateHybridPower(this.value)" class="accent-cyanLight w-full bg-gray-800 rounded-lg appearance-none h-1.5">
+        </div>
+        <div class="hud-glass p-2.5 rounded-lg border border-cyanLight/10 flex flex-col gap-1.5 bg-cyanLight/5 mt-4">
+          <span class="text-xs font-bold text-cyanLight font-mono">ENJAMBRE DE AGENTES IA</span>
+          <p class="text-[10px] text-gray-300 leading-relaxed" id="desc-swarm">
+            Los micro-agentes vuelan dinámicamente entre nodos para canalizar e inyectar recursos financieros, activando pólizas de seguro paramétrico.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div id="panel-ar" class="hud-glass p-4 rounded-xl border border-cyanLight/20 shadow-xl flex flex-col gap-4 pointer-events-auto flex-1 overflow-y-auto custom-scrollbar hidden">
+      <div>
+        <h2 class="text-sm font-bold uppercase tracking-wider text-cyanLight flex items-center gap-1.5 border-b border-cyanLight/10 pb-1.5" id="lbl-ar-title">
+          📱 REALIDAD AUMENTADA
+        </h2>
+      </div>
+      <div class="flex flex-col gap-3">
+        <p class="text-[11px] text-gray-300 leading-relaxed" id="lbl-ar-desc">
+          Utilice la cámara web del dispositivo para simular la proyección holográfica del ecosistema de nodos en su mesa de trabajo actual.
+        </p>
+        <button id="btn-ar-camera" onclick="toggleARCamera()" class="w-full bg-cyanLight text-black font-bold text-xs py-2 rounded shadow hover:bg-white transition-all uppercase">
+          Activar Cámara del Dispositivo
+        </button>
+        <div class="flex flex-col gap-2 border-t border-cyanLight/10 pt-3 mt-2">
+          <div class="flex flex-col gap-1">
+            <div class="flex justify-between text-xs font-mono">
+              <span id="lbl-scale">Escala Holográfica</span>
+              <span id="val-scale" class="text-cyanLight">1.0x</span>
+            </div>
+            <input type="range" id="input-scale" min="0.3" max="2.5" step="0.1" value="1" oninput="updateARScale(this.value)" class="accent-cyanLight w-full bg-gray-800 rounded-lg appearance-none h-1.5">
+          </div>
+          <div class="flex flex-col gap-1">
+            <div class="flex justify-between text-xs font-mono">
+              <span id="lbl-rot">Rotación del Prototipo</span>
+              <span id="val-rot" class="text-cyanLight">0°</span>
+            </div>
+            <input type="range" id="input-rot" min="0" max="360" value="0" oninput="updateARRotation(this.value)" class="accent-cyanLight w-full bg-gray-800 rounded-lg appearance-none h-1.5">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="absolute right-4 top-24 bottom-4 w-80 z-40 flex flex-col gap-3 pointer-events-none">
+    
+    <div class="hud-glass p-4 rounded-xl border border-cyanLight/20 shadow-xl flex flex-col gap-3 pointer-events-auto flex-1 overflow-y-auto custom-scrollbar relative">
+      <h2 class="text-sm font-bold uppercase tracking-wider text-cyanLight flex items-center justify-between border-b border-cyanLight/10 pb-1.5" id="lbl-hud-title">
+        <span>📊 TELEMETRÍA GLOBAL</span>
+        <div class="h-2 w-2 rounded-full bg-green-400 animate-ping"></div>
+      </h2>
+
+      <div class="flex flex-col gap-3.5 mt-1">
+        <div class="flex items-center justify-between border-b border-gray-800/80 pb-2">
+          <div class="flex flex-col">
+            <span class="text-[10px] text-gray-400 font-mono" id="lbl-met-carbon">Carbono Capturado (CO₂)</span>
+            <span class="text-lg font-bold font-mono tracking-tight text-white" id="met-carbon">342.45 <span class="text-xs text-cyanLight">T</span></span>
+          </div>
+          <div class="w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+            <div class="h-full bg-cyanLight" style="width: 65%" id="bar-carbon"></div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between border-b border-gray-800/80 pb-2">
+          <div class="flex flex-col">
+            <span class="text-[10px] text-gray-400 font-mono" id="lbl-met-soil">Suelo Restaurado</span>
+            <span class="text-lg font-bold font-mono tracking-tight text-white" id="met-soil">145 <span class="text-xs text-cyanLight">Ha</span></span>
+          </div>
+          <div class="w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+            <div class="h-full bg-cyanLight transition-all duration-500" style="width: 48%" id="bar-soil"></div>
+          </div>
+        </div>
+        
+        <div class="flex items-center justify-between border-b border-gray-800/80 pb-2">
+          <div class="flex flex-col">
+            <span class="text-[10px] text-gray-400 font-mono" id="lbl-met-stress">Índice Estrés Climático</span>
+            <span class="text-lg font-bold font-mono tracking-tight text-yellow-400" id="met-stress">Nivel 2 <span class="text-xs text-gray-400">Moderado</span></span>
+          </div>
+          <div class="w-12 h-12 rounded-full border border-yellow-400/30 flex items-center justify-center relative overflow-hidden bg-yellow-400/5">
+             <div class="absolute w-full h-[1px] bg-yellow-400/50 rotate-45"></div>
+             <div class="absolute w-full h-[1px] bg-yellow-400/50 -rotate-45"></div>
+             <div class="w-6 h-6 rounded-full bg-yellow-400/20 animate-pulse"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div class="flex flex-col bg-gray-800/40 p-2 rounded border border-gray-700">
+            <span class="text-[10px] text-gray-400 font-mono" id="lbl-met-inv">Inv. Acumulada</span>
+            <span class="text-sm font-bold font-mono text-cyanLight" id="met-inv">$3.50 M</span>
+          </div>
+          <div class="flex flex-col bg-gray-800/40 p-2 rounded border border-gray-700">
+            <span class="text-[10px] text-gray-400 font-mono" id="lbl-met-roi">ROI Estimado</span>
+            <span class="text-sm font-bold font-mono text-bioGreen" id="met-roi">28.0%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-cyanLight/25 mt-2 pt-3 flex flex-col gap-2 relative">
+        <h3 class="text-xs font-bold text-cyanLight font-mono uppercase" id="lbl-node-title">Telemetría de Nodo Activo</h3>
+        <div id="selected-node-container" class="bg-black/60 p-3 rounded-lg border border-cyanLight/20 flex flex-col gap-2 text-[11px] font-mono shadow-inner relative overflow-hidden transition-all duration-300">
+          <div class="text-gray-400 text-center py-4 glitch" id="lbl-node-prompt">Escanear ecosistema: Seleccione un nodo 3D para aislar sus métricas.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hud-glass p-3 rounded-xl border border-cyanLight/15 shadow-xl flex flex-col gap-2 pointer-events-auto max-h-40">
+      <div class="flex justify-between items-center border-b border-cyanLight/10 pb-1.5">
+        <span class="text-[10px] font-bold tracking-wider text-cyanLight uppercase flex items-center gap-1" id="lbl-log-title">
+          ⛓️ CONEXIÓN BLOCKCHAIN EN VIVO
+        </span>
+      </div>
+      <div id="blockchain-logs" class="flex flex-col gap-1.5 overflow-y-auto custom-scrollbar text-[9px] font-mono text-gray-400 flex-1 leading-relaxed">
+        <div class="text-cyanLight">> System.Init() OK...</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="absolute bottom-4 left-0 right-0 z-40 pointer-events-auto flex justify-center px-4">
+    <div class="hud-glass px-4 py-2 rounded-lg border border-cyanLight/20 text-[10px] font-mono text-gray-300 flex items-center gap-4 shadow-[0_0_20px_rgba(79,195,247,0.1)] w-full max-w-4xl justify-between">
+      <div class="flex items-center gap-2">
+        <div class="w-2 h-2 rounded-full bg-cyanLight animate-pulse"></div>
+        <span>GRID: <span class="text-cyanLight font-bold">ECOLOGICAL_NET_OK</span></span>
+      </div>
+      <span class="text-gray-700">|</span>
+      <div class="flex items-center gap-2">
+        <span>CUSTODIOS: <span class="text-white font-bold" id="met-cust-bottom">1,240</span></span>
+      </div>
+      <span class="text-gray-700">|</span>
+      <div class="flex items-center gap-2">
+        <span>ENERGÍA: <span class="text-bioGreen font-bold" id="lbl-solar-status">HYBRID_STABLE</span></span>
+      </div>
+      <span class="text-gray-700">|</span>
+      <div class="flex items-center gap-2">
+        <span>RED SENSORIAL: <span class="text-cyanLight font-bold" id="lbl-net-status">OPTIMIZED</span></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Se expanden las traducciones originales
+    const translations = {
+      es: {
+        author: "Dr. Julio César Oporta Barrera",
+        title: "BAC BIOSFERA™",
+        subtitle: "Finanzas Regenerativas para la Seguridad Alimentaria Centroamericana",
+        tabSim: "SIM", tabPhys: "FÍSICA", tabAR: "AR",
+        lblSimulatorTitle: "⚙️ CONTROL DE SIMULACIÓN",
+        lblSpeed: "Velocidad del Motor",
+        lblOpMode: "MODO OPERATIVO",
+        lblBiomech: "Crecimiento Biomecánico",
+        lblDataFlux: "Flujo de Bio-Datos (Red)",
+        lblShaders: "Luz Cinematográfica",
+        btnPlayPause: "Pausar", btnReset: "Reiniciar",
+        lblPhysicsTitle: "⚙️ FÍSICA Y ENERGÍA",
+        lblTension: "Tensión de Física Modular",
+        lblDensity: "Densidad de Enjambre IA",
+        lblHybrid: "Balance Solar / Bioenergía",
+        descSwarm: "Los micro-agentes vuelan dinámicamente entre nodos para canalizar e inyectar recursos financieros, activando pólizas de seguro paramétrico.",
+        lblArTitle: "📱 REALIDAD AUMENTADA",
+        lblArDesc: "Utilice la cámara web del dispositivo para simular la proyección holográfica del ecosistema de nodos en su mesa de trabajo actual.",
+        lblScale: "Escala Holográfica", lblRot: "Rotación del Prototipo",
+        lblHudTitle: "📊 TELEMETRÍA GLOBAL",
+        lblMetCarbon: "Carbono Capturado (CO₂)",
+        lblMetSoil: "Suelo Restaurado",
+        lblMetStress: "Índice Estrés Climático",
+        lblMetInv: "Inv. Acumulada", lblMetRoi: "ROI Estimado",
+        lblNodeTitle: "Telemetría de Nodo Activo",
+        lblNodePrompt: "Escanear ecosistema: Seleccione un nodo 3D para aislar sus métricas.",
+        lblLogTitle: "⛓️ CONEXIÓN BLOCKCHAIN EN VIVO",
+        btnARCameraOn: "Activar Cámara del Dispositivo", btnARCameraOff: "Detener Cámara",
+        btnActionInject: "Inyectar Bio-Capital Automático"
+      },
+      en: {
+        author: "Dr. Julio César Oporta Barrera",
+        title: "BAC BIOSFERA™",
+        subtitle: "Regenerative Finance for Central American Food Sovereignty",
+        tabSim: "SIM", tabPhys: "PHYS", tabAR: "AR",
+        lblSimulatorTitle: "⚙️ SIMULATION CONTROL",
+        lblSpeed: "Engine Speed", lblOpMode: "OPERATIONAL MODE",
+        lblBiomech: "Biomechanical Growth", lblDataFlux: "Bio-Data Flux (Network)",
+        lblShaders: "Cinematic Lighting",
+        btnPlayPause: "Pause", btnReset: "Reset",
+        lblPhysicsTitle: "⚙️ PHYSICS & ENERGY",
+        lblTension: "Modular Physics Tension", lblDensity: "Swarm AI Density", lblHybrid: "Solar / Bioenergy Balance",
+        descSwarm: "Micro-agents fly dynamically between nodes to channel and inject financial resources, triggering parametric insurance policies.",
+        lblArTitle: "📱 AUGMENTED REALITY",
+        lblArDesc: "Use your device's webcam to simulate the holographic projection of the node ecosystem on your current workspace desk.",
+        lblScale: "Holographic Scale", lblRot: "Prototype Rotation",
+        lblHudTitle: "📊 GLOBAL TELEMETRY",
+        lblMetCarbon: "Carbon Captured (CO₂)", lblMetSoil: "Restored Soil", lblMetStress: "Climatic Stress Index",
+        lblMetInv: "Accumulated Inv.", lblMetRoi: "Estimated ROI",
+        lblNodeTitle: "Active Node Telemetry",
+        lblNodePrompt: "Scan ecosystem: Select a 3D node to isolate metrics.",
+        lblLogTitle: "⛓️ LIVE BLOCKCHAIN CONNECTION",
+        btnARCameraOn: "Enable Device Camera", btnARCameraOff: "Disable Camera",
+        btnActionInject: "Inject Automated Bio-Capital"
+      },
+      zh: {
+        author: "朱利奥·塞萨尔·奥波塔·巴雷拉 博士",
+        title: "BAC BIOSFERA™",
+        subtitle: "中美洲粮食主权的可持续再生金融系统",
+        tabSim: "模拟", tabPhys: "物理", tabAR: "AR",
+        lblSimulatorTitle: "⚙️ 模拟器控制台",
+        lblSpeed: "引擎模拟速度", lblOpMode: "运行模式选择",
+        lblBiomech: "仿生物理扩张", lblDataFlux: "生物数据流 (网络)",
+        lblShaders: "电影级照明渲染",
+        btnPlayPause: "暂停", btnReset: "重置",
+        lblPhysicsTitle: "⚙️ 物理与混合能效",
+        lblTension: "节点间物理张力系数", lblDensity: "群体智能微型机密度", lblHybrid: "光伏 / 生物混合能效",
+        descSwarm: "智能群集无人机在节点间自主飞行，追踪并调节碳足迹流动，根据气象阈值自动触发微保险理赔结算。",
+        lblArTitle: "📱 增强现实全息投影",
+        lblArDesc: "利用移动设备摄像头，将生物圈多级互联节点及碳汇网络直接投射并固定在您的桌面上进行沉浸式查看。",
+        lblScale: "全息透视缩放", lblRot: "原型模型旋转角",
+        lblHudTitle: "📊 全局遥测面板",
+        lblMetCarbon: "捕捉固化碳排放量 (CO₂)", lblMetSoil: "受托生态土地恢复", lblMetStress: "气候压力指数",
+        lblMetInv: "累计注资额", lblMetRoi: "预计商业效益回报率",
+        lblNodeTitle: "当前选中节点遥测",
+        lblNodePrompt: "扫描生态系统：鼠标轻点 3D 节点以隔离分析数据。",
+        lblLogTitle: "⛓️ 中美洲区块链智能合约链",
+        btnARCameraOn: "开启外部摄像头", btnARCameraOff: "关闭摄像头",
+        btnActionInject: "自动注入生物资本"
+      }
+    };
+
+    let currentLang = 'es';
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      ['es', 'en', 'zh'].forEach(l => {
+        const btn = document.getElementById('btn-lang-' + l);
+        btn.className = l === lang ? "px-2.5 py-1 text-xs rounded font-medium bg-cyanLight text-black" : "px-2.5 py-1 text-xs rounded font-medium text-gray-400 hover:text-white transition-all";
+      });
+
+      const dict = translations[lang];
+      document.getElementById('trans-author').innerText = dict.author;
+      document.getElementById('trans-title').innerText = dict.title;
+      document.getElementById('trans-subtitle').innerText = dict.subtitle;
+      
+      document.getElementById('tab-sim').innerText = dict.tabSim;
+      document.getElementById('tab-phys').innerText = dict.tabPhys;
+      document.getElementById('tab-ar').innerText = dict.tabAR;
+      
+      document.getElementById('lbl-simulator-title').innerHTML = `<span>⚙️</span> ${dict.lblSimulatorTitle}`;
+      document.getElementById('lbl-speed').innerText = dict.lblSpeed;
+      document.getElementById('lbl-opmode').innerText = dict.lblOpMode;
+      document.getElementById('lbl-biomech').innerText = dict.lblBiomech;
+      document.getElementById('lbl-dataflux').innerText = dict.lblDataFlux;
+      document.getElementById('lbl-shaders').innerText = dict.lblShaders;
+      
+      document.getElementById('lbl-physics-title').innerText = dict.lblPhysicsTitle;
+      document.getElementById('lbl-tension').innerText = dict.lblTension;
+      document.getElementById('lbl-density').innerText = dict.lblDensity;
+      document.getElementById('lbl-hybrid').innerText = dict.lblHybrid;
+      document.getElementById('desc-swarm').innerText = dict.descSwarm;
+      
+      document.getElementById('lbl-ar-title').innerText = dict.lblArTitle;
+      document.getElementById('lbl-ar-desc').innerText = dict.lblArDesc;
+      document.getElementById('lbl-scale').innerText = dict.lblScale;
+      document.getElementById('lbl-rot').innerText = dict.lblRot;
+      
+      document.getElementById('lbl-hud-title').innerHTML = `<span>📊 ${dict.lblHudTitle}</span><div class="h-2 w-2 rounded-full bg-green-400 animate-ping"></div>`;
+      document.getElementById('lbl-met-carbon').innerText = dict.lblMetCarbon;
+      document.getElementById('lbl-met-soil').innerText = dict.lblMetSoil;
+      document.getElementById('lbl-met-stress').innerText = dict.lblMetStress;
+      document.getElementById('lbl-met-inv').innerText = dict.lblMetInv;
+      document.getElementById('lbl-met-roi').innerText = dict.lblMetRoi;
+      document.getElementById('lbl-node-title').innerText = dict.lblNodeTitle;
+      
+      document.getElementById('lbl-log-title').innerHTML = "⛓️ " + dict.lblLogTitle;
+      
+      const isCameraActive = document.getElementById('webcam-feed').style.display === 'block';
+      document.getElementById('btn-ar-camera').innerText = isCameraActive ? dict.btnARCameraOff : dict.btnARCameraOn;
+      
+      if (!selectedNode) {
+        document.getElementById('selected-node-container').innerHTML = `<div class="text-gray-400 text-center py-4 glitch">${dict.lblNodePrompt}</div>`;
+      } else {
+        renderNodeDetails();
+      }
+
+      document.getElementById('btn-play').innerText = isPlaying ? dict.btnPlayPause : (lang === 'es' ? 'Iniciar' : lang === 'zh' ? '运行' : 'Play');
+      document.getElementById('btn-reset').innerText = dict.btnReset;
+    }
+
+    function switchTab(tab) {
+      ['sim', 'phys', 'ar'].forEach(t => {
+        const panel = document.getElementById('panel-' + t);
+        const button = document.getElementById('tab-' + t);
+        if (t === tab) {
+          panel.classList.remove('hidden');
+          button.className = "flex-1 py-1 text-[10px] uppercase tracking-wider rounded font-semibold transition-all bg-cyanLight text-black";
+        } else {
+          panel.classList.add('hidden');
+          button.className = "flex-1 py-1 text-[10px] uppercase tracking-wider rounded font-semibold text-gray-400 hover:text-white transition-all";
+        }
+      });
+    }
+
+    // -------------------------------------------------------------
+    // THREE.JS IMPLEMENTATION ENHANCED
+    // -------------------------------------------------------------
+    let scene, camera, renderer, raycaster, mouse;
+    let nodes = [];
+    let lines = [];
+    let dataPulses = []; // Nuevo: Partículas que viajan por las líneas
+    let shockwaves = []; // Nuevo: Ondas expansivas al interactuar
+    let swarmBoids = [];
+    let lightSpot, lightAmbient, gridHelper;
+    let selectedNode = null;
+    let hoveredNode = null;
+    
+    let isPlaying = true;
+    let simulationSpeed = 1.0;
+    let biomechanicalFactor = 0.5;
+    let physicsTension = 0.6;
+    let swarmDensity = 40;
+    let hybridRatio = 50; 
+    let dataFluxLevel = 50; // Velocidad y cantidad de pulsos de datos
+    let shadersEnabled = true;
+    let currentMode = 'consolidation';
+
+    const nodeClassificationNames = {
+      es: { financial: "Núcleo Financiero (BAC)", productive: "Custodios Agroecológicos", technological: "Array Sensores IA", narrative: "Trazabilidad Emocional", institutional: "Fondo de Inversión" },
+      en: { financial: "Financial Core (BAC)", productive: "Agroecological Custodians", technological: "AI Sensor Array", narrative: "Emotional Traceability", institutional: "Investment Trust" },
+      zh: { financial: "金融核心 (巴克银行)", productive: "农业生态入网网络", technological: "AI 传感器阵列", narrative: "情感可追溯认证", institutional: "投资基金" }
+    };
+
+    const nodeTemplates = [
+      { id: '1', type: 'financial', name: { es: "BAC Credomatic Sede", en: "BAC Headquarters", zh: "巴克中央节点" }, x: 0, y: 1.5, z: 0, size: 0.9, carbon: 10, energy: 100 },
+      { id: '2', type: 'productive', name: { es: "Suelo Chinandega", en: "Chinandega Biome", zh: "奇南德加生态区" }, x: -2.8, y: -0.8, z: -1.2, size: 0.6, carbon: 98.4, energy: 85 },
+      { id: '3', type: 'productive', name: { es: "Suelo Matagalpa", en: "Matagalpa Biome", zh: "马塔加尔帕产区" }, x: -1.5, y: -0.4, z: 2.2, size: 0.6, carbon: 120.5, energy: 90 },
+      { id: '4', type: 'technological', name: { es: "Sensores IoT Rivas", en: "IoT Satellites Rivas", zh: "里瓦斯物联群" }, x: 2.4, y: 0.6, z: -1.8, size: 0.45, carbon: 45.2, energy: 70 },
+      { id: '5', type: 'narrative', name: { es: "Mesa Viva León", en: "Mesa Viva León", zh: "莱昂信任块" }, x: 1.2, y: -1.2, z: 1.8, size: 0.5, carbon: 20.8, energy: 80 },
+      { id: '6', type: 'institutional', name: { es: "Fondo Costa Rica", en: "Trust Costa Rica", zh: "哥斯达黎加信托" }, x: 3.5, y: -0.5, z: 0.5, size: 0.7, carbon: 158.0, energy: 95 },
+      { id: '7', type: 'productive', name: { es: "Territorio Estelí", en: "Esteli Highlands", zh: "埃斯特利走廊" }, x: -3.2, y: 0.8, z: 1.5, size: 0.55, carbon: 84.6, energy: 65 }
+    ];
+
+    function init3D() {
+      const container = document.getElementById('canvas-container');
+      scene = new THREE.Scene();
+      // Efecto Niebla Cyber-Ecológica
+      scene.fog = new THREE.FogExp2(0x030712, 0.03);
+      
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+      camera.position.set(0, 6, 12);
+      camera.lookAt(0, 0, 0);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.shadowMap.enabled = true;
+      container.appendChild(renderer.domElement);
+
+      raycaster = new THREE.Raycaster();
+      mouse = new THREE.Vector2();
+
+      lightAmbient = new THREE.AmbientLight(0x1e293b, 1.2);
+      scene.add(lightAmbient);
+
+      lightSpot = new THREE.SpotLight(0x4fc3f7, 5.0);
+      lightSpot.position.set(8, 12, 6);
+      lightSpot.angle = Math.PI / 5;
+      lightSpot.penumbra = 0.5;
+      scene.add(lightSpot);
+
+      const fillLight = new THREE.DirectionalLight(0x10b981, 0.4); // Luz de relleno BioGreen
+      fillLight.position.set(-8, -5, -6);
+      scene.add(fillLight);
+
+      gridHelper = new THREE.PolarGridHelper(12, 24, 10, 64, 0x4fc3f7, 0x111827);
+      gridHelper.position.y = -2.5;
+      gridHelper.material.opacity = 0.15;
+      gridHelper.material.transparent = true;
+      scene.add(gridHelper);
+
+      buildEcosystemNodes();
+      setupSwarmBoids();
+
+      window.addEventListener('resize', onWindowResize, false);
+      window.addEventListener('click', onDocumentClick, false);
+      window.addEventListener('mousemove', onDocumentMouseMove, false);
+
+      animate();
+    }
+
+    function buildEcosystemNodes() {
+      nodes.forEach(n => scene.remove(n.mesh)); nodes = [];
+      lines.forEach(l => scene.remove(l.line)); lines = [];
+      dataPulses.forEach(p => scene.remove(p.mesh)); dataPulses = [];
+
+      const currentTemplates = currentMode === 'consolidation' ? nodeTemplates.slice(0, 5) : 
+                               currentMode === 'expansion' ? nodeTemplates.slice(0, 6) : nodeTemplates;
+
+      currentTemplates.forEach(template => {
+        let nodeColor = template.type === 'financial' ? 0x111827 : template.type === 'productive' ? 0x6b7280 : 0xd1d5db;
+        let emissiveColor = template.type === 'productive' ? 0x10b981 : 0x4fc3f7;
+
+        const geometry = new THREE.SphereGeometry(template.size, 64, 64); // Más polígonos para suavidad
+        const material = new THREE.MeshPhysicalMaterial({
+          color: nodeColor,
+          metalness: 0.9, roughness: 0.1,
+          emissive: emissiveColor, emissiveIntensity: 0.3,
+          clearcoat: 1.0, clearcoatRoughness: 0.1, // Aspecto futurista cristalino
+          transparent: true, opacity: 0.95
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(template.x, template.y, template.z);
+        
+        // Aura externa
+        const auraGeo = new THREE.SphereGeometry(template.size * 1.3, 32, 32);
+        const auraMat = new THREE.MeshBasicMaterial({ color: emissiveColor, transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending });
+        const auraMesh = new THREE.Mesh(auraGeo, auraMat);
+        mesh.add(auraMesh);
+
+        const ringGeo = new THREE.RingGeometry(template.size * 1.6, template.size * 1.65, 64);
+        const ringMat = new THREE.MeshBasicMaterial({ color: emissiveColor, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+        const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+        ringMesh.rotation.x = Math.PI / 2;
+        mesh.add(ringMesh);
+
+        scene.add(mesh);
+
+        nodes.push({
+          id: template.id, name: template.name, type: template.type,
+          mesh: mesh, aura: auraMesh, ring: ringMesh,
+          initialX: template.x, initialY: template.y, initialZ: template.z,
+          energyLevel: template.energy, carbonCaptured: template.carbon,
+          vx: 0, vy: 0, vz: 0, baseSize: template.size
+        });
+      });
+
+      // Crear cables y Data Pulses
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          if (nodes[i].id === '1' || nodes[j].id === '1' || (nodes[i].type === 'productive' && nodes[j].type === 'productive')) {
+            const points = [nodes[i].mesh.position, nodes[j].mesh.position];
+            const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+            const lineMat = new THREE.LineDashedMaterial({ color: 0x4fc3f7, transparent: true, opacity: 0.2, dashSize: 0.1, gapSize: 0.1 });
+            const line = new THREE.Line(lineGeo, lineMat);
+            line.computeLineDistances();
+            scene.add(line);
+            lines.push({ line: line, source: nodes[i], target: nodes[j] });
+
+            // Inyectar Pulsos de Datos Dinámicos
+            for(let p = 0; p < 3; p++) {
+              const pulseGeo = new THREE.SphereGeometry(0.04, 8, 8);
+              const pulseMat = new THREE.MeshBasicMaterial({ color: nodes[i].type === 'productive' ? 0x10b981 : 0xffffff });
+              const pulseMesh = new THREE.Mesh(pulseGeo, pulseMat);
+              scene.add(pulseMesh);
+              dataPulses.push({
+                mesh: pulseMesh, source: nodes[i], target: nodes[j],
+                progress: Math.random(), speed: 0.002 + Math.random() * 0.005
+              });
+            }
+          }
+        }
+      }
+    }
+
+    function setupSwarmBoids() {
+      swarmBoids.forEach(b => scene.remove(b.mesh)); swarmBoids = [];
+      for (let i = 0; i < swarmDensity; i++) {
+        const geo = new THREE.ConeGeometry(0.06, 0.2, 4);
+        geo.rotateX(Math.PI / 2);
+        const mat = new THREE.MeshBasicMaterial({ color: 0x4fc3f7, transparent: true, opacity: 0.9, wireframe: true });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set((Math.random()-0.5)*10, Math.random()*5, (Math.random()-0.5)*10);
+        scene.add(mesh);
+        swarmBoids.push({ mesh: mesh, vx: 0, vy: 0, vz: 0, speed: 0.04 + Math.random() * 0.02 });
+      }
+    }
+
+    // Creador de ondas expansivas visuales para interacción "Inyectar Capital"
+    function createShockwave(position, colorHex) {
+      const geo = new THREE.TorusGeometry(0.1, 0.02, 16, 100);
+      const mat = new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 1, side: THREE.DoubleSide });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.copy(position);
+      mesh.lookAt(camera.position); // Siempre mirar a la cámara
+      scene.add(mesh);
+      shockwaves.push({ mesh: mesh, scale: 1, life: 1.0 });
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (isPlaying) {
+        const dt = 0.01 * simulationSpeed;
+        const time = Date.now() * 0.001;
+
+        // Física modular en Nodos
+        nodes.forEach(node => {
+          let targetScale = node.baseSize * (1 + Math.sin(time * 2 + parseInt(node.id)) * 0.04 * biomechanicalFactor);
+          // Efecto Hover táctico
+          if(node === hoveredNode) targetScale *= 1.15;
+          
+          node.mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+
+          const k = 0.05 * physicsTension;
+          node.vx += (node.initialX - node.mesh.position.x) * k - node.vx * 0.05;
+          node.vy += (node.initialY - node.mesh.position.y) * k - node.vy * 0.05;
+          node.vz += (node.initialZ - node.mesh.position.z) * k - node.vz * 0.05;
+
+          node.mesh.position.x += node.vx * simulationSpeed;
+          node.mesh.position.y += node.vy * simulationSpeed;
+          node.mesh.position.z += node.vz * simulationSpeed;
+
+          node.ring.rotation.z += 0.02 * simulationSpeed;
+          if(node.aura) {
+             node.aura.scale.setScalar(1 + Math.sin(time*5)*0.1);
+          }
+        });
+
+        // Actualizar cables y Pulsos de Datos (Energía Híbrida visible)
+        lines.forEach(conn => {
+          const positions = conn.line.geometry.attributes.position.array;
+          positions[0] = conn.source.mesh.position.x; positions[1] = conn.source.mesh.position.y; positions[2] = conn.source.mesh.position.z;
+          positions[3] = conn.target.mesh.position.x; positions[4] = conn.target.mesh.position.y; positions[5] = conn.target.mesh.position.z;
+          conn.line.geometry.attributes.position.needsUpdate = true;
+        });
+
+        const fluxMult = dataFluxLevel / 50.0;
+        dataPulses.forEach(pulse => {
+          pulse.progress += pulse.speed * simulationSpeed * fluxMult;
+          if(pulse.progress > 1) pulse.progress = 0;
+          pulse.mesh.position.lerpVectors(pulse.source.mesh.position, pulse.target.mesh.position, pulse.progress);
+          // Brillo pulsante
+          pulse.mesh.scale.setScalar(1 + Math.sin(pulse.progress * Math.PI * 10) * 0.5);
+        });
+
+        // IA Enjambre
+        swarmBoids.forEach(boid => {
+          let target = new THREE.Vector3(0, 0, 0);
+          let minDist = 999;
+          nodes.forEach(node => {
+            const dist = boid.mesh.position.distanceTo(node.mesh.position);
+            if (dist < minDist && (node.type === 'productive' || node === selectedNode)) {
+              minDist = dist; target.copy(node.mesh.position);
+            }
+          });
+
+          boid.vx += (target.x - boid.mesh.position.x)*0.01 + (Math.random()-0.5)*0.08;
+          boid.vy += (target.y - boid.mesh.position.y)*0.01 + (Math.random()-0.5)*0.08;
+          boid.vz += (target.z - boid.mesh.position.z)*0.01 + (Math.random()-0.5)*0.08;
+
+          const speed = Math.sqrt(boid.vx*boid.vx + boid.vy*boid.vy + boid.vz*boid.vz);
+          if(speed > boid.speed) {
+            boid.vx = (boid.vx/speed)*boid.speed; boid.vy = (boid.vy/speed)*boid.speed; boid.vz = (boid.vz/speed)*boid.speed;
+          }
+
+          boid.mesh.position.add(new THREE.Vector3(boid.vx, boid.vy, boid.vz));
+          const targetPos = new THREE.Vector3().copy(boid.mesh.position).add(new THREE.Vector3(boid.vx, boid.vy, boid.vz));
+          boid.mesh.lookAt(targetPos);
+        });
+
+        // Animar Shockwaves
+        for(let i = shockwaves.length - 1; i >= 0; i--) {
+          let sw = shockwaves[i];
+          sw.scale += 0.15 * simulationSpeed;
+          sw.life -= 0.02 * simulationSpeed;
+          sw.mesh.scale.setScalar(sw.scale);
+          sw.mesh.material.opacity = sw.life;
+          if(sw.life <= 0) {
+            scene.remove(sw.mesh);
+            shockwaves.splice(i, 1);
+          }
+        }
+
+        gridHelper.rotation.y += 0.001 * simulationSpeed;
+        tickMetrics();
+      }
+
+      const rot = document.getElementById('input-rot').value;
+      if (rot > 0) {
+        scene.rotation.y = rot * (Math.PI / 180);
+      } else {
+        scene.rotation.y += 0.0005 * simulationSpeed;
+      }
+      
+      const sc = parseFloat(document.getElementById('input-scale').value);
+      scene.scale.set(sc, sc, sc);
+
+      renderer.render(scene, camera);
+    }
+
+    // Interacción Háptica: Hover
+    function onDocumentMouseMove(event) {
+      const container = document.getElementById('canvas-container');
+      const rect = container.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / container.clientWidth) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / container.clientHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(nodes.map(n => n.mesh));
+      
+      if (intersects.length > 0) {
+        const foundNode = nodes.find(n => n.mesh === intersects[0].object);
+        if(hoveredNode !== foundNode) {
+          document.body.style.cursor = 'pointer';
+          hoveredNode = foundNode;
+        }
+      } else {
+        if(hoveredNode) {
+          document.body.style.cursor = 'crosshair';
+          hoveredNode = null;
+        }
+      }
+    }
+
+    // Interacción Avanzada: Click Select & Shockwave
+    function onDocumentClick(event) {
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(nodes.map(n => n.mesh));
+
+      if (intersects.length > 0) {
+        const clickedMesh = intersects[0].object;
+        const foundNode = nodes.find(n => n.mesh === clickedMesh);
+        if (foundNode) {
+          if (selectedNode) selectedNode.mesh.material.emissiveIntensity = 0.3;
+          selectedNode = foundNode;
+          selectedNode.mesh.material.emissiveIntensity = 1.0;
+          
+          // Disparar onda de escaneo al seleccionar
+          createShockwave(selectedNode.mesh.position, 0x4fc3f7);
+          renderNodeDetails();
+        }
+      }
+    }
+
+    // Funciones de Control UI
+    function updateSpeed(val) { simulationSpeed = parseFloat(val); document.getElementById('val-speed').innerText = simulationSpeed.toFixed(1) + "x"; }
+    function updateBiomechanical(val) { biomechanicalFactor = parseInt(val) / 100; document.getElementById('val-biomech').innerText = val + "%"; }
+    function updateDataFlux(val) { dataFluxLevel = parseInt(val); document.getElementById('val-dataflux').innerText = val > 75 ? "Alto" : val < 25 ? "Bajo" : "Normal"; }
+    function updatePhysicsTension(val) { physicsTension = parseInt(val) / 100; document.getElementById('val-tension').innerText = val + "%"; }
+    function updateSwarmDensity(val) { swarmDensity = parseInt(val); document.getElementById('val-density').innerText = val + "%"; setupSwarmBoids(); }
+    function updateHybridPower(val) { hybridRatio = parseInt(val); document.getElementById('val-hybrid').innerText = val + ":" + (100 - val); if (lightSpot) lightSpot.color.setHex(hybridRatio > 50 ? 0x4fc3f7 : 0x10b981); }
+    function toggleShaders(checked) { shadersEnabled = checked; if (lightSpot) lightSpot.intensity = checked ? 5.0 : 1.0; }
+    function togglePlay() { isPlaying = !isPlaying; setLanguage(currentLang); }
+    function resetSim() { carbonCount = 342.45; soilCount = 145.0; buildEcosystemNodes(); setupSwarmBoids(); }
+    function updateARScale(val) { document.getElementById('val-scale').innerText = parseFloat(val).toFixed(1) + "x"; }
+    function updateARRotation(val) { document.getElementById('val-rot').innerText = val + "°"; }
+
+    function setOpMode(mode) {
+      currentMode = mode;
+      ['consolidation', 'expansion', 'legacy'].forEach(m => {
+        document.getElementById('btn-mode-' + m).className = m === mode 
+          ? "w-full text-left text-xs px-2.5 py-1.5 rounded border border-cyanLight/40 bg-cyanLight/10 text-white font-medium transition-all shadow-[inset_0_0_10px_rgba(79,195,247,0.2)]"
+          : "w-full text-left text-xs px-2.5 py-1.5 rounded border border-gray-700 bg-transparent text-gray-400 font-medium transition-all hover:bg-gray-800";
+      });
+      buildEcosystemNodes();
+    }
+
+    let carbonCount = 342.45, soilCount = 145.0, custCount = 1240;
+    function tickMetrics() {
+      carbonCount += 0.05 * simulationSpeed;
+      soilCount += 0.01 * simulationSpeed;
+      
+      document.getElementById('met-carbon').innerHTML = carbonCount.toFixed(2) + " <span class='text-xs text-cyanLight'>T</span>";
+      document.getElementById('met-soil').innerHTML = Math.floor(soilCount) + " <span class='text-xs text-cyanLight'>Ha</span>";
+      document.getElementById('bar-carbon').style.width = Math.min(100, (carbonCount / 1000) * 100) + "%";
+      document.getElementById('bar-soil').style.width = Math.min(100, (soilCount / 500) * 100) + "%";
+
+      if(Math.random() < 0.01 * simulationSpeed) triggerBlockchainLog();
+      
+      // Simular cambio de estrés climático dinámico
+      if(Math.random() < 0.002 * simulationSpeed) {
+         document.getElementById('met-stress').innerHTML = `Nivel ${Math.floor(Math.random()*4)+1} <span class="text-xs text-gray-400">Var</span>`;
+      }
+    }
+
+    function triggerBlockchainLog() {
+      const hashes = ["0x3A9...", "0x8E2...", "0xBC1...", "0xF90..."];
+      const h = hashes[Math.floor(Math.random() * hashes.length)];
+      const msgs = [`[VERIFIED] Contract ${h} executed.`, `[BIO-SYNC] Node telemetry updated.`, `[FUNDING] Micro-payout dispatched.`];
+      const logContainer = document.getElementById('blockchain-logs');
+      const div = document.createElement('div');
+      div.className = "animate-pulse-ring relative pl-2 border-l-2 border-cyanLight/50 my-1";
+      div.innerText = msgs[Math.floor(Math.random() * msgs.length)];
+      logContainer.insertBefore(div, logContainer.firstChild);
+      if (logContainer.children.length > 8) logContainer.removeChild(logContainer.lastChild);
+    }
+
+    // Acción manual de inyección de capital en el HUD del Nodo
+    window.injectNodeCapital = function() {
+      if(!selectedNode) return;
+      createShockwave(selectedNode.mesh.position, 0x10b981); // Shockwave verde
+      selectedNode.energyLevel = Math.min(100, selectedNode.energyLevel + 10);
+      renderNodeDetails();
+      
+      const logContainer = document.getElementById('blockchain-logs');
+      const div = document.createElement('div');
+      div.className = "text-bioGreen font-bold";
+      div.innerText = `>>> MANUAL INJECTION: ${selectedNode.name[currentLang]} [SUCCESS]`;
+      logContainer.insertBefore(div, logContainer.firstChild);
+    }
+
+    function renderNodeDetails() {
+      if (!selectedNode) return;
+      const typeLabel = nodeClassificationNames[currentLang][selectedNode.type];
+      const dict = translations[currentLang];
+      const container = document.getElementById('selected-node-container');
+      
+      container.innerHTML = `
+        <div class="flex flex-col gap-1 z-10 relative">
+          <div class="text-cyanLight font-bold uppercase text-xs flex items-center gap-2">
+            <div class="w-1.5 h-1.5 bg-cyanLight rounded-full animate-ping"></div>
+            ${selectedNode.name[currentLang]}
+          </div>
+          <div class="text-[9px] text-gray-400 mt-1 uppercase tracking-wider">Class: <span class="text-white">${typeLabel}</span></div>
+          
+          <div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-cyanLight/20">
+            <div class="bg-black/40 p-1.5 rounded">
+              <span class="text-[9px] text-gray-500 block uppercase">Bio-Energía</span>
+              <span class="text-bioGreen font-bold text-xs">${selectedNode.energyLevel}%</span>
+            </div>
+            <div class="bg-black/40 p-1.5 rounded">
+              <span class="text-[9px] text-gray-500 block uppercase">CO₂</span>
+              <span class="text-white font-bold text-xs">${selectedNode.carbonCaptured.toFixed(1)} T</span>
+            </div>
+          </div>
+          
+          <button onclick="injectNodeCapital()" class="mt-3 w-full bg-cyanLight/10 hover:bg-cyanLight/30 border border-cyanLight text-cyanLight py-1.5 rounded text-[10px] uppercase font-bold transition-all flex justify-center items-center gap-1 group">
+            <svg class="w-3 h-3 group-hover:animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            ${dict.btnActionInject}
+          </button>
+        </div>
+        <div class="absolute -right-4 -bottom-4 opacity-5 text-6xl pointer-events-none">⌬</div>
+      `;
+    }
+
+    async function toggleARCamera() {
+      const video = document.getElementById('webcam-feed');
+      if (video.style.display !== 'block') {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+          video.srcObject = stream; video.style.display = "block";
+          renderer.setClearColor(0x000000, 0);
+          setLanguage(currentLang);
+        } catch (err) { alert("Error Camera."); }
+      } else {
+        video.srcObject.getTracks().forEach(t => t.stop());
+        video.style.display = "none"; renderer.setClearColor(0x000000, 1.0);
+        setLanguage(currentLang);
+      }
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById('canvas-container');
+      camera.aspect = container.clientWidth / container.clientHeight; camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    window.onload = () => { init3D(); setLanguage('es'); };
+  </script>
+</body>
+</html>
