@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BERMUDA CIRCULAR ECOSYSTEM (BCE) - GEMELO DIGITAL INTERACTIVO OMNIA-5000</title>
+    <style>
+        :root {
+            /* Futuristic Cyber-Stealth Palette */
+            --bg-titanium: #040609;
+            --bg-card: #080d15;
+            --border-cyan: #00e5ff;
+            --cyan-glow: rgba(0, 229, 255, 0.25);
+            --green-glow: rgba(0, 255, 102, 0.2);
+            --red-glow: rgba(255, 0, 60, 0.2);
+            --purple-glow: rgba(213, 0, 249, 0.2);
+            --gold-glow: rgba(255, 196, 0, 0.2);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --font-mono: 'JetBrains Mono', 'Courier New', Courier, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-titanium);
+            color: var(--text-main);
+            font-family: var(--font-mono);
+        }
+
+        #main-viewport {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, #0b1424 0%, var(--bg-titanium) 100%);
+        }
+
+        #ar-camera-feed {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            display: none;
+            z-index: 1;
+            opacity: 0.25;
+            mix-blend-mode: screen;
+        }
+
+        #canvas-render-3d {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 2;
+            cursor: grab;
+        }
+        #canvas-render-3d:active {
+            cursor: grabbing;
+        }
+
+        .crt-scanlines {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.4) 50%);
+            background-size: 100% 4px;
+            z-index: 4;
+            pointer-events: none;
+            opacity: 0.3;
+            mix-blend-mode: overlay;
+        }
+
+        /* Sci-Fi HUD Interface */
+        #hud-interface {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 3;
+            pointer-events: none;
+            display: grid;
+            grid-template-columns: 360px 1fr 380px;
+            grid-template-rows: 95px 1fr 190px;
+            padding: 20px;
+            gap: 15px;
+        }
+
+        @media (max-width: 1200px) {
+            #hud-interface {
+                grid-template-columns: 300px 1fr 320px;
+                padding: 10px;
+                gap: 10px;
+            }
+        }
+
+        .hud-interactive-element {
+            pointer-events: auto;
+        }
+
+        .hud-panel {
+            background: rgba(8, 13, 21, 0.88);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            backdrop-filter: blur(16px);
+            padding: 16px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.95), inset 0 0 20px rgba(0, 229, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+            clip-path: polygon(0 15px, 15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%);
+        }
+
+        /* Tactical corner borders */
+        .hud-panel::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 30px; height: 3px; background: var(--border-cyan);
+        }
+        .hud-panel::after {
+            content: ''; position: absolute; bottom: 0; right: 0; width: 30px; height: 3px; background: var(--border-cyan);
+        }
+
+        .hud-header {
+            grid-column: 1 / span 2;
+            clip-path: polygon(0 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%);
+        }
+
+        .hud-header h1 {
+            font-size: 16px;
+            letter-spacing: 2px;
+            color: var(--border-cyan);
+            text-shadow: 0 0 12px var(--cyan-glow);
+            margin-bottom: 2px;
+            font-weight: 900;
+        }
+        .hud-header h2 {
+            font-size: 10px;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+        }
+
+        .hud-languages {
+            grid-column: 3;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            align-items: flex-start;
+        }
+
+        .btn-hud-action {
+            background: rgba(15, 18, 22, 0.95);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            color: var(--text-muted);
+            padding: 8px 14px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            text-transform: uppercase;
+            clip-path: polygon(0 6px, 6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+        }
+
+        .btn-hud-action:hover {
+            border-color: var(--border-cyan);
+            color: var(--border-cyan);
+            background: rgba(0, 229, 255, 0.1);
+            box-shadow: 0 0 12px var(--cyan-glow);
+        }
+
+        .btn-hud-action.active {
+            border-color: var(--border-cyan);
+            color: #03060a;
+            background: var(--border-cyan);
+            box-shadow: 0 0 15px var(--border-cyan);
+        }
+
+        .panel-left-telemetry {
+            grid-column: 1;
+            grid-row: 2;
+            overflow-y: auto;
+        }
+        .panel-right-controls {
+            grid-column: 3;
+            grid-row: 2 / span 2;
+        }
+        
+        .panel-bottom-matrix {
+            grid-column: 1 / span 2;
+            grid-row: 3;
+            display: grid;
+            grid-template-columns: 1.1fr 1fr 1.1fr;
+            gap: 15px;
+            align-items: end;
+        }
+
+        .section-title {
+            color: var(--border-cyan);
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border-bottom: 1px solid rgba(0, 229, 255, 0.25);
+            padding-bottom: 5px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+
+        .telemetry-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10.5px;
+            padding: 5px 0;
+            border-bottom: 1px dotted rgba(255,255,255,0.06);
+        }
+        .telemetry-row:hover {
+            background: rgba(0,229,255,0.04);
+        }
+
+        .telemetry-value {
+            color: var(--border-cyan);
+            font-weight: bold;
+            text-shadow: 0 0 6px var(--cyan-glow);
+        }
+
+        .digital-twin-console {
+            background: rgba(2, 3, 5, 0.96);
+            border: 1px solid rgba(0, 229, 255, 0.15);
+            padding: 8px;
+            font-size: 9.5px;
+            color: #85e3ff;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            height: 110px;
+            box-shadow: inset 0 0 12px rgba(0,0,0,0.8);
+        }
+
+        .console-line {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .console-line::before {
+            content: ">> ";
+            color: var(--border-cyan);
+            font-weight: bold;
+        }
+
+        .blockchain-ledger-box {
+            background: rgba(2, 3, 5, 0.9);
+            border: 1px solid rgba(0, 229, 255, 0.15);
+            padding: 8px;
+            font-size: 9px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            height: 90px;
+            overflow-y: auto;
+        }
+        .ledger-row {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(255,255,255,0.02);
+            padding: 4px 6px;
+            border-left: 2.5px solid #00ff66;
+        }
+
+        /* Node Surgical Inspector */
+        .node-inspector-panel {
+            background: rgba(2, 3, 5, 0.9);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            position: relative;
+        }
+        #mini-osc-canvas {
+            width: 100%;
+            height: 45px;
+            background: #010203;
+            border: 1px solid rgba(0,229,255,0.2);
+            margin-top: 4px;
+        }
+
+        #canvas-oscilloscope {
+            background: #010203;
+            border: 1px solid rgba(0, 229, 255, 0.2);
+            width: 100%;
+            height: 95px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
+        }
+
+        .control-flex-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .toggle-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            font-size: 10px;
+            padding: 4px 6px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.2s;
+        }
+        .toggle-container:hover {
+            background: rgba(0,229,255,0.08);
+            border-color: rgba(0,229,255,0.2);
+        }
+
+        input[type="checkbox"] {
+            appearance: none;
+            width: 32px;
+            height: 16px;
+            background: #11151d;
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 8px;
+            cursor: pointer;
+            position: relative;
+            transition: 0.2s;
+        }
+        input[type="checkbox"]::before {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            background: var(--text-muted);
+            transition: 0.2s;
+        }
+        input[type="checkbox"]:checked {
+            background: rgba(0, 229, 255, 0.15);
+            border-color: var(--border-cyan);
+        }
+        input[type="checkbox"]:checked::before {
+            left: 18px;
+            background: var(--border-cyan);
+            box-shadow: 0 0 8px var(--border-cyan);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 4px;
+            background: rgba(255,255,255,0.12);
+            border-radius: 2px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: var(--border-cyan);
+            margin-top: -4px;
+            box-shadow: 0 0 8px var(--border-cyan);
+            cursor: pointer;
+        }
+
+        .mode-grid-state {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        /* Progress Bars */
+        .yield-bar-container {
+            width: 100%;
+            height: 6px;
+            background: #0f141d;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 2px;
+        }
+        .yield-bar-fill {
+            height: 100%;
+            background: var(--border-cyan);
+            transition: width 0.4s ease-out;
+            box-shadow: 0 0 10px var(--border-cyan);
+        }
+
+        .watermark-brand {
+            font-size: 8px;
+            color: rgba(255, 255, 255, 0.15);
+            text-align: right;
+            margin-top: 5px;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="main-viewport">
+        <video id="ar-camera-feed" autoplay playsinline></video>
+        <canvas id="canvas-render-3d"></canvas>
+        <div class="crt-scanlines"></div>
+
+        <div id="hud-interface">
+            
+            <div class="hud-panel hud-header hud-interactive-element">
+                <h1 id="ui-main-title">BERMUDA CIRCULAR ECOSYSTEM (BCE) - GEMELO DIGITAL INTERACTIVO OMNIA-5000</h1>
+                <h2 id="ui-subtitle">Especificaciones Técnicas e Interacción 3D para la Resiliencia Insular 100% Circular por el Dr. Julio César Oporta Barrera</h2>
+            </div>
+
+            <div class="hud-languages hud-interactive-element">
+                <button class="btn-hud-action active" id="lang-es" onclick="switchLanguage('es')">ESP</button>
+                <button class="btn-hud-action" id="lang-en" onclick="switchLanguage('en')">ENG</button>
+                <button class="btn-hud-action" id="lang-zh" onclick="switchLanguage('zh')">中文</button>
+            </div>
+
+            <div class="hud-panel panel-left-telemetry hud-interactive-element">
+                <div class="section-title" id="lbl-sec-telemetry">TELEMETRÍA GLOBAL INDUSTRIAL</div>
+                <div class="telemetry-row"><span id="lbl-tel-hsg">Módulos Habitacionales:</span><span class="telemetry-value" id="val-tel-hsg">1,200 U. ACC</span></div>
+                <div class="telemetry-row"><span id="lbl-tel-food">Sustitución Alimentos:</span><span class="telemetry-value" id="val-tel-food">85% Yield</span></div>
+                <div class="telemetry-row"><span id="lbl-tel-nrg">Ahorro Energético Red:</span><span class="telemetry-value" id="val-tel-nrg" style="color: #00ff66;">$2.5M / Año</span></div>
+                <div class="telemetry-row"><span id="lbl-tel-wst">Mitigación Residuos:</span><span class="telemetry-value" id="val-tel-wst" style="color: #00ff66;">$4.5M / Año</span></div>
+                
+                <div class="section-title" id="lbl-sec-ledger">REGISTRO AUDITORÍA BLOCKCHAIN</div>
+                <div class="blockchain-ledger-box" id="blockchain-live-box"></div>
+
+                <div class="section-title" id="lbl-sec-twin">CONSOLA GEMELO DIGITAL (AI-CORE)</div>
+                <div class="digital-twin-console" id="twin-log-stream" style="flex-grow:1;"></div>
+            </div>
+
+            <div class="hud-panel panel-right-controls hud-interactive-element">
+                <div class="section-title" id="lbl-sec-modes">ESTADOS DINÁMICOS DE RED</div>
+                <div class="mode-grid-state">
+                    <button class="btn-hud-action active" id="btn-mode-normal" onclick="changeNetworkMode('NORMAL')">NORMAL</button>
+                    <button class="btn-hud-action" id="btn-mode-max" onclick="changeNetworkMode('MAX')">MAX EFF</button>
+                    <button class="btn-hud-action" id="btn-mode-emer" onclick="changeNetworkMode('EMERGENCY')">EMERGENCY</button>
+                    <button class="btn-hud-action" id="btn-mode-hurr" onclick="changeNetworkMode('HURRICANE')">HURRICANE</button>
+                    <button class="btn-hud-action" id="btn-mode-reso" onclick="changeNetworkMode('RESONANCE')" style="grid-column: 1 / span 2; font-weight: 900;">BIO-RESONANCE SYNC</button>
+                </div>
+
+                <div class="section-title" id="lbl-sec-subs">SUBSISTEMAS SIMULACIÓN ACTIVOS</div>
+                <div class="control-flex-group">
+                    <label class="toggle-container">
+                        <span id="lbl-sub-biomech">Biomecánica Modular</span>
+                        <input type="checkbox" id="chk-biomech" checked onchange="toggleSubsystem('biomech')">
+                    </label>
+                    <label class="toggle-container">
+                        <span id="lbl-sub-physics">Física Cuántica Axial</span>
+                        <input type="checkbox" id="chk-physics" checked onchange="toggleSubsystem('physics')">
+                    </label>
+                    <label class="toggle-container">
+                        <span id="lbl-sub-hybrid">Flujo Energía Híbrida</span>
+                        <input type="checkbox" id="chk-hybrid" checked onchange="toggleSubsystem('hybrid')">
+                    </label>
+                    <label class="toggle-container">
+                        <span id="lbl-sub-swarm">Enjambre Nodos IA</span>
+                        <input type="checkbox" id="chk-swarm" checked onchange="toggleSubsystem('swarm')">
+                    </label>
+                </div>
+
+                <div class="section-title" id="lbl-sec-inspector">INSPECTOR SURGICAL DE NODO</div>
+                <div class="node-inspector-panel">
+                    <div style="font-size:10px;"><span id="lbl-insp-id">ID NODO:</span> <span id="insp-node-id" style="color:var(--border-cyan); font-weight:bold;">STANDBY</span></div>
+                    <div style="font-size:9.5px;"><span id="lbl-insp-status">Estado de Bucle:</span> <span id="insp-node-status" style="color:var(--text-muted);">GLOBAL AUTONOMOUS BALANCE</span></div>
+                    <div style="font-size:9.5px;"><span id="lbl-insp-flow">Tensión Estructural:</span> <span id="insp-node-flow" style="color:#00ff66;">NOMINAL (3.42 KPa)</span></div>
+                    <canvas id="mini-osc-canvas"></canvas>
+                </div>
+
+                <div class="section-title" id="lbl-sec-ar">HOLOGRAFÍA (WEBXR OVERLAY)</div>
+                <button class="btn-hud-action" id="btn-toggle-ar" onclick="execARFallback()" style="width:100%;">INICIAR PROYECCIÓN DE CÁMARA</button>
+            </div>
+
+            <div class="hud-panel panel-bottom-matrix hud-interactive-element">
+                <div class="control-flex-group">
+                    <div class="section-title" id="lbl-sec-yield">RENDIMIENTO INDUSTRIAL</div>
+                    <div style="font-size:9px; color:var(--text-muted); margin-top:3px;">PRODUCCIÓN PROTEICA (SEA-FARM)</div>
+                    <div class="yield-bar-container"><div class="yield-bar-fill" id="bar-food" style="width: 85%;"></div></div>
+                    
+                    <div style="font-size:9px; color:var(--text-muted); margin-top:6px;">BATERÍAS DE ESTABILIZACIÓN HÍBRIDA</div>
+                    <div class="yield-bar-container"><div class="yield-bar-fill" id="bar-batt" style="width: 92%;"></div></div>
+                    
+                    <div style="font-size:9px; color:var(--text-muted); margin-top:6px;">REGENERACIÓN HÍDRICA EN MBR</div>
+                    <div class="yield-bar-container"><div class="yield-bar-fill" id="bar-water" style="width: 78%;"></div></div>
+                </div>
+
+                <div class="control-flex-group">
+                    <div class="section-title" id="lbl-sec-matrix">NAVEGACIÓN MATRICIAL 3D</div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:6px;">
+                        <div class="control-flex-group">
+                            <span style="font-size:9px; color:var(--text-muted);" id="lbl-sl-rotx">Ángulo Pitch (X)</span>
+                            <input type="range" id="slider-rot-x" min="-90" max="90" value="-15">
+                        </div>
+                        <div class="control-flex-group">
+                            <span style="font-size:9px; color:var(--text-muted);" id="lbl-sl-roty">Órbita Yaw (Y)</span>
+                            <input type="range" id="slider-rot-y" min="-180" max="180" value="45">
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                        <span style="font-size:9px; color:var(--text-muted);" id="lbl-zoom">Zoom Escala</span>
+                        <input type="range" id="slider-zoom" min="0.5" max="2.5" step="0.1" value="1.0" style="width: 60%;">
+                    </div>
+                    <div style="font-size:8px; color: var(--border-cyan); text-align: center; margin-top:8px; text-shadow:0 0 5px rgba(0,229,255,0.4);" id="lbl-mouse-guide">
+                        [ ARRASTRE PARA ROTAR • RUEDA PARA ZOOM • CLICK EN NODOS ]
+                    </div>
+                </div>
+
+                <div class="control-flex-group">
+                    <div class="section-title" id="lbl-sec-oscilloscope">FRECUENCIA DE COHERENCIA MULTI-RED</div>
+                    <canvas id="canvas-oscilloscope"></canvas>
+                    <div class="watermark-brand">OMNIA-5000 SGI CORE COMPLIANT</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const bceDictionary = {
+            es: {
+                title: "BERMUDA CIRCULAR ECOSYSTEM (BCE) - OMNIA-5000",
+                subtitle: "Gemelo Digital Inteligente y Sistema de Control de Resiliencia 3D",
+                sec_telemetry: "TELEMETRÍA GLOBAL INDUSTRIAL",
+                tel_hsg: "Módulos Habitacionales:",
+                tel_food: "Sustitución Alimentos:",
+                tel_nrg: "Ahorro Energético Red:",
+                tel_wst: "Mitigación Residuos:",
+                sec_ledger: "AUDITORÍA BLOCKCHAIN INMUTABLE",
+                sec_twin: "CONSOLA GEMELO DIGITAL (AI-CORE)",
+                sec_modes: "ESTADOS DINÁMICOS DE RED",
+                sec_subs: "SUBSISTEMAS SIMULACIÓN ACTIVOS",
+                sub_biomech: "Biomecánica Modular",
+                sub_physics: "Física Cuántica Axial",
+                sub_hybrid: "Flujo Energía Híbrida",
+                sub_swarm: "Enjambre Nodos IA",
+                sec_inspector: "INSPECTOR SURGICAL DE NODO",
+                insp_id: "ID NODO:",
+                insp_status: "Estado de Bucle:",
+                insp_flow: "Tensión Estructural:",
+                sec_ar: "HOLOGRAFÍA (WEBXR OVERLAY)",
+                btn_toggle_ar_start: "INICIAR PROYECCIÓN DE CÁMARA",
+                btn_toggle_ar_stop: "DESACOPLAR HOLOGRAFÍA",
+                sec_yield: "RENDIMIENTO INDUSTRIAL",
+                sec_matrix: "NAVEGACIÓN MATRICIAL 3D",
+                sl_rotx: "Ángulo Pitch (X)",
+                sl_roty: "Órbita Yaw (Y)",
+                zoom: "Zoom Escala",
+                guide: "[ ARRASTRE PARA ROTAR • RUEDA PARA ZOOM • CLICK EN NODOS ]",
+                sec_oscilloscope: "FRECUENCIA DE COHERENCIA MULTI-RED"
+            },
+            en: {
+                title: "BERMUDA CIRCULAR ECOSYSTEM (BCE) - OMNIA-5000",
+                subtitle: "Intelligent Digital Twin & 3D Resilience Control Interface",
+                sec_telemetry: "GLOBAL INDUSTRIAL TELEMETRY",
+                tel_hsg: "Housing Modules:",
+                tel_food: "Food Import Subst:",
+                tel_nrg: "Grid Energy Savings:",
+                tel_wst: "Waste Mitigation:",
+                sec_ledger: "INMUTABLE BLOCKCHAIN AUDITING",
+                sec_twin: "DIGITAL TWIN CONSOLE (AI-CORE)",
+                sec_modes: "DYNAMIC NETWORK STATES",
+                sec_subs: "ACTIVE SIMULATION SUBSYSTEMS",
+                sub_biomech: "Modular Biomechanics",
+                sub_physics: "Axial Quantum Physics",
+                sub_hybrid: "Hybrid Energy Flow",
+                sub_swarm: "AI Node Swarm",
+                sec_inspector: "SURGICAL NODE INSPECTOR",
+                insp_id: "NODE ID:",
+                insp_status: "Loop Operation Status:",
+                insp_flow: "Structural Stress:",
+                sec_ar: "HOLOGRAPHY (WEBXR OVERLAY)",
+                btn_toggle_ar_start: "START CAMERA PROJECTION",
+                btn_toggle_ar_stop: "DISENGAGE HOLOGRAPHY",
+                sec_yield: "INDUSTRIAL PERFORMANCE",
+                sec_matrix: "3D MATRIX NAVIGATION",
+                sl_rotx: "Pitch Angle (X)",
+                sl_roty: "Yaw Orbit (Y)",
+                zoom: "Scale Zoom",
+                guide: "[ DRAG TO ROTATE • SCROLL TO ZOOM • CLICK NODES ]",
+                sec_oscilloscope: "MULTI-GRID COHERENCE FREQUENCY"
+            },
+            zh: {
+                title: "百慕大循环生态系统 (BCE) - OMNIA-5000",
+                subtitle: "智能数字孪生与 3D 韧性协同控制系统",
+                sec_telemetry: "全球工业级遥测指标",
+                tel_hsg: "3D打印低碳住宅:",
+                tel_food: "全岛粮食蛋白产量:",
+                tel_nrg: "混合电网节能效益:",
+                tel_wst: "等离子气化减碳排:",
+                sec_ledger: "区块链去中心化不可篡改审计",
+                sec_twin: "数字孪生系统终端 (AI核心)",
+                sec_modes: "动态全网拓扑状态",
+                sec_subs: "活动物理模拟子系统",
+                sub_biomech: "模块化生物力学",
+                sub_physics: "轴向量子物理场",
+                sub_hybrid: "混合能量传输流",
+                sub_swarm: "群智自主蜂群系统",
+                sec_inspector: "全息外科节点检查器",
+                insp_id: "节点唯一标识:",
+                insp_status: "本地环路负载:",
+                insp_flow: "结构力学形变张力:",
+                sec_ar: "全息空间增强投影 (WEBXR)",
+                btn_toggle_ar_start: "建立相机流全息层",
+                btn_toggle_ar_stop: "关闭全息相机覆盖",
+                sec_yield: "全系统闭环产出效能",
+                sec_matrix: "3D全息矩阵空间控制",
+                sl_rotx: "俯仰纵摆角 (X轴)",
+                sl_roty: "全向绕转轨道 (Y轴)",
+                zoom: "全息透镜缩放",
+                guide: "[ 鼠标拖拽以进行旋转 • 滚轮缩放 • 点击节点注入脉冲 ]",
+                sec_oscilloscope: "OMNIA多维频率网共振分析"
+            }
+        };
+
+        let activeLanguage = 'es';
+
+        function switchLanguage(langCode) {
+            activeLanguage = langCode;
+            document.querySelectorAll('.hud-languages button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('lang-' + langCode).classList.add('active');
+
+            const voc = bceDictionary[langCode];
+            document.getElementById('ui-main-title').innerText = voc.title;
+            document.getElementById('ui-subtitle').innerText = voc.subtitle;
+            document.getElementById('lbl-sec-telemetry').innerText = voc.sec_telemetry;
+            document.getElementById('lbl-tel-hsg').innerText = voc.tel_hsg;
+            document.getElementById('lbl-tel-food').innerText = voc.tel_food;
+            document.getElementById('lbl-tel-nrg').innerText = voc.tel_nrg;
+            document.getElementById('lbl-tel-wst').innerText = voc.tel_wst;
+            document.getElementById('lbl-sec-ledger').innerText = voc.sec_ledger;
+            document.getElementById('lbl-sec-twin').innerText = voc.sec_twin;
+            document.getElementById('lbl-sec-modes').innerText = voc.sec_modes;
+            document.getElementById('lbl-sec-subs').innerText = voc.sec_subs;
+            document.getElementById('lbl-sub-biomech').innerText = voc.sub_biomech;
+            document.getElementById('lbl-sub-physics').innerText = voc.sub_physics;
+            document.getElementById('lbl-sub-hybrid').innerText = voc.sub_hybrid;
+            document.getElementById('lbl-sub-swarm').innerText = voc.sub_swarm;
+            document.getElementById('lbl-sec-inspector').innerText = voc.sec_inspector;
+            document.getElementById('lbl-insp-id').innerText = voc.insp_id;
+            document.getElementById('lbl-insp-status').innerText = voc.insp_status;
+            document.getElementById('lbl-insp-flow').innerText = voc.insp_flow;
+            document.getElementById('lbl-sec-ar').innerText = voc.sec_ar;
+            document.getElementById('lbl-sec-yield').innerText = voc.sec_yield;
+            document.getElementById('lbl-sec-matrix').innerText = voc.sec_matrix;
+            document.getElementById('lbl-sl-rotx').innerText = voc.sl_rotx;
+            document.getElementById('lbl-sl-roty').innerText = voc.sl_roty;
+            document.getElementById('lbl-zoom').innerText = voc.zoom;
+            document.getElementById('lbl-mouse-guide').innerText = voc.guide;
+            document.getElementById('lbl-sec-oscilloscope').innerText = voc.sec_oscilloscope;
+
+            const arBtn = document.getElementById('btn-toggle-ar');
+            if (isARActive) {
+                arBtn.innerText = voc.btn_toggle_ar_stop;
+            } else {
+                arBtn.innerText = voc.btn_toggle_ar_start;
+            }
+
+            syncTelemetryUIValues();
+            pushConsoleLog('System language switched to: [' + langCode.toUpperCase() + ']');
+        }
+
+        const consoleContainer = document.getElementById('twin-log-stream');
+        function pushConsoleLog(message) {
+            const line = document.createElement('div');
+            line.className = 'console-line';
+            line.innerText = '[' + new Date().toLocaleTimeString() + '] ' + message;
+            consoleContainer.appendChild(line);
+            consoleContainer.scrollTop = consoleContainer.scrollHeight;
+            if (consoleContainer.childNodes.length > 25) {
+                consoleContainer.removeChild(consoleContainer.firstChild);
+            }
+        }
+
+        const blockchainBox = document.getElementById('blockchain-live-box');
+        let currentBlockIndex = 25412;
+        function generateBlockchainBlock() {
+            currentBlockIndex++;
+            blockchainBox.innerHTML = '';
+            for(let i=0; i<4; i++) {
+                const row = document.createElement('div');
+                row.className = 'ledger-row';
+                let txHash = Math.random().toString(16).substr(2, 6).toUpperCase();
+                row.innerHTML = '<span>BLOCK #' + (currentBlockIndex - i) + ' [SHA-' + txHash + ']</span> <span style="color:#00ff66; font-weight:bold;">VALID</span>';
+                blockchainBox.appendChild(row);
+            }
+        }
+        generateBlockchainBlock();
+
+        let currentMode = 'NORMAL';
+        let subsystemsState = { biomech: true, physics: true, hybrid: true, swarm: true };
+
+        function syncTelemetryUIValues() {
+            const hsg = document.getElementById('val-tel-hsg');
+            const food = document.getElementById('val-tel-food');
+            const nrg = document.getElementById('val-tel-nrg');
+            const waste = document.getElementById('val-tel-wst');
+
+            if (currentMode === 'NORMAL') {
+                hsg.innerText = activeLanguage === 'zh' ? "1200 个单位 (100% 满)" : "1,200 Units (Nominal)";
+                food.innerText = "85% Yield";
+                nrg.innerText = activeLanguage === 'zh' ? "250万美元/年" : "$2.5M / Year";
+                waste.innerText = activeLanguage === 'zh' ? "450万美元/年" : "$4.5M / Year";
+            } else if (currentMode === 'MAX') {
+                hsg.innerText = activeLanguage === 'zh' ? "1450 个单位 (超负荷)" : "1,450 Units (Overclock)";
+                food.innerText = "98% Yield";
+                nrg.innerText = activeLanguage === 'zh' ? "380万美元/年" : "$3.8M / Year";
+                waste.innerText = activeLanguage === 'zh' ? "620万美元/年" : "$6.2M / Year";
+            } else if (currentMode === 'EMERGENCY') {
+                hsg.innerText = activeLanguage === 'zh' ? "820 个单位 (关键保护)" : "820 Units (Critical Def)";
+                food.innerText = "45% Yield";
+                nrg.innerText = activeLanguage === 'zh' ? "50万美元/年" : "$0.5M / Year";
+                waste.innerText = activeLanguage === 'zh' ? "110万美元/年" : "$1.1M / Year";
+            } else if (currentMode === 'HURRICANE') {
+                hsg.innerText = activeLanguage === 'zh' ? "450 个单位 (防空洞保障)" : "450 Units (Vault Lock)";
+                food.innerText = "30% Yield";
+                nrg.innerText = activeLanguage === 'zh' ? "10万美元/年" : "$0.1M / Year";
+                waste.innerText = activeLanguage === 'zh' ? "20万美元/年" : "$0.2M / Year";
+            } else if (currentMode === 'RESONANCE') {
+                hsg.innerText = activeLanguage === 'zh' ? "1380 个单位 (谐振平衡)" : "1,380 Units (Harmonic)";
+                food.innerText = "95% Yield";
+                nrg.innerText = activeLanguage === 'zh' ? "340万美元/年" : "$3.4M / Year";
+                waste.innerText = activeLanguage === 'zh' ? "580万美元/年" : "$5.8M / Year";
+            }
+        }
+
+        function changeNetworkMode(modeName) {
+            currentMode = modeName;
+            document.querySelectorAll('.mode-grid-state button').forEach(btn => btn.classList.remove('active'));
+            
+            let colorAccent = '#00e5ff';
+            let bgFill = '#00e5ff';
+            if (modeName === 'NORMAL') {
+                document.getElementById('btn-mode-normal').classList.add('active');
+            } else if (modeName === 'MAX') {
+                document.getElementById('btn-mode-max').classList.add('active');
+                colorAccent = '#00ff66'; bgFill = '#00ff66';
+            } else if (modeName === 'EMERGENCY') {
+                document.getElementById('btn-mode-emer').classList.add('active');
+                colorAccent = '#ff003c'; bgFill = '#ff003c';
+            } else if (modeName === 'HURRICANE') {
+                document.getElementById('btn-mode-hurr').classList.add('active');
+                colorAccent = '#d500f9'; bgFill = '#d500f9';
+            } else if (modeName === 'RESONANCE') {
+                document.getElementById('btn-mode-reso').classList.add('active');
+                colorAccent = '#ffc400'; bgFill = '#ffc400';
+            }
+            
+            document.documentElement.style.setProperty('--border-cyan', colorAccent);
+            
+            let bF = document.getElementById('bar-food');
+            let bB = document.getElementById('bar-batt');
+            let bW = document.getElementById('bar-water');
+            bF.style.background = bgFill;
+            bB.style.background = bgFill;
+            bW.style.background = bgFill;
+            
+            if (modeName === 'MAX' || modeName === 'RESONANCE') {
+                bF.style.width = '98%'; bB.style.width = '100%'; bW.style.width = '95%';
+            } else if (modeName === 'EMERGENCY' || modeName === 'HURRICANE') {
+                bF.style.width = '45%'; bB.style.width = '30%'; bW.style.width = '60%';
+            } else {
+                bF.style.width = '85%'; bB.style.width = '92%'; bW.style.width = '78%';
+            }
+
+            syncTelemetryUIValues();
+            pushConsoleLog('Grid network operation switched to mode: [' + modeName + ']');
+        }
+
+        function toggleSubsystem(subKey) {
+            subsystemsState[subKey] = document.getElementById('chk-' + subKey).checked;
+            pushConsoleLog('Sub-simulation module [' + subKey.toUpperCase() + '] active state set to: ' + subsystemsState[subKey]);
+        }
+
+        let isARActive = false;
+        function execARFallback() {
+            isARActive = !isARActive;
+            const videoFeed = document.getElementById('ar-camera-feed');
+            const btn = document.getElementById('btn-toggle-ar');
+            
+            if (isARActive) {
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                    .then(stream => {
+                        videoFeed.srcObject = stream;
+                        videoFeed.style.display = 'block';
+                        pushConsoleLog("Hardware camera feed successfully connected. WebXR Hologram superimposed.");
+                        btn.innerText = activeLanguage === 'zh' ? "关闭全息相机覆盖" : activeLanguage === 'en' ? "DISENGAGE HOLOGRAPHY" : "DESACOPLAR HOLOGRAFÍA";
+                        btn.style.borderColor = '#ff003c';
+                        btn.style.color = '#ff003c';
+                    }).catch(() => {
+                        alert("Camera hardware access rejected or unavailable.");
+                        isARActive = false;
+                    });
+            } else {
+                if (videoFeed.srcObject) {
+                    videoFeed.srcObject.getTracks().forEach(t => t.stop());
+                }
+                videoFeed.style.display = 'none';
+                btn.innerText = activeLanguage === 'zh' ? "建立相机流全息层" : activeLanguage === 'en' ? "START CAMERA PROJECTION" : "INICIAR PROYECCIÓN DE CÁMARA";
+                btn.style.borderColor = '';
+                btn.style.color = '';
+                pushConsoleLog("WebXR spatial holography disengaged.");
+            }
+        }
+
+        // --- SIMULATED OSCILLOSCOPES ---
+        const oscCanvas = document.getElementById('canvas-oscilloscope');
+        const oscCtx = oscCanvas.getContext('2d');
+        const miniOscCanvas = document.getElementById('mini-osc-canvas');
+        const miniOscCtx = miniOscCanvas.getContext('2d');
+
+        function drawOscilloscopeWave(ticks) {
+            oscCtx.clearRect(0, 0, oscCanvas.width, oscCanvas.height);
+            miniOscCtx.clearRect(0, 0, miniOscCanvas.width, miniOscCanvas.height);
+
+            let color = getComputedStyle(document.documentElement).getPropertyValue('--border-cyan').trim();
+            oscCtx.strokeStyle = color; oscCtx.lineWidth = 1.5; oscCtx.beginPath();
+            miniOscCtx.strokeStyle = color; miniOscCtx.lineWidth = 1.2; miniOscCtx.beginPath();
+            
+            let fMod = (currentMode === 'HURRICANE' || currentMode === 'RESONANCE') ? 0.22 : (currentMode === 'MAX' ? 0.15 : 0.08);
+            let aMod = currentMode === 'HURRICANE' ? 28 : (currentMode === 'RESONANCE' ? 22 : 14);
+
+            for (let x = 0; x < oscCanvas.width; x++) {
+                let y = oscCanvas.height / 2 + Math.sin(x * fMod + ticks * 0.15) * aMod * Math.sin(x * 0.02)
+                        + (Math.random() - 0.5) * (currentMode === 'HURRICANE' ? 6 : 1);
+                if (x === 0) oscCtx.moveTo(x, y); else oscCtx.lineTo(x, y);
+            }
+            oscCtx.stroke();
+
+            // Mini local inspector oscilloscope
+            for (let x = 0; x < miniOscCanvas.width; x++) {
+                let tension = selectedNodeRef ? (selectedNodeRef.type === 'core' ? 2.0 : 1.0) : 0.4;
+                let phaseSpeed = selectedNodeRef ? 0.25 : 0.08;
+                let y = miniOscCanvas.height / 2 + Math.sin(x * 0.18 + ticks * phaseSpeed) * 12 * tension * Math.cos(x * 0.05);
+                if (x === 0) miniOscCtx.moveTo(x, y); else miniOscCtx.lineTo(x, y);
+            }
+            miniOscCtx.stroke();
+        }
+
+        // --- MAIN 3D GRAPHICS ENGINE & KINETIC SIMULATION ---
+        const canvas = document.getElementById('canvas-render-3d');
+        const ctx = canvas.getContext('2d');
+        let viewW, viewH;
+        let isDragging = false;
+        let prevMouseX, prevMouseY;
+        let selectedNodeRef = null;
+        let projectPointsMemory = []; 
+        let shockwaves = []; 
+        let energyPackets = []; 
+        let zoomFactor = 1.0;
+
+        const sliderRotX = document.getElementById('slider-rot-x');
+        const sliderRotY = document.getElementById('slider-rot-y');
+        const sliderZoom = document.getElementById('slider-zoom');
+
+        function resizeBounds() {
+            viewW = canvas.width = window.innerWidth;
+            viewH = canvas.height = window.innerHeight;
+            oscCanvas.width = oscCanvas.offsetWidth;
+            oscCanvas.height = oscCanvas.offsetHeight;
+            miniOscCanvas.width = miniOscCanvas.offsetWidth;
+            miniOscCanvas.height = miniOscCanvas.offsetHeight;
+        }
+        window.addEventListener('resize', resizeBounds);
+
+        // Zoom via mouse wheel
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            let delta = e.deltaY * -0.001;
+            zoomFactor = Math.min(Math.max(0.5, zoomFactor + delta), 2.5);
+            sliderZoom.value = zoomFactor.toFixed(1);
+        }, { passive: false });
+
+        sliderZoom.addEventListener('input', () => {
+            zoomFactor = parseFloat(sliderZoom.value);
+        });
+
+        // 3D Interaction click-detection & wave projection
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            prevMouseX = e.clientX;
+            prevMouseY = e.clientY;
+            let clickedNode = null;
+            let shortestDist = 24;
+
+            projectPointsMemory.forEach(pt => {
+                let dist = Math.sqrt(Math.pow(e.clientX - pt.screenX, 2) + Math.pow(e.clientY - pt.screenY, 2));
+                if (dist < shortestDist) {
+                    shortestDist = dist;
+                    clickedNode = pt.nodeRef;
+                }
+            });
+
+            if (clickedNode) {
+                selectedNodeRef = clickedNode;
+                document.getElementById('insp-node-id').innerText = clickedNode.id;
+                
+                const statLbl = document.getElementById('insp-node-status');
+                const flowLbl = document.getElementById('insp-node-flow');
+
+                if (currentMode === 'HURRICANE') {
+                    statLbl.innerText = activeLanguage === 'zh' ? "抗风暴物理锚定状态" : "STORM ANCHORING ENGAGED";
+                    statLbl.style.color = '#d500f9';
+                    flowLbl.innerText = "CRITICAL (8.94 KPa)";
+                    flowLbl.style.color = '#ff003c';
+                } else if (currentMode === 'RESONANCE') {
+                    statLbl.innerText = activeLanguage === 'zh' ? "量子全网协同振荡" : "QUANTUM OSCILLATION STABLE";
+                    statLbl.style.color = '#ffc400';
+                    flowLbl.innerText = "COHERENT (1.02 KPa)";
+                    flowLbl.style.color = '#ffc400';
+                } else {
+                    statLbl.innerText = activeLanguage === 'zh' ? "全自动闭环负载平衡" : "AUTOMATED CLOSED-LOOP BALANCE";
+                    statLbl.style.color = '#00e5ff';
+                    flowLbl.innerText = "NOMINAL (3.42 KPa)";
+                    flowLbl.style.color = '#00ff66';
+                }
+
+                // Push kinetic ripple wave
+                let pt = projectPointsMemory.find(p => p.nodeRef === clickedNode);
+                if (pt) {
+                    shockwaves.push({
+                        x: pt.screenX,
+                        y: pt.screenY,
+                        radius: pt.nodeRef.size,
+                        maxRadius: 180,
+                        alpha: 1.0
+                    });
+                }
+
+                pushConsoleLog('Telemetry request: Node focus on [' + clickedNode.id + '] • kinetic pulse injected.');
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            sliderRotY.value = parseInt(sliderRotY.value) + (e.clientX - prevMouseX) * 0.5;
+            sliderRotX.value = parseInt(sliderRotX.value) - (e.clientY - prevMouseY) * 0.5;
+            prevMouseX = e.clientX;
+            prevMouseY = e.clientY;
+        });
+        window.addEventListener('mouseup', () => { isDragging = false; });
+
+        // Build 3D circular topological layout
+        let ecosystemNodes = [];
+        function initTopology() {
+            ecosystemNodes = [
+                { x: 0, y: -45, z: 0, size: 26, id: "OMNIA-CORE-MATRIX", type: "core", tag: "OMNIA CORE" },
+                { x: 0, y: 55, z: 0, size: 16, id: "HYDRO-DESAL-HUB", type: "water", tag: "DESAL SYSTEM" }
+            ];
+            for (let i = 0; i < 8; i++) {
+                let angle = (i / 8) * Math.PI * 2;
+                ecosystemNodes.push({
+                    x: Math.cos(angle) * 165,
+                    y: 20,
+                    z: Math.sin(angle) * 165,
+                    size: 10,
+                    id: "SEA-FARM-POD-" + (i + 1),
+                    type: "food",
+                    tag: "SEA POD " + (i + 1)
+                });
+                ecosystemNodes.push({
+                    x: Math.cos(angle + 0.3) * 270,
+                    y: -25,
+                    z: Math.sin(angle + 0.3) * 270,
+                    size: 12,
+                    id: "HABITAT-DOME-" + (i + 1),
+                    type: "housing",
+                    tag: "HABITAT " + (i + 1)
+                });
+            }
+        }
+        initTopology();
+
+        let swarmParticles = [];
+        for (let i = 0; i < 110; i++) {
+            swarmParticles.push({
+                x: (Math.random() - 0.5) * 450,
+                y: -50 - Math.random() * 120,
+                z: (Math.random() - 0.5) * 450,
+                vx: 0, vy: 0, vz: 0
+            });
+        }
+
+        let runTicks = 0;
+
+        function renderEngineLoop() {
+            runTicks++;
+            drawOscilloscopeWave(runTicks);
+
+            // Redraw background
+            if (isARActive) {
+                ctx.clearRect(0, 0, viewW, viewH);
+            } else {
+                ctx.fillStyle = 'rgba(4, 6, 9, 0.45)';
+                ctx.fillRect(0, 0, viewW, viewH);
+                
+                // Futuristic perspective reference grid floor
+                let radXGrid = parseInt(sliderRotX.value) * Math.PI / 180;
+                let radYGrid = (parseInt(sliderRotY.value) + runTicks * 0.12) * Math.PI / 180;
+                let cXG = Math.cos(radXGrid), sXG = Math.sin(radXGrid);
+                let cYG = Math.cos(radYGrid), sYG = Math.sin(radYGrid);
+
+                function gridProj(x, y, z) {
+                    let x1 = x * cYG - z * sYG;
+                    let z1 = x * sYG + z * cYG;
+                    let y2 = y * cXG - z1 * sXG;
+                    let z2 = y * sXG + z1 * cXG;
+                    let dist = 800 / zoomFactor;
+                    let scale = dist / (dist + z2);
+                    return { x: viewW/2 + x1*scale, y: viewH/2 + y2*scale, visible: z2 > -400 };
+                }
+
+                ctx.strokeStyle = 'rgba(0, 229, 255, 0.05)';
+                ctx.lineWidth = 1;
+                for (let i = -6; i <= 6; i++) {
+                    let pA1 = gridProj(i * 60, 60, -360);
+                    let pA2 = gridProj(i * 60, 60, 360);
+                    if (pA1.visible && pA2.visible) {
+                        ctx.beginPath(); ctx.moveTo(pA1.x, pA1.y); ctx.lineTo(pA2.x, pA2.y); ctx.stroke();
+                    }
+                    let pB1 = gridProj(-360, 60, i * 60);
+                    let pB2 = gridProj(360, 60, i * 60);
+                    if (pB1.visible && pB2.visible) {
+                        ctx.beginPath(); ctx.moveTo(pB1.x, pB1.y); ctx.lineTo(pB2.x, pB2.y); ctx.stroke();
+                    }
+                }
+            }
+
+            let radX = parseInt(sliderRotX.value) * Math.PI / 180;
+            let radY = (parseInt(sliderRotY.value) + runTicks * 0.12) * Math.PI / 180;
+            let cX = Math.cos(radX), sX = Math.sin(radX);
+            let cY = Math.cos(radY), sY = Math.sin(radY);
+
+            function transformPoint(x, y, z) {
+                let x1 = x * cY - z * sY;
+                let z1 = x * sY + z * cY;
+                let y2 = y * cX - z1 * sX;
+                let z2 = y * sX + z1 * cX;
+                let dist = 800 / zoomFactor;
+                let scale = dist / (dist + z2);
+                return { x: viewW/2 + x1*scale, y: viewH/2 + y2*scale, depth: z2, scale: scale };
+            }
+
+            let neonColor = getComputedStyle(document.documentElement).getPropertyValue('--border-cyan').trim();
+            let coreProj = transformPoint(ecosystemNodes[0].x, ecosystemNodes[0].y, ecosystemNodes[0].z);
+
+            // --- 1. BIOMECHANICS MODULE (DNA DOUBLE-HELIX STRANDS) ---
+            if (subsystemsState.biomech) {
+                ecosystemNodes.forEach((node, idx) => {
+                    if (node.type !== 'food') return;
+                    let p = transformPoint(node.x, node.y, node.z);
+                    
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    let steps = 18;
+                    for (let s = 0; s <= steps; s++) {
+                        let t = s / steps;
+                        let currX = node.x * t;
+                        let currY = node.y * t + (node.y - node.y) * t;
+                        let currZ = node.z * t;
+                        
+                        // Local offset for helix shape
+                        let helixAngle = t * Math.PI * 4 + runTicks * 0.05;
+                        let offset3D = Math.sin(helixAngle) * 12;
+                        
+                        let pt = transformPoint(currX + offset3D * cY, currY + offset3D * sX, currZ - offset3D * sY);
+                        if (s === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y);
+                    }
+                    ctx.strokeStyle = 'rgba(0, 255, 102, 0.25)';
+                    ctx.stroke();
+                });
+            }
+
+            // --- 2. HYBRID ENERGY FLOW PATHWAYS & LIGHT PACKETS ---
+            if (subsystemsState.hybrid) {
+                ecosystemNodes.forEach((node, idx) => {
+                    if (idx === 0) return;
+                    let p = transformPoint(node.x, node.y, node.z);
+                    ctx.strokeStyle = currentMode === 'HURRICANE' ? 'rgba(213, 0, 249, 0.2)' : (currentMode === 'RESONANCE' ? 'rgba(255, 196, 0, 0.35)' : 'rgba(0, 229, 255, 0.2)');
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath(); ctx.moveTo(coreProj.x, coreProj.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+
+                    if (Math.random() < 0.04) {
+                        energyPackets.push({
+                            progress: 0,
+                            from: ecosystemNodes[0],
+                            to: node,
+                            speed: Math.random() * 0.015 + 0.008
+                        });
+                    }
+                });
+            }
+
+            // Render flowing energy packets
+            for (let i = energyPackets.length - 1; i >= 0; i--) {
+                let pk = energyPackets[i];
+                pk.progress += pk.speed;
+                if (pk.progress >= 1) { energyPackets.splice(i, 1); continue; }
+                
+                let curX = pk.from.x + (pk.to.x - pk.from.x) * pk.progress;
+                let curY = pk.from.y + (pk.to.y - pk.from.y) * pk.progress;
+                let curZ = pk.from.z + (pk.to.z - pk.from.z) * pk.progress;
+                
+                let pt = transformPoint(curX, curY, curZ);
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowBlur = 10; ctx.shadowColor = neonColor;
+                ctx.beginPath(); ctx.arc(pt.x, pt.y, 3 * pt.scale, 0, Math.PI * 2); ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+
+            // --- 3. AXIAL QUANTUM PHYSICS MODULE ---
+            if (subsystemsState.physics) {
+                ecosystemNodes.forEach((node) => {
+                    if (node.type !== 'housing') return;
+                    let pt = transformPoint(node.x, node.y, node.z);
+                    
+                    // Render shimmering quantum field around dome structures
+                    ctx.strokeStyle = 'rgba(0, 229, 255, 0.08)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, 22 * pt.scale, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    ctx.fillStyle = 'rgba(0, 229, 255, 0.03)';
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, (14 + Math.sin(runTicks * 0.05 + node.x) * 4) * pt.scale, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+
+            // --- 4. AI SWARM NANO-NODES ---
+            if (subsystemsState.swarm) {
+                swarmParticles.forEach(p => {
+                    let dx = -p.x;
+                    let dy = -30 - p.y;
+                    let dz = -p.z;
+                    let d = Math.sqrt(dx*dx + dy*dy + dz*dz) || 1;
+
+                    let speed = (currentMode === 'HURRICANE') ? 5.0 : ((currentMode === 'RESONANCE') ? 2.5 : 1.2);
+                    p.vx += (dx / d) * 0.06 * speed;
+                    p.vy += (dy / d) * 0.06 * speed;
+                    p.vz += (dz / d) * 0.06 * speed;
+
+                    // Hurricane chaotic swirl
+                    if (currentMode === 'HURRICANE') {
+                        p.vx += (-p.z / d) * 2.2;
+                        p.vz += (p.x / d) * 2.2;
+                        p.vy += (Math.random() - 0.5) * 1.5;
+                    } else if (currentMode === 'RESONANCE') {
+                        p.vx += Math.sin(p.y * 0.06) * 0.4;
+                        p.vz += Math.cos(p.y * 0.06) * 0.4;
+                    }
+
+                    p.vx *= 0.94; p.vy *= 0.94; p.vz *= 0.94;
+                    p.x += p.vx; p.y += p.vy; p.z += p.vz;
+
+                    let proj = transformPoint(p.x, p.y, p.z);
+                    ctx.fillStyle = currentMode === 'HURRICANE' ? '#d500f9' : (currentMode === 'RESONANCE' ? '#ffc400' : '#00e5ff');
+                    ctx.beginPath(); ctx.arc(proj.x, proj.y, 1.8 * proj.scale, 0, Math.PI * 2); ctx.fill();
+                });
+            }
+
+            // --- Draw Nodes & Bounding Brackets ---
+            projectPointsMemory = [];
+            let sorted = ecosystemNodes.map(n => ({ data: n, proj: transformPoint(n.x, n.y, n.z) })).sort((a,b) => b.proj.depth - a.proj.depth);
+
+            sorted.forEach(item => {
+                let r = item.data.size * item.proj.scale;
+                if (currentMode === 'RESONANCE') r += Math.sin(runTicks * 0.08 + item.data.x) * 1.5;
+
+                projectPointsMemory.push({ screenX: item.proj.x, screenY: item.proj.y, nodeRef: item.data });
+
+                let isSelected = (selectedNodeRef === item.data);
+                ctx.shadowBlur = isSelected ? 30 : (item.data.type === 'core' ? 22 : 8);
+                ctx.shadowColor = neonColor;
+
+                if (item.data.type === 'core') {
+                    ctx.fillStyle = neonColor;
+                } else if (item.data.type === 'water') {
+                    ctx.fillStyle = '#90a4ae';
+                } else {
+                    ctx.fillStyle = currentMode === 'HURRICANE' ? '#d500f9' : (currentMode === 'RESONANCE' ? '#ffc400' : (item.data.type === 'food' ? '#00e5ff' : '#1e293b'));
+                }
+
+                ctx.beginPath(); ctx.arc(item.proj.x, item.proj.y, r, 0, Math.PI * 2); ctx.fill();
+                ctx.shadowBlur = 0;
+
+                ctx.strokeStyle = isSelected ? '#ffffff' : 'rgba(255,255,255,0.45)';
+                ctx.lineWidth = isSelected ? 2.5 : 1;
+                ctx.stroke();
+
+                // Draw futuristic UI brackets if selected
+                if (isSelected) {
+                    ctx.strokeStyle = neonColor;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    let bS = r + 8;
+                    // Top-Left bracket
+                    ctx.moveTo(item.proj.x - bS, item.proj.y - bS + 6);
+                    ctx.lineTo(item.proj.x - bS, item.proj.y - bS);
+                    ctx.lineTo(item.proj.x - bS + 6, item.proj.y - bS);
+                    // Top-Right bracket
+                    ctx.moveTo(item.proj.x + bS, item.proj.y - bS + 6);
+                    ctx.lineTo(item.proj.x + bS, item.proj.y - bS);
+                    ctx.lineTo(item.proj.x + bS - 6, item.proj.y - bS);
+                    // Bottom-Left bracket
+                    ctx.moveTo(item.proj.x - bS, item.proj.y + bS - 6);
+                    ctx.lineTo(item.proj.x - bS, item.proj.y + bS);
+                    ctx.lineTo(item.proj.x - bS + 6, item.proj.y + bS);
+                    // Bottom-Right bracket
+                    ctx.moveTo(item.proj.x + bS, item.proj.y + bS - 6);
+                    ctx.lineTo(item.proj.x + bS, item.proj.y + bS);
+                    ctx.lineTo(item.proj.x + bS - 6, item.proj.y + bS);
+                    ctx.stroke();
+                }
+
+                ctx.fillStyle = isSelected ? '#ffffff' : 'rgba(255,255,255,0.8)';
+                ctx.font = isSelected ? 'bold 11px var(--font-mono)' : '9px var(--font-mono)';
+                ctx.fillText(item.data.tag, item.proj.x + r + 6, item.proj.y + 4);
+            });
+
+            // --- 5. RIPPLE SHOCKWAVES ---
+            for (let i = shockwaves.length - 1; i >= 0; i--) {
+                let sw = shockwaves[i];
+                sw.radius += 5;
+                sw.alpha -= 0.025;
+                if (sw.alpha <= 0) { shockwaves.splice(i, 1); continue; }
+                
+                ctx.strokeStyle = 'rgba(0, 229, 255, ' + sw.alpha + ')';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath(); ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2); ctx.stroke();
+            }
+
+            requestAnimationFrame(renderEngineLoop);
+        }
+
+        resizeBounds();
+        switchLanguage('es');
+        requestAnimationFrame(renderEngineLoop);
+    </script>
+</body>
+</html>
