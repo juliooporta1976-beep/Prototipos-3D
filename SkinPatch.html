@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkinPatch MedLink - Prototipo 3D Interactivo</title>
+  <style>
+    :root {
+      --color-cyan: #4FC3F7;
+      --color-silver: #B0BEC5;
+      --color-white: #F5F7FA;
+      --color-dark: #1E2022;
+      --color-bg: #121314;
+      --color-gold: #FFD54F;
+      --color-red: #EF5350;
+      --color-green: #81C784;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--color-bg);
+      color: #FFFFFF;
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 20px;
+      border-bottom: 1px solid #2A2D30;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(30, 32, 34, 0.5);
+      backdrop-filter: blur(10px);
+    }
+
+    .author-badge {
+      font-size: 14px;
+      font-weight: bold;
+      color: var(--color-cyan);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .subtitle {
+      font-size: 11px;
+      color: var(--color-silver);
+      margin-top: 2px;
+    }
+
+    .lang-toggle {
+      display: inline-flex;
+      background: #000;
+      border: 1px solid #2A2D30;
+      padding: 2px;
+      border-radius: 4px;
+    }
+
+    .lang-btn {
+      background: none;
+      border: none;
+      color: #7A8086;
+      font-family: monospace;
+      font-size: 11px;
+      padding: 4px 8px;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.2s;
+    }
+
+    .lang-btn.active {
+      background: var(--color-cyan);
+      color: #000000;
+      font-weight: bold;
+    }
+
+    main {
+      flex: 1;
+      padding: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 1/1;
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    @media (min-width: 1024px) {
+      main {
+        grid-template-columns: 1.2fr 1fr;
+        gap: 20px;
+      }
+    }
+
+    .card {
+      background: rgba(30, 32, 34, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--color-cyan);
+      margin-bottom: 15px;
+      border-b: 1px solid #2A2D30;
+      padding-bottom: 6px;
+    }
+
+    .viewport-container {
+      position: relative;
+      height: 480px;
+      background: radial-gradient(circle at center, rgba(79, 195, 247, 0.04) 0%, rgba(18, 19, 20, 1) 100%);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    #webcam-feed {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-cover: cover;
+      opacity: 0.55;
+      display: none;
+      transform: scaleX(-1);
+    }
+
+    #three-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+
+    #three-canvas:active {
+      cursor: grabbing;
+    }
+
+    .ar-controls {
+      position: absolute;
+      bottom: 15px;
+      left: 15px;
+      z-index: 10;
+    }
+
+    .btn {
+      background: var(--color-cyan);
+      color: #000;
+      font-weight: bold;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: #76d2ff;
+      box-shadow: 0 0 15px rgba(79, 195, 247, 0.4);
+    }
+
+    .btn-alert {
+      background: var(--color-red);
+      color: white;
+    }
+
+    .btn-outline {
+      background: none;
+      border: 1px solid var(--color-cyan);
+      color: var(--color-cyan);
+    }
+
+    .btn-outline:hover {
+      background: rgba(79, 195, 247, 0.1);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 15px;
+    }
+
+    @media (min-width: 640px) {
+      .grid-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .slider-group {
+      margin-bottom: 15px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--color-silver);
+      margin-bottom: 4px;
+      font-family: monospace;
+    }
+
+    .slider-bar {
+      width: 100%;
+      accent-color: var(--color-cyan);
+      cursor: pointer;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    @media (min-width: 640px) {
+      .metrics-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    .metric-box {
+      background: #090a0a;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .metric-title {
+      font-size: 10px;
+      color: var(--color-silver);
+    }
+
+    .metric-value {
+      font-size: 24px;
+      font-weight: bold;
+      font-family: monospace;
+      margin: 4px 0;
+    }
+
+    .metric-unit {
+      font-size: 9px;
+      color: #7A8086;
+    }
+
+    .crisis-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px;
+      background: rgba(129, 199, 132, 0.1);
+      border: 1px solid var(--color-green);
+      border-radius: 6px;
+      color: var(--color-green);
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .crisis-indicator.alert {
+      background: rgba(239, 83, 80, 0.1);
+      border: 1px solid var(--color-red);
+      color: var(--color-red);
+    }
+
+    .node-map-svg {
+      width: 100%;
+      height: 180px;
+      background: #090a0a;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 6px;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 15px;
+      font-size: 10px;
+      color: #5A6066;
+      border-top: 1px solid #2A2D30;
+    }
+
+    .hud-label-3d {
+      position: absolute;
+      bottom: 55px;
+      left: 12px;
+      right: 12px;
+      background: rgba(18, 19, 20, 0.9);
+      border: 1px solid var(--color-cyan);
+      padding: 10px;
+      border-radius: 6px;
+      pointer-events: none;
+    }
+
+    .hud-header {
+      font-size: 11px;
+      font-weight: bold;
+      color: var(--color-cyan);
+    }
+
+    .hud-desc {
+      font-size: 9px;
+      color: #FFFFFF;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <div class="author-badge" id="author-text">Dr. Julio César Oporta Barrera</div>
+      <div class="subtitle" id="subtitle-text">Hacia la Farmacología Personalizada y Adaptativa</div>
+    </div>
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('es')">ES</button>
+      <button class="lang-btn" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" onclick="setLang('zh')">ZH</button>
+    </div>
+  </header>
+
+  <main>
+    <div>
+      <!-- 3D Prototype Card -->
+      <div class="card">
+        <div class="card-title" id="title-viewport">SkinPatch MedLink 3D</div>
+        <div class="viewport-container" id="stage">
+          <video id="webcam-feed" autoplay playsinline></video>
+          <canvas id="three-canvas"></canvas>
+
+          <div class="ar-controls">
+            <button class="btn btn-outline" id="btn-ar" onclick="toggleAR()">AR MODE OFF</button>
+          </div>
+
+          <div class="hud-label-3d" id="hud-label" style="display: none;">
+            <div class="hud-header" id="hud-layer-title">Capa 1: OLED</div>
+            <div class="hud-desc" id="hud-layer-desc">Protección y control visual</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Real-Time HUD metrics -->
+      <div class="card">
+        <div class="card-title" id="title-hud">Real-Time Tactical HUD</div>
+        <div class="metrics-grid">
+          <div class="metric-box">
+            <div class="metric-title" id="m-hr">Frecuencia Cardíaca</div>
+            <div class="metric-value" id="val-hr">72</div>
+            <div class="metric-unit">BPM</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-title" id="m-glu">Glucosa Capilar</div>
+            <div class="metric-value" id="val-glu">102</div>
+            <div class="metric-unit">mg/dL</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-title" id="m-tmp">Temperatura Cutánea</div>
+            <div class="metric-value" id="val-tmp">36.6</div>
+            <div class="metric-unit">°C</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-title" id="m-lac">Nivel de Lactato</div>
+            <div class="metric-value" id="val-lac">1.1</div>
+            <div class="metric-unit">mmol/L</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 15px;" id="crisis-box" class="crisis-indicator">
+          <span>●</span> <span id="crisis-text">SISTEMA ESTABLE - SIN CRISIS</span>
+        </div>
+      </div>
+
+      <!-- Telemetry & Advanced Processes HUD -->
+      <div class="card">
+        <div class="card-title" id="title-telemetry">TELEMETRÍA Y PROCESOS AVANZADOS (2026)</div>
+        
+        <!-- Interactive scenarios grid -->
+        <div style="margin-bottom: 15px;">
+          <div class="slider-header" style="margin-bottom: 6px;"><span id="t-scenarios">Escenarios Clínicos y Presets de Estrés</span></div>
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+            <button class="btn btn-outline" id="scen-rest" onclick="applyScenario('rest')" style="font-family: monospace; font-size: 11px; padding: 6px;">REPOSO / NORMAL</button>
+            <button class="btn btn-outline" id="scen-exercise" onclick="applyScenario('exercise')" style="font-family: monospace; font-size: 11px; padding: 6px;">EJERCICIO FÍSICO</button>
+            <button class="btn btn-outline" id="scen-sepsis" onclick="applyScenario('sepsis')" style="font-family: monospace; font-size: 11px; padding: 6px;">SEPSIS INFLAMATORIA</button>
+            <button class="btn btn-outline" id="scen-hypo" onclick="applyScenario('hypo')" style="font-family: monospace; font-size: 11px; padding: 6px;">HIPOGLUCEMIA AGUDA</button>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <!-- Flow widget -->
+          <div class="metric-box" style="background: #090a0a;">
+            <div class="slider-header" style="font-weight: bold; font-size: 11px; color: var(--color-cyan); margin-bottom: 6px;">
+              <span id="t-chamber-flow">CÁMARA DE FLUJO MICROFLUÍDICO</span>
+            </div>
+            <div style="position: relative; height: 35px; background: #121314; border-radius: 4px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.03);">
+              <div id="fluid-indicator" style="position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: rgba(79, 195, 247, 0.2); transition: width 0.1s linear;"></div>
+              <span style="font-family: monospace; font-size: 9px; color: var(--color-cyan); z-index: 2; font-weight: bold;" id="fluid-status">VALVE: CLOSED</span>
+            </div>
+          </div>
+
+          <!-- Biomechanical graph -->
+          <div class="metric-box" style="background: #090a0a;">
+            <div class="slider-header" style="font-weight: bold; font-size: 11px; color: var(--color-gold); margin-bottom: 6px;">
+              <span id="t-biomec-strain">STRAIN BIOMECÁNICO</span>
+            </div>
+            <div style="font-family: monospace; font-size: 10px; color: var(--color-silver); display: flex; justify-content: space-between;">
+              <div>FLEX: <span id="val-flex-biom" style="font-weight: bold; color: var(--color-gold);">25%</span></div>
+              <div>TENSIÓN: <span id="val-tension-biom" style="font-weight: bold; color: var(--color-cyan);">40%</span></div>
+            </div>
+            <div style="font-size: 8px; color: #7A8086; font-family: monospace; margin-top: 3px;">FRICTION COEFFICIENT: 0.12 μ</div>
+          </div>
+        </div>
+
+        <!-- Diagnostic log terminal -->
+        <div style="margin-top: 15px;">
+          <div class="slider-header" style="margin-bottom: 4px;"><span id="t-diag-terminal">Consola Edge LSTM (Live Feed)</span></div>
+          <div id="diag-terminal" style="height: 100px; background: #090a0a; border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 10px; overflow-y: auto; font-family: monospace; font-size: 9px; color: #81C784; line-height: 1.4;">
+            <div>[00:00:00.00] MedLink Edge local terminal online.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <!-- Control Panel -->
+      <div class="card">
+        <div class="card-title" id="title-controls">Panel de Simulación</div>
+
+        <!-- Exploded toggle -->
+        <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+          <button class="btn" id="btn-explode" onclick="toggleExplode()">VISTA EXPLOTADA</button>
+          <button class="btn btn-outline" onclick="triggerDosing()">SIMULAR DOSIS</button>
+        </div>
+
+        <!-- Layer Selector buttons -->
+        <div style="margin-bottom: 20px;">
+          <div class="slider-header" style="margin-bottom: 6px;"><span id="l-select">Capas del Dispositivo</span></div>
+          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;">
+            <button class="btn btn-outline" id="btn-l1" onclick="selectLayer(1)">L1</button>
+            <button class="btn btn-outline" id="btn-l2" onclick="selectLayer(2)">L2</button>
+            <button class="btn btn-outline" id="btn-l3" onclick="selectLayer(3)">L3</button>
+            <button class="btn btn-outline" id="btn-l4" onclick="selectLayer(4)">L4</button>
+            <button class="btn btn-outline" id="btn-l5" onclick="selectLayer(5)">L5</button>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <!-- Biomechanics -->
+          <div class="metric-box" style="background: none;">
+            <div class="slider-header" style="border-bottom: 1px solid #2A2D30; padding-bottom: 3px; margin-bottom: 10px;">
+              <span id="t-bio">BIOMECÁNICA</span>
+            </div>
+            <div class="slider-group">
+              <div class="slider-header">
+                <span id="s-flex">Flexión de la Piel</span>
+                <span id="val-flex">25%</span>
+              </div>
+              <input type="range" class="slider-bar" id="flex-range" min="0" max="100" value="25" oninput="updateRange('flex', this.value)">
+            </div>
+            <div class="slider-group">
+              <div class="slider-header">
+                <span id="s-tension">Tensión de Adhesión</span>
+                <span id="val-tension">40%</span>
+              </div>
+              <input type="range" class="slider-bar" id="tension-range" min="0" max="100" value="40" oninput="updateRange('tension', this.value)">
+            </div>
+          </div>
+
+          <!-- Modular Physics -->
+          <div class="metric-box" style="background: none;">
+            <div class="slider-header" style="border-bottom: 1px solid #2A2D30; padding-bottom: 3px; margin-bottom: 10px;">
+              <span id="t-phys">FÍSICA MODULAR</span>
+            </div>
+            <div class="slider-group">
+              <div class="slider-header">
+                <span id="s-res">Reservorio de Fármaco</span>
+                <span id="val-res">85%</span>
+              </div>
+              <input type="range" class="slider-bar" id="res-range" min="0" max="100" value="85" oninput="updateRange('res', this.value)">
+            </div>
+            <div class="slider-group">
+              <div class="slider-header">
+                <span id="s-perm">Velocidad de Permeación</span>
+                <span id="val-perm">2x</span>
+              </div>
+              <input type="range" class="slider-bar" id="perm-range" min="1" max="5" value="2" oninput="updateRange('perm', this.value)">
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top: 15px;">
+          <!-- Hybrid Energy -->
+          <div class="metric-box" style="background: none;">
+            <div class="slider-header" style="border-bottom: 1px solid #2A2D30; padding-bottom: 3px; margin-bottom: 10px;">
+              <span id="t-nrg">ENERGÍA HÍBRIDA</span>
+            </div>
+            <div style="font-size: 10px; color: var(--color-silver); font-family: monospace;" id="nrg-harvesting">
+              Harvesting: Piezo 0.6mW | Thermo 0.8mW
+            </div>
+            <div class="slider-group" style="margin-top: 10px;">
+              <div class="slider-header">
+                <span id="s-batt">Nivel de Batería</span>
+                <span id="val-batt">92%</span>
+              </div>
+              <input type="range" class="slider-bar" id="batt-range" min="0" max="100" value="92" oninput="updateRange('batt', this.value)">
+            </div>
+          </div>
+
+          <!-- Swarm AI -->
+          <div class="metric-box" style="background: none;">
+            <div class="slider-header" style="border-bottom: 1px solid #2A2D30; padding-bottom: 3px; margin-bottom: 10px;">
+              <span id="t-swarm">IA DE ENJAMBRE</span>
+            </div>
+            <div class="slider-group">
+              <div class="slider-header">
+                <span id="s-nodes">Nodos de Enjambre</span>
+                <span id="val-nodes">6 Patches</span>
+              </div>
+              <input type="range" class="slider-bar" id="nodes-range" min="1" max="12" value="6" oninput="updateRange('nodes', this.value)">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Node Graph -->
+      <div class="card">
+        <div class="card-title" id="title-node-web">Sistema de Nodos IA</div>
+        <svg class="node-map-svg" id="node-svg" style="cursor: pointer;"></svg>
+        <div id="node-details-panel" style="display: none; background: #090a0a; border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 12px; margin-top: 10px; position: relative;">
+          <button onclick="document.getElementById('node-details-panel').style.display='none'" style="position: absolute; right: 10px; top: 10px; background: none; border: none; color: #7A8086; cursor: pointer; font-size: 14px;">✕</button>
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+            <span style="width: 8px; height: 8px; background: var(--color-cyan); border-radius: 50%; display: inline-block;"></span>
+            <span id="node-detail-name" style="font-weight: bold; font-size: 11px; color: var(--color-cyan); text-transform: uppercase;">Node Name</span>
+            <span id="node-detail-type" style="font-size: 8px; background: #121314; border: 1px solid rgba(255,255,255,0.04); color: var(--color-silver); padding: 1px 5px; border-radius: 3px; font-family: monospace;">Layer Type</span>
+          </div>
+          <p id="node-detail-desc" style="font-size: 11px; color: #FFFFFF; line-height: 1.4; margin-bottom: 8px;">Description goes here...</p>
+          <div style="display: grid; grid-template-columns: 1fr; gap: 8px;" class="grid-2">
+            <div style="background: #121314; border: 1px solid rgba(255,255,255,0.03); border-radius: 4px; padding: 6px 10px;">
+              <span style="font-size: 8px; color: #7A8086; font-family: monospace; display: block; margin-bottom: 2px;">MATHEMATICAL FUNCTION</span>
+              <code id="node-detail-math" style="font-size: 10px; color: var(--color-cyan); font-family: monospace; font-weight: bold;">Equation</code>
+            </div>
+            <div style="background: #121314; border: 1px solid rgba(255,255,255,0.03); border-radius: 4px; padding: 6px 10px;">
+              <span style="font-size: 8px; color: #7A8086; font-family: monospace; display: block; margin-bottom: 2px;">WEIGHT TENSOR</span>
+              <code id="node-detail-weights" style="font-size: 10px; color: var(--color-gold); font-family: monospace; font-weight: bold;">Weights</code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    Dr. Julio César Oporta Barrera • SkinPatch MedLink • 2026
+  </footer>
+
+  <script>
+    // State machine
+    let state = {
+      language: 'es',
+      explodedView: false,
+      selectedLayer: 0,
+      activeState: 'monitoring',
+      cameraActive: false,
+      flex: 25,
+      tension: 40,
+      reservoir: 85,
+      permeation: 2,
+      battery: 92,
+      nodes: 6,
+      time: 0,
+      activeDrugCompound: 'insulin'
+    };
+
+    let vitals = {
+      hr: 72,
+      glu: 102,
+      tmp: 36.6,
+      lac: 1.1
+    };
+
+    const dicts = {"es":{"title":"SkinPatch MedLink - Simulador 3D Clínico","author":"Dr. Julio César Oporta Barrera","subtitle":"Hacia la Farmacología Personalizada y Adaptativa","downloadBtn":"Descargar Prototipo 3D (.html)","operatingMode":"Modo Operativo","basicMode":"Básico (Paciente)","clinicalMode":"Clínico Avanzado","layerSelector":"Capas del Dispositivo","explodedView":"Vista Explotada","assembledView":"Vista Ensamblada","simControls":"Panel de Simulación","biomechanics":"Biomecánica","skinFlex":"Flexión de la Piel","tension":"Tensión de Adhesión","modularPhysics":"Física Modular","reservoir":"Reservorio de Fármaco","permeationSpeed":"Velocidad de Permeación","hybridEnergy":"Energía Híbrida","thermoelectric":"Termoeléctrica (Gradiente)","piezoelectric":"Piezoeléctrica (Movimiento)","battery":"Nivel de Batería","swarmAI":"IA de Enjambre","nodes":"Nodos del Enjambre","hudTactical":"HUD Táctico en Tiempo Real","glucose":"Glucosa Capilar","heartRate":"Frecuencia Cardíaca","temperature":"Temperatura Cutánea","lactate":"Nivel de Lactato","sweating":"Tasa de Sudoración","hydration":"Hidratación","stress":"Nivel de Estrés","doseRate":"Tasa de Dosificación","predictedCrisis":"Crisis Predicha (IA)","none":"Ninguna detectada","hypoglycemia":"HIPOGLUCEMIA CRÍTICA","arrhythmia":"ARRITMIA DETECTADA","dehydration":"DESHIDRATACIÓN AGUDA","sepsis":"ESTRÉS METABÓLICO (LACTATO)","alertTitle":"ALERTA DEL SISTEMA","activeDosing":"Dosificación Activa","monitoring":"Monitoreo Continuo","idle":"Estado Inactivo","charging":"Cargando Energía","arMode":"Realidad Aumentada (AR)","arDesc":"Usa la cámara para simular la proyección del parche sobre tu mesa de trabajo o brazo.","arStart":"Activar Cámara AR","arStop":"Desactivar Cámara AR","nodeSystem":"Red de Nodos IA (Cortex-Edge)","nodeSystemDesc":"Flujo de inferencia local en tiempo real del modelo LSTM.","layer1":"Capa 1: Cubierta Flexible & Display OLED","layer1Desc":"Protección polimérica exterior resistente a agua (IP67) con pantalla visual flexible y botones táctiles capacitivos.","layer2":"Capa 2: Matriz de Biosensores Inteligentes","layer2Desc":"Captura continua de ECG (electrodos flexibles), glucosa, lactato, pH, sudor y temperatura.","layer3":"Capa 3: Módulo de Procesamiento Edge AI","layer3Desc":"Microprocesador ARM Cortex-M ultra-baja potencia que ejecuta modelos LSTM para predicción de crisis.","layer4":"Capa 4: Reservorios Microfluídicos & Válvulas","layer4Desc":"Cámaras con fármaco líquido y actuadores electro-térmicos para el control y dosificación activa.","layer5":"Capa 5: Membrana de Micropunciones & Adhesivo","layer5Desc":"Microneedles de penetración indolora y adhesivo transpirable con tecnología de auto-curación.","rotationDesc":"Arrastra para rotar el modelo 3D • Usa la rueda para hacer zoom","stateDosing":"LIBERANDO DOSIS","stateMonitoring":"MONITOREANDO BIOMARCADORES","stateIdle":"SISTEMA EN ESPERA","stateCharging":"COSECHANDO ENERGÍA","stateAlert":"CRISIS PREDICTIVA ACTIVADA","arInstruction":"Coloca tu brazo o mesa frente a la cámara. El parche holográfico 3D se proyectará encima.","visualTheme":"Arquitectura Biomimética Aeroespacial & Médica","activeDrugCompound":"Compuesto Activo Seleccionado","drugInsulin":"Insulina (Control de Glucosa)","drugEpinephrine":"Epinefrina (Soporte Anafiláctico/Shock)","drugNaloxone":"Naloxona (Bloqueador de Opioides)","drugHydrocortisone":"Hidrocortisona (Sepsis/Inmunomodulador)"},"en":{"title":"SkinPatch MedLink - Clinical 3D Simulator","author":"Dr. Julio César Oporta Barrera","subtitle":"Towards Personalized and Adaptive Pharmacology","downloadBtn":"Download 3D Prototype (.html)","operatingMode":"Operating Mode","basicMode":"Basic (Patient)","clinicalMode":"Advanced Clinical","layerSelector":"Device Layers","explodedView":"Exploded View","assembledView":"Assembled View","simControls":"Simulation Panel","biomechanics":"Biomechanics","skinFlex":"Skin Flexure","tension":"Adhesion Tension","modularPhysics":"Modular Physics","reservoir":"Drug Reservoir","permeationSpeed":"Permeation Velocity","hybridEnergy":"Hybrid Energy","thermoelectric":"Thermoelectric (Gradient)","piezoelectric":"Piezoelectric (Motion)","battery":"Battery Level","swarmAI":"Swarm AI","nodes":"Swarm Nodes","hudTactical":"Real-Time Tactical HUD","glucose":"Capillary Glucose","heartRate":"Heart Rate (ECG)","temperature":"Skin Temperature","lactate":"Lactate Level","sweating":"Sweat Rate","hydration":"Hydration","stress":"Stress Level","doseRate":"Dosing Rate","predictedCrisis":"Predicted Crisis (AI)","none":"None detected","hypoglycemia":"CRITICAL HYPOGLYCEMIA","arrhythmia":"ARRHYTHMIA DETECTED","dehydration":"ACUTE DEHYDRATION","sepsis":"METABOLIC STRESS (LACTATE)","alertTitle":"SYSTEM ALERT","activeDosing":"Active Dosing","monitoring":"Continuous Monitoring","idle":"Standby State","charging":"Harvesting Energy","arMode":"Augmented Reality (AR)","arDesc":"Use your camera to simulate projecting the patch onto your desk or forearm.","arStart":"Activate AR Camera","arStop":"Deactivate AR Camera","nodeSystem":"AI Node Network (Cortex-Edge)","nodeSystemDesc":"Real-time local inference flow of the embedded LSTM model.","layer1":"Layer 1: Flexible Outer Cover & OLED Display","layer1Desc":"Water-resistant (IP67) outer polymeric protection with flexible screen and capacitive touch buttons.","layer2":"Layer 2: Intelligent Biosensor Matrix","layer2Desc":"Continuous capture of ECG (flexible electrodes), glucose, lactate, pH, sweat, and temperature.","layer3":"Layer 3: Edge AI Processing Module","layer3Desc":"Ultra-low power ARM Cortex-M microprocessor running LSTM models for crisis prediction.","layer4":"Layer 4: Microfluidic Reservoirs & Valves","layer4Desc":"Liquid drug chambers and electro-thermal actuators for active dosing and control.","layer5":"Layer 5: Micropuncture Membrane & Adhesive","layer5Desc":"Painless penetration microneedles and breathable adhesive with self-healing technology.","rotationDesc":"Drag to rotate the 3D model • Scroll to zoom","stateDosing":"RELEASING DOSE","stateMonitoring":"MONITORING BIOMARKERS","stateIdle":"SYSTEM STANDBY","stateCharging":"HARVESTING ENERGY","stateAlert":"PREDICTIVE CRISIS ACTIVATED","arInstruction":"Place your forearm or desk in front of the camera. The 3D holographic patch will project on top.","visualTheme":"Aerospace & Medical Biomimetic Architecture","activeDrugCompound":"Selected Active Compound","drugInsulin":"Insulin (Glucose Regulation)","drugEpinephrine":"Epinephrine (Anaphylaxis/Shock Support)","drugNaloxone":"Naloxone (Opioid Overdose Block)","drugHydrocortisone":"Hydrocortisone (Sepsis/Immunomodulator)"},"zh":{"title":"SkinPatch MedLink - 3D临床模拟器","author":"Julio César Oporta Barrera 博士","subtitle":"迈向个性化与适应性给药系统","downloadBtn":"下载 3D 原型 (.html)","operatingMode":"运行模式","basicMode":"基础模式 (患者)","clinicalMode":"高级临床模式","layerSelector":"设备分层结构","explodedView":"分层拆解图","assembledView":"整体组装图","simControls":"系统模拟控制","biomechanics":"生物力学参数","skinFlex":"皮肤弯曲度","tension":"粘附应力","modularPhysics":"模块化物理流","reservoir":"药物储存量","permeationSpeed":"药物渗透速度","hybridEnergy":"混合能量收集","thermoelectric":"温差发电 (梯度)","piezoelectric":"压电发电 (运动)","battery":"电池电量","swarmAI":"集群智能 (Swarm AI)","nodes":"集群通信节点","hudTactical":"实时战术HUD显示","glucose":"毛细血管血糖值","heartRate":"心率心电图 (ECG)","temperature":"皮肤温度","lactate":"乳酸水平","sweating":"出汗率","hydration":"体内水分","stress":"应激压力水平","doseRate":"实时给药速率","predictedCrisis":"预测医学危机 (AI)","none":"未检测到危机","hypoglycemia":"严重低血糖危机","arrhythmia":"检测到心律失常","dehydration":"急性脱水症状","sepsis":"代谢压力过高 (乳酸)","alertTitle":"系统核心警报","activeDosing":"给药系统运行中","monitoring":"生理指标持续监测","idle":"系统待机状态","charging":"微型能量收集器工作中","arMode":"增强现实 (AR 投影)","arDesc":"调用摄像头将微型智能贴片3D全息投影在您的工作台或手臂上。","arStart":"开启 AR 摄像头","arStop":"关闭 AR 摄像头","nodeSystem":"智能决策神经网络节点","nodeSystemDesc":"嵌入式 LSTM 模型本地实时推理和控制流。","layer1":"第 1 层：柔性外壳与柔性 OLED 屏幕","layer1Desc":"防水 (IP67) 聚合物外保护层，配备超薄彩色柔性屏幕和电容式触控按键。","layer2":"第 2 层：高精度智能传感器矩阵","layer2Desc":"持续采集心电 (ECG 柔性电极)、血糖、乳酸、酸碱度 (pH)、排汗和温度。","layer3":"第 3 层：边缘AI神经网络计算核","layer3Desc":"超低功耗 ARM Cortex-M 微处理器，本地运行决策推理算法并评估风险指数。","layer4":"第 4 层：微流控储药腔与电控阀门","layer4Desc":"多个独立的微型储液室，结合热机械或压电阀门，精密控制定量释放。","layer5":"第 5 层：无痛微针阵列与呼吸粘合膜","layer5Desc":"无痛皮下微针通道与透气、自修复的压敏式医用抗过敏粘合层。","rotationDesc":"拖拽旋转 3D 模型 • 鼠标滚轮进行缩放","stateDosing":"正在释放药物","stateMonitoring":"正在监测生物标志物","stateIdle":"系统准备就绪","stateCharging":"正在收集混合能量","stateAlert":"激活预测性危机干预","arInstruction":"将手臂或桌面置于镜头前，3D 全息医学贴片将投影融合于现实场景中。","visualTheme":"航空与医学仿生流线型隐形外观","activeDrugCompound":"选定的活性药物成分","drugInsulin":"胰岛素 (血糖调节)","drugEpinephrine":"肾上腺素 (过敏性休克支持)","drugNaloxone":"纳洛酮 (阿片类药物解毒)","drugHydrocortisone":"氢化可的松 (脓毒症/免疫调节)"}};
+
+    // Start 3D Engine on Canvas
+    const canvas = document.getElementById('three-canvas');
+    const ctx = canvas.getContext('2d');
+    let rotX = 0.5, rotY = -0.6, zoom = 1.0;
+    let isDragging = false;
+    let startX = 0, startY = 0;
+
+    // Interaction handlers
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, rotX + dy * 0.007));
+      rotY += dx * 0.007;
+      startX = e.clientX;
+      startY = e.clientY;
+    });
+
+    document.addEventListener('mouseup', () => { isDragging = false; });
+
+    // Touch support
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+      }
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (!isDragging || e.touches.length !== 1) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, rotX + dy * 0.007));
+      rotY += dx * 0.007;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    });
+
+    canvas.addEventListener('touchend', () => { isDragging = false; });
+
+    // Zoom support
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      zoom = Math.max(0.5, Math.min(2.0, zoom - e.deltaY * 0.001));
+    }, { passive: false });
+
+    function resizeCanvas() {
+      const parent = canvas.parentElement;
+      canvas.width = parent.clientWidth * window.devicePixelRatio;
+      canvas.height = parent.clientHeight * window.devicePixelRatio;
+      canvas.style.width = parent.clientWidth + 'px';
+      canvas.style.height = parent.clientHeight + 'px';
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // Main 3D render loop
+    function render3D() {
+      state.time += 0.03;
+      if (!isDragging) {
+        rotY += 0.003; // slow auto-rotate
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const baseScale = Math.min(canvas.width, canvas.height) * 0.3 * zoom;
+
+      function project(p) {
+        let x1 = p.x * Math.cos(rotY) - p.z * Math.sin(rotY);
+        let z1 = p.x * Math.sin(rotY) + p.z * Math.cos(rotY);
+        let y2 = p.y * Math.cos(rotX) - z1 * Math.sin(rotX);
+        let z2 = p.y * Math.sin(rotX) + z1 * Math.cos(rotX);
+        const dist = 300, fov = 250;
+        const scaleFactor = fov / (dist + z2);
+        return {
+          x: cx + x1 * baseScale * scaleFactor,
+          y: cy + y2 * baseScale * scaleFactor,
+          z: z2
+        };
+      }
+
+      const spacing = state.explodedView ? 1.6 : 0.28;
+      const layersY = [-2.8*spacing, -1.2*spacing, 0, 1.1*spacing, 2.2*spacing];
+
+      // Draw connection guidelines in Exploded mode
+      if (state.explodedView) {
+        ctx.strokeStyle = 'rgba(79, 195, 247, 0.25)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        const corners = [{x:1.1, z:0}, {x:-1.1, z:0}, {x:0, z:0.8}, {x:0, z:-0.8}];
+        corners.forEach(c => {
+          const top = project({x: c.x * 1.3, y: layersY[0], z: c.z * 0.95});
+          const bot = project({x: c.x * 1.3, y: layersY[4], z: c.z * 0.95});
+          ctx.beginPath();
+          ctx.moveTo(top.x, top.y);
+          ctx.lineTo(bot.x, bot.y);
+          ctx.stroke();
+        });
+        ctx.setLineDash([]);
+      }
+
+      // Render 5 cylinder layers back-to-front
+      const isAbove = rotX > 0;
+      const renderOrder = isAbove ? [4, 3, 2, 1, 0] : [0, 1, 2, 3, 4];
+
+      renderOrder.forEach(lIdx => {
+        const y = layersY[lIdx];
+        const isSelected = state.selectedLayer === (lIdx + 1);
+        const opacity = isSelected ? 1.0 : (state.selectedLayer === 0 ? 0.85 : 0.2);
+
+        // Cylinder Drawing Function inside HTML
+        function drawCylinder(yCenter, radius, thickness, fillCol, strokeCol, isOLED) {
+          const segments = 48;
+          const topPoints = [], botPoints = [];
+          for (let i = 0; i < segments; i++) {
+            const th = (i / segments) * Math.PI * 2;
+            topPoints.push({ x: Math.cos(th)*radius*1.3, y: yCenter - thickness/2, z: Math.sin(th)*radius*0.95 });
+            botPoints.push({ x: Math.cos(th)*radius*1.3, y: yCenter + thickness/2, z: Math.sin(th)*radius*0.95 });
+          }
+          const projTop = topPoints.map(project);
+          const projBot = botPoints.map(project);
+
+          // Draw bottom
+          ctx.beginPath();
+          ctx.fillStyle = fillCol;
+          ctx.globalAlpha = opacity;
+          ctx.moveTo(projBot[0].x, projBot[0].y);
+          for(let i=1; i<segments; i++) ctx.lineTo(projBot[i].x, projBot[i].y);
+          ctx.closePath(); ctx.fill();
+
+          // Walls
+          for(let i=0; i<segments; i++) {
+            const next = (i+1)%segments;
+            const dx1 = projTop[next].x - projTop[i].x;
+            const dy1 = projTop[next].y - projTop[i].y;
+            const dx2 = projBot[i].x - projTop[i].x;
+            const dy2 = projBot[i].y - projTop[i].y;
+            if (dx1*dy2 - dy1*dx2 > 0) {
+              ctx.beginPath();
+              ctx.fillStyle = fillCol;
+              ctx.globalAlpha = opacity * 0.9;
+              ctx.moveTo(projTop[i].x, projTop[i].y);
+              ctx.lineTo(projTop[next].x, projTop[next].y);
+              ctx.lineTo(projBot[next].x, projBot[next].y);
+              ctx.lineTo(projBot[i].x, projBot[i].y);
+              ctx.closePath(); ctx.fill();
+
+              ctx.beginPath();
+              ctx.strokeStyle = strokeCol;
+              ctx.lineWidth = 1;
+              ctx.globalAlpha = opacity;
+              ctx.moveTo(projTop[i].x, projTop[i].y);
+              ctx.lineTo(projTop[next].x, projTop[next].y);
+              ctx.stroke();
+            }
+          }
+
+          // Top Face
+          ctx.beginPath();
+          ctx.fillStyle = fillCol;
+          ctx.globalAlpha = opacity;
+          ctx.moveTo(projTop[0].x, projTop[0].y);
+          for(let i=1; i<segments; i++) ctx.lineTo(projTop[i].x, projTop[i].y);
+          ctx.closePath(); ctx.fill();
+
+          ctx.beginPath();
+          ctx.strokeStyle = strokeCol;
+          ctx.lineWidth = 1.5;
+          ctx.globalAlpha = opacity;
+          ctx.moveTo(projTop[0].x, projTop[0].y);
+          for(let i=1; i<segments; i++) ctx.lineTo(projTop[i].x, projTop[i].y);
+          ctx.closePath(); ctx.stroke();
+
+          if (isOLED) {
+            const center = project({ x: 0, y: yCenter - thickness/2 - 0.01, z: 0 });
+            ctx.globalAlpha = 1;
+            ctx.beginPath();
+            ctx.fillStyle = '#121314';
+            ctx.ellipse(center.x, center.y, baseScale*0.5, baseScale*0.35*Math.cos(rotX), 0, 0, Math.PI*2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#4FC3F7';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Render status
+            ctx.fillStyle = state.activeState === 'dosing' ? '#4FC3F7' : '#81C784';
+            ctx.font = 'bold 12px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(state.activeState.toUpperCase(), center.x, center.y - 10);
+
+            // ECG drawing fallback
+            ctx.strokeStyle = '#4FC3F7';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for(let sx=-20; sx<=20; sx+=2) {
+              const px = center.x + sx * 1.2;
+              let dy = 0;
+              const xVal = (sx + state.time * 15) % 30;
+              if (xVal > 22 && xVal < 24) dy = -15;
+              else if (xVal >= 24 && xVal < 26) dy = 10;
+              const py = center.y + 12 + dy * 0.4;
+              if (sx === -20) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+          }
+        }
+
+        if (lIdx === 0) drawCylinder(y, 1.1, 0.08, '#2C2F33', '#4FC3F7', true);
+        if (lIdx === 1) drawCylinder(y, 1.05, 0.04, 'rgba(144, 164, 174, 0.5)', '#B0BEC5', false);
+        if (lIdx === 2) drawCylinder(y, 1.0, 0.05, 'rgba(30, 32, 34, 0.95)', '#4FC3F7', false);
+        if (lIdx === 3) drawCylinder(y, 0.95, 0.06, 'rgba(245, 247, 250, 0.4)', '#B0BEC5', false);
+        if (lIdx === 4) {
+          drawCylinder(y, 0.95, 0.02, 'rgba(245, 247, 250, 0.95)', '#4FC3F7', false);
+          // Tiny microneedles array
+          const needles = [
+            {x:-0.4, z:-0.3}, {x:-0.4, z:0.3}, {x:0, z:0}, {x:0.4, z:-0.3}, {x:0.4, z:0.3}
+          ];
+          needles.forEach(n => {
+            const base = project({ x: n.x, y: y+0.01, z: n.z });
+            const tip = project({ x: n.x, y: y+0.08, z: n.z });
+            ctx.strokeStyle = state.activeState === 'dosing' ? '#4FC3F7' : '#B0BEC5';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(tip.x, tip.y); ctx.stroke();
+          });
+        }
+      });
+
+      // Flowing dosing particles
+      if (state.activeState === 'dosing') {
+        ctx.fillStyle = '#4FC3F7';
+        for (let i = 0; i < 15; i++) {
+          const progress = ((state.time * 20 + i * 35) % 100) / 100;
+          const yCoord = layersY[3] + progress * (layersY[4] - layersY[3]);
+          const ang = (i * 22) % (Math.PI * 2);
+          const rad = 0.5 * Math.sin(i * 1.5);
+          const p = project({ x: Math.cos(ang)*rad, y: yCoord, z: Math.sin(ang)*rad });
+          ctx.globalAlpha = 1 - progress;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 3, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+
+      requestAnimationFrame(render3D);
+    }
+
+    // Explode layers toggle
+    function toggleExplode() {
+      state.explodedView = !state.explodedView;
+      const btn = document.getElementById('btn-explode');
+      btn.innerText = state.explodedView ? 'VISTA ENSAMBLADA' : 'VISTA EXPLOTADA';
+      if (state.explodedView) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    }
+
+    // Dosing simulation trigger
+    function triggerDosing() {
+      state.activeState = 'dosing';
+      setTimeout(() => {
+        state.activeState = 'monitoring';
+      }, 5000);
+    }
+
+    // Select specific layers
+    function selectLayer(layerNum) {
+      if (state.selectedLayer === layerNum) {
+        state.selectedLayer = 0;
+      } else {
+        state.selectedLayer = layerNum;
+      }
+
+      // Highlight button
+      for (let i = 1; i <= 5; i++) {
+        const btn = document.getElementById('btn-l' + i);
+        if (i === state.selectedLayer) {
+          btn.style.background = 'var(--color-cyan)';
+          btn.style.color = '#000000';
+        } else {
+          btn.style.background = 'none';
+          btn.style.color = 'var(--color-cyan)';
+        }
+      }
+
+      // HUD Label
+      const hud = document.getElementById('hud-label');
+      if (state.selectedLayer > 0) {
+        hud.style.display = 'block';
+        const keyTitle = 'layer' + state.selectedLayer;
+        const keyDesc = 'layer' + state.selectedLayer + 'Desc';
+        document.getElementById('hud-layer-title').innerText = dicts[state.language][keyTitle] || '';
+        document.getElementById('hud-layer-desc').innerText = dicts[state.language][keyDesc] || '';
+      } else {
+        hud.style.display = 'none';
+      }
+    }
+
+    // Sliders range input update
+    function updateRange(field, val) {
+      state[field] = parseInt(val);
+      document.getElementById('val-' + field).innerText = val + (field === 'perm' ? 'x' : (field === 'nodes' ? ' Patches' : '%'));
+
+      if (field === 'nodes') {
+        drawNodes();
+      }
+    }
+
+    // Multilenguaje support
+    function setLang(lang) {
+      state.language = lang;
+      const buttons = document.querySelectorAll('.lang-btn');
+      buttons.forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      // Refresh dictionary text
+      const d = dicts[lang];
+      document.getElementById('author-text').innerText = d.author;
+      document.getElementById('subtitle-text').innerText = d.subtitle;
+      document.getElementById('title-viewport').innerText = d.title;
+      document.getElementById('title-hud').innerText = d.hudTactical;
+      document.getElementById('title-controls').innerText = d.simControls;
+      document.getElementById('title-node-web').innerText = d.nodeSystem;
+      document.getElementById('btn-explode').innerText = state.explodedView ? d.assembledView : d.explodedView;
+      document.getElementById('m-hr').innerText = d.heartRate;
+      document.getElementById('m-glu').innerText = d.glucose;
+      document.getElementById('m-tmp').innerText = d.temperature;
+      document.getElementById('m-lac').innerText = d.lactate;
+      document.getElementById('l-select').innerText = d.layerSelector;
+      document.getElementById('t-bio').innerText = d.biomechanics.toUpperCase();
+      document.getElementById('s-flex').innerText = d.skinFlex;
+      document.getElementById('s-tension').innerText = d.tension;
+      document.getElementById('t-phys').innerText = d.modularPhysics.toUpperCase();
+      document.getElementById('s-res').innerText = d.reservoir;
+      document.getElementById('s-perm').innerText = d.permeationSpeed;
+      document.getElementById('t-nrg').innerText = d.hybridEnergy.toUpperCase();
+      document.getElementById('s-batt').innerText = d.battery;
+      document.getElementById('t-swarm').innerText = d.swarmAI.toUpperCase();
+      document.getElementById('s-nodes').innerText = d.nodes;
+
+      // Update active layer label if visible
+      if (state.selectedLayer > 0) {
+        selectLayer(state.selectedLayer);
+        state.selectedLayer = state.selectedLayer; // bypass reset
+      }
+    }
+
+    // Augmented Reality (AR) camera activation
+    let localStream = null;
+    async function toggleAR() {
+      const video = document.getElementById('webcam-feed');
+      const btn = document.getElementById('btn-ar');
+      if (!state.cameraActive) {
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' },
+            audio: false
+          });
+          video.srcObject = localStream;
+          video.style.display = 'block';
+          btn.innerText = 'AR MODE ON';
+          btn.style.background = 'var(--color-red)';
+          btn.style.color = '#FFFFFF';
+          state.cameraActive = true;
+        } catch(err) {
+          alert('Cámara no disponible. Usando simulación de fondo holográfico.');
+        }
+      } else {
+        if (localStream) {
+          localStream.getTracks().forEach(t => t.stop());
+        }
+        video.style.display = 'none';
+        btn.innerText = 'AR MODE OFF';
+        btn.style.background = 'none';
+        btn.style.color = 'var(--color-cyan)';
+        state.cameraActive = false;
+      }
+    }
+
+    // Simulate real-time vital readings
+    setInterval(() => {
+      // Modify based on slider state
+      const stressFactor = 1 + (state.flex + state.tension) / 400;
+      let targetHr = Math.round(72 * stressFactor + Math.sin(state.time) * 3);
+      let targetGlu = Math.round(102 - (state.activeState === 'dosing' ? state.permeation * 4 : 0) + Math.cos(state.time * 0.3) * 5);
+      let targetTmp = parseFloat((36.6 + Math.sin(state.time * 0.1) * 0.1).toFixed(1));
+      let targetLac = parseFloat((1.1 + Math.cos(state.time * 0.2) * 0.05).toFixed(2));
+
+      // Trigger critical hypoglycemia alarm occasionally for simulation realism
+      if (targetGlu < 70) {
+        document.getElementById('crisis-box').classList.add('alert');
+        document.getElementById('crisis-text').innerText = dicts[state.language].hypoglycemia;
+        state.activeState = 'alert';
+      } else {
+        document.getElementById('crisis-box').classList.remove('alert');
+        document.getElementById('crisis-text').innerText = state.language === 'es' ? 'SISTEMA ESTABLE - SIN CRISIS' : (state.language === 'en' ? 'SYSTEM STABLE - NO CRISIS' : '系统运行平稳');
+        if (state.activeState === 'alert') state.activeState = 'monitoring';
+      }
+
+      document.getElementById('val-hr').innerText = targetHr;
+      document.getElementById('val-glu').innerText = targetGlu;
+      document.getElementById('val-tmp').innerText = targetTmp;
+      document.getElementById('val-lac').innerText = targetLac;
+
+      // Update battery and hybrid energy harvesting info
+      const piezoHarv = (state.flex * 0.02 + 0.1).toFixed(2);
+      document.getElementById('nrg-harvesting').innerText = state.language === 'es' 
+        ? 'Piezoelectrico: ' + piezoHarv + 'mW | Termoelectrico: 0.85mW'
+        : 'Piezoelectric: ' + piezoHarv + 'mW | Thermoelectric: 0.85mW';
+
+      // Update microfluidic indicators in telemetry panel
+      const fluidInd = document.getElementById('fluid-indicator');
+      const fluidStat = document.getElementById('fluid-status');
+      if (fluidInd && fluidStat) {
+        if (state.activeState === 'dosing') {
+          const currentW = (parseFloat(fluidInd.style.width) || 0) + 12.5;
+          fluidInd.style.width = (currentW >= 100 ? 0 : currentW) + '%';
+          fluidStat.innerText = state.language === 'es' ? 'VÁLVULA: ABIERTA (DOSIFICANDO)' : 'VALVE: OPEN (DISCHARGING)';
+          fluidStat.style.color = '#4FC3F7';
+        } else {
+          fluidInd.style.width = '0%';
+          fluidStat.innerText = state.language === 'es' ? 'VÁLVULA: CERRADA (ESPERA)' : 'VALVE: CLOSED (IDLE)';
+          fluidStat.style.color = '#81C784';
+        }
+      }
+
+      // Update biomechanics strain labels in telemetry panel
+      const flexBiom = document.getElementById('val-flex-biom');
+      const tensionBiom = document.getElementById('val-tension-biom');
+      if (flexBiom) flexBiom.innerText = state.flex + '%';
+      if (tensionBiom) tensionBiom.innerText = state.tension + '%';
+
+      // Periodic random logs inside the standalone terminal console
+      const diagTerm = document.getElementById('diag-terminal');
+      if (diagTerm && Math.random() < 0.22) {
+        const now = new Date();
+        const hrStr = now.getHours().toString().padStart(2, '0');
+        const minStr = now.getMinutes().toString().padStart(2, '0');
+        const secStr = now.getSeconds().toString().padStart(2, '0');
+        const msStr = (now.getMilliseconds() / 10).toFixed(0).padStart(2, '0');
+        const timeStr = hrStr + ':' + minStr + ':' + secStr + '.' + msStr;
+        const logMsgs = state.language === 'es' ? [
+          "Inferencia completada localmente: modelo LSTM estable.",
+          "Estado de enlace RF: RSSI = -54 dBm • BLE sincronizado.",
+          "Calibración de ADC Cortex-M4 validada de forma continua.",
+          "Consenso de enjambre verificado: 6 nodos activos.",
+          "Termo-cosechador activo: gradiente térmico de 0.85mW detectado."
+        ] : [
+          "Inference consensus complete: local LSTM score stable.",
+          "RF link status: RSSI = -54 dBm • BLE Sync ok.",
+          "Cortex-M4 ADC calibration validated.",
+          "Swarm communication verified: 6 active nodes.",
+          "Power balance stable. Thermoelectric gradient: 0.85 mW."
+        ];
+        if (state.activeState === 'dosing') {
+          logMsgs.push(state.language === 'es' ? "Disparo microfluídico ACTIVO." : "Microfluidic ACTIVE discharge running.");
+        }
+        if (state.activeState === 'alert') {
+          logMsgs.push(state.language === 'es' ? "ALERTA: DESVIACIÓN DE BIOMARCADORES DETECTADA." : "WARNING: BIOMETRIC FLUX ANOMALY DETECTED.");
+        }
+        const msg = logMsgs[Math.floor(Math.random() * logMsgs.length)];
+        const entry = document.createElement('div');
+        entry.innerHTML = '<span style="color: #7A8086;">[' + timeStr + ']</span> ' + msg;
+        diagTerm.appendChild(entry);
+        if (diagTerm.childNodes.length > 25) diagTerm.removeChild(diagTerm.firstChild);
+        diagTerm.scrollTop = diagTerm.scrollHeight;
+      }
+    }, 1000);
+
+      // Metadata and node clicked handler inside standalone HTML
+      const nodeData = {
+        'ECG': {
+          name: 'ECG Sensor Node',
+          type: 'Input Biosensor Layer',
+          desc: {
+            es: 'Capta continuamente la frecuencia cardíaca y la amplitud de la onda R mediante electrodos de grafeno biocompatibles altamente flexibles.',
+            en: 'Continuously captures heart rate and R-wave amplitude using highly flexible biocompatible graphene electrodes.'
+          },
+          math: 'ECG_f = \mathcal{F}_{ADC}(V_{analog}) \pm \epsilon_{noise}',
+          weights: 'W_ecg = [0.45, 0.12, -0.05]'
+        },
+        'GLU': {
+          name: 'Capillary Glucose Node',
+          type: 'Input Biosensor Layer',
+          desc: {
+            es: 'Monitorea la glucosa capilar de forma continua mediante biosensado enzimático directo de flujo transdérmico reverso.',
+            en: 'Continuously monitors capillary glucose via transdermal reverse iontophoretic enzymatic biosensing.'
+          },
+          math: 'C_{glucose} = K_{enz} \cdot \int I_{sensing}(t) dt',
+          weights: 'W_glu = [-0.85, -0.34, 0.18]'
+        },
+        'LAC': {
+          name: 'Lactate Sensor Node',
+          type: 'Input Biosensor Layer',
+          desc: {
+            es: 'Mide el nivel de lactato en sudor para evaluación del metabolismo anaeróbico y detección temprana de sepsis/estrés metabólico.',
+            en: 'Measures sweat lactate concentration for anaerobic metabolism assessment and early sepsis metabolic stress warnings.'
+          },
+          math: 'LAC_{conc} = \alpha_{temp} \cdot (V_{sensing} - V_{ref})',
+          weights: 'W_lac = [0.65, 0.28, -0.12]'
+        },
+        'TEMP': {
+          name: 'Skin Temperature Node',
+          type: 'Input Biosensor Layer',
+          desc: {
+            es: 'Termistor de coeficiente negativo flexible para la compensación de termorregulación fisiológica y detección de picos de fiebre.',
+            en: 'Flexible negative-coefficient thermistor for thermoregulation compensation and high-intensity fever spike detection.'
+          },
+          math: 'T_{skin} = \frac{1}{A + B \ln R + C (\ln R)^3}',
+          weights: 'W_temp = [0.22, 0.08, -0.03]'
+        },
+        'LSTM Cell 1': {
+          name: 'LSTM Cell 1 (Forget Gate)',
+          type: 'Recurrent Neural Hidden Layer',
+          desc: {
+            es: 'Evalúa el histórico temporal del paciente para filtrar fluctuaciones irrelevantes y retener tendencias hemodinámicas de largo plazo.',
+            en: 'Evaluates historic temporal data to filter out noisy spikes and preserve long-term hemodynamic trend lines.'
+          },
+          math: 'f_t = \sigma(W_f \cdot [h_{t-1}, x_t] + b_f)',
+          weights: 'U_f = [0.89, -0.12]; b_f = 0.04'
+        },
+        'LSTM Cell 2': {
+          name: 'LSTM Cell 2 (Input Gate)',
+          type: 'Recurrent Neural Hidden Layer',
+          desc: {
+            es: 'Procesa el gradiente de cambio en la glucemia capilar y actualiza el vector de memoria local con las perturbaciones agudas de insulina.',
+            en: 'Processes glycemic change gradients and updates the recurrent memory vector with acute glucose excursions.'
+          },
+          math: 'i_t = \sigma(W_i \cdot [h_{t-1}, x_t] + b_i)',
+          weights: 'U_i = [-0.92, 0.45]; b_i = -0.12'
+        },
+        'LSTM Cell 3': {
+          name: 'LSTM Cell 3 (Output Gate)',
+          type: 'Recurrent Neural Hidden Layer',
+          desc: {
+            es: 'Determina la probabilidad predictiva de colapso clínico (arritmias graves, hipoglucemia) en un horizonte de 15 minutos.',
+            en: 'Controls output projections to predict critical clinical collapse likelihood within a 15-minute prognostic horizon.'
+          },
+          math: 'o_t = \sigma(W_o \cdot [h_{t-1}, x_t] + b_o)',
+          weights: 'U_o = [0.74, 0.38]; b_o = 0.09'
+        },
+        'Predictor H1': {
+          name: 'Hidden State Predictor H1',
+          type: 'Fully Connected Dense Layer',
+          desc: {
+            es: 'Unifica los vectores intermedios de las celdas LSTM mediante una capa densa para calcular la probabilidad total de riesgo.',
+            en: 'Unifies intermediate state representations of recurrent gates into a dense predictive layer representing real-time risk scores.'
+          },
+          math: 'h_t = o_t \odot \tanh(C_t)',
+          weights: 'W_{dense} = [0.55, 0.62, -0.44]'
+        },
+        'Dosing Trigger': {
+          name: 'Dosing Actuator Node',
+          type: 'Hardware Decision Output',
+          desc: {
+            es: 'Actuador final. Desata un pulso electro-térmico controlado en las microválvulas del reservorio si el riesgo clínico supera el 85%.',
+            en: 'Hardware trigger. Initiates localized thermal-valve microfluidic discharge if the predicted risk index climbs past 85%.'
+          },
+          math: 'Dose_{rate} = \sigma(\gamma \cdot h_t + \beta_{offset})',
+          weights: 'W_{act} = 1.25; Threshold = 0.85'
+        },
+        'HUD Alerts': {
+          name: 'Tactical HUD Alert Node',
+          type: 'User Interface Warning Output',
+          desc: {
+            es: 'Proyecta alertas críticas visuales de color ámbar/rojo en la pantalla OLED del parche y emite transmisiones de telemetría BLE.',
+            en: 'Projects high-intensity visual alarms on the flexible OLED display and triggers immediate Bluetooth Telemetry packets.'
+          },
+          math: 'Alert_{lvl} = \mathbb{I}(Risk > 0.85)',
+          weights: 'Status = state.activeState'
+        },
+        'BLE Sync': {
+          name: 'Decentralized Swarm BLE Node',
+          type: 'Decentralized Swarm Output',
+          desc: {
+            es: 'Sincroniza en tiempo real las inferencias locales con los parches vecinos del enjambre para redundancia clínica.',
+            en: 'Synchronizes diagnostic insights with neighboring swarm patches to maintain secure distributed diagnostic consensus.'
+          },
+          math: 'Sync_{status} = BLE_{tx}(State_{local})',
+          weights: 'RSSI = -54 dBm; Freq = 2.4 GHz'
+        }
+      };
+
+      function selectNodeInHTML(nodeName) {
+        const data = nodeData[nodeName];
+        if (!data) return;
+        const panel = document.getElementById('node-details-panel');
+        panel.style.display = 'block';
+        document.getElementById('node-detail-name').innerText = data.name;
+        document.getElementById('node-detail-type').innerText = data.type;
+        document.getElementById('node-detail-desc').innerText = state.language === 'es' ? data.desc.es : data.desc.en;
+        document.getElementById('node-detail-math').innerText = data.math;
+        document.getElementById('node-detail-weights').innerText = data.weights;
+      }
+
+      function applyScenario(scen) {
+        const now = new Date();
+        const hrStr = now.getHours().toString().padStart(2, '0');
+        const minStr = now.getMinutes().toString().padStart(2, '0');
+        const secStr = now.getSeconds().toString().padStart(2, '0');
+        const msStr = (now.getMilliseconds() / 10).toFixed(0).padStart(2, '0');
+        const timeStr = hrStr + ':' + minStr + ':' + secStr + '.' + msStr;
+        const diagTerm = document.getElementById('diag-terminal');
+
+        switch (scen) {
+          case 'rest':
+            state.flex = 10;
+            state.tension = 30;
+            vitals.hr = 72;
+            vitals.glu = 102;
+            vitals.tmp = 36.6;
+            vitals.lac = 1.1;
+            state.activeState = 'monitoring';
+            if (diagTerm) {
+              diagTerm.innerHTML += '<div><span style="color: #7A8086;">[' + timeStr + ']</span> <span style="color: #81C784;">Preset [REPOSO] aplicado. Normalidad hemodinámica.</span></div>';
+            }
+            break;
+          case 'exercise':
+            state.flex = 85;
+            state.tension = 75;
+            vitals.hr = 142;
+            vitals.glu = 88;
+            vitals.tmp = 37.8;
+            vitals.lac = 4.2;
+            state.activeState = 'monitoring';
+            if (diagTerm) {
+              diagTerm.innerHTML += '<div><span style="color: #7A8086;">[' + timeStr + ']</span> <span style="color: #FFD54F;">Preset [EJERCICIO FÍSICO] aplicado. Carga cardiovascular.</span></div>';
+            }
+            break;
+          case 'sepsis':
+            state.flex = 15;
+            state.tension = 45;
+            vitals.hr = 110;
+            vitals.glu = 78;
+            vitals.tmp = 39.2;
+            vitals.lac = 2.8;
+            state.activeState = 'alert';
+            if (diagTerm) {
+              diagTerm.innerHTML += '<div><span style="color: #7A8086;">[' + timeStr + ']</span> <span style="color: #EF5350;">Preset [SEPSIS METABÓLICA] aplicado. Inflamación simulada.</span></div>';
+            }
+            break;
+          case 'hypo':
+            state.flex = 20;
+            state.tension = 50;
+            vitals.hr = 98;
+            vitals.glu = 48;
+            vitals.tmp = 35.8;
+            vitals.lac = 1.6;
+            state.activeState = 'alert';
+            if (diagTerm) {
+              diagTerm.innerHTML += '<div><span style="color: #7A8086;">[' + timeStr + ']</span> <span style="color: #EF5350;">Preset [HIPOGLUCEMIA AGUDA] aplicado. Iniciando auxilio local.</span></div>';
+            }
+            break;
+        }
+
+        // Sync slider views
+        document.getElementById('flex-range').value = state.flex;
+        document.getElementById('val-flex').innerText = state.flex + '%';
+        document.getElementById('tension-range').value = state.tension;
+        document.getElementById('val-tension').innerText = state.tension + '%';
+
+        if (diagTerm) diagTerm.scrollTop = diagTerm.scrollHeight;
+      }
+
+      // AI decision node drawing
+      function drawNodes() {
+        const svg = document.getElementById('node-svg');
+        svg.innerHTML = ''; // Clear
+
+        const width = svg.clientWidth || 400;
+        const height = 180;
+
+        // Add grid lines
+        for (let i = 16; i < width; i += 16) {
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', i); line.setAttribute('y1', 0);
+          line.setAttribute('x2', i); line.setAttribute('y2', height);
+          line.setAttribute('stroke', 'rgba(79,195,247,0.015)');
+          svg.appendChild(line);
+        }
+
+        // Draw input layer
+        const inputs = ['ECG', 'GLU', 'LAC', 'TEMP'];
+        const outputs = ['Dosing Trigger', 'HUD Alerts', 'BLE Sync'];
+
+        // Coordinates mapping
+        const iCoords = inputs.map((name, idx) => ({ name, x: 50, y: 30 + idx * 40 }));
+        const hCoords = [
+          { x: width/2, y: 35 },
+          { x: width/2, y: 75 },
+          { x: width/2, y: 115 },
+          { x: width/2, y: 155 }
+        ];
+        const oCoords = outputs.map((name, idx) => ({ name, x: width - 70, y: 45 + idx * 50 }));
+
+        // Connections (Input to Hidden)
+        iCoords.forEach(iNode => {
+          hCoords.forEach(hNode => {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', iNode.x); line.setAttribute('y1', iNode.y);
+            line.setAttribute('x2', hNode.x); line.setAttribute('y2', hNode.y);
+            line.setAttribute('stroke', 'rgba(79, 195, 247, 0.15)');
+            line.setAttribute('stroke-width', '1');
+            svg.appendChild(line);
+          });
+        });
+
+        // Connections (Hidden to Output)
+        hCoords.forEach(hNode => {
+          oCoords.forEach(oNode => {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', hNode.x); line.setAttribute('y1', hNode.y);
+            line.setAttribute('x2', oNode.x); line.setAttribute('y2', oNode.y);
+            line.setAttribute('stroke', 'rgba(79, 195, 247, 0.15)');
+            line.setAttribute('stroke-width', '1');
+            svg.appendChild(line);
+          });
+        });
+
+        // Render Nodes
+        iCoords.forEach(node => {
+          const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          group.setAttribute('style', 'cursor: pointer;');
+          group.setAttribute('onclick', "selectNodeInHTML('" + node.name + "')");
+
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('cx', node.x); circle.setAttribute('cy', node.y);
+          circle.setAttribute('r', '10'); circle.setAttribute('fill', '#1E2022');
+          circle.setAttribute('stroke', 'var(--color-cyan)');
+          circle.setAttribute('stroke-width', '1.5');
+          group.appendChild(circle);
+
+          const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          txt.setAttribute('x', node.x); txt.setAttribute('y', node.y + 3);
+          txt.setAttribute('fill', '#FFF'); txt.setAttribute('font-size', '8px');
+          txt.setAttribute('text-anchor', 'middle');
+          txt.textContent = node.name;
+          group.appendChild(txt);
+          svg.appendChild(group);
+        });
+
+        const hiddenNames = ['LSTM Cell 1', 'LSTM Cell 2', 'LSTM Cell 3', 'Predictor H1'];
+        hCoords.forEach((node, idx) => {
+          const nodeName = hiddenNames[idx];
+          const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          group.setAttribute('style', 'cursor: pointer;');
+          group.setAttribute('onclick', "selectNodeInHTML('" + nodeName + "')");
+
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('cx', node.x); circle.setAttribute('cy', node.y);
+          circle.setAttribute('r', '8'); circle.setAttribute('fill', 'var(--color-cyan)');
+          circle.setAttribute('filter', 'drop-shadow(0 0 5px var(--color-cyan))');
+          group.appendChild(circle);
+          svg.appendChild(group);
+        });
+
+        oCoords.forEach(node => {
+          const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          group.setAttribute('style', 'cursor: pointer;');
+          group.setAttribute('onclick', "selectNodeInHTML('" + node.name + "')");
+
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('cx', node.x); circle.setAttribute('cy', node.y);
+          circle.setAttribute('r', '10'); circle.setAttribute('fill', '#1E2022');
+          circle.setAttribute('stroke', 'var(--color-gold)');
+          circle.setAttribute('stroke-width', '1.5');
+          group.appendChild(circle);
+
+          const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          txt.setAttribute('x', node.x + 15); txt.setAttribute('y', node.y + 3);
+          txt.setAttribute('fill', 'var(--color-silver)'); txt.setAttribute('font-size', '8px');
+          txt.textContent = node.name;
+          group.appendChild(txt);
+          svg.appendChild(group);
+        });
+      }
+
+    setTimeout(() => {
+      drawNodes();
+      render3D();
+    }, 500);
+  </script>
+</body>
+</html>
