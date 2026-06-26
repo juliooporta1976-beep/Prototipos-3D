@@ -1,951 +1,1068 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NEXUS SOLAR - Standalone Quantum 3D Wafer</title>
-  <!-- High Speed public CDNs for offline visual rendering and 3D modeling -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
-    body {
-      font-family: 'Inter', sans-serif;
-    }
-    .font-mono {
-      font-family: 'JetBrains Mono', monospace;
-    }
-    /* Tailored custom neon sliders */
-    input[type="range"] {
-      -webkit-appearance: none;
-      background: #1e293b;
-      border-radius: 9999px;
-      height: 6px;
-    }
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: #3b82f6;
-      cursor: pointer;
-      box-shadow: 0 0 8px rgba(59,130,246,0.6);
-      transition: transform 0.1s;
-    }
-    input[type="range"]::-webkit-slider-thumb:hover {
-      transform: scale(1.2);
-    }
-  </style>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            slate: {
-              950: '#030712',
-            }
-          }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Solar - 3D Prototipo Interactivo</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: #0b0f19;
+            color: #f3f4f6;
+            overflow-x: hidden;
+            margin: 0;
         }
-      }
-    }
-  </script>
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4fc3f7;
+        }
+        /* Tactical animations */
+        @keyframes pulse-cyan {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 0.8; }
+        }
+        .pulse-cyan {
+            animation: pulse-cyan 3s infinite;
+        }
+    </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-blue-500/30">
+<body class="relative min-h-screen flex flex-col justify-between">
 
-  <!-- HEADER -->
-  <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-    <div class="flex items-center gap-3">
-      <div class="p-2 bg-gradient-to-tr from-yellow-500 to-indigo-600 rounded-xl shadow-lg shadow-indigo-500/20">
-        <svg class="h-5 w-5 text-white animate-spin" style="animation-duration: 20s;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m11.314 11.314l.707.707M12 17a5 5 0 100-10 5 5 0 000 10z" />
-        </svg>
-      </div>
-      <div>
-        <div class="flex items-center gap-2">
-          <h1 class="text-lg font-bold tracking-wider bg-gradient-to-r from-yellow-400 via-emerald-400 to-blue-400 bg-clip-text text-transparent">
-            NEXUS SOLAR PORTABLE
-          </h1>
-          <span class="text-[9px] font-mono bg-blue-950 text-blue-300 px-1.5 py-0.5 rounded border border-blue-800">
-            OFFLINE v2.1
-          </span>
+    <!-- Simulated camera video element for AR mode -->
+    <video id="webcam" class="absolute inset-0 w-full h-full object-cover hidden pointer-events-none z-0" autoplay playsinline muted></video>
+    <div id="ar-grid-overlay" class="absolute inset-0 hidden pointer-events-none z-10 border-[6px] border-dashed border-[#4fc3f7]/30">
+        <div class="absolute inset-0 flex items-center justify-center">
+            <div class="w-72 h-72 border-2 border-dashed border-[#4fc3f7]/40 rounded-full animate-spin duration-1000"></div>
+            <div class="absolute w-96 h-0.5 bg-[#4fc3f7]/20"></div>
+            <div class="absolute h-96 w-0.5 bg-[#4fc3f7]/20"></div>
         </div>
-        <p id="header-subtitle" class="text-[11px] text-slate-400">
-          Prototipo 3D Interactivo Independiente de Alto Rendimiento
-        </p>
-      </div>
     </div>
 
-    <!-- LANGUAGE BUTTONS & ID METADATA -->
-    <div class="flex items-center gap-3">
-      <!-- MULTILANGUAGE SELECTOR BAR -->
-      <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
-        <button id="lang-btn-es" onclick="switchLanguage('es')" class="px-2.5 py-1 rounded font-mono font-bold transition text-slate-400 hover:text-white">ES</button>
-        <button id="lang-btn-en" onclick="switchLanguage('en')" class="px-2.5 py-1 rounded font-mono font-bold transition text-slate-400 hover:text-white">EN</button>
-        <button id="lang-btn-zh" onclick="switchLanguage('zh')" class="px-2.5 py-1 rounded font-mono font-bold transition text-slate-400 hover:text-white">ZH</button>
-      </div>
-      <span class="h-5 w-[1px] bg-slate-850"></span>
-      <div class="flex items-center gap-2 bg-slate-950 p-1.5 px-3 rounded-lg border border-slate-800 text-xs text-slate-500 font-mono">
-        <span>ID: STANDALONE</span>
-      </div>
-    </div>
-  </header>
-
-  <!-- MAIN CORE GRID -->
-  <main class="flex-grow p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1600px] mx-auto w-full">
-    
-    <!-- LEFT CONTROL BOX: SLIDERS & REALTIME TELEMETRIC SIMULATION -->
-    <div class="lg:col-span-4 flex flex-col gap-6">
-      
-      <!-- ATMOSPHERIC MODULATORS -->
-      <section class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow-xl">
-        <div class="flex items-center gap-2 mb-4">
-          <svg class="w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-          </svg>
-          <h2 id="mod-title" class="text-xs font-semibold uppercase tracking-wider text-slate-200">
-            Modulación Ambiental Cuántica
-          </h2>
-        </div>
-
-        <!-- IRRADIANCE SLIDER -->
-        <div class="mb-5">
-          <div class="flex justify-between items-center text-xs mb-1.5">
-            <span id="label-irr-flow" class="text-slate-400 font-medium">Flujo Irradiancia</span>
-            <span id="irradiance-val" class="font-mono text-yellow-400 font-bold bg-yellow-400/5 px-2 py-0.5 rounded">
-              800 W/m²
-            </span>
-          </div>
-          <input
-            id="irradiance-slider"
-            type="range"
-            min="200"
-            max="1200"
-            step="50"
-            value="800"
-            class="w-full cursor-ew-resize"
-          />
-          <div class="flex justify-between text-[9px] text-slate-600 mt-1 font-mono">
-            <span id="label-irr-cloudy">200 W (Nublado)</span>
-            <span id="label-irr-max">1200 W (Máxima)</span>
-          </div>
-        </div>
-
-        <!-- TEMP SLIDER -->
-        <div class="mb-5">
-          <div class="flex justify-between items-center text-xs mb-1.5">
-            <span id="label-thermal-temp" class="text-slate-400 font-medium">Temperatura Térmica</span>
-            <span id="temp-val" class="font-mono text-orange-400 font-bold bg-orange-400/5 px-2 py-0.5 rounded">
-              25.0 °C
-            </span>
-          </div>
-          <input
-            id="temp-slider"
-            type="range"
-            min="10"
-            max="75"
-            step="0.5"
-            value="25"
-            class="w-full cursor-ew-resize"
-          />
-          <div class="flex justify-between text-[9px] text-slate-600 mt-1 font-mono">
-            <span id="label-temp-cryo">10°C (Criogénico)</span>
-            <span id="label-temp-max">75°C (Térmico Máx)</span>
-          </div>
-        </div>
-
-        <!-- EXPLOSION SLIDER -->
-        <div class="mb-5">
-          <div class="flex justify-between items-center text-xs mb-1.5">
-            <span id="label-separation" class="text-slate-400 font-medium">Separación 3D (Explosión)</span>
-            <span id="explosion-val" class="font-mono text-emerald-400 font-bold bg-emerald-400/5 px-2 py-0.5 rounded">
-              1.20x
-            </span>
-          </div>
-          <input
-            id="explosion-slider"
-            type="range"
-            min="0.2"
-            max="2.5"
-            step="0.1"
-            value="1.2"
-            class="w-full cursor-ew-resize text-emerald-500"
-          />
-        </div>
-
-        <!-- ROTATION SPEED SLIDER -->
-        <div class="mb-4">
-          <div class="flex justify-between items-center text-xs mb-1.5">
-            <span id="label-rotation" class="text-slate-400 font-medium">Velocidad de Rotación</span>
-            <span id="rotation-val" class="font-mono text-indigo-400 font-bold bg-indigo-400/5 px-2 py-0.5 rounded">
-              1.5 rad/s
-            </span>
-          </div>
-          <input
-            id="rotation-slider"
-            type="range"
-            min="0.0"
-            max="4.0"
-            step="0.2"
-            value="1.5"
-            class="w-full cursor-ew-resize"
-          />
-        </div>
-      </section>
-
-      <!-- REAL-TIME TELEMETRY READOUTS -->
-      <section class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow-xl flex-grow flex flex-col justify-between">
+    <!-- MAIN HEADER: Author Branding & Project Name -->
+    <header class="relative z-30 p-4 bg-gradient-to-b from-[#0b0f19] to-transparent flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-[#4fc3f7]/10">
         <div>
-          <div class="flex items-center gap-2 mb-4">
-            <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            <h2 id="telemetry-title" class="text-xs font-semibold uppercase tracking-wider text-slate-200">
-              Telemetría Física Computada
-            </h2>
-          </div>
-
-          <div class="space-y-3.5">
-            <div class="p-3 bg-slate-950 rounded-xl border border-slate-800/60">
-              <p id="p-tel-active" class="text-[9px] text-slate-500 uppercase tracking-widest font-mono">POTENCIA ACTIVA FOTOVOLTAICA</p>
-              <div class="flex items-baseline gap-1 mt-0.5">
-                <span id="tel-power" class="text-2xl font-black text-amber-400 font-mono">745</span>
-                <span class="text-xs text-slate-400 font-mono">W / m²</span>
-              </div>
+            <!-- REQUIREMENT 4: Dr. Julio César Oporta Barrera in Top-Left -->
+            <p id="txt-author" class="text-xs font-semibold uppercase tracking-widest text-[#4fc3f7] font-mono mb-1">
+                Dr. Julio César Oporta Barrera
+            </p>
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 bg-[#4fc3f7] rounded-full animate-ping"></span>
+                <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                    NEXUS SOLAR <span class="text-xs px-2 py-0.5 bg-[#4fc3f7]/20 text-[#4fc3f7] rounded border border-[#4fc3f7]/30">3D PROTOTYPE</span>
+                </h1>
             </div>
-
-            <div class="p-3 bg-slate-950 rounded-xl border border-slate-800/60">
-              <p id="p-tel-eff" class="text-[9px] text-slate-500 uppercase tracking-widest font-mono">EFICIENCIA REAL NETO</p>
-              <div class="flex items-baseline gap-1 mt-0.5">
-                <span id="tel-eff" class="text-2xl font-black text-emerald-400 font-mono">58.20%</span>
-                <span id="tel-eff-diff" class="text-[10px] text-red-400 font-mono ml-2"></span>
-              </div>
-            </div>
-
-            <div class="p-3 bg-slate-950 rounded-xl border border-slate-800/60">
-              <p id="p-tel-daily" class="text-[9px] text-slate-500 uppercase tracking-widest font-mono">RENDIMIENTO ESTIMADO DIARIO</p>
-              <div class="flex items-baseline gap-1 mt-0.5">
-                <span id="tel-daily" class="text-xl font-bold text-blue-400 font-mono">4.47 kWh</span>
-              </div>
-            </div>
-          </div>
+            <p id="txt-subtitle" class="text-xs text-gray-400 mt-1 max-w-xl">
+                Paneles Solares de Grafeno con 60% de Eficiencia
+            </p>
         </div>
 
-        <div id="warning-heat" class="mt-5 border-t border-slate-850 pt-4 text-[11px] text-slate-500 font-mono max-w-sm">
-          💡 La eficiencia cuántica disminuye ligeramente a altas temperaturas térmicas por agitación iónica de los haluros.
+        <!-- MULTILANGUAGE SELECTOR (REQUIREMENT 3) -->
+        <div class="flex items-center gap-2 bg-[#151c2c] border border-[#4fc3f7]/20 rounded-lg p-1.5 z-30">
+            <button onclick="changeLanguage('es')" id="btn-lang-es" class="px-2.5 py-1 text-xs font-semibold rounded transition-all">ES</button>
+            <button onclick="changeLanguage('en')" id="btn-lang-en" class="px-2.5 py-1 text-xs font-semibold rounded transition-all">EN</button>
+            <button onclick="changeLanguage('zh')" id="btn-lang-zh" class="px-2.5 py-1 text-xs font-semibold rounded transition-all">中文</button>
         </div>
-      </section>
-    </div>
+    </header>
 
-    <!-- RIGHT WINDOW: FULL INTERACTIVE 3D COMPLETED SOLAR SHIELD -->
-    <div class="lg:col-span-8 flex flex-col gap-6">
-      
-      <div class="bg-slate-900/80 p-4 rounded-3xl border border-slate-800 shadow-2xl flex-grow flex flex-col relative min-h-[480px]">
+    <!-- MAIN INTERACTIVE SECTION -->
+    <main class="flex-grow grid grid-cols-1 lg:grid-cols-4 gap-4 p-4 relative z-20">
         
-        <!-- Interactive 3D Canvas Panel -->
-        <div class="flex justify-between items-center mb-3">
-          <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-            </svg>
-            <h2 id="model-subheader" class="text-xs font-semibold uppercase tracking-wider text-slate-300">
-              Modelo Estructura 3D Fotovoltaica en Movimiento
-            </h2>
-          </div>
-          <div id="engine-ready-badge" class="bg-slate-950 px-2.5 py-1 rounded-full border border-slate-800 text-[10px] text-emerald-400 font-mono flex items-center gap-1.5">
-            <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span id="label-engine-status">MOTOR 3D RENDER LISTO</span>
-          </div>
+        <!-- LEFT COLUMN: Technical Info & Layer Details -->
+        <div class="lg:col-span-1 flex flex-col gap-4">
+            <!-- TECHNICAL DATA & STATUS -->
+            <div class="bg-[#101625]/90 border border-[#4fc3f7]/20 rounded-xl p-4 shadow-xl backdrop-blur-md">
+                <h3 id="txt-hud-title" class="text-sm font-bold tracking-wider text-[#4fc3f7] uppercase border-b border-[#4fc3f7]/20 pb-2 mb-3 flex justify-between items-center">
+                    <span>HUD Táctico & Diagnósticos</span>
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                </h3>
+                <div class="grid grid-cols-2 gap-3 text-xs mb-4">
+                    <div class="bg-[#1a233a] p-2.5 rounded-lg border border-[#4fc3f7]/10">
+                        <span id="txt-hud-eff" class="text-gray-400 block mb-1">Eficiencia Cuántica</span>
+                        <span id="val-efficiency" class="text-lg font-bold text-[#4fc3f7] font-mono">60.0%</span>
+                    </div>
+                    <div class="bg-[#1a233a] p-2.5 rounded-lg border border-[#4fc3f7]/10">
+                        <span id="txt-hud-gen" class="text-gray-400 block mb-1">Generación de Energía</span>
+                        <span id="val-power" class="text-lg font-bold text-[#4fc3f7] font-mono">600 W/m²</span>
+                    </div>
+                    <div class="bg-[#1a233a] p-2.5 rounded-lg border border-[#4fc3f7]/10">
+                        <span id="txt-hud-recomb" class="text-gray-400 block mb-1">Tasa de Recombinación</span>
+                        <span id="val-recomb" class="text-md font-bold text-rose-400 font-mono">1.2 × 10⁵ s⁻¹</span>
+                    </div>
+                    <div class="bg-[#1a233a] p-2.5 rounded-lg border border-[#4fc3f7]/10">
+                        <span id="txt-hud-status" class="text-gray-400 block mb-1">Estado del Sistema</span>
+                        <span id="val-status" class="text-xs font-bold text-emerald-400 font-mono uppercase tracking-wider">ACTIVE</span>
+                    </div>
+                </div>
+
+                <!-- MINI REAL-TIME GRAPH -->
+                <div class="mt-2">
+                    <span class="text-[10px] text-gray-400 uppercase tracking-widest block mb-1 font-mono">EFFICIENCY SPECTRUM CURVE</span>
+                    <canvas id="mini-graph" class="w-full h-20 bg-[#0c101b] rounded border border-[#4fc3f7]/10"></canvas>
+                </div>
+            </div>
+
+            <!-- LAYER BREAKDOWN EXPLAINER -->
+            <div class="bg-[#101625]/90 border border-[#4fc3f7]/10 rounded-xl p-4 flex-grow flex flex-col justify-between shadow-xl backdrop-blur-md">
+                <div class="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                    <h3 id="txt-tech-specs" class="text-xs font-bold text-gray-400 uppercase tracking-widest pb-1 border-b border-[#4fc3f7]/10">
+                        Especificaciones Técnicas
+                    </h3>
+                    
+                    <!-- Capa 4 -->
+                    <div onclick="focusLayer(3)" class="cursor-pointer p-2.5 bg-[#151c2c] hover:bg-[#1a233a] rounded-lg border border-[#4fc3f7]/10 hover:border-[#4fc3f7]/30 transition-all">
+                        <span class="text-[10px] font-bold text-[#4fc3f7] font-mono">CAPA 4</span>
+                        <h4 id="txt-layer4-name" class="text-xs font-bold text-white mb-1">Capa 4: Protección y Auto-limpieza</h4>
+                        <p id="txt-layer4-desc" class="text-[10px] text-gray-400 line-clamp-2">Película de TiO₂ dopado con plata (Ag). Súper hidrofílica (ángulo < 5°) y fotocatalítica.</p>
+                    </div>
+
+                    <!-- Capa 3 -->
+                    <div onclick="focusLayer(2)" class="cursor-pointer p-2.5 bg-[#151c2c] hover:bg-[#1a233a] rounded-lg border border-[#4fc3f7]/10 hover:border-[#4fc3f7]/30 transition-all">
+                        <span class="text-[10px] font-bold text-[#4fc3f7] font-mono">CAPA 3</span>
+                        <h4 id="txt-layer3-name" class="text-xs font-bold text-white mb-1">Capa 3: Transporte de Electrones</h4>
+                        <p id="txt-layer3-desc" class="text-[10px] text-gray-400 line-clamp-2">Red de nanotubos de carbono (SWCNT) alineados en espiga para conducción balística (10⁸ S/m).</p>
+                    </div>
+
+                    <!-- Capa 2 -->
+                    <div onclick="focusLayer(1)" class="cursor-pointer p-2.5 bg-[#151c2c] hover:bg-[#1a233a] rounded-lg border border-[#4fc3f7]/10 hover:border-[#4fc3f7]/30 transition-all">
+                        <span class="text-[10px] font-bold text-[#4fc3f7] font-mono">CAPA 2</span>
+                        <h4 id="txt-layer2-name" class="text-xs font-bold text-white mb-1">Capa 2: Separación de Cargas</h4>
+                        <p id="txt-layer2-desc" class="text-[10px] text-gray-400 line-clamp-2">Heteroestructura MoS₂/Grafeno con campo eléctrico ajustable (0-2V) para separar electrones.</p>
+                    </div>
+
+                    <!-- Capa 1 -->
+                    <div onclick="focusLayer(0)" class="cursor-pointer p-2.5 bg-[#151c2c] hover:bg-[#1a233a] rounded-lg border border-[#4fc3f7]/10 hover:border-[#4fc3f7]/30 transition-all">
+                        <span class="text-[10px] font-bold text-[#4fc3f7] font-mono">CAPA 1</span>
+                        <h4 id="txt-layer1-name" class="text-xs font-bold text-white mb-1">Capa 1: Absorción Fotónica</h4>
+                        <p id="txt-layer1-desc" class="text-[10px] text-gray-400 line-clamp-2">Grafeno monocapa dopado con N/B y nanoantenas de oro (Au) de 20nm. Absorbe 95% UV-Vis.</p>
+                    </div>
+                </div>
+
+                <!-- VIEW TOGGLES -->
+                <div class="mt-4 pt-3 border-t border-[#4fc3f7]/10 grid grid-cols-2 gap-2">
+                    <button onclick="toggleExplode()" id="btn-explode" class="w-full py-1.5 text-xs font-semibold bg-[#4fc3f7]/15 hover:bg-[#4fc3f7]/25 text-[#4fc3f7] rounded border border-[#4fc3f7]/30 transition-all flex items-center justify-center gap-1">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                        <span>VISTA EXPLOTADA</span>
+                    </button>
+                    <button onclick="resetCamera()" class="w-full py-1.5 text-xs font-semibold bg-[#1a233a] hover:bg-[#23304e] text-gray-300 rounded border border-[#4fc3f7]/10 transition-all">
+                        REINICIAR VISTA
+                    </button>
+                </div>
+            </div>
         </div>
 
-        <!-- Canvas Holder -->
-        <div id="canvas-container" class="flex-grow w-full rounded-2xl overflow-hidden bg-slate-950 relative min-h-[380px]">
-          <canvas id="three-canvas" class="w-full h-full block"></canvas>
-          
-          <!-- WebGL Overhead HUD Display overlays -->
-          <div class="absolute inset-x-0 top-3 px-4 flex justify-between items-center pointer-events-none">
-            <div id="direct-conn-badge" class="bg-slate-900/90 border border-slate-800 px-2.5 py-1 rounded-md text-[10px] font-mono text-cyan-400">
-              CONEXIÓN DIRECTA LOCAL
-            </div>
-            <div class="flex gap-2 pointer-events-auto">
-              <!-- Screenshot tool -->
-              <button onclick="takeScreenshotLocal()" id="btn-screenshot" class="bg-slate-900 hover:bg-slate-800 px-3 py-1 text-[10px] font-mono text-emerald-300 border border-slate-800 rounded-md transition shadow-md flex items-center gap-1.5">
-                📸 CAPTURA_IMAGEN
-              </button>
-            </div>
-          </div>
+        <!-- CENTER: Main 3D WebGL Canvas -->
+        <div class="lg:col-span-2 relative min-h-[400px] lg:min-h-[500px] bg-gradient-to-tr from-[#0b0f19] to-[#121927] border border-[#4fc3f7]/15 rounded-2xl shadow-2xl overflow-hidden flex items-center justify-center">
+            
+            <!-- 3D WebGL Target Canvas -->
+            <div id="canvas-container" class="absolute inset-0 w-full h-full z-10"></div>
 
-          <div class="absolute inset-x-4 bottom-3 flex justify-between items-end pointer-events-none">
-            <div class="bg-slate-900/80 border border-slate-800/50 p-2.5 rounded-lg text-[10px] max-w-[280px]">
-              <span id="hud-oper" class="text-blue-400 font-bold font-mono">OPERATOR HUD</span>
-              <p id="hud-inst" class="text-slate-300 mt-1 leading-normal">
-                Usa el mouse o el dedo para arrastrar, rotar y hacer zoom sobre la celda solar en 3D.
-              </p>
+            <!-- TACTICAL COMPASS / CORNER OVERLAYS (No tech larping, clean vector dials for real telemetry adjustment) -->
+            <div class="absolute bottom-4 left-4 z-20 pointer-events-none text-left flex flex-col gap-1">
+                <span class="text-[9px] text-[#4fc3f7]/40 font-mono tracking-widest">AZIMUTH ANGLE TARGET: 182.5°</span>
+                <span class="text-[9px] text-[#4fc3f7]/40 font-mono tracking-widest">ELEVATION RESOLUTION: 34.2°</span>
+                <span class="text-[9px] text-[#4fc3f7]/40 font-mono tracking-widest">NEXUS COUPLING SPEED: 100%</span>
             </div>
-            <div id="gpu-acc" class="text-[9px] font-mono text-slate-500 bg-slate-950 px-2 py-1 rounded">
-              Acelerado por GPU de Navegador
+
+            <div class="absolute bottom-4 right-4 z-20 pointer-events-none text-right flex flex-col gap-1">
+                <span class="text-[9px] text-[#4fc3f7]/40 font-mono tracking-widest">MEMBRANE THICKNESS: 0.3 mm</span>
+                <span class="text-[9px] text-[#4fc3f7]/40 font-mono tracking-widest">GRAV STABILITY: NOMINAL</span>
+                <span class="text-[9px] text-[#4fc3f7]/40 font-mono tracking-widest">CO-VALENT TIOLATES: 100%</span>
             </div>
-          </div>
+
+            <!-- AR STATUS INDICATION OVERLAY -->
+            <div id="ar-status-badge" class="absolute top-4 right-4 z-20 hidden bg-cyan-950/90 border border-[#4fc3f7] text-[#4fc3f7] px-3 py-1 rounded-full text-xs font-mono items-center gap-2 animate-pulse">
+                <span class="w-1.5 h-1.5 bg-[#4fc3f7] rounded-full"></span>
+                <span>REALIDAD AUMENTADA MESA DE TRABAJO</span>
+            </div>
         </div>
 
-        <!-- Interactive tabs listing layers specs -->
-        <div class="mt-4 pt-3 border-t border-slate-850 grid grid-cols-2 md:grid-cols-4 gap-2">
-          <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-xs">
-            <div id="layer1-title" class="font-bold text-blue-400 font-mono">1. CAPA_PROTECCIÓN</div>
-            <p id="layer1-desc" class="text-[10px] text-slate-400 mt-0.5">Vidrio de Nanorubí autolimpiante con gotas hidrofóbicas.</p>
-          </div>
-          <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-xs">
-            <div id="layer2-title" class="font-bold text-cyan-400 font-mono">2. RED_SOPRANO</div>
-            <p id="layer2-desc" class="text-[10px] text-slate-400 mt-0.5">Malla nanomolecular de anillos de grafeno superconductor.</p>
-          </div>
-          <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-xs">
-            <div id="layer3-title" class="font-bold text-green-400 font-mono">3. MEMBRANA_CARGA</div>
-            <p id="layer3-desc" class="text-[10px] text-slate-400 mt-0.5">Separador de portadores. Dispara electrones (-) e iones (+).</p>
-          </div>
-          <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-xs">
-            <div id="layer4-title" class="font-bold text-violet-400 font-mono">4. BOSQUE_ABSORCIÓN</div>
-            <p id="layer4-desc" class="text-[10px] text-slate-400 mt-0.5">Nanorubíes ordenados capturan luz roja/azul con antenas de oro.</p>
-          </div>
+        <!-- RIGHT COLUMN: Operating Modes, Swarm IA & Controls -->
+        <div class="lg:col-span-1 flex flex-col gap-4">
+            
+            <!-- OPERATIONAL MODES (REQUIREMENT 9) -->
+            <div class="bg-[#101625]/90 border border-[#4fc3f7]/20 rounded-xl p-4 shadow-xl backdrop-blur-md">
+                <h3 id="txt-modes-title" class="text-xs font-bold tracking-widest text-[#4fc3f7] uppercase border-b border-[#4fc3f7]/20 pb-2 mb-3">
+                    Modos Operativos
+                </h3>
+                <div class="space-y-2">
+                    <button onclick="setMode('standard')" id="btn-mode-standard" class="w-full text-left p-2.5 rounded-lg border transition-all text-xs flex justify-between items-center bg-[#151c2c] border-[#4fc3f7]/10 text-gray-300">
+                        <div>
+                            <span id="txt-mode-standard" class="font-bold block">Modo Estándar</span>
+                            <span id="txt-mode-standard-desc" class="text-[10px] text-gray-400 block mt-0.5">Funcionamiento básico de captación solar en espectro amplio.</span>
+                        </div>
+                        <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                    </button>
+
+                    <button onclick="setMode('ai_optimized')" id="btn-mode-ai_optimized" class="w-full text-left p-2.5 rounded-lg border transition-all text-xs flex justify-between items-center bg-[#151c2c] border-[#4fc3f7]/10 text-gray-300">
+                        <div>
+                            <span id="txt-mode-ai" class="font-bold block">Optimizado por IA</span>
+                            <span id="txt-mode-ai-desc" class="text-[10px] text-gray-400 block mt-0.5">Ajuste cuántico en tiempo real de bandas de energía y campo eléctrico.</span>
+                        </div>
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    </button>
+
+                    <button onclick="setMode('self_cleaning')" id="btn-mode-self_cleaning" class="w-full text-left p-2.5 rounded-lg border transition-all text-xs flex justify-between items-center bg-[#151c2c] border-[#4fc3f7]/10 text-gray-300">
+                        <div>
+                            <span id="txt-mode-clean" class="font-bold block">Auto-Limpieza Activa</span>
+                            <span id="txt-mode-clean-desc" class="text-[10px] text-gray-400 block mt-0.5">Activación del TiO₂ fotocatalítico mediante luz solar para degradar suciedad.</span>
+                        </div>
+                        <span class="w-2 h-2 rounded-full bg-sky-400 animate-ping"></span>
+                    </button>
+
+                    <button onclick="setMode('extreme_weather')" id="btn-mode-extreme_weather" class="w-full text-left p-2.5 rounded-lg border transition-all text-xs flex justify-between items-center bg-[#151c2c] border-[#4fc3f7]/10 text-gray-300">
+                        <div>
+                            <span id="txt-mode-extreme" class="font-bold block">Clima Extremo</span>
+                            <span id="txt-mode-extreme-desc" class="text-[10px] text-gray-400 block mt-0.5">Alineamiento y protección de capas frente a sobrecargas térmicas.</span>
+                        </div>
+                        <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- MODULAR PHYSICS SLIDERS (REQUIREMENT 9) -->
+            <div class="bg-[#101625]/90 border border-[#4fc3f7]/15 rounded-xl p-4 shadow-xl backdrop-blur-md">
+                <h3 id="txt-controls-title" class="text-xs font-bold tracking-widest text-[#4fc3f7] uppercase border-b border-[#4fc3f7]/20 pb-2 mb-3">
+                    Física Modular
+                </h3>
+                
+                <div class="space-y-4 text-xs">
+                    <!-- Wavelength slider -->
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span id="txt-param-wavelength" class="text-gray-400">Longitud de Onda</span>
+                            <span id="lbl-wavelength" class="text-[#4fc3f7] font-mono">550 nm</span>
+                        </div>
+                        <input type="range" id="rng-wavelength" min="300" max="2500" value="550" class="w-full accent-[#4fc3f7] cursor-pointer" oninput="updateSliders()">
+                        <div class="flex justify-between text-[10px] text-gray-500 mt-1">
+                            <span>UV (300)</span>
+                            <span>Visible (550)</span>
+                            <span>NIR (2500)</span>
+                        </div>
+                    </div>
+
+                    <!-- Voltage slider -->
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span id="txt-param-voltage" class="text-gray-400">Voltaje Aplicado (Junction)</span>
+                            <span id="lbl-voltage" class="text-[#4fc3f7] font-mono">1.20 V</span>
+                        </div>
+                        <input type="range" id="rng-voltage" min="0" max="2" step="0.05" value="1.2" class="w-full accent-[#4fc3f7] cursor-pointer" oninput="updateSliders()">
+                    </div>
+
+                    <!-- Light Intensity slider -->
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span id="txt-param-intensity" class="text-gray-400">Intensidad Lumínica</span>
+                            <span id="lbl-intensity" class="text-[#4fc3f7] font-mono">85%</span>
+                        </div>
+                        <input type="range" id="rng-intensity" min="0" max="100" value="85" class="w-full accent-[#4fc3f7] cursor-pointer" oninput="updateSliders()">
+                    </div>
+
+                    <!-- Temp slider -->
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span id="txt-param-temp" class="text-gray-400">Temperatura de Operación</span>
+                            <span id="lbl-temp" class="text-[#4fc3f7] font-mono">25 °C</span>
+                        </div>
+                        <input type="range" id="rng-temp" min="-20" max="80" value="25" class="w-full accent-[#4fc3f7] cursor-pointer" oninput="updateSliders()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- REQUIREMENT 10: Simulated Augmented Reality (AR) Overlay -->
+            <div class="bg-[#101625]/90 border border-[#4fc3f7]/20 rounded-xl p-4 shadow-xl backdrop-blur-md">
+                <h3 id="txt-ar-title" class="text-xs font-bold tracking-widest text-[#4fc3f7] uppercase border-b border-[#4fc3f7]/20 pb-2 mb-2 flex items-center justify-between">
+                    <span>Simulación de Realidad Aumentada (AR)</span>
+                    <span class="w-2.5 h-2.5 bg-cyan-400 rounded-full animate-ping"></span>
+                </h3>
+                <p id="txt-ar-desc" class="text-[10px] text-gray-400 mb-3">
+                    Usa la cámara de tu dispositivo para proyectar e interactuar con el modelo 3D sobre tu mesa de trabajo.
+                </p>
+                <button onclick="toggleAR()" id="btn-ar-trigger" class="w-full py-2 bg-[#4fc3f7] hover:bg-[#3babdf] text-[#0b0f19] font-bold text-xs rounded-lg transition-all uppercase tracking-wider shadow-lg">
+                    Activar Cámara / Modo AR
+                </button>
+
+                <!-- AR Adjustment Sliders (Only visible in AR mode) -->
+                <div id="ar-adjustments" class="hidden mt-4 space-y-3 pt-3 border-t border-[#4fc3f7]/20 text-xs">
+                    <div>
+                        <div class="flex justify-between mb-1 text-gray-400">
+                            <span>Escala AR</span>
+                            <span id="lbl-ar-scale" class="text-[#4fc3f7]">1.0x</span>
+                        </div>
+                        <input type="range" id="rng-ar-scale" min="0.2" max="2.5" step="0.1" value="1.0" class="w-full accent-[#4fc3f7]" oninput="updateARPlacement()">
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1 text-gray-400">
+                            <span>Rotación AR</span>
+                            <span id="lbl-ar-rot" class="text-[#4fc3f7]">0°</span>
+                        </div>
+                        <input type="range" id="rng-ar-rot" min="0" max="360" value="0" class="w-full accent-[#4fc3f7]" oninput="updateARPlacement()">
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1 text-gray-400">
+                            <span>Altura AR</span>
+                            <span id="lbl-ar-height" class="text-[#4fc3f7]">0.0</span>
+                        </div>
+                        <input type="range" id="rng-ar-height" min="-2" max="2" step="0.1" value="0.0" class="w-full accent-[#4fc3f7]" oninput="updateARPlacement()">
+                    </div>
+                </div>
+            </div>
         </div>
+    </main>
 
-      </div>
+    <!-- BOTTOM ROW: REQUIREMENT 7: AI Swarm Nodes & Live Log System -->
+    <footer class="relative z-20 m-4 mt-0 bg-[#101625]/90 border border-[#4fc3f7]/15 rounded-xl p-4 shadow-xl backdrop-blur-md">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+            
+            <!-- SWARM IA DESCRIPTION -->
+            <div class="md:col-span-1">
+                <h4 id="txt-ai-title" class="text-xs font-bold text-[#4fc3f7] uppercase tracking-wider mb-1 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    Sistema de Nodos IA (Enjambre)
+                </h4>
+                <p id="txt-ai-desc" class="text-[10px] text-gray-400 leading-relaxed">
+                    Algoritmos evolutivos optimizan continuamente el alineamiento atómico y el voltaje de la unión.
+                </p>
+                <div class="mt-2 flex items-center gap-2 text-xs text-emerald-400 font-mono">
+                    <span id="txt-active-nodes">Nodos Activos</span>: <span class="font-bold">128 / 128 (100% COHERENCE)</span>
+                </div>
+            </div>
 
-    </div>
+            <!-- LIVE EVOLUTIONARY LOG (NSGA-II) -->
+            <div class="md:col-span-3 bg-[#0c101b] border border-[#4fc3f7]/10 rounded-lg p-2.5 font-mono text-[10px] text-emerald-400/80 max-h-20 overflow-y-auto" id="ai-logs">
+                <div class="text-[#4fc3f7]/80 flex justify-between border-b border-[#4fc3f7]/10 pb-1 mb-1">
+                    <span>GENETIC SWARM PARAMETERS (NSGA-II & MACHINE LEARNING)</span>
+                    <span class="animate-pulse">● RUNNING LOCAL OPTIMIZER</span>
+                </div>
+                <div class="space-y-0.5" id="log-list">
+                    <!-- Real-time logs will populate here -->
+                </div>
+            </div>
+        </div>
+    </footer>
 
-  </main>
+    <!-- TRANSLATIONS DATA DICT FOR JS -->
+    <script>
+        const translations = {"es":{"author":"Dr. Julio César Oporta Barrera","projectTitle":"Nexus Solar","projectSubtitle":"Paneles Solares de Grafeno con 60% de Eficiencia","downloadBtn":"Descargar Prototipo 3D (.html)","downloadDesc":"Obtén el archivo HTML interactivo y autónomo para abrir por doble clic (sin internet) en Edge o Chrome, listo para compartir por WhatsApp o Correo.","modesTitle":"Modos Operativos","modeStandard":"Modo Estándar","modeStandardDesc":"Funcionamiento básico de captación solar en espectro amplio.","modeAi":"Optimizado por IA","modeAiDesc":"Ajuste cuántico en tiempo real de bandas de energía y campo eléctrico.","modeClean":"Auto-Limpieza Activa","modeCleanDesc":"Activación del TiO₂ fotocatalítico mediante luz solar para degradar suciedad.","modeExtreme":"Clima Extremo","modeExtremeDesc":"Alineamiento y protección de capas frente a sobrecargas térmicas.","controlsTitle":"Física Modular","paramWavelength":"Longitud de Onda","paramVoltage":"Voltaje Aplicado (Junction)","paramIntensity":"Intensidad Lumínica","paramTemp":"Temperatura de Operación","hudTitle":"HUD Táctico & Diagnósticos","hudEfficiency":"Eficiencia Cuántica","hudGeneration":"Generación de Energía","hudRecombination":"Tasa de Recombinación","hudStatus":"Estado del Sistema","layer1Name":"Capa 1: Absorción Fotónica","layer1Desc":"Grafeno monocapa dopado con N/B y nanoantenas de oro (Au) de 20nm. Absorbe 95% UV-Vis.","layer2Name":"Capa 2: Separación de Cargas","layer2Desc":"Heteroestructura MoS₂/Grafeno con campo eléctrico ajustable (0-2V) para separar electrones.","layer3Name":"Capa 3: Transporte de Electrones","layer3Desc":"Red de nanotubos de carbono (SWCNT) alineados en espiga para conducción balística (10⁸ S/m).","layer4Name":"Capa 4: Protección y Auto-limpieza","layer4Desc":"Película de TiO₂ dopado con plata (Ag). Súper hidrofílica (ángulo < 5°) y fotocatalítica.","arTitle":"Simulación de Realidad Aumentada (AR)","arDesc":"Usa la cámara de tu dispositivo para proyectar e interactuar con el modelo 3D sobre tu mesa de trabajo.","arEnable":"Activar Cámara / Modo AR","arDisable":"Desactivar Modo AR","aiSwarmTitle":"Sistema de Nodos IA (Enjambre)","aiSwarmDesc":"Algoritmos evolutivos optimizan continuamente el alineamiento atómico y el voltaje de la unión.","techSpecs":"Especificaciones Técnicas","activeNodes":"Nodos Activos"},"en":{"author":"Dr. Julio César Oporta Barrera","projectTitle":"Nexus Solar","projectSubtitle":"Graphene Solar Panels with 60% Efficiency","downloadBtn":"Download 3D Prototype (.html)","downloadDesc":"Get the standalone interactive HTML file to open via double-click (offline) in Edge or Chrome. Ready to share via WhatsApp or Email.","modesTitle":"Operational Modes","modeStandard":"Standard Mode","modeStandardDesc":"Basic solar harvesting across wide spectrum.","modeAi":"AI-Optimized","modeAiDesc":"Real-time quantum tuning of energy bands and junction electric fields.","modeClean":"Active Self-Cleaning","modeCleanDesc":"Activation of photocatalytic TiO₂ using solar UV to degrade dirt particles.","modeExtreme":"Extreme Weather","modeExtremeDesc":"Layer alignment and self-protection against thermal and physical stress.","controlsTitle":"Modular Physics","paramWavelength":"Wavelength","paramVoltage":"Applied Voltage (Junction)","paramIntensity":"Light Intensity","paramTemp":"Operating Temperature","hudTitle":"Tactical HUD & Diagnostics","hudEfficiency":"Quantum Efficiency","hudGeneration":"Power Generation","hudRecombination":"Recombination Rate","hudStatus":"System Status","layer1Name":"Layer 1: Photon Absorption","layer1Desc":"N/B doped monolayer graphene with 20nm gold (Au) nanoantennas. Absorbs 95% UV-Vis.","layer2Name":"Layer 2: Charge Separation","layer2Desc":"MoS₂/Graphene heterostructure with tunable electric field (0-2V) for electron separation.","layer3Name":"Layer 3: Electron Transport","layer3Desc":"Single-walled carbon nanotube (SWCNT) mesh in spike pattern for ballistic transport (10⁸ S/m).","layer4Name":"Layer 4: Self-Cleaning & Protection","layer4Desc":"Silver (Ag) doped TiO₂ thin film. Super-hydrophilic (contact angle < 5°) and photocatalytic.","arTitle":"Augmented Reality (AR) Simulation","arDesc":"Use your device's camera to project and interact with the 3D model on your work desk.","arEnable":"Enable Camera / AR Mode","arDisable":"Disable AR Mode","aiSwarmTitle":"AI Swarm Node System","aiSwarmDesc":"Evolutionary algorithms continuously optimize atomic alignment and junction voltage.","techSpecs":"Technical Specifications","activeNodes":"Active Nodes"},"zh":{"author":"Julio César Oporta Barrera 博士","projectTitle":"Nexus Solar","projectSubtitle":"石墨烯太阳能电池板（60%光电转换效率）","downloadBtn":"下载 3D 原型 (.html)","downloadDesc":"获取独立的交互式 HTML 文件，双击（离线）在 Edge 或 Chrome 中打开。支持微信或邮件分享。","modesTitle":"运行模式","modeStandard":"标准模式","modeStandardDesc":"宽光谱太阳能基本收集。","modeAi":"人工智能优化","modeAiDesc":"能量带和结电场的实时量子调谐。","modeClean":"主动自清洁","modeCleanDesc":"利用太阳能紫外线激活光催化 TiO₂ 降解污垢颗粒。","modeExtreme":"极端天气","modeExtremeDesc":"对热和物理过载的层对齐与自保护。","controlsTitle":"模块化物理参数","paramWavelength":"光波长","paramVoltage":"施加电压 (结电场)","paramIntensity":"光照强度","paramTemp":"运行温度","hudTitle":"战术HUD与诊断系统","hudEfficiency":"量子效率","hudGeneration":"发电功率","hudRecombination":"载流子复合率","hudStatus":"系统状态","layer1Name":"第1层：光子吸收层","layer1Desc":"N/B共掺杂单层石墨烯，集成20nm金(Au)纳米天线。吸收95%的UV-Vis光。","layer2Name":"第2层：电荷分离层","layer2Desc":"MoS₂/石墨烯异质结，具有可调电场(0-2V)以极速分离电子。","layer3Name":"第3层：电子传输层","layer3Desc":"人字形/鱼骨排列的单壁碳纳米管(SWCNT)网格，实现弹道输运 (10⁸ S/m)。","layer4Name":"第4层：保护与自清洁层","layer4Desc":"掺银(Ag)二氧化钛(TiO₂)薄膜。具有超亲水性（接触角 < 5°）和光催化特性。","arTitle":"增强现实 (AR) 模拟","arDesc":"利用设备的摄像头，在您的工作台或桌面上投影并交互该3D模型。","arEnable":"启用摄像头 / AR 模式","arDisable":"禁用 AR 模式","aiSwarmTitle":"AI集群节点系统","aiSwarmDesc":"进化算法（如 NSGA-II）不断优化原子对齐和结偏压。","techSpecs":"技术规范","activeNodes":"活跃节点"}};
+        let currentLang = 'es';
+        
+        let state = {
+            wavelength: 550,
+            voltage: 1.2,
+            intensity: 85,
+            temperature: 25,
+            mode: 'standard',
+            explodedView: false,
+            isARMode: false
+        };
 
-  <footer class="mt-auto bg-slate-900 border-t border-slate-850 py-4 px-6 text-center text-[11px] text-slate-500 font-mono flex flex-col sm:flex-row justify-between items-center gap-2">
-    <p id="footer-cpy">© 2026 Nexus Solar Labs. Producto Standalone Exportado Directamente.</p>
-    <p id="footer-stat">ESTADO: DISPOSITIVO AUTÓNOMO OFFLINE</p>
-  </footer>
+        // UI Language Swapping
+        function changeLanguage(lang) {
+            currentLang = lang;
+            const dict = translations[lang];
+            
+            document.getElementById('txt-author').innerText = dict.author;
+            document.getElementById('txt-subtitle').innerText = dict.projectSubtitle;
+            document.getElementById('txt-hud-title').firstElementChild.innerText = dict.hudTitle;
+            document.getElementById('txt-hud-eff').innerText = dict.hudEfficiency;
+            document.getElementById('txt-hud-gen').innerText = dict.hudGeneration;
+            document.getElementById('txt-hud-recomb').innerText = dict.hudRecombination;
+            document.getElementById('txt-hud-status').innerText = dict.hudStatus;
+            
+            document.getElementById('txt-layer1-name').innerText = dict.layer1Name;
+            document.getElementById('txt-layer1-desc').innerText = dict.layer1Desc;
+            document.getElementById('txt-layer2-name').innerText = dict.layer2Name;
+            document.getElementById('txt-layer2-desc').innerText = dict.layer2Desc;
+            document.getElementById('txt-layer3-name').innerText = dict.layer3Name;
+            document.getElementById('txt-layer3-desc').innerText = dict.layer3Desc;
+            document.getElementById('txt-layer4-name').innerText = dict.layer4Name;
+            document.getElementById('txt-layer4-desc').innerText = dict.layer4Desc;
+            
+            document.getElementById('txt-modes-title').innerText = dict.modesTitle;
+            document.getElementById('txt-mode-standard').innerText = dict.modeStandard;
+            document.getElementById('txt-mode-standard-desc').innerText = dict.modeStandardDesc;
+            document.getElementById('txt-mode-ai').innerText = dict.modeAi;
+            document.getElementById('txt-mode-ai-desc').innerText = dict.modeAiDesc;
+            document.getElementById('txt-mode-clean').innerText = dict.modeClean;
+            document.getElementById('txt-mode-clean-desc').innerText = dict.modeCleanDesc;
+            document.getElementById('txt-mode-extreme').innerText = dict.modeExtreme;
+            document.getElementById('txt-mode-extreme-desc').innerText = dict.modeExtremeDesc;
+            
+            document.getElementById('txt-controls-title').innerText = dict.controlsTitle;
+            document.getElementById('txt-param-wavelength').innerText = dict.paramWavelength;
+            document.getElementById('txt-param-voltage').innerText = dict.paramVoltage;
+            document.getElementById('txt-param-intensity').innerText = dict.paramIntensity;
+            document.getElementById('txt-param-temp').innerText = dict.paramTemp;
+            
+            document.getElementById('txt-ar-title').firstElementChild.innerText = dict.arTitle;
+            document.getElementById('txt-ar-desc').innerText = dict.arDesc;
+            document.getElementById('btn-ar-trigger').innerText = state.isARMode ? dict.arDisable : dict.arEnable;
+            
+            document.getElementById('txt-ai-title').lastChild.textContent = ' ' + dict.aiSwarmTitle;
+            document.getElementById('txt-ai-desc').innerText = dict.aiSwarmDesc;
+            document.getElementById('txt-active-nodes').innerText = dict.activeNodes;
+            document.getElementById('txt-tech-specs').innerText = dict.techSpecs;
 
-  <!-- THREE_JS ADVANCED SCIENTIFIC ENGINE -->
-  <script>
-    // Translation Dictionaries
-    const TRANSLATIONS = {
-      es: {
-        subtitle: "Prototipo 3D Interactivo Independiente de Alto Rendimiento",
-        modulationTitle: "Modulación Ambiental Cuántica",
-        irradianceFlow: "Flujo Irradiancia",
-        cloudy: "200 W (Nublado)",
-        maxIrr: "1200 W (Máxima)",
-        thermalTemp: "Temperatura Térmica",
-        cryo: "10°C (Criogénico)",
-        tempMax: "75°C (Térmico Máx)",
-        separation: "Separación 3D (Explosión)",
-        rotation: "Velocidad de Rotación",
-        telemetryTitle: "Telemetría Física Computada",
-        activePower: "POTENCIA ACTIVA FOTOVOLTAICA",
-        realEff: "EFICIENCIA REAL NETO",
-        dailyPerf: "RENDIMIENTO ESTIMADO DIARIO",
-        warningHeat: "💡 La eficiencia cuántica disminuye ligeramente a altas temperaturas térmicas por agitación iónica de los haluros.",
-        modelSubheader: "Modelo Estructura 3D Fotovoltaica en Movimiento",
-        engineReady: "MOTOR 3D RENDER LISTO",
-        directConn: "CONEXIÓN DIRECTA LOCAL",
-        captureBtn: "📸 CAPTURA_IMAGEN",
-        hudTitle: "OPERATOR HUD",
-        hudInst: "Usa el mouse o el dedo para arrastrar, rotar y hacer zoom sobre la celda solar en 3D.",
-        gpuAcc: "Acelerado por GPU de Navegador",
-        layer1: "1. CAPA_PROTECCIÓN",
-        layer1Desc: "Vidrio de Nanorubí autolimpiante con gotas hidrofóbicas.",
-        layer2: "2. RED_SOPRANO",
-        layer2Desc: "Malla nanomolecular de anillos de grafeno superconductor.",
-        layer3: "3. MEMBRANA_CARGA",
-        layer3Desc: "Separador de portadores. Dispara electrones (-) e iones (+).",
-        layer4: "4. BOSQUE_ABSORCIÓN",
-        layer4Desc: "Nanorubíes ordenados capturan luz roja/azul con antenas de oro.",
-        footerCpy: "© 2026 Nexus Solar Labs. Producto Standalone Exportado Directamente.",
-        footerStat: "ESTADO: DISPOSITIVO AUTÓNOMO OFFLINE",
-        heatValText: " calor",
-        coldValText: " frío",
-        nominalText: "nominal"
-      },
-      en: {
-        subtitle: "High-Performance Standalone Interactive 3D Prototype",
-        modulationTitle: "Quantum Environmental Modulation",
-        irradianceFlow: "Irradiance Flux",
-        cloudy: "200 W (Overcast)",
-        maxIrr: "1200 W (Maximum)",
-        thermalTemp: "Thermal Temperature",
-        cryo: "10°C (Cryogenic)",
-        tempMax: "75°C (Thermal Max)",
-        separation: "3D Stack Separation",
-        rotation: "Rotation Speed",
-        telemetryTitle: "Computed Physical Telemetry",
-        activePower: "ACTIVE PHOTOVOLTAIC POWER",
-        realEff: "REAL NET EFFICIENCY",
-        dailyPerf: "ESTIMATED DAILY YIELD",
-        warningHeat: "💡 Quantum efficiency decreases slightly at high thermal temperatures due to ionic agitation in perovskite halides.",
-        modelSubheader: "Solar Cell 3D Molecular Stack in Motion",
-        engineReady: "3D RENDER ENGINE READY",
-        directConn: "LOCAL DIRECT CONNECT",
-        captureBtn: "📸 IMAGE_CAPTURE",
-        hudTitle: "OPERATOR HUD",
-        hudInst: "Use mouse or touch vectors to drag, pivot and zoom the 3D solar cell.",
-        gpuAcc: "Accelerated by Web Browser GPU",
-        layer1: "1. PROTECTION SHIELD",
-        layer1Desc: "Self-cleaning Nano-ruby cover glass with hydrophobic beads.",
-        layer2: "2. SOPRANO GRID",
-        layer2Desc: "Superconductive graphene ring molecular cellular mesh.",
-        layer3: "3. CHARGE MEMBRANE",
-        layer3Desc: "Carrier separator firing electrons (-) and holes (+).",
-        layer4: "4. ABSORPTION FOREST",
-        layer4Desc: "Aligned nano-rubies trap red/blue photons via golden crowns.",
-        footerCpy: "© 2026 Nexus Solar Labs. Standalone Product Directory Exported.",
-        footerStat: "STATUS: AUTONOMOUS OFFLINE UNIT",
-        heatValText: " heat",
-        coldValText: " cold",
-        nominalText: "nominal"
-      },
-      zh: {
-        subtitle: "高效率三维量子太阳能电池交互式原型",
-        modulationTitle: "量子环境参数调制",
-        irradianceFlow: "光照 irradiance 强度",
-        cloudy: "200 W (多云阴天)",
-        maxIrr: "1200 W (强光峰值)",
-        thermalTemp: "工作热力温度",
-        cryo: "10°C (极度低温)",
-        tempMax: "75°C (热力载流恢复)",
-        separation: "三维视图拆解分离",
-        rotation: "空间自转运行速度",
-        telemetryTitle: "物理电通量实时遥测",
-        activePower: "有功光电转换出力",
-        realEff: "实际光电净转化率",
-        dailyPerf: "日均发电能效估算",
-        warningHeat: "💡 量子转换效率随温度上升而微幅衰退（卤化物晶格激子散射效应）。",
-        modelSubheader: "三维分子晶格叠层动态物理模型",
-        engineReady: "三维图形加速就绪",
-        directConn: "离线本地物理连接",
-        captureBtn: "📸 生成屏幕快照",
-        hudTitle: "操作员视界面板",
-        hudInst: "拖动鼠标可以旋转三维模型，滑动滚轮可以缩放视场。",
-        gpuAcc: "由本机显卡硬件加速渲染",
-        layer1: "1. 纳米防尘保护层",
-        layer1Desc: "具备超疏水超轻透自清洁特性的纳米级红宝石强化防护玻璃盖板。",
-        layer2: "2. 石墨烯集流网",
-        layer2Desc: "超导无损分子级石墨烯环形大平面电量收集骨架网格。",
-        layer3: "3. 载流激子分离层",
-        layer3Desc: "非辐射复合阻断层。分别将自由电子（蓝色）和空穴（红色）拉向两极。",
-        layer4: "4. 超表面吸收森林",
-        layer4Desc: "高度有序排列的红色与蓝色纳米柱，顶部搭配黄金触针电极集束光能。",
-        footerCpy: "© 2026 奈瑟斯太阳能实验室。完全离线一体化极速版应用。",
-        footerStat: "状态：独立离线实例",
-        heatValText: " 温升损耗",
-        coldValText: " 低温增益",
-        nominalText: "额定状态"
-      }
-    };
-
-    // System Telemetry State
-    const state = {
-      irradiance: 800,
-      temperature: 25.0,
-      explosion: 1.2,
-      rotation: 1.5,
-      baseEff: 58.2,
-      currentLang: "es"
-    };
-
-    // DOM selectors
-    const irrSlider = document.getElementById('irradiance-slider');
-    const irrVal = document.getElementById('irradiance-val');
-    const tempSlider = document.getElementById('temp-slider');
-    const tempVal = document.getElementById('temp-val');
-    const expSlider = document.getElementById('explosion-slider');
-    const expVal = document.getElementById('explosion-val');
-    const rotSlider = document.getElementById('rotation-slider');
-    const rotVal = document.getElementById('rotation-val');
-
-    const telPower = document.getElementById('tel-power');
-    const telEff = document.getElementById('tel-eff');
-    const telEffDiff = document.getElementById('tel-eff-diff');
-    const telDaily = document.getElementById('tel-daily');
-
-    // MULTILANGUAGE REACTIVE SWITCHER
-    window.switchLanguage = function(newLang) {
-      state.currentLang = newLang;
-      const dict = TRANSLATIONS[newLang];
-      if (!dict) return;
-
-      // Update HTML node lang
-      document.documentElement.lang = newLang;
-
-      // Update static DOM contents
-      document.getElementById('header-subtitle').innerText = dict.subtitle;
-      document.getElementById('mod-title').innerText = dict.modulationTitle;
-      document.getElementById('label-irr-flow').innerText = dict.irradianceFlow;
-      document.getElementById('label-irr-cloudy').innerText = dict.cloudy;
-      document.getElementById('label-irr-max').innerText = dict.maxIrr;
-      document.getElementById('label-thermal-temp').innerText = dict.thermalTemp;
-      document.getElementById('label-temp-cryo').innerText = dict.cryo;
-      document.getElementById('label-temp-max').innerText = dict.tempMax;
-      document.getElementById('label-separation').innerText = dict.separation;
-      document.getElementById('label-rotation').innerText = dict.rotation;
-      document.getElementById('telemetry-title').innerText = dict.telemetryTitle;
-      document.getElementById('p-tel-active').innerText = dict.activePower;
-      document.getElementById('p-tel-eff').innerText = dict.realEff;
-      document.getElementById('p-tel-daily').innerText = dict.dailyPerf;
-      document.getElementById('warning-heat').innerText = dict.warningHeat;
-      document.getElementById('model-subheader').innerText = dict.modelSubheader;
-      document.getElementById('label-engine-status').innerText = dict.engineReady;
-      document.getElementById('direct-conn-badge').innerText = dict.directConn;
-      document.getElementById('btn-screenshot').innerHTML = dict.captureBtn;
-      document.getElementById('hud-oper').innerText = dict.hudTitle;
-      document.getElementById('hud-inst').innerText = dict.hudInst;
-      document.getElementById('gpu-acc').innerText = dict.gpuAcc;
-
-      document.getElementById('layer1-title').innerText = dict.layer1;
-      document.getElementById('layer1-desc').innerText = dict.layer1Desc;
-      document.getElementById('layer2-title').innerText = dict.layer2;
-      document.getElementById('layer2-desc').innerText = dict.layer2Desc;
-      document.getElementById('layer3-title').innerText = dict.layer3;
-      document.getElementById('layer3-desc').innerText = dict.layer3Desc;
-      document.getElementById('layer4-title').innerText = dict.layer4;
-      document.getElementById('layer4-desc').innerText = dict.layer4Desc;
-
-      document.getElementById('footer-cpy').innerText = dict.footerCpy;
-      document.getElementById('footer-stat').innerText = dict.footerStat;
-
-      // Update Slider units
-      irrVal.innerText = state.irradiance + " W/m²";
-      tempVal.innerText = state.temperature.toFixed(1) + " °C";
-      expVal.innerText = state.explosion.toFixed(2) + "x";
-      rotVal.innerText = state.rotation.toFixed(1) + " rad/s";
-
-      // Refresh telemetry output
-      updateTelemetry();
-
-      // Style active button
-      ['es', 'en', 'zh'].forEach(l => {
-        const btn = document.getElementById('lang-btn-' + l);
-        if (l === newLang) {
-          btn.className = "px-2.5 py-1 rounded font-mono font-bold transition bg-blue-600 text-white border border-blue-500/30";
-        } else {
-          btn.className = "px-2.5 py-1 rounded font-mono font-bold transition text-slate-400 hover:text-white hover:bg-slate-800";
+            // Highlight button
+            ['es', 'en', 'zh'].forEach(l => {
+                const btn = document.getElementById('btn-lang-' + l);
+                if (l === lang) {
+                    btn.classList.add('bg-[#4fc3f7]', 'text-[#0b0f19]');
+                    btn.classList.remove('text-gray-400');
+                } else {
+                    btn.classList.remove('bg-[#4fc3f7]', 'text-[#0b0f19]');
+                    btn.classList.add('text-gray-400');
+                }
+            });
         }
-      });
-    };
 
-    // Telemetry updates
-    function updateTelemetry() {
-      const heatFactor = (state.temperature - 25.0) * 0.08;
-      const computedEff = Math.max(25.0, Math.min(95.0, state.baseEff - heatFactor));
-      const powerOutput = Math.round(1.6 * state.irradiance * (computedEff / 100));
-      const dailyKwh = (powerOutput * 6) / 1000;
+        // Initialize button highlight
+        changeLanguage(currentLang);
+    </script>
 
-      const dict = TRANSLATIONS[state.currentLang];
+    <!-- THREE.JS 3D SCENE & INTERACTIVE LOGIC -->
+    <script>
+        let scene, camera, renderer;
+        let layers = []; // Array of layer group meshes
+        let particles = []; // Floating electrons, light photons, water droplets
+        let aiNodes = []; // IA swarm spheres
+        let lightRays = []; // Direct light rays
+        let currentTargetExplode = 0; // Current explode state Y offset multiplier
+        let webGLWidth, webGLHeight;
 
-      telEff.innerText = computedEff.toFixed(2) + "%";
-      telPower.innerText = powerOutput.toString();
-      telDaily.innerText = dailyKwh.toFixed(2) + " kWh";
+        const colors = {
+            titanium: 0x475569, // gray satin
+            gold: 0xf59e0b, // Capa 1 nanoantennas
+            cyan: 0x4fc3f7, // glowing indicators
+            silver: 0x94a3b8, // metallic structural components
+            graphene: 0x334155, // dark slate
+            mos2: 0x059669, // emerald-ish
+            glass: 0xe2e8f0, // Capa 4 TiO2 base
+        };
 
-      if (heatFactor > 0) {
-        telEffDiff.innerText = "-" + heatFactor.toFixed(1) + "%" + dict.heatValText;
-        telEffDiff.className = "text-[10px] text-red-400 font-mono ml-2";
-      } else if (heatFactor < 0) {
-        telEffDiff.innerText = "+" + Math.abs(heatFactor).toFixed(1) + "%" + dict.coldValText;
-        telEffDiff.className = "text-[10px] text-emerald-400 font-mono ml-2";
-      } else {
-        telEffDiff.innerText = dict.nominalText;
-        telEffDiff.className = "text-[10px] text-slate-500 font-mono ml-2";
-      }
-    }
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+            webGLWidth = container.clientWidth;
+            webGLHeight = container.clientHeight;
 
-    // Connect slider interactions
-    irrSlider.addEventListener('input', (e) => {
-      state.irradiance = parseInt(e.target.value);
-      irrVal.innerText = state.irradiance + " W/m²";
-      updateTelemetry();
-    });
+            scene = new THREE.Scene();
+            
+            // Perspective camera
+            camera = new THREE.PerspectiveCamera(45, webGLWidth / webGLHeight, 0.1, 100);
+            camera.position.set(7, 6, 10);
+            camera.lookAt(0, 0, 0);
 
-    tempSlider.addEventListener('input', (e) => {
-      state.temperature = parseFloat(e.target.value);
-      tempVal.innerText = state.temperature.toFixed(1) + " °C";
-      updateTelemetry();
-    });
+            // WebGL Renderer with Alpha & Antialiasing
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(webGLWidth, webGLHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
 
-    expSlider.addEventListener('input', (e) => {
-      state.explosion = parseFloat(e.target.value);
-      expVal.innerText = state.explosion.toFixed(2) + "x";
-    });
+            // Lighting Setup (Cinematográfica, suave y profesional)
+            const ambientLight = new THREE.AmbientLight(0x0f172a, 1.2);
+            scene.add(ambientLight);
 
-    rotSlider.addEventListener('input', (e) => {
-      state.rotation = parseFloat(e.target.value);
-      rotVal.innerText = state.rotation.toFixed(1) + " rad/s";
-    });
+            // Spot Light for highlight (cinematic cyan tone)
+            const spotLight = new THREE.SpotLight(0x4fc3f7, 4, 30, Math.PI / 4, 0.5, 1);
+            spotLight.position.set(5, 10, 5);
+            spotLight.castShadow = true;
+            scene.add(spotLight);
 
-    // -------------------------------------------------------------
-    // THREE.JS CORE SCENE & ADVANCED MODEL CREATION
-    // -------------------------------------------------------------
-    const container = document.getElementById('canvas-container');
-    const canvas = document.getElementById('three-canvas');
+            // Warm key light (sun simulation)
+            const sunLight = new THREE.DirectionalLight(0xfef08a, 2.0);
+            sunLight.position.set(-4, 12, -4);
+            scene.add(sunLight);
 
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x070914);
-    scene.fog = new THREE.FogExp2(0x070914, 0.04);
+            // Create Exploded Panel Layers
+            createSolarLayers();
 
-    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
-    camera.position.set(6, 6, 9);
+            // Create Swarm AI Nodes (Requirement 7)
+            createAiSwarmNodes();
 
-    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, preserveDrawingBuffer: true });
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            // Event Listeners for resize
+            window.addEventListener('resize', onWindowResize);
 
-    const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.maxPolarAngle = Math.PI / 2 - 0.05;
-
-    // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
-    scene.add(ambientLight);
-
-    const dirLight1 = new THREE.DirectionalLight(0xfff5db, 1.8);
-    dirLight1.position.set(12, 18, 5);
-    scene.add(dirLight1);
-
-    const dirLight2 = new THREE.DirectionalLight(0x00ffff, 1.2);
-    dirLight2.position.set(-10, 5, -8);
-    scene.add(dirLight2);
-
-    const purpleFloorLight = new THREE.PointLight(0xa855f7, 1.8, 15);
-    purpleFloorLight.position.set(0, -4, 0);
-    scene.add(purpleFloorLight);
-
-    const gridHelper = new THREE.GridHelper(30, 24, 0x1e293b, 0x0f172a);
-    gridHelper.position.y = -3.8;
-    scene.add(gridHelper);
-
-    // Assembly Groups
-    const assembly = new THREE.Group();
-    scene.add(assembly);
-
-    const group4 = new THREE.Group(); // Top Glass
-    const group3 = new THREE.Group(); // Nanogrid
-    const group2 = new THREE.Group(); // Green Membrane
-    const group1 = new THREE.Group(); // Columns
-
-    assembly.add(group1);
-    assembly.add(group2);
-    assembly.add(group3);
-    assembly.add(group4);
-
-    // 1. LAYER 4: GLASS TOP SHIELD
-    const glassGeo = new THREE.BoxGeometry(4.4, 0.08, 4.4);
-    const glassMat = new THREE.MeshStandardMaterial({
-      color: 0x93c5fd,
-      roughness: 0.02,
-      metalness: 0.95,
-      transparent: true,
-      opacity: 0.25,
-      side: THREE.DoubleSide
-    });
-    const glassMesh = new THREE.Mesh(glassGeo, glassMat);
-    group4.add(glassMesh);
-
-    // Borders
-    const glassBorder = new THREE.LineSegments(
-      new THREE.EdgesGeometry(glassGeo),
-      new THREE.LineBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.7 })
-    );
-    glassMesh.add(glassBorder);
-
-    // Water Drop Sphere
-    const dropGeo = new THREE.SphereGeometry(0.24, 16, 16);
-    const dropMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      roughness: 0.02,
-      metalness: 0.9,
-      transparent: true,
-      opacity: 0.8
-    });
-    const dropMesh = new THREE.Mesh(dropGeo, dropMat);
-    dropMesh.position.set(0, 0.1, 0);
-    group4.add(dropMesh);
-
-    // concentric water ripples on glass
-    const rippleCount = 3;
-    const ripples = [];
-    for (let r = 0; r < rippleCount; r++) {
-      const ripGeo = new THREE.RingGeometry(0.1 + r * 0.25, 0.12 + r * 0.25, 32);
-      const ripMesh = new THREE.Mesh(ripGeo, new THREE.MeshBasicMaterial({ color: 0x60a5fa, transparent: true, opacity: 0.8 - r * 0.25, side: THREE.DoubleSide }));
-      ripMesh.rotation.x = -Math.PI / 2;
-      ripMesh.position.y = 0.045;
-      group4.add(ripMesh);
-      ripples.push(ripMesh);
-    }
-
-    // Lens flare glint star
-    const flareGroup = new THREE.Group();
-    flareGroup.position.set(1.6, 0.15, 1.6);
-    group4.add(flareGroup);
-
-    const flareCore = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-    flareGroup.add(flareCore);
-    const spikeGeo = new THREE.ConeGeometry(0.04, 0.7, 4);
-    const spikeMat = new THREE.MeshBasicMaterial({ color: 0xfff59d, transparent: true, opacity: 0.85 });
-    for (let s = 0; s < 4; s++) {
-      const spike = new THREE.Mesh(spikeGeo, spikeMat);
-      if (s === 0) spike.rotation.z = Math.PI / 2;
-      if (s === 1) spike.rotation.z = -Math.PI / 2;
-      if (s === 2) spike.rotation.x = Math.PI / 2;
-      if (s === 3) spike.rotation.x = -Math.PI / 2;
-      flareGroup.add(spike);
-    }
-
-    // 2. LAYER 3: NANOSTRUCTURAL CELLULAR LATTICE
-    const gridRows = 6;
-    const gridCols = 6;
-    const spacing = 0.65;
-    const ringGeo = new THREE.TorusGeometry(0.24, 0.045, 8, 24);
-    const ringMat = new THREE.MeshStandardMaterial({
-      color: 0x38bdf8,
-      roughness: 0.1,
-      metalness: 0.9,
-      transparent: true,
-      opacity: 0.85
-    });
-    const ringsList = [];
-
-    for (let r = 0; r < gridRows; r++) {
-      for (let c = 0; c < gridCols; c++) {
-        const ring = new THREE.Mesh(ringGeo, ringMat);
-        const kx = (r - (gridRows - 1) / 2) * spacing;
-        const kz = (c - (gridCols - 1) / 2) * spacing;
-        ring.position.set(kx, 0, kz);
-        ring.rotation.x = -Math.PI / 2;
-        group3.add(ring);
-        ringsList.push(ring);
-      }
-    }
-
-    // 3. LAYER 2: WAVY NEON-GREEN MEMBRANE & CHARGES
-    const wavyGeo = new THREE.PlaneGeometry(4.3, 4.3, 20, 20);
-    const wavyMat = new THREE.MeshStandardMaterial({
-      color: 0x4ade80,
-      roughness: 0.2,
-      metalness: 0.7,
-      transparent: true,
-      opacity: 0.65,
-      side: THREE.DoubleSide
-    });
-    const wavyMesh = new THREE.Mesh(wavyGeo, wavyMat);
-    wavyMesh.rotation.x = -Math.PI / 2;
-    group2.add(wavyMesh);
-
-    const wavyBorder = new THREE.LineSegments(
-      new THREE.EdgesGeometry(wavyGeo),
-      new THREE.LineBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.8 })
-    );
-    wavyMesh.add(wavyBorder);
-
-    // Charge Carriers moving left/right
-    const carrierCount = 20;
-    const carriers = [];
-    const electronGeo = new THREE.SphereGeometry(0.08, 8, 8);
-    const electronMat = new THREE.MeshBasicMaterial({ color: 0x60a5fa });
-    const holeGeo = new THREE.SphereGeometry(0.08, 8, 8);
-    const holeMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
-
-    for (let i = 0; i < carrierCount; i++) {
-      const isElectron = i % 2 === 0;
-      const mesh = new THREE.Mesh(isElectron ? electronGeo : holeGeo, isElectron ? electronMat : holeMat);
-      group2.add(mesh);
-
-      carriers.push({
-        mesh: mesh,
-        type: isElectron ? 'electron' : 'hole',
-        speedFactor: 0.008 + Math.random() * 0.015,
-        progress: Math.random(),
-        startY: (Math.random() - 0.5) * 1.5
-      });
-    }
-
-    // 4. LAYER 1: CYLINDRICAL purple nanofilaments with gold crowns
-    const nanoCols = 5;
-    const nanoRows = 5;
-    const colSpacing = 0.8;
-    const colGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.7, 8);
-    const colMat = new THREE.MeshStandardMaterial({ color: 0x8b5cf6, roughness: 0.3, metalness: 0.6, transparent: true, opacity: 0.88 });
-    const crownGeo = new THREE.OctahedronGeometry(0.13, 0);
-    const crownMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.05, metalness: 0.95, emissive: 0xd97706, emissiveIntensity: 0.25 });
-    const columnsList = [];
-
-    for (let r = 0; r < nanoRows; r++) {
-      for (let c = 0; c < nanoCols; c++) {
-        const stalkGroup = new THREE.Group();
-        const kx = (r - (nanoRows - 1) / 2) * colSpacing;
-        const kz = (c - (nanoCols - 1) / 2) * colSpacing;
-        stalkGroup.position.set(kx, -0.35, kz);
-
-        const cyl = new THREE.Mesh(colGeo, colMat);
-        stalkGroup.add(cyl);
-
-        const crown = new THREE.Mesh(crownGeo, crownMat);
-        crown.position.set(0, 0.42, 0);
-        stalkGroup.add(crown);
-
-        group1.add(stalkGroup);
-
-        columnsList.push({
-          cyl: cyl,
-          crown: crown,
-          index: r * nanoCols + c
-        });
-      }
-    }
-
-    // Silver collector bottom plate
-    const basePlate = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.15, 4.8), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.1, metalness: 0.9 }));
-    basePlate.position.y = -0.85;
-    group1.add(basePlate);
-
-    // Launcher Block with Laser
-    const block = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.5), new THREE.MeshStandardMaterial({ color: 0xf1f5f9 }));
-    block.position.set(-2.0, -0.4, 2.0);
-    group1.add(block);
-
-    // Laser Beam
-    const laserPoints = [new THREE.Vector3(-2.0, -0.4, 2.0), new THREE.Vector3(-2.0, 4.0, 2.0)];
-    const laser = new THREE.Line(new THREE.BufferGeometry().setFromPoints(laserPoints), new THREE.LineBasicMaterial({ color: 0xffffff }));
-    scene.add(laser);
-
-    // 5. PHOTONS FLOW SIMULATION
-    const pCount = 35;
-    const pGeo = new THREE.SphereGeometry(0.04, 6, 6);
-    const pMat = new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.85 });
-    const particles = [];
-    const pSpeeds = [];
-    const pPaths = [];
-
-    for (let i = 0; i < pCount; i++) {
-      const p = new THREE.Mesh(pGeo, pMat);
-      p.position.set((Math.random() - 0.5) * 4.0, 2.5 + Math.random() * 3.5, (Math.random() - 0.5) * 4.0);
-      scene.add(p);
-      particles.push(p);
-      pSpeeds.push(0.012 + Math.random() * 0.024);
-      pPaths.push({ x: p.position.x, z: p.position.z });
-    }
-
-    // Timer & loop
-    const clock = new THREE.Clock();
-
-    function draw() {
-      requestAnimationFrame(draw);
-
-      const time = clock.getElapsedTime();
-      controls.update();
-
-      // Sliders responsive state apply
-      const exp = state.explosion;
-      const rot = state.rotation;
-
-      group4.position.y = 1.6 * exp;
-      group3.position.y = 0.5 * exp;
-      group2.position.y = -0.5 * exp;
-      group1.position.y = -1.6 * exp;
-
-      // Gentle alternates
-      group4.rotation.y = time * 0.04 * rot;
-      group3.rotation.y = -time * 0.03 * rot;
-      group2.rotation.y = time * 0.02 * rot;
-      group1.rotation.y = -time * 0.01 * rot;
-
-      // Ripples
-      ripples.forEach((m, r) => {
-        const sc = 1 + ((time * 0.8 + r * 0.6) % 1.8);
-        m.scale.set(sc, sc, 1);
-        m.material.opacity = Math.max(0, 0.7 - (sc / 2.8));
-      });
-
-      // Star glint
-      const glScale = 0.8 + Math.sin(time * 4.5) * 0.2;
-      flareGroup.scale.set(glScale, glScale, glScale);
-      flareGroup.rotation.y += 0.015;
-
-      // Blue rings micro scale vibrates
-      ringsList.forEach((m, i) => {
-        const vib = Math.sin(time * 6 + i * 0.25) * 0.04;
-        m.scale.set(1 + vib, 1 + vib, 1 + vib);
-      });
-
-      // Neon-Green undulates sine-waves
-      const pos = wavyMesh.geometry.attributes.position;
-      for (let i = 0; i < pos.count; i++) {
-        const vx = pos.getX(i);
-        const vy = pos.getY(i);
-        const zZ = Math.sin(vx * 1.5 + time * 1.8) * Math.cos(vy * 1.5 + time * 1.2) * 0.12;
-        pos.setZ(i, zZ);
-      }
-      pos.needsUpdate = true;
-
-      // Charge movements
-      const flowFactor = state.irradiance / 800;
-      carriers.forEach((c) => {
-        c.progress += c.speedFactor * flowFactor * 1.4;
-        if (c.progress > 1.0) {
-          c.progress = 0;
-          c.startY = (Math.random() - 0.5) * 1.5;
+            // Render/Animation loop
+            animate();
         }
-        if (c.type === 'electron') {
-          c.mesh.position.set(-0.2 - c.progress * 2.2, c.startY + Math.sin(c.progress * Math.PI) * 0.44, Math.cos(c.progress * 2) * 0.7);
-        } else {
-          c.mesh.position.set(0.2 + c.progress * 2.2, c.startY + Math.sin(c.progress * Math.PI) * 0.44, Math.sin(c.progress * 2) * 0.7);
+
+        // Layer Builder
+        function createSolarLayers() {
+            // Helper to make textured/wireframe sheets
+            const sheetGeo = new THREE.BoxGeometry(4.0, 0.1, 4.0);
+
+            // ----------------------------------------------------
+            // CAPA 1: Absorción Fotónica (Graphene + Gold Nanoantennas)
+            // ----------------------------------------------------
+            const layer1Group = new THREE.Group();
+            
+            const mat1 = new THREE.MeshStandardMaterial({
+                color: colors.graphene,
+                roughness: 0.3,
+                metalness: 0.9,
+                wireframe: false
+            });
+            const base1 = new THREE.Mesh(sheetGeo, mat1);
+            base1.castShadow = true;
+            base1.receiveShadow = true;
+            layer1Group.add(base1);
+
+            // Add Hexagonal wireframe overlay to look like graphene sheet
+            const hexWireGeo = new THREE.CylinderGeometry(2.3, 2.3, 0.11, 6);
+            const hexWireMat = new THREE.MeshBasicMaterial({
+                color: 0x4fc3f7,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.4
+            });
+            const hexOverlay = new THREE.Mesh(hexWireGeo, hexWireMat);
+            hexOverlay.rotation.y = Math.PI / 6;
+            layer1Group.add(hexOverlay);
+
+            // Gold nanoantennas (Au NPs) spheres (Requirement 9, surface plasmons)
+            const goldGeo = new THREE.SphereGeometry(0.12, 12, 12);
+            const goldMat = new THREE.MeshStandardMaterial({
+                color: 0xffd700,
+                metalness: 1.0,
+                roughness: 0.1,
+                emissive: 0xffaa00,
+                emissiveIntensity: 0.3
+            });
+            
+            // Scatter gold nanoantennas in grid
+            for (let x = -1.5; x <= 1.5; x += 0.75) {
+                for (let z = -1.5; z <= 1.5; z += 0.75) {
+                    const goldNP = new THREE.Mesh(goldGeo, goldMat);
+                    goldNP.position.set(x + (Math.random() - 0.5) * 0.1, 0.1, z + (Math.random() - 0.5) * 0.1);
+                    layer1Group.add(goldNP);
+                }
+            }
+
+            layer1Group.position.y = -1.8;
+            scene.add(layer1Group);
+            layers.push(layer1Group);
+
+            // ----------------------------------------------------
+            // CAPA 2: Separación de Cargas (MoS2/Graphene Hetero)
+            // ----------------------------------------------------
+            const layer2Group = new THREE.Group();
+            
+            const mat2 = new THREE.MeshStandardMaterial({
+                color: colors.mos2,
+                roughness: 0.5,
+                metalness: 0.7,
+                transparent: true,
+                opacity: 0.8
+            });
+            const base2 = new THREE.Mesh(sheetGeo, mat2);
+            layer2Group.add(base2);
+
+            // Glowing boundary lines to show tunable potential barriers
+            const borderGeo = new THREE.BoxGeometry(4.05, 0.12, 4.05);
+            const borderMat = new THREE.MeshBasicMaterial({
+                color: 0x059669,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.7
+            });
+            const borderMesh = new THREE.Mesh(borderGeo, borderMat);
+            layer2Group.add(borderMesh);
+
+            layer2Group.position.y = -0.6;
+            scene.add(layer2Group);
+            layers.push(layer2Group);
+
+            // ----------------------------------------------------
+            // CAPA 3: Transporte de Electrones (Carbon Nanotubes SWCNT)
+            // ----------------------------------------------------
+            const layer3Group = new THREE.Group();
+
+            // Render Carbon Nanotubes in a fishbone/spike (espiga) pattern
+            const cntMat = new THREE.MeshStandardMaterial({
+                color: 0x334155,
+                roughness: 0.4,
+                metalness: 0.8
+            });
+
+            // Make columns of CNT spikes
+            for (let z = -1.6; z <= 1.6; z += 0.8) {
+                // Main spine
+                const spineGeo = new THREE.CylinderGeometry(0.04, 0.04, 3.2, 8);
+                const spine = new THREE.Mesh(spineGeo, cntMat);
+                spine.rotation.x = Math.PI / 2;
+                spine.position.set(0, 0, z);
+                layer3Group.add(spine);
+
+                // Spikes at an angle (Biomecánica)
+                for (let yVal = -1.4; yVal <= 1.4; yVal += 0.4) {
+                    if (yVal === 0) continue;
+                    
+                    const branchGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.6, 8);
+                    
+                    // Left Spike
+                    const branchL = new THREE.Mesh(branchGeo, cntMat);
+                    branchL.rotation.z = Math.PI / 4;
+                    branchL.position.set(-0.3, 0, z + yVal * 0.5);
+                    layer3Group.add(branchL);
+
+                    // Right Spike
+                    const branchR = new THREE.Mesh(branchGeo, cntMat);
+                    branchR.rotation.z = -Math.PI / 4;
+                    branchR.position.set(0.3, 0, z + yVal * 0.5);
+                    layer3Group.add(branchR);
+                }
+            }
+
+            layer3Group.position.y = 0.6;
+            scene.add(layer3Group);
+            layers.push(layer3Group);
+
+            // ----------------------------------------------------
+            // CAPA 4: Protección y Auto-limpieza (TiO2 + Ag)
+            // ----------------------------------------------------
+            const layer4Group = new THREE.Group();
+            
+            // Highly transparent glass-like clinical white (TiO2)
+            const glassMat = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.4,
+                roughness: 0.1,
+                metalness: 0.1,
+                transmission: 0.9,
+                ior: 1.5,
+                thickness: 0.5
+            });
+            const base4 = new THREE.Mesh(sheetGeo, glassMat);
+            layer4Group.add(base4);
+
+            // Silver nanoparticle dopants (shining white metallic spheres)
+            const silverGeo = new THREE.SphereGeometry(0.06, 8, 8);
+            const silverMat = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                metalness: 1.0,
+                roughness: 0.1,
+                emissive: 0xffffff,
+                emissiveIntensity: 0.5
+            });
+
+            for (let i = 0; i < 20; i++) {
+                const sNP = new THREE.Mesh(silverGeo, silverMat);
+                sNP.position.set(
+                    (Math.random() - 0.5) * 3.6,
+                    0.06,
+                    (Math.random() - 0.5) * 3.6
+                );
+                layer4Group.add(sNP);
+            }
+
+            layer4Group.position.y = 1.8;
+            scene.add(layer4Group);
+            layers.push(layer4Group);
         }
-        const scalar = Math.sin(c.progress * Math.PI) * 1.25;
-        c.mesh.scale.set(scalar, scalar, scalar);
-      });
 
-      // Columns expand
-      columnsList.forEach((col) => {
-        const factor = 1 + Math.sin(time * 2.5 + col.index * 0.15) * 0.08;
-        col.cyl.scale.set(1, factor, 1);
-        col.crown.scale.set(factor, factor, factor);
-        col.crown.rotation.y += 0.008;
-      });
+        // Swarm AI Node Neural System
+        function createAiSwarmNodes() {
+            const nodeGroup = new THREE.Group();
+            nodeGroup.name = "aiNodesGroup";
+            
+            const nodeGeo = new THREE.SphereGeometry(0.08, 12, 12);
+            const nodeMat = new THREE.MeshBasicMaterial({
+                color: 0x10b981, // emerald/cyan
+                transparent: true,
+                opacity: 0.9
+            });
 
-      // Photons fall
-      particles.forEach((p, i) => {
-        p.position.y -= pSpeeds[i] * flowFactor * 1.5;
-        p.position.x = pPaths[i].x + Math.sin(p.position.y * 2.4) * 0.06;
-        p.position.z = pPaths[i].z + Math.cos(p.position.y * 2.4) * 0.06;
+            // Connective lines container
+            const linesMaterial = new THREE.LineBasicMaterial({
+                color: 0x10b981,
+                transparent: true,
+                opacity: 0.3
+            });
 
-        if (p.position.y < -3.0) {
-          p.position.y = 2.8 + Math.random() * 2.5;
-          p.position.x = (Math.random() - 0.5) * 4.0;
-          p.position.z = (Math.random() - 0.5) * 4.0;
-          pPaths[i] = { x: p.position.x, z: p.position.z };
+            const points = [];
+            
+            // Create a small network surrounding the solar layers
+            for (let i = 0; i < 16; i++) {
+                const node = new THREE.Mesh(nodeGeo, nodeMat);
+                const r = 3.0 + Math.random() * 0.5;
+                const theta = (i / 16) * Math.PI * 2;
+                const yVal = (Math.random() - 0.5) * 4.0;
+                
+                node.position.set(
+                    Math.cos(theta) * r,
+                    yVal,
+                    Math.sin(theta) * r
+                );
+                
+                nodeGroup.add(node);
+                aiNodes.push(node);
+                points.push(node.position);
+            }
+
+            // Draw line connections representing neural nodes
+            const linesGeo = new THREE.BufferGeometry().setFromPoints(points);
+            const networkLines = new THREE.LineLoop(linesGeo, linesMaterial);
+            nodeGroup.add(networkLines);
+
+            scene.add(nodeGroup);
         }
-        if (p.position.y < 1.0 && p.position.y > -1.0) {
-          p.scale.set(1.5, 1.5, 1.5);
-        } else {
-          p.scale.set(1.0, 1.0, 1.0);
+
+        // Dynamic State / Operational Mode Handler
+        function setMode(mode) {
+            state.mode = mode;
+            
+            // Reset state defaults based on mode selection
+            if (mode === 'standard') {
+                state.wavelength = 550;
+                state.voltage = 1.2;
+                state.intensity = 85;
+                state.temperature = 25;
+            } else if (mode === 'ai_optimized') {
+                state.wavelength = 510;
+                state.voltage = 1.95; // higher speed
+                state.intensity = 100;
+                state.temperature = 18;
+            } else if (mode === 'self_cleaning') {
+                state.wavelength = 365; // UV light activating TiO2
+                state.voltage = 0.4;
+                state.intensity = 95;
+            } else if (mode === 'extreme_weather') {
+                state.wavelength = 980; // infrared / cloudy
+                state.voltage = 0.1;
+                state.intensity = 20;
+                state.temperature = 65;
+            }
+
+            // Synchronize sliders
+            document.getElementById('rng-wavelength').value = state.wavelength;
+            document.getElementById('rng-voltage').value = state.voltage;
+            document.getElementById('rng-intensity').value = state.intensity;
+            document.getElementById('rng-temp').value = state.temperature;
+
+            updateSliders();
+
+            // Highlight chosen button
+            ['standard', 'ai_optimized', 'self_cleaning', 'extreme_weather'].forEach(m => {
+                const btn = document.getElementById('btn-mode-' + m);
+                if (m === mode) {
+                    btn.classList.add('border-[#4fc3f7]', 'bg-[#1a233a]/90');
+                    btn.classList.remove('border-[#4fc3f7]/10');
+                } else {
+                    btn.classList.remove('border-[#4fc3f7]', 'bg-[#1a233a]/90');
+                    btn.classList.add('border-[#4fc3f7]/10');
+                }
+            });
         }
-      });
 
-      renderer.render(scene, camera);
-    }
+        // Set default mode highlighted
+        setMode('standard');
 
-    draw();
+        // Explode / Collapse Layers (Requirement 6, 9)
+        function toggleExplode() {
+            state.explodedView = !state.explodedView;
+            currentTargetExplode = state.explodedView ? 1.4 : 0.0;
+            
+            const btn = document.getElementById('btn-explode');
+            if (state.explodedView) {
+                btn.classList.add('bg-[#4fc3f7]/30', 'border-[#4fc3f7]');
+            } else {
+                btn.classList.remove('bg-[#4fc3f7]/30', 'border-[#4fc3f7]');
+            }
+        }
 
-    // High resolution snap
-    window.takeScreenshotLocal = function() {
-      renderer.render(scene, camera);
-      const link = document.createElement('a');
-      link.download = 'nexus_solar_cuantica_offline.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    };
+        function focusLayer(idx) {
+            // Animate camera to focus a layer
+            const targetLayer = layers[idx];
+            if (targetLayer) {
+                // Adjust explode slightly so user can view
+                if (!state.explodedView) toggleExplode();
+                camera.position.set(5, targetLayer.position.y * 1.5 + 2, 6);
+                camera.lookAt(0, targetLayer.position.y, 0);
+            }
+        }
 
-    // Auto window resize
-    window.addEventListener('resize', () => {
-      camera.aspect = container.clientWidth / container.clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(container.clientWidth, container.clientHeight);
-    });
+        function resetCamera() {
+            camera.position.set(7, 6, 10);
+            camera.lookAt(0, 0, 0);
+        }
 
-    // Run Switch Language initially to setup active flag
-    window.switchLanguage(state.currentLang);
-  </script>
+        // Slider value synchronization
+        function updateSliders() {
+            state.wavelength = parseInt(document.getElementById('rng-wavelength').value);
+            state.voltage = parseFloat(document.getElementById('rng-voltage').value);
+            state.intensity = parseInt(document.getElementById('rng-intensity').value);
+            state.temperature = parseInt(document.getElementById('rng-temp').value);
+
+            // Labels
+            document.getElementById('lbl-wavelength').innerText = state.wavelength + " nm";
+            document.getElementById('lbl-voltage').innerText = state.voltage.toFixed(2) + " V";
+            document.getElementById('lbl-intensity').innerText = state.intensity + "%";
+            document.getElementById('lbl-temp').innerText = state.temperature + " °C";
+
+            // Recalculate physical outcomes (Requirement 9, Física Modular)
+            const eff = Math.min(60.0, Math.max(10, 
+                60.0 * (state.intensity / 100) * (1.0 - Math.abs(state.wavelength - 550) / 2000) * (1.0 - Math.max(0, state.temperature - 25) * 0.003)
+            ));
+            
+            const power = (eff * 10 * (state.intensity / 100)).toFixed(1);
+            const recomb = (1.5 * Math.pow(10, 5) * (1.0 - state.voltage / 2.2)).toFixed(1);
+
+            document.getElementById('val-efficiency').innerText = eff.toFixed(1) + "%";
+            document.getElementById('val-power').innerText = power + " W/m²";
+            document.getElementById('val-recomb').innerText = recomb + " × 10⁵ s⁻¹";
+
+            // Update mini curve graph matching physical sliders
+            drawGraph(state.wavelength);
+        }
+
+        // Simulated/Real camera AR toggle
+        function toggleAR() {
+            state.isARMode = !state.isARMode;
+            const video = document.getElementById('webcam');
+            const overlay = document.getElementById('ar-grid-overlay');
+            const badge = document.getElementById('ar-status-badge');
+            const controls = document.getElementById('ar-adjustments');
+            const btn = document.getElementById('btn-ar-trigger');
+            
+            const dict = translations[currentLang];
+
+            if (state.isARMode) {
+                // Request camera permission
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                .then(stream => {
+                    video.srcObject = stream;
+                    video.classList.remove('hidden');
+                    overlay.classList.remove('hidden');
+                    badge.classList.remove('hidden');
+                    badge.classList.add('flex');
+                    controls.classList.remove('hidden');
+                    btn.innerText = dict.arDisable;
+                    btn.classList.add('bg-rose-500', 'hover:bg-rose-600', 'text-white');
+                    btn.classList.remove('bg-[#4fc3f7]');
+                })
+                .catch(err => {
+                    alert("No se pudo acceder a la cámara. Iniciando simulación de cámara estática en escritorio.");
+                    // Fallback to stylized static grid overlay
+                    overlay.classList.remove('hidden');
+                    badge.classList.remove('hidden');
+                    badge.classList.add('flex');
+                    controls.classList.remove('hidden');
+                    btn.innerText = dict.arDisable;
+                });
+            } else {
+                // Stop camera stream
+                if (video.srcObject) {
+                    video.srcObject.getTracks().forEach(track => track.stop());
+                }
+                video.classList.add('hidden');
+                overlay.classList.add('hidden');
+                badge.classList.add('hidden');
+                badge.classList.remove('flex');
+                controls.classList.add('hidden');
+                btn.innerText = dict.arEnable;
+                btn.classList.remove('bg-rose-500', 'hover:bg-rose-600', 'text-white');
+                btn.classList.add('bg-[#4fc3f7]');
+            }
+        }
+
+        function updateARPlacement() {
+            const scale = parseFloat(document.getElementById('rng-ar-scale').value);
+            const rot = parseInt(document.getElementById('rng-ar-rot').value);
+            const height = parseFloat(document.getElementById('rng-ar-height').value);
+
+            document.getElementById('lbl-ar-scale').innerText = scale.toFixed(1) + "x";
+            document.getElementById('lbl-ar-rot').innerText = rot + "°";
+            document.getElementById('lbl-ar-height').innerText = height.toFixed(1);
+
+            // Apply transformations to the 3D scene representation
+            if (scene) {
+                layers.forEach((group, idx) => {
+                    // Position offsets scaling
+                    group.scale.set(scale, scale, scale);
+                    group.rotation.y = (rot * Math.PI) / 180;
+                });
+            }
+        }
+
+        // Draw Efficiency Graph
+        function drawGraph(activeWavelength) {
+            const canvas = document.getElementById('mini-graph');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            // Handle scale
+            const w = canvas.clientWidth;
+            const h = canvas.clientHeight;
+            canvas.width = w;
+            canvas.height = h;
+
+            ctx.clearRect(0, 0, w, h);
+            
+            // Draw grid lines
+            ctx.strokeStyle = "rgba(79, 195, 247, 0.08)";
+            ctx.lineWidth = 1;
+            for (let x = 0; x < w; x += w / 8) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, h);
+                ctx.stroke();
+            }
+
+            // Draw Curve (Absorption spectrum peak at ~550nm)
+            ctx.beginPath();
+            ctx.strokeStyle = "#4fc3f7";
+            ctx.lineWidth = 2.5;
+            
+            for (let x = 0; x < w; x++) {
+                const waveVal = 300 + (x / w) * 2200; // 300 to 2500 nm
+                const diff = Math.abs(waveVal - 550);
+                // Gaussian distribution
+                const intensityFactor = Math.exp(-Math.pow(diff, 2) / (2 * Math.pow(400, 2)));
+                const y = h - (intensityFactor * (h - 15) + 5);
+                
+                if (x === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+
+            // Draw current active line matching the slider value
+            const targetX = ((activeWavelength - 300) / 2200) * w;
+            ctx.strokeStyle = "rgba(239, 68, 68, 0.75)";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(targetX, 0);
+            ctx.lineTo(targetX, h);
+            ctx.stroke();
+
+            // Active dot
+            const diff = Math.abs(activeWavelength - 550);
+            const intensityFactor = Math.exp(-Math.pow(diff, 2) / (2 * Math.pow(400, 2)));
+            const targetY = h - (intensityFactor * (h - 15) + 5);
+
+            ctx.fillStyle = "#ef4444";
+            ctx.beginPath();
+            ctx.arc(targetX, targetY, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Main animation loop
+        let clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const elapsedTime = clock.getElapsedTime();
+
+            // Smooth translation animation for Exploded view
+            const step = 0.05;
+            const yOffsets = [-1.8, -0.6, 0.6, 1.8]; // original
+            const yOffsetsExploded = [-2.5, -0.8, 0.8, 2.5]; // expanded
+
+            layers.forEach((group, idx) => {
+                const targetY = THREE.MathUtils.lerp(
+                    yOffsets[idx],
+                    yOffsetsExploded[idx],
+                    currentTargetExplode
+                );
+                group.position.y += (targetY - group.position.y) * 0.1;
+
+                // Subtle orbital oscillation to feel like floating quantum layers
+                group.rotation.y += 0.002;
+                group.position.x = Math.sin(elapsedTime * 0.5 + idx) * 0.05;
+            });
+
+            // Pulse glowing materials matching active parameters
+            if (layers[1]) {
+                const border = layers[1].children[1];
+                if (border && border.material) {
+                    border.material.opacity = 0.3 + Math.sin(elapsedTime * 3) * 0.2 * state.voltage;
+                }
+            }
+
+            // Slowly rotate AI node network
+            const aiNodesGroup = scene.getObjectByName("aiNodesGroup");
+            if (aiNodesGroup) {
+                aiNodesGroup.rotation.y = elapsedTime * 0.1;
+                // Wobble nodes slightly representing dynamic optimization
+                aiNodes.forEach((node, idx) => {
+                    node.position.y += Math.sin(elapsedTime * 1.5 + idx) * 0.005;
+                });
+            }
+
+            // Render scene
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas-container');
+            webGLWidth = container.clientWidth;
+            webGLHeight = container.clientHeight;
+
+            camera.aspect = webGLWidth / webGLHeight;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(webGLWidth, webGLHeight);
+        }
+
+        // Initialize 3D on load
+        window.onload = () => {
+            init3D();
+            drawGraph(550);
+            
+            // Start simulation node logger in footer
+            startAiLogger();
+        };
+
+        // Real-time Genetic Algorithm Feed (NSGA-II) (Requirement 7)
+        function startAiLogger() {
+            const logList = document.getElementById('log-list');
+            const messages = [
+                "NSGA-II: Evaluating population, Generation 412... Best fitness score: 0.994",
+                "DFT Simulation: Minimizing Auger recombination at MoS2 interface... Done.",
+                "Reinforcement Learning: Adjusting electric field to 1.95V (recombination rate < 10^5/s).",
+                "Swarm AI: Optimizando resonancia plasmónica en nanoantenas de Au a 550nm.",
+                "TiO2 Photocatalysis: Silver co-dopants activated. Self-cleaning contact angle: 4.2°.",
+                "Ballistic Transport: SWCNT carbon nanotube alignment checked at CV-field 10kV/m.",
+                "Quantum Tunable Junction: Interface flat rugosity < 0.4 Angstrom. Stability high.",
+                "Self-regulating thermal loop triggered... System core temp: nominal."
+            ];
+
+            setInterval(() => {
+                const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+                const logDiv = document.createElement('div');
+                logDiv.className = "hover:text-white transition-all flex justify-between";
+                logDiv.innerHTML = `<span>[AI-SWARM-LOG] ${randomMsg}</span><span class="text-[#4fc3f7]">${new Date().toLocaleTimeString()}</span>`;
+                
+                logList.appendChild(logDiv);
+                if (logList.children.length > 5) {
+                    logList.removeChild(logList.firstChild);
+                }
+                logList.scrollTop = logList.scrollHeight;
+            }, 3000);
+        }
+    </script>
 </body>
 </html>
