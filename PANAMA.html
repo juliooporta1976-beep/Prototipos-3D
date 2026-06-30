@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCR-MVP 2.0 Panama Canal Digital Twin - Standalone</title>
+    <style>
+        :root {
+            --slate-gray: #171c24;
+            --cyan-accent: #4FC3F7;
+            --slate-accent: #334155;
+            --emerald-green: #4CAF50;
+            --orange-warn: #FFA726;
+            --blue-stealth: #1E88E5;
+            --teal-expansion: #26A69A;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--slate-gray);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #f1f5f9;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .author-tag {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .author-tag .role {
+            font-size: 9px;
+            color: var(--cyan-accent);
+            text-transform: uppercase;
+            font-family: monospace;
+            letter-spacing: 1px;
+        }
+
+        .author-tag .name {
+            font-size: 15px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .project-title {
+            font-size: 11px;
+            font-family: monospace;
+            color: #94a3b8;
+            max-width: 50%;
+            text-align: right;
+            line-height: 1.4;
+        }
+
+        .main-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            overflow: hidden;
+        }
+
+        #viewport-3d {
+            flex: 1;
+            position: relative;
+            height: 100%;
+        }
+
+        #canvas3d {
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: grab;
+        }
+
+        #canvas3d:active {
+            cursor: grabbing;
+        }
+
+        /* Sidebar Panels */
+        .sidebar {
+            width: 360px;
+            background-color: rgba(15, 23, 42, 0.9);
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 20px;
+            overflow-y: auto;
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .panel {
+            background-color: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+
+        .panel-title {
+            font-size: 11px;
+            font-family: monospace;
+            font-weight: bold;
+            color: #cbd5e1;
+            text-transform: uppercase;
+        }
+
+        /* Language Buttons */
+        .lang-bar {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+
+        .lang-btn {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #94a3b8;
+            font-family: monospace;
+            font-size: 10px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .lang-btn.active {
+            background-color: var(--cyan-accent);
+            color: #0f172a;
+            border-color: var(--cyan-accent);
+            font-weight: bold;
+        }
+
+        /* Mode Selector buttons */
+        .mode-grid {
+            display: grid;
+            grid-cols: 2;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .mode-btn {
+            background-color: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 6px;
+            padding: 10px 8px;
+            color: #cbd5e1;
+            font-family: monospace;
+            font-size: 10px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background-color: rgba(30, 41, 59, 0.9);
+            border-color: var(--cyan-accent);
+            box-shadow: 0 4px 12px rgba(79, 195, 247, 0.15);
+        }
+
+        .mode-desc {
+            font-size: 11px;
+            color: #94a3b8;
+            line-height: 1.45;
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        /* Slider Controls */
+        .slider-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: monospace;
+            font-size: 10px;
+            color: #94a3b8;
+        }
+
+        .range-slider {
+            flex-1: 1;
+            margin-left: 10px;
+            accent-color: var(--cyan-accent);
+            cursor: pointer;
+        }
+
+        /* Metrics Display */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .metric-card {
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            padding: 10px;
+            font-family: monospace;
+        }
+
+        .metric-label {
+            font-size: 9px;
+            color: #64748b;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-size: 13px;
+            font-weight: bold;
+            color: #f1f5f9;
+        }
+
+        /* Node info box */
+        .node-box {
+            font-size: 11px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 12px;
+            line-height: 1.4;
+            color: #cbd5e1;
+        }
+
+        /* Floating helpers */
+        .floating-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 6px 16px;
+            font-family: monospace;
+            font-size: 9px;
+            color: #94a3b8;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pulse-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--cyan-accent);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--cyan-accent);
+            animation: pulse-glow 1.5s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0% { transform: scale(0.9); opacity: 0.6; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.6; }
+        }
+
+        .reset-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #f1f5f9;
+            font-family: monospace;
+            font-size: 10px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .reset-btn:hover {
+            background-color: rgba(30, 41, 59, 0.9);
+            border-color: var(--cyan-accent);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="author-tag">
+            <span class="role">Dr. Julio César Oporta Barrera // Principal Patent Owner</span>
+            <span class="name">PANAMA CANAL PCR-MVP 2.0</span>
+        </div>
+        <div class="project-title" id="proj-header-desc">
+            Digital Twin 3D Standalone Interactive Simulation
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- 3D Simulator Stage -->
+        <div id="viewport-3d">
+            <canvas id="canvas3d"></canvas>
+            <button class="reset-btn" id="btn-reset-cam">Reset 3D Cam</button>
+            <div class="floating-controls">
+                <span class="pulse-dot"></span>
+                <span id="help-tip-txt">Arrastra para Rotar • Clic Derecho para Desplazar • Rueda para Zoom</span>
+            </div>
+        </div>
+
+        <!-- Dashboard controls -->
+        <div class="sidebar">
+            <div class="lang-bar">
+                <button class="lang-btn active" onclick="switchLang('es')">ES</button>
+                <button class="lang-btn" onclick="switchLang('en')">EN</button>
+                <button class="lang-btn" onclick="switchLang('zh')">ZH</button>
+            </div>
+
+            <!-- Operating modes panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title" id="modes-title">MODOS OPERATIVOS</span>
+                </div>
+                <div class="mode-grid">
+                    <button class="mode-btn active" id="mode-normal" onclick="setMode('normal')">Estándar</button>
+                    <button class="mode-btn" id="mode-drought" onclick="setMode('drought')">Mitigación Sequía</button>
+                    <button class="mode-btn" id="mode-crisis" onclick="setMode('crisis')">Protocolo Crisis</button>
+                    <button class="mode-btn" id="mode-expansion" onclick="setMode('expansion')">Capacidad Máxima</button>
+                </div>
+                <div class="mode-desc" id="mode-description-txt">
+                    Operación de esclusas regular alimentada por SHIM+. Flujo de tráfico normal con generación de energía híbrida estable.
+                </div>
+                <div class="slider-row">
+                    <span id="sim-speed-lbl">Velocidad:</span>
+                    <input type="range" class="range-slider" id="speed-slider" min="0.2" max="2.5" step="0.1" value="1.0" oninput="updateSpeed(this.value)">
+                </div>
+            </div>
+
+            <!-- Real-time metrics panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title" id="metrics-title">MÉTRICAS TIEMPO REAL</span>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <span class="metric-label" id="lbl-m1">Nivel Embalse Gatún</span>
+                        <span class="metric-value" id="val-m1">26.2m</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label" id="lbl-m2">Tasa Reciclaje Hídrico</span>
+                        <span class="metric-value" id="val-m2">0%</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label" id="lbl-m3">Capacidad Diaria</span>
+                        <span class="metric-value" id="val-m3">36 buques</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label" id="lbl-m4">Canal Seco</span>
+                        <span class="metric-value" id="val-m4">100 TEU/h</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label" id="lbl-m5">Energía Híbrida</span>
+                        <span class="metric-value" id="val-m5">45 MW</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label" id="lbl-m6">Reforestación</span>
+                        <span class="metric-value" id="val-m6">450 ha/año</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Nodes Interactive details -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title" id="nodes-title">NODOS ALGORÍTMICOS IA</span>
+                </div>
+                <div class="node-box" id="node-description-box">
+                    Haz clic en cualquier nodo (SHIM+, CHAC+, PNEG+, EVACAP+, CBC²+) en el simulador 3D para desplegar su arquitectura detallada patentada.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Language dictionaries
+        const translations = {
+            es: {
+                title: "PANAMA CANAL RESILIENCE & MAXIMUM VALUE PROGRAM (PCR-MVP 2.0)",
+                descHeader: "Simulación de Gemelo Digital 3D de Alta Fidelidad - Sin Internet",
+                modesTitle: "Modos Operativos de Simulación",
+                metricsTitle: "Métricas del Gemelo Digital",
+                nodesTitle: "Nodos de Arquitectura IA",
+                helpTip: "Arrastra para Rotar • Clic Derecho para Desplazar • Rueda para Zoom",
+                resetView: "Restablecer Cámara 3D",
+                simSpeed: "Velocidad:",
+                mNormal: "Estándar", mDrought: "Mitigación Sequía", mCrisis: "Protocolo Crisis", mExpansion: "Expansión Total",
+                descNormal: "Operación de esclusas regular alimentada por SHIM+. Flujo de tráfico normal con generación de energía híbrida estable.",
+                descDrought: "Válvulas inteligentes activan recirculación de agua (>70%) y desalinización modular. Tránsito priorizado por IA.",
+                descCrisis: "Activación del Escudo Algorítmico PNEG+. Distribución neutral de esclusas y control soberano automatizado.",
+                descExpansion: "Funcionamiento simultáneo del canal marítimo y el canal seco (ferrocarril eléctrico). Máximo rendimiento logístico.",
+                nodeInstructions: "Haz clic en cualquier nodo (SHIM+, CHAC+, PNEG+, EVACAP+, CBC²+) en el simulador 3D para desplegar su arquitectura detallada patentada.",
+                m1: "Nivel Embalse Gatún", m2: "Reciclaje Hídrico", m3: "Capacidad Diaria", m4: "Tráfico Canal Seco", m5: "Energía Híbrida", m6: "Reforestación",
+                shim: "SHIM+: Sistema Hídrico Inteligente Multifuente. Diseñado para independizar parcialmente al canal de las precipitaciones mediante micro-embalses interconectados, recirculación de esclusas (>70%) y plantas desalinizadoras modulares.",
+                chac: "CHAC+: Canal Híbrido de Alta Capacidad. Optimiza esclusas mediante IA y añade un Canal Seco de doble vía con un ferrocarril eléctrico (capacidad 200 trenes/día) coordinado con hubs logísticos automatizados.",
+                pneg: "PNEG+: Plataforma de Neutralidad Estratégica y Gobernanza Global. Blinda al canal contra tensiones geopolíticas. Ofrece auditoría transparente por la ONU/OMC y distribución algorítmica de slots de tránsito.",
+                evacap: "EVACAP+: Ecosistema de Valor Agregado Canal-País. Añade manufactura avanzada con impresión 3D, combustibles limpios (hidrógeno y amoníaco verde) y un fondo soberano nacional auditado.",
+                cbc: "CBC²+: Corredor Biotecnológico y de Carbono Azul. Combate el cambio climático local mediante reforestación inteligente con enjambres de drones sembradores automáticos y captura de carbono azul."
+            },
+            en: {
+                title: "PANAMA CANAL RESILIENCE & MAXIMUM VALUE PROGRAM (PCR-MVP 2.0)",
+                descHeader: "High-Fidelity 3D Digital Twin Simulation - Offline Compatible",
+                modesTitle: "Simulation Operating Modes",
+                metricsTitle: "Digital Twin Metrics",
+                nodesTitle: "AI Architecture Nodes",
+                helpTip: "Drag to Rotate • Right-Click to Pan • Scroll to Zoom",
+                resetView: "Reset 3D Cam",
+                simSpeed: "Speed:",
+                mNormal: "Standard", mDrought: "Drought Mitigation", mCrisis: "Crisis Protocol", mExpansion: "Max Expansion",
+                descNormal: "Regular lock operation powered by SHIM+. Normal traffic flow with stable hybrid energy generation.",
+                descDrought: "Smart valves activate lock-water recycling (>70%) and modular desalination. AI-prioritized transit routing.",
+                descCrisis: "Activation of PNEG+ Algorithmic Shield. Neutral slot distribution and automated sovereign control.",
+                descExpansion: "Simultaneous operation of maritime canal and dry canal (electric railway). Maximum logistical throughput.",
+                nodeInstructions: "Click on any node (SHIM+, CHAC+, PNEG+, EVACAP+, CBC²+) in the 3D canvas to reveal its patented architecture details.",
+                m1: "Gatun Reservoir Level", m2: "Water Recycling", m3: "Daily Transit Capacity", m4: "Dry Canal Traffic", m5: "Hybrid Energy", m6: "Reforest Progress",
+                shim: "SHIM+: Multi-source Intelligent Hydrological System. Couples the canal from pure rainfall dependence via micro-reservoirs, water recycling (>70%) and modular solar floating desalination structures.",
+                chac: "CHAC+: High Capacity Hybrid Canal. Optimizes maritime locks flow and adds a parallel Dry Canal with high-speed double-track electric railway (200 trains/day) with automated cargo ports.",
+                pneg: "PNEG+: Strategic Neutrality and Global Governance Platform. Shielding the canal against international disputes. Governed transparently with UN/WTO observers and algorithmic slot allocation.",
+                evacap: "EVACAP+: Canal-Country Value Added Ecosystem. Establishes smart manufacturing, green ship refueling hubs (hydrogen & ammonia), and a secure Sovereign Fund audited by public ledgers.",
+                cbc: "CBC²+: Biotechnology and Blue Carbon Corridor. Re-vegetates the basin slopes using autonomous seeding drone swarms and captures blue carbon in marine shoreline zones."
+            },
+            zh: {
+                title: "巴拿马运河韧性与最大价值计划 (PCR-MVP 2.0)",
+                descHeader: "高保真 3D 数字孪生模拟 - 完全离线兼容",
+                modesTitle: "模拟运行模式",
+                metricsTitle: "数字孪生实时指标",
+                nodesTitle: "AI 架构节点系统",
+                helpTip: "拖动旋转 • 右键平移 • 滚轮缩放",
+                resetView: "重置 3D 相机",
+                simSpeed: "模拟速度:",
+                mNormal: "标准运行", mDrought: "严重干旱减灾", mCrisis: "地缘政治危机规程", mExpansion: "最大容量扩张",
+                descNormal: "由 SHIM+ 提供动力的常规船闸运行。正常交通流量，具有稳定的混合能源发电。",
+                descDrought: "智能阀门激活船闸水循环（>70%）和模块化海水淡化。人工智能优先交通路由。",
+                descCrisis: "激活 PNEG+ 算法防护盾。中立的船位分配与自动主权控制。",
+                descExpansion: "海运运河与陆地运河（电力铁路）同步运行。实现最大物流吞吐量。",
+                nodeInstructions: "点击 3D 模拟器中的任何节点（SHIM+、CHAC+、PNEG+、EVACAP+、CBC²+）以展开其专有专利架构。",
+                m1: "加通湖水位", m2: "水循环利用率", m3: "每日通航能力", m4: "陆地运河通量", m5: "混合发电量", m6: "森林造林进度",
+                shim: "SHIM+: 智能多水源水利系统。利用互连微型水库、船闸循环水回收（>70%）和太阳能浮动模块化海水淡化，使运河部分摆脱降雨依赖。",
+                chac: "CHAC+: 高容量混合运河。通过 AI 优化船闸调度，并建立平行陆地运河（电力双轨铁路，每日通量200列货运火车）和自动化机器人货运港口。",
+                pneg: "PNEG+: 战略中立与全球治理平台。外交防盾防止大国摩擦，由联合国和世贸组织中立观察，提供透明的算法分配通航船位。",
+                evacap: "EVACAP+: 运河-国家增值经济生态。促进按需3D打印等先进制造，建立绿氢和绿氨加注中心，以及去中心化公开审计的国家主权基金。",
+                cbc: "CBC²+: 生物技术与蓝碳走廊。通过群飞播种无人机群进行流域智能造林，并在海岸湿地恢复红树林，提高蓝碳捕获潜力。"
+            }
+        };
+
+        let currentLang = 'es';
+        let currentMode = 'normal';
+        let simSpeed = 1.0;
+        let selectedNode = null;
+
+        // Visual and Physical parameters corresponding to states
+        const stateMetrics = {
+            normal: { m1: "26.2m", m2: "0%", m3: "36 ships/day", m4: "100 TEU/h", m5: "45 MW", m6: "450 ha/yr" },
+            drought: { m1: "21.4m", m2: "82%", m3: "22 ships/day", m4: "185 TEU/h", m5: "95 MW", m6: "680 ha/yr" },
+            crisis: { m1: "24.8m", m2: "25%", m3: "14 ships/day", m4: "240 TEU/h", m5: "55 MW", m6: "490 ha/yr" },
+            expansion: { m1: "27.5m", m2: "35%", m3: "48 ships/day", m4: "280 TEU/h", m5: "120 MW", m6: "1250 ha/yr" }
+        };
+
+        // UI translation updater
+        function switchLang(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.innerText.toLowerCase() === lang) btn.classList.add('active');
+            });
+
+            const dict = translations[lang];
+            document.getElementById('modes-title').innerText = dict.modesTitle;
+            document.getElementById('metrics-title').innerText = dict.metricsTitle;
+            document.getElementById('nodes-title').innerText = dict.nodesTitle;
+            document.getElementById('help-tip-txt').innerText = dict.helpTip;
+            document.getElementById('btn-reset-cam').innerText = dict.resetView;
+            document.getElementById('sim-speed-lbl').innerText = dict.simSpeed;
+
+            // Trans lock modes
+            document.getElementById('mode-normal').innerText = dict.mNormal;
+            document.getElementById('mode-drought').innerText = dict.mDrought;
+            document.getElementById('mode-crisis').innerText = dict.mCrisis;
+            document.getElementById('mode-expansion').innerText = dict.mExpansion;
+
+            // Trans labels
+            document.getElementById('lbl-m1').innerText = dict.m1;
+            document.getElementById('lbl-m2').innerText = dict.m2;
+            document.getElementById('lbl-m3').innerText = dict.m3;
+            document.getElementById('lbl-m4').innerText = dict.m4;
+            document.getElementById('lbl-m5').innerText = dict.m5;
+            document.getElementById('lbl-m6').innerText = dict.m6;
+
+            // Trans node description
+            if (selectedNode) {
+                document.getElementById('node-description-box').innerText = dict[selectedNode];
+            } else {
+                document.getElementById('node-description-box').innerText = dict.nodeInstructions;
+            }
+
+            // Desc of active mode
+            setModeDescription();
+        }
+
+        function setModeDescription() {
+            const dict = translations[currentLang];
+            let key = 'descNormal';
+            if (currentMode === 'drought') key = 'descDrought';
+            if (currentMode === 'crisis') key = 'descCrisis';
+            if (currentMode === 'expansion') key = 'descExpansion';
+            document.getElementById('mode-description-txt').innerText = dict[key];
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById('mode-' + mode).classList.add('active');
+            setModeDescription();
+
+            // Update displayed values
+            const mData = stateMetrics[mode];
+            document.getElementById('val-m1').innerText = mData.m1;
+            document.getElementById('val-m2').innerText = mData.m2;
+            document.getElementById('val-m3').innerText = mData.m3;
+            document.getElementById('val-m4').innerText = mData.m4;
+            document.getElementById('val-m5').innerText = mData.m5;
+            document.getElementById('val-m6').innerText = mData.m6;
+        }
+
+        function updateSpeed(val) {
+            simSpeed = parseFloat(val);
+        }
+
+        // --- Core 3D Canvas Engine Implementation (HTML5 projection pipeline) ---
+        const canvas = document.getElementById('canvas3d');
+        const ctx = canvas.getContext('2d');
+
+        let yaw = -0.6;
+        let pitch = 0.5;
+        let zoom = 1.2;
+        let panX = 0;
+        let panY = -40;
+
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let dragButton = 0;
+
+        let simTime = 0;
+
+        // Setup interaction listeners
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            dragStart = { x: e.clientX, y: e.clientY };
+            dragButton = e.button;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - dragStart.x;
+            const dy = e.clientY - dragStart.y;
+            dragStart = { x: e.clientX, y: e.clientY };
+
+            if (dragButton === 0) {
+                yaw += dx * 0.007;
+                pitch = Math.max(-1.4, Math.min(1.4, pitch + dy * 0.007));
+            } else {
+                panX += dx * 0.5;
+                panY += dy * 0.5;
+            }
+        });
+
+        window.addEventListener('mouseup', () => { isDragging = false; });
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+        canvas.addEventListener('wheel', (e) => {
+            zoom = Math.max(0.4, Math.min(3.5, zoom - e.deltaY * 0.0015));
+        });
+
+        document.getElementById('btn-reset-cam').addEventListener('click', () => {
+            yaw = -0.6; pitch = 0.5; zoom = 1.2; panX = 0; panY = -40;
+        });
+
+        // Setup touch listners
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                dragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                dragButton = 0;
+            }
+        });
+        canvas.addEventListener('touchmove', (e) => {
+            if (!isDragging || e.touches.length === 0) return;
+            const dx = e.touches[0].clientX - dragStart.x;
+            const dy = e.touches[0].clientY - dragStart.y;
+            dragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            yaw += dx * 0.008;
+            pitch = Math.max(-1.4, Math.min(1.4, pitch + dy * 0.008));
+        });
+        canvas.addEventListener('touchend', () => { isDragging = false; });
+
+        // Node click listeners
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            const cx = canvas.width / 2 + panX;
+            const cy = canvas.height / 2 + panY;
+
+            const project = (x, y, z) => {
+                const cosY = Math.cos(yaw);
+                const sinY = Math.sin(yaw);
+                let x1 = x * cosY - z * sinY;
+                let z1 = x * sinY + z * cosY;
+
+                const cosP = Math.cos(pitch);
+                const sinP = Math.sin(pitch);
+                let y2 = y * cosP - z1 * sinP;
+                let z2 = y * sinP + z1 * cosP;
+
+                const scale = zoom * 3;
+                const proj = 500 / (500 + z2);
+
+                return {
+                    x: cx + x1 * scale * proj,
+                    y: cy - y2 * scale * proj
+                };
+            };
+
+            const nodes = [
+                { id: 'shim', pt: { x: -80, y: 35, z: -50 } },
+                { id: 'chac', pt: { x: 80, y: 35, z: -50 } },
+                { id: 'pneg', pt: { x: 80, y: 35, z: 50 } },
+                { id: 'evacap', pt: { x: -80, y: 35, z: 50 } },
+                { id: 'cbc', pt: { x: 0, y: 30, z: 90 } }
+            ];
+
+            for (const nd of nodes) {
+                const screenPt = project(nd.pt.x, nd.pt.y, nd.pt.z);
+                const dist = Math.hypot(clickX - screenPt.x, clickY - screenPt.y);
+                if (dist < 15) {
+                    selectedNode = nd.id;
+                    document.getElementById('node-description-box').innerText = translations[currentLang][nd.id];
+                    break;
+                }
+            }
+        });
+
+        // Generator assets
+        const droneParticles = [];
+        for (let i = 0; i < 8; i++) {
+            droneParticles.push({ x: 0, y: 0, z: 0 });
+        }
+
+        const treePlants = [];
+        for (let i = 0; i < 24; i++) {
+            treePlants.push({
+                x: -120 + Math.random() * 80 + (i % 2 === 0 ? 140 : 0),
+                y: 5 + Math.random() * 15,
+                z: -100 + Math.random() * 200
+            });
+        }
+
+        // Loop rendering
+        function animLoop() {
+            // resize
+            const rect = canvas.getBoundingClientRect();
+            if (canvas.width !== rect.width || canvas.height !== rect.height) {
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+            }
+
+            const cx = canvas.width / 2 + panX;
+            const cy = canvas.height / 2 + panY;
+
+            simTime += 0.01 * simSpeed;
+
+            // Clear & background grid
+            ctx.fillStyle = '#171c24';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = 'rgba(79, 195, 247, 0.03)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 40) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+            }
+            for (let i = 0; i < canvas.height; i += 40) {
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+            }
+
+            // Project 3D vector function
+            const project = (x, y, z) => {
+                const cosY = Math.cos(yaw);
+                const sinY = Math.sin(yaw);
+                let x1 = x * cosY - z * sinY;
+                let z1 = x * sinY + z * cosY;
+
+                const cosP = Math.cos(pitch);
+                const sinP = Math.sin(pitch);
+                let y2 = y * cosP - z1 * sinP;
+                let z2 = y * sinP + z1 * cosP;
+
+                const scale = zoom * 3;
+                const proj = 500 / (500 + z2);
+
+                return {
+                    x: cx + x1 * scale * proj,
+                    y: cy - y2 * scale * proj,
+                    visible: z2 > -400
+                };
+            };
+
+            const cyanGlow = '#4FC3F7';
+            const warningOrange = '#FFA726';
+            const stealthBlue = '#1E88E5';
+            const expansionTeal = '#26A69A';
+
+            let accentColor = cyanGlow;
+            if (currentMode === 'drought') accentColor = warningOrange;
+            if (currentMode === 'crisis') accentColor = stealthBlue;
+            if (currentMode === 'expansion') accentColor = expansionTeal;
+
+            // Horizon Compass Radar ring
+            ctx.beginPath();
+            ctx.arc(cx, cy + 100, 240 * zoom, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(79, 195, 247, 0.08)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Core Isthmus map grid mesh
+            const gridSize = 16;
+            const step = 20;
+            ctx.lineWidth = 1;
+
+            for (let i = -gridSize / 2; i <= gridSize / 2; i++) {
+                ctx.beginPath();
+                for (let j = -gridSize / 2; j <= gridSize / 2; j++) {
+                    const gx = i * step;
+                    const gz = j * step;
+                    let gy = 0;
+                    const isCanalPath = Math.abs(gz) < 18;
+
+                    if (isCanalPath) {
+                        if (gx < -40 || gx > 40) gy = 0;
+                        else gy = 12;
+                    } else {
+                        gy = Math.sin((gx + gz) * 0.04) * 15 + Math.cos(gz * 0.03) * 10 + 15;
+                        if (Math.abs(gx) < 50) gy += 15;
+                    }
+
+                    const pt = project(gx, gy, gz);
+                    if (j === -gridSize / 2) ctx.moveTo(pt.x, pt.y);
+                    else ctx.lineTo(pt.x, pt.y);
+                }
+                ctx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
+                ctx.stroke();
+
+                ctx.beginPath();
+                for (let j = -gridSize / 2; j <= gridSize / 2; j++) {
+                    const gx = j * step;
+                    const gz = i * step;
+                    let gy = 0;
+                    const isCanalPath = Math.abs(gz) < 18;
+
+                    if (isCanalPath) {
+                        if (gx < -40 || gx > 40) gy = 0;
+                        else gy = 12;
+                    } else {
+                        gy = Math.sin((gx + gz) * 0.04) * 15 + Math.cos(gz * 0.03) * 10 + 15;
+                        if (Math.abs(gx) < 50) gy += 15;
+                    }
+
+                    const pt = project(gx, gy, gz);
+                    if (j === -gridSize / 2) ctx.moveTo(pt.x, pt.y);
+                    else ctx.lineTo(pt.x, pt.y);
+                }
+                ctx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
+                ctx.stroke();
+            }
+
+            // Draw Gatun Lake Water Body
+            ctx.beginPath();
+            const p1 = project(-45, 12, -25);
+            const p2 = project(45, 12, -25);
+            const p3 = project(45, 12, 25);
+            const p4 = project(-45, 12, 25);
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.lineTo(p3.x, p3.y);
+            ctx.lineTo(p4.x, p4.y);
+            ctx.closePath();
+            ctx.fillStyle = currentMode === 'drought' ? 'rgba(255, 167, 38, 0.12)' : 'rgba(79, 195, 247, 0.15)';
+            ctx.fill();
+            ctx.strokeStyle = accentColor;
+            ctx.stroke();
+
+            // Draw Locks
+            const renderLock = (lockX, name) => {
+                const hLock = 20; const wLock = 12; const lLock = 35;
+                const corners = [
+                    { x: lockX - wLock, y: 0, z: -lLock },
+                    { x: lockX + wLock, y: 0, z: -lLock },
+                    { x: lockX + wLock, y: hLock, z: -lLock },
+                    { x: lockX - wLock, y: hLock, z: -lLock },
+                    { x: lockX - wLock, y: 0, z: lLock },
+                    { x: lockX + wLock, y: 0, z: lLock },
+                    { x: lockX + wLock, y: hLock, z: lLock },
+                    { x: lockX - wLock, y: hLock, z: lLock }
+                ];
+
+                const proj = corners.map(c => project(c.x, c.y, c.z));
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 1.5;
+
+                ctx.beginPath();
+                ctx.moveTo(proj[0].x, proj[0].y);
+                for(let k=1; k<4; k++) ctx.lineTo(proj[k].x, proj[k].y);
+                ctx.closePath(); ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(proj[4].x, proj[4].y);
+                for(let k=5; k<8; k++) ctx.lineTo(proj[k].x, proj[k].y);
+                ctx.closePath(); ctx.stroke();
+
+                for (let k = 0; k < 4; k++) {
+                    ctx.beginPath(); ctx.moveTo(proj[k].x, proj[k].y); ctx.lineTo(proj[k + 4].x, proj[k + 4].y); ctx.stroke();
+                }
+
+                // Fill wall
+                ctx.fillStyle = 'rgba(30, 41, 59, 0.75)';
+                ctx.beginPath();
+                ctx.moveTo(proj[0].x, proj[0].y); ctx.lineTo(proj[3].x, proj[3].y); ctx.lineTo(proj[7].x, proj[7].y); ctx.lineTo(proj[4].x, proj[4].y);
+                ctx.closePath(); ctx.fill();
+
+                // Interactive procedural fluid height simulation (oscillating)
+                const waveHeight = 6 + Math.sin(simTime * 1.5 + (lockX > 0 ? Math.PI : 0)) * 5;
+                const wCorners = [
+                    { x: lockX - wLock + 0.5, y: 1, z: -lLock + 0.5 },
+                    { x: lockX + wLock - 0.5, y: 1, z: -lLock + 0.5 },
+                    { x: lockX + wLock - 0.5, y: waveHeight, z: -lLock + 0.5 },
+                    { x: lockX - wLock + 0.5, y: waveHeight, z: -lLock + 0.5 },
+                    { x: lockX - wLock + 0.5, y: 1, z: lLock - 0.5 },
+                    { x: lockX + wLock - 0.5, y: 1, z: lLock - 0.5 },
+                    { x: lockX + wLock - 0.5, y: waveHeight, z: lLock - 0.5 },
+                    { x: lockX - wLock + 0.5, y: waveHeight, z: lLock - 0.5 }
+                ];
+                const wProj = wCorners.map(c => project(c.x, c.y, c.z));
+
+                ctx.fillStyle = lockX < 0 ? 'rgba(79, 195, 247, 0.35)' : 'rgba(38, 166, 154, 0.35)';
+                ctx.beginPath();
+                ctx.moveTo(wProj[2].x, wProj[2].y);
+                ctx.lineTo(wProj[3].x, wProj[3].y);
+                ctx.lineTo(wProj[7].x, wProj[7].y);
+                ctx.lineTo(wProj[6].x, wProj[6].y);
+                ctx.closePath(); ctx.fill();
+
+                ctx.strokeStyle = lockX < 0 ? '#4FC3F7' : '#26A69A';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Volumetric flow speed particles inside the lock
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                for (let p = 0; p < 8; p++) {
+                    const pTime = (simTime * 2 + p * 0.15) % 1;
+                    const pX = lockX + (Math.sin(p * 13) * 0.5) * wLock;
+                    const pZ = (Math.cos(p * 29) * 0.7) * lLock;
+                    const pY = 1 + pTime * waveHeight;
+                    const pPt = project(pX, pY, pZ);
+                    if (pPt.visible) {
+                        ctx.beginPath(); ctx.arc(pPt.x, pPt.y, 1.2 * zoom, 0, Math.PI * 2); ctx.fill();
+                    }
+                }
+
+                // Gates rotation
+                const gateOpenAngle = (Math.sin(simTime * 0.8) + 1) / 2;
+                const gateLength = wLock;
+                const gateAngle = gateOpenAngle * (Math.PI / 2.5);
+
+                const gLeftEnd = {
+                    x: lockX - wLock + gateLength * Math.cos(gateAngle),
+                    y: hLock,
+                    z: gateLength * Math.sin(gateAngle)
+                };
+                const pG1 = project(lockX - wLock, hLock, 0);
+                const pG2 = project(gLeftEnd.x, gLeftEnd.y, gLeftEnd.z);
+                ctx.strokeStyle = accentColor;
+                ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(pG1.x, pG1.y); ctx.lineTo(pG2.x, pG2.y); ctx.stroke();
+
+                // Biomechanical hydraulic cylinders (Piston Arm)
+                const cylWallPt = project(lockX - wLock - 4, hLock - 4, -5);
+                const cylGatePt = project(gLeftEnd.x, hLock - 4, gLeftEnd.z);
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 3.5;
+                ctx.beginPath(); ctx.moveTo(cylWallPt.x, cylWallPt.y); ctx.lineTo(cylGatePt.x, cylGatePt.y); ctx.stroke();
+
+                // Inner chrome piston rod
+                ctx.strokeStyle = '#cbd5e1';
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(cylWallPt.x + (cylGatePt.x - cylWallPt.x) * 0.35, cylWallPt.y + (cylGatePt.y - cylWallPt.y) * 0.35);
+                ctx.lineTo(cylGatePt.x, cylGatePt.y);
+                ctx.stroke();
+
+                // Biomechanical alerts and text (Stress simulation in loop)
+                const midX = (cylWallPt.x + cylGatePt.x) / 2;
+                const midY = (cylWallPt.y + cylGatePt.y) / 2;
+                if (Math.sin(simTime * 6) > 0) {
+                    ctx.strokeStyle = '#FFA726';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(midX - 30, midY - 14, 60, 10);
+                }
+                ctx.fillStyle = '#FFA726';
+                ctx.font = 'bold 7px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText("LOAD: " + (310 + Math.sin(simTime * 6) * 75).toFixed(1) + " kN", midX, midY - 6);
+            };
+
+            renderLock(-55, "ATLANTIC");
+            renderLock(55, "PACIFIC");
+
+            // Electric Railway Dual tracks
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            const rail1 = project(-35, 2, -140);
+            const rail2 = project(-35, 2, 140);
+            ctx.beginPath(); ctx.moveTo(rail1.x, rail1.y); ctx.lineTo(rail2.x, rail2.y); ctx.stroke();
+
+            // Train pulling cargo
+            const trainSpeed = 0.5 * simSpeed;
+            const trainZ = ((simTime * 10 * trainSpeed) % 240) - 120;
+            const trainPt = project(-33.5, 3, trainZ);
+            if (trainPt.visible) {
+                ctx.fillStyle = accentColor;
+                ctx.beginPath(); ctx.arc(trainPt.x, trainPt.y, 4 * zoom, 0, Math.PI*2); ctx.fill();
+
+                for (let c = 1; c <= 4; c++) {
+                    const carPt = project(-33.5, 3, trainZ - c * 8);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath(); ctx.rect(carPt.x - 2, carPt.y - 2, 4, 4); ctx.fill();
+                }
+            }
+
+            // Merchant Ship transit
+            const shipSpeed = 0.12 * simSpeed;
+            const shipX = ((simTime * 5 * shipSpeed) % 260) - 130;
+            let shipY = shipX < -55 || shipX > 55 ? 1 : 13;
+
+            const shipPt = project(shipX, shipY, 0);
+            if (shipPt.visible) {
+                const sW = 7; const sH = 5; const sL = 16;
+                const shipCorners = [
+                    { x: shipX - sL, y: shipY, z: -sW },
+                    { x: shipX + sL, y: shipY, z: -sW },
+                    { x: shipX + sL, y: shipY + sH, z: -sW },
+                    { x: shipX - sL, y: shipY + sH, z: -sW },
+                    { x: shipX - sL, y: shipY, z: sW },
+                    { x: shipX + sL, y: shipY, z: sW },
+                    { x: shipX + sL, y: shipY + sH, z: sW },
+                    { x: shipX - sL, y: shipY + sH, z: sW }
+                ];
+                const shipProj = shipCorners.map(c => project(c.x, c.y, c.z));
+                ctx.fillStyle = 'rgba(71, 85, 105, 0.9)';
+                ctx.beginPath();
+                ctx.moveTo(shipProj[0].x, shipProj[0].y);
+                for (let k = 1; k < 4; k++) ctx.lineTo(shipProj[k].x, shipProj[k].y);
+                ctx.closePath(); ctx.fill();
+
+                ctx.fillStyle = 'rgba(51, 65, 85, 0.95)';
+                ctx.beginPath();
+                ctx.moveTo(shipProj[4].x, shipProj[4].y);
+                for (let k = 5; k < 8; k++) ctx.lineTo(shipProj[k].x, shipProj[k].y);
+                ctx.closePath(); ctx.fill();
+
+                for (let st = -1; st <= 1; st++) {
+                    const blockPt = project(shipX + st * 6, shipY + sH + 2, 0);
+                    ctx.fillStyle = accentColor;
+                    ctx.beginPath(); ctx.rect(blockPt.x - 3, blockPt.y - 3, 6, 6); ctx.fill();
+                }
+            }
+
+            // Draw Holographic Target Beacon for Drone Swarm (CBC2+)
+            const beaconPt = project(0, 30, 90);
+            if (beaconPt.visible) {
+                const topPt = project(0, 30 + 60, 90);
+                const grad = ctx.createLinearGradient(beaconPt.x, beaconPt.y, beaconPt.x, topPt.y);
+                grad.addColorStop(0, 'rgba(76, 175, 80, 0.4)');
+                grad.addColorStop(1, 'rgba(76, 175, 80, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.moveTo(beaconPt.x - 5, beaconPt.y);
+                ctx.lineTo(topPt.x - 1, topPt.y);
+                ctx.lineTo(topPt.x + 1, topPt.y);
+                ctx.lineTo(beaconPt.x + 5, beaconPt.y);
+                ctx.closePath(); ctx.fill();
+
+                // Ripple rings
+                const ringRadius = ((simTime * 12) % 24) * zoom;
+                ctx.strokeStyle = "rgba(76, 175, 80, " + Math.max(0, 1 - ringRadius / (24 * zoom)) + ")";
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.ellipse(beaconPt.x, beaconPt.y, ringRadius * 1.5, ringRadius * 0.6, 0, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 8px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText("CBC²_DRONE_BEACON", beaconPt.x, beaconPt.y - 8);
+            }
+
+            // Swarm Drones orbiting around target
+            droneParticles.forEach((drone, idx) => {
+                const angle = simTime * 1.5 + idx * (Math.PI / 4);
+                const targetX = 0; const targetY = 30; const targetZ = 90;
+                const orbitRadiusX = 22 + Math.sin(idx * 33) * 6;
+                const orbitRadiusZ = 22 + Math.cos(idx * 33) * 6;
+                const hoverHeight = targetY + 12 + Math.sin(simTime * 2.5 + idx) * 3;
+
+                drone.x = targetX + Math.sin(angle) * orbitRadiusX;
+                drone.z = targetZ + Math.cos(angle) * orbitRadiusZ;
+                drone.y = hoverHeight;
+
+                const pDrone = project(drone.x, drone.y, drone.z);
+                if (pDrone.visible) {
+                    ctx.fillStyle = accentColor;
+                    ctx.beginPath(); ctx.arc(pDrone.x, pDrone.y, 3, 0, Math.PI * 2); ctx.fill();
+
+                    if (idx % 2 === 0 && Math.sin(simTime * 8 + idx) > 0.4) {
+                        const pGround = project(drone.x, 8, drone.z);
+                        ctx.strokeStyle = 'rgba(76, 175, 80, 0.45)';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath(); ctx.moveTo(pDrone.x, pDrone.y); ctx.lineTo(pGround.x, pGround.y); ctx.stroke();
+                    }
+                }
+            });
+
+            // Seeding micro-trees
+            treePlants.forEach((tree) => {
+                const pTree = project(tree.x, tree.y, tree.z);
+                if (pTree.visible) {
+                    ctx.fillStyle = '#4CAF50';
+                    ctx.beginPath();
+                    ctx.moveTo(pTree.x, pTree.y);
+                    ctx.lineTo(pTree.x - 3 * zoom, pTree.y + 7 * zoom);
+                    ctx.lineTo(pTree.x + 3 * zoom, pTree.y + 7 * zoom);
+                    ctx.closePath(); ctx.fill();
+                }
+            });
+
+            // Nodes structure
+            const centralTwinPt = { x: 0, y: 70, z: 0 };
+            const pTwin = project(centralTwinPt.x, centralTwinPt.y, centralTwinPt.z);
+
+            const nodes = [
+                { id: 'shim', label: 'SHIM+', x: -80, y: 35, z: -50 },
+                { id: 'chac', label: 'CHAC+', x: 80, y: 35, z: -50 },
+                { id: 'pneg', label: 'PNEG+', x: 80, y: 35, z: 50 },
+                { id: 'evacap', label: 'EVACAP+', x: -80, y: 35, z: 50 },
+                { id: 'cbc', label: 'CBC²+', x: 0, y: 30, z: 90 }
+            ];
+
+            if (pTwin.visible) {
+                const pulse = 1 + Math.sin(simTime * 4) * 0.08;
+                const rad = 22 * zoom * pulse;
+                const grad = ctx.createRadialGradient(pTwin.x, pTwin.y, 2, pTwin.x, pTwin.y, rad);
+                grad.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+                grad.addColorStop(0.3, 'rgba(79, 195, 247, 0.7)');
+                grad.addColorStop(1, 'rgba(79, 195, 247, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath(); ctx.arc(pTwin.x, pTwin.y, rad, 0, Math.PI * 2); ctx.fill();
+
+                ctx.strokeStyle = accentColor;
+                ctx.stroke();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 11px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(translations[currentLang].nodeTwin || "Central Twin", pTwin.x, pTwin.y - 30);
+            }
+
+            nodes.forEach((nd) => {
+                const pNode = project(nd.x, nd.y, nd.z);
+                if (pNode.visible) {
+                    const active = selectedNode === nd.id;
+                    ctx.strokeStyle = active ? accentColor : 'rgba(79, 195, 247, 0.15)';
+                    ctx.lineWidth = active ? 2.5 : 1;
+                    ctx.beginPath(); ctx.moveTo(pTwin.x, pTwin.y); ctx.lineTo(pNode.x, pNode.y); ctx.stroke();
+
+                    const progress = (simTime * 0.5) % 1;
+                    const laserX = pTwin.x + (pNode.x - pTwin.x) * progress;
+                    const laserY = pTwin.y + (pNode.y - pTwin.y) * progress;
+                    ctx.fillStyle = accentColor;
+                    ctx.beginPath(); ctx.arc(laserX, laserY, 3, 0, Math.PI * 2); ctx.fill();
+
+                    ctx.fillStyle = active ? accentColor : 'rgba(30, 41, 59, 0.95)';
+                    ctx.strokeStyle = accentColor;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(pNode.x, pNode.y, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath(); ctx.arc(pNode.x, pNode.y, 3, 0, Math.PI * 2); ctx.fill();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 11px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(nd.label, pNode.x, pNode.y - 18);
+                }
+            });
+
+            requestAnimationFrame(animLoop);
+        }
+
+        // Initialize script translation and state on load
+        switchLang('es');
+        setMode('normal');
+        animLoop();
+    </script>
+</body>
+</html>
