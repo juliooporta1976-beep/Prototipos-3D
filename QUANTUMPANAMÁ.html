@@ -1,0 +1,1777 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quantum Nexus Jcob. Panamá - Prototype 3D Standalone Simulator</title>
+  <style>
+    :root {
+      --titanium-dark: #1E2220;
+      --titanium-matte: #2C302E;
+      --titanium-brushed: #3A3F3D;
+      --cyan-luminous: #4FC3F7;
+      --cyan-dim: #1D6F8A;
+      --silver-metal: #B0BEC5;
+      --clinical-white: #ECEFF1;
+      --anthracite: #121413;
+      --glow-shadow: 0 0 15px rgba(79, 195, 247, 0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--anthracite);
+      color: var(--clinical-white);
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Left Creator Title */
+    #creator-header {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      z-index: 100;
+      background: rgba(30, 34, 32, 0.85);
+      border-left: 4px solid var(--cyan-luminous);
+      padding: 8px 15px;
+      border-radius: 0 4px 4px 0;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      pointer-events: auto;
+    }
+
+    #creator-name {
+      font-size: 14px;
+      font-weight: bold;
+      color: var(--cyan-luminous);
+      letter-spacing: 0.5px;
+    }
+
+    #project-title {
+      font-size: 11px;
+      color: var(--silver-metal);
+      margin-top: 2px;
+      text-transform: uppercase;
+    }
+
+    /* Outer Layout */
+    #main-container {
+      position: relative;
+      flex: 1;
+      display: flex;
+      height: 100%;
+    }
+
+    #canvas-container {
+      position: relative;
+      flex: 1;
+      height: 100%;
+      background: radial-gradient(circle at center, var(--titanium-matte) 0%, var(--anthracite) 100%);
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    #ar-video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      z-index: 0;
+      display: none;
+    }
+
+    /* UI Overlay Panel */
+    #hud-panel {
+      position: absolute;
+      right: 15px;
+      top: 15px;
+      bottom: 15px;
+      width: 410px;
+      background: rgba(30, 34, 32, 0.88);
+      border: 1px solid rgba(176, 190, 197, 0.2);
+      border-radius: 8px;
+      z-index: 10;
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      padding: 18px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.7);
+      pointer-events: auto;
+      overflow-y: auto;
+    }
+
+    h2 {
+      font-size: 18px;
+      color: var(--cyan-luminous);
+      margin-bottom: 5px;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(79, 195, 247, 0.3);
+      padding-bottom: 5px;
+    }
+
+    .patent-sub {
+      font-size: 11px;
+      color: var(--silver-metal);
+      margin-bottom: 15px;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .stat-card {
+      background: rgba(18, 20, 19, 0.6);
+      border: 1px solid rgba(176, 190, 197, 0.1);
+      border-radius: 4px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .stat-val {
+      font-size: 16px;
+      font-weight: bold;
+      color: var(--clinical-white);
+      font-family: monospace;
+    }
+
+    .stat-val.active-pulse {
+      color: var(--cyan-luminous);
+      text-shadow: 0 0 5px rgba(79, 195, 247, 0.6);
+    }
+
+    .stat-lbl {
+      font-size: 9px;
+      color: var(--silver-metal);
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    /* Controls */
+    .section-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--silver-metal);
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      padding-bottom: 3px;
+    }
+
+    .btn {
+      background: var(--titanium-brushed);
+      color: var(--clinical-white);
+      border: 1px solid rgba(176, 190, 197, 0.3);
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 12px;
+      transition: all 0.2s ease;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      text-transform: uppercase;
+      width: 100%;
+      margin-bottom: 8px;
+    }
+
+    .btn:hover {
+      background: var(--titanium-matte);
+      border-color: var(--cyan-luminous);
+      box-shadow: var(--glow-shadow);
+    }
+
+    .btn-primary {
+      background: var(--cyan-dim);
+      border-color: var(--cyan-luminous);
+    }
+
+    .btn-primary:hover {
+      background: var(--cyan-luminous);
+      color: var(--anthracite);
+    }
+
+    .btn-active {
+      background: var(--cyan-luminous) !important;
+      color: var(--anthracite) !important;
+      box-shadow: var(--glow-shadow);
+    }
+
+    /* Modes group */
+    .mode-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .mode-btn {
+      padding: 8px;
+      font-size: 10px;
+      border-radius: 4px;
+      background: rgba(18, 20, 19, 0.8);
+      border: 1px solid rgba(176, 190, 197, 0.15);
+      color: var(--silver-metal);
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.2s;
+    }
+
+    .mode-btn:hover {
+      border-color: var(--cyan-luminous);
+      color: var(--clinical-white);
+    }
+
+    .mode-btn.active-stealth { border-color: #26A69A; color: #26A69A; background: rgba(38, 166, 154, 0.1); }
+    .mode-btn.active-tactical { border-color: #00E5FF; color: #00E5FF; background: rgba(0, 229, 255, 0.1); }
+    .mode-btn.active-calibration { border-color: #D500F9; color: #D500F9; background: rgba(213, 0, 249, 0.1); }
+    .mode-btn.active-diagnostic { border-color: #00E676; color: #00E676; background: rgba(0, 230, 118, 0.1); }
+
+    /* Slider Container */
+    .slider-box {
+      margin-bottom: 12px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      font-family: monospace;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .slider-input {
+      width: 100%;
+      height: 4px;
+      background: rgba(0,0,0,0.5);
+      border-radius: 2px;
+      outline: none;
+      appearance: none;
+      cursor: pointer;
+    }
+
+    .slider-input::-webkit-slider-thumb {
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--cyan-luminous);
+      box-shadow: 0 0 5px var(--cyan-luminous);
+    }
+
+    .slider-desc {
+      font-size: 8px;
+      color: var(--silver-metal);
+      font-family: monospace;
+      margin-top: 2px;
+    }
+
+    /* Node Inspector */
+    #node-inspector-box {
+      background: rgba(18, 20, 19, 0.6);
+      border: 1px solid rgba(176, 190, 197, 0.15);
+      border-radius: 4px;
+      padding: 10px;
+      margin-bottom: 12px;
+    }
+
+    .inspector-title {
+      font-size: 11px;
+      font-weight: bold;
+      color: #D500F9;
+      text-transform: uppercase;
+      font-family: monospace;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .inspector-row {
+      display: flex;
+      justify-content: space-between;
+      font-family: monospace;
+      font-size: 10px;
+      color: var(--silver-metal);
+      margin-bottom: 4px;
+    }
+
+    .inspector-val {
+      color: var(--clinical-white);
+      font-weight: bold;
+    }
+
+    /* Command Injector Grid */
+    .injector-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .inj-btn {
+      background: rgba(18, 20, 19, 0.6);
+      border: 1px solid rgba(176, 190, 197, 0.15);
+      color: var(--clinical-white);
+      font-family: monospace;
+      font-size: 9px;
+      padding: 6px;
+      border-radius: 3px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.2s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .inj-btn:hover {
+      border-color: var(--cyan-luminous);
+      color: var(--cyan-luminous);
+      background: rgba(79, 195, 247, 0.05);
+    }
+
+    /* Nodes List */
+    .node-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 140px;
+      overflow-y: auto;
+      margin-bottom: 15px;
+      padding-right: 4px;
+    }
+
+    .node-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      background: rgba(18, 20, 19, 0.4);
+      border-radius: 4px;
+      font-size: 11px;
+      border-left: 2px solid var(--silver-metal);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .node-row:hover {
+      background: rgba(255,255,255,0.03);
+    }
+
+    .node-row.selected-node {
+      border-color: #FF1744 !important;
+      background: rgba(255, 23, 68, 0.08) !important;
+      box-shadow: 0 0 10px rgba(255, 23, 68, 0.15);
+    }
+
+    .node-row.core { border-left-color: var(--cyan-luminous); }
+    .node-row.backup { border-left-color: #D500F9; }
+
+    .node-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .node-name {
+      font-weight: bold;
+      color: var(--clinical-white);
+    }
+
+    .node-desc {
+      font-size: 9px;
+      color: var(--silver-metal);
+    }
+
+    .node-indicator {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-family: monospace;
+      font-size: 10px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #00E676;
+    }
+
+    .dot.pulse {
+      animation: flash 1.5s infinite;
+    }
+
+    /* System console */
+    #terminal {
+      background: #090a09;
+      border: 1px solid rgba(176, 190, 197, 0.15);
+      border-radius: 4px;
+      padding: 8px;
+      font-family: monospace;
+      font-size: 10px;
+      color: #00FF66;
+      height: 100px;
+      overflow-y: auto;
+      margin-top: 5px;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+    }
+
+    .term-line {
+      margin-bottom: 4px;
+      line-height: 1.2;
+    }
+
+    .term-cyan { color: var(--cyan-luminous); }
+    .term-magenta { color: #D500F9; }
+    .term-warn { color: #FFD600; }
+
+    /* Lang Selector in HUD */
+    .lang-switcher {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 12px;
+    }
+
+    .lang-btn {
+      flex: 1;
+      padding: 5px;
+      font-size: 10px;
+      border-radius: 3px;
+      background: var(--titanium-brushed);
+      border: 1px solid rgba(176, 190, 197, 0.2);
+      color: var(--clinical-white);
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .lang-btn.active {
+      background: var(--cyan-luminous);
+      color: var(--anthracite);
+      font-weight: bold;
+    }
+
+    /* Certificate Modal overlay */
+    #cert-popup {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.9);
+      width: 450px;
+      background: rgba(30, 34, 32, 0.95);
+      border: 2px solid var(--cyan-luminous);
+      border-radius: 8px;
+      padding: 20px;
+      z-index: 1000;
+      box-shadow: 0 0 40px rgba(79, 195, 247, 0.5);
+      display: none;
+      flex-direction: column;
+      backdrop-filter: blur(15px);
+      transition: all 0.3s ease;
+    }
+
+    #cert-popup.show {
+      display: flex;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    #cert-header {
+      font-size: 16px;
+      font-weight: bold;
+      color: var(--cyan-luminous);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+
+    .cert-body {
+      background: rgba(0,0,0,0.5);
+      padding: 15px;
+      border-radius: 4px;
+      border: 1px solid rgba(236, 239, 241, 0.1);
+      font-family: monospace;
+      font-size: 11px;
+      line-height: 1.6;
+      margin-bottom: 15px;
+    }
+
+    .cert-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .cert-lbl { color: var(--silver-metal); }
+    .cert-val { color: var(--clinical-white); text-align: right; word-break: break-all; max-width: 250px; }
+
+    /* Interactive Instruction Panel */
+    #instructions-panel {
+      position: absolute;
+      left: 15px;
+      bottom: 15px;
+      width: 320px;
+      background: rgba(30, 34, 32, 0.85);
+      border: 1px solid rgba(176, 190, 197, 0.15);
+      border-radius: 6px;
+      z-index: 10;
+      padding: 12px;
+      font-size: 11px;
+      line-height: 1.4;
+      backdrop-filter: blur(6px);
+    }
+
+    #instructions-panel h4 {
+      color: var(--cyan-luminous);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      font-size: 12px;
+    }
+
+    #instructions-panel p {
+      color: var(--silver-metal);
+    }
+
+    /* Animation */
+    @keyframes flash {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.1);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--titanium-brushed);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--cyan-luminous);
+    }
+
+    /* Interactive Canvas drag helper */
+    #drag-prompt {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      font-size: 11px;
+      color: var(--silver-metal);
+      background: rgba(0,0,0,0.7);
+      padding: 6px 12px;
+      border-radius: 20px;
+      z-index: 5;
+      opacity: 0.8;
+      animation: fadeOut 5s forwards;
+      text-align: center;
+      line-height: 1.4;
+      border: 1px solid rgba(79, 195, 247, 0.15);
+    }
+
+    @keyframes fadeOut {
+      0% { opacity: 0.8; }
+      70% { opacity: 0.8; }
+      100% { opacity: 0; display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Left Creator Tag -->
+  <div id="creator-header">
+    <div id="creator-name">Dr. Julio César Oporta Barrera</div>
+    <div id="project-title">Quantum Nexus Jcob. Panamá</div>
+  </div>
+
+  <div id="main-container">
+    <div id="canvas-container">
+      <div id="drag-prompt">
+        ← Arrastra para rotar / Drag to rotate →<br>
+        <span style="font-size: 9px; color: var(--cyan-luminous)">Selecciona un nodo para enfocar la cámara en 3D / Click any node to focus camera</span>
+      </div>
+      <!-- AR video element -->
+      <video id="ar-video" autoplay playsinline muted></video>
+      <!-- Pure 3D Canvas -->
+      <canvas id="canvas3d"></canvas>
+    </div>
+
+    <!-- Instructions panel -->
+    <div id="instructions-panel">
+      <h4 id="inst-title">Instrucciones de Uso de la Patente</h4>
+      <p id="inst-body">1. Recibe coordenadas aleatorias en Panamá. 2. Movilízate al punto. 3. Toma fotografía con sello GPS. 4. Se genera hash SHA-256 en 50ms y se autodestruye. 5. Se registra de forma inmutable en Solana.</p>
+    </div>
+
+    <!-- Tactical HUD Panel -->
+    <div id="hud-panel">
+      <div class="lang-switcher">
+        <button class="lang-btn active" onclick="changeLanguage('es')">ESP</button>
+        <button class="lang-btn " onclick="changeLanguage('en')">ENG</button>
+        <button class="lang-btn " onclick="changeLanguage('zh')">中文</button>
+      </div>
+
+      <h2 id="hud-title">Simulador de Red Interactivo</h2>
+      <div class="patent-sub" id="hud-subtitle">Proceso de certificación nula con geovallado (Patente Pendiente)</div>
+
+      <!-- Main Controls -->
+      <button class="btn btn-primary" id="btn-certify" onclick="triggerCertify()">Emitir Certificación Nula</button>
+      <button class="btn" id="btn-ar" onclick="toggleAR()">Realidad Aumentada (AR)</button>
+      <button class="btn" id="btn-sim" onclick="toggleSimulation()">Pausar Simulación</button>
+
+      <!-- Operational Modes -->
+      <div class="section-title">
+        <span id="lbl-modes">Modos Operativos</span>
+        <span id="current-mode-lbl" style="font-size:10px; color:var(--cyan-luminous)">Tactical</span>
+      </div>
+      <div class="mode-selector">
+        <button class="mode-btn active-tactical" id="mbtn-tactical" onclick="setMode('tactical')">TACTICAL</button>
+        <button class="mode-btn" id="mbtn-stealth" onclick="setMode('stealth')">STEALTH</button>
+        <button class="mode-btn" id="mbtn-calibration" onclick="setMode('calibration')">CALIBRATE</button>
+        <button class="mode-btn" id="mbtn-diagnostic" onclick="setMode('diagnostic')">DIAGNOSTIC</button>
+      </div>
+
+      <!-- Realtime Stats Grid -->
+      <div class="section-title">
+        <span id="lbl-metrics">Métricas del Quantum Nexus</span>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-val active-pulse" id="stat-height">148,209,114</div>
+          <div class="stat-lbl" id="lbl-height">Altura de Bloques (Solana)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="stat-latency">8.4 ms</div>
+          <div class="stat-lbl" id="lbl-latency">Latencia Promedio</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="stat-tx">4,810</div>
+          <div class="stat-lbl" id="lbl-tx">TPS (Solana)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" style="color:var(--cyan-luminous)" id="stat-energy">100%</div>
+          <div class="stat-lbl" id="lbl-energy">Energía Híbrida</div>
+        </div>
+      </div>
+
+      <!-- Advanced Subsystems HUD (Sliders) -->
+      <div class="section-title">
+        <span id="lbl-subsystems">Subsistemas Avanzados</span>
+      </div>
+
+      <!-- Slider 1: Biomechanical Coupling -->
+      <div class="slider-box">
+        <div class="slider-header">
+          <span style="color:#26A69A" id="lbl-bio-energy">Energía Híbrida Biomecánica</span>
+          <span style="color:#26A69A" id="val-bio-energy">55%</span>
+        </div>
+        <input type="range" class="slider-input" id="slider-bio" min="10" max="100" value="55" oninput="updateBioEnergy(this.value)">
+        <div class="slider-desc" id="desc-bio">Tasa de Sincronización: Ajusta rotación del engranaje helicoidal</div>
+      </div>
+
+      <!-- Slider 2: Resonant Frequency -->
+      <div class="slider-box">
+        <div class="slider-header">
+          <span style="color:#4FC3F7" id="lbl-phys-modular">Campo Físico Modular</span>
+          <span style="color:#4FC3F7" id="val-phys-modular">65 GHz</span>
+        </div>
+        <input type="range" class="slider-input" id="slider-phys" min="15" max="100" value="65" oninput="updatePhysModular(this.value)">
+        <div class="slider-desc" id="desc-phys">Frecuencia Resonante: Modula frecuencia del generador de campo cuántico</div>
+      </div>
+
+      <!-- Slider 3: Field Intensity -->
+      <div class="slider-box">
+        <div class="slider-header">
+          <span style="color:#D500F9" id="lbl-perf-hud">Rendimiento Cuántico</span>
+          <span style="color:#D500F9" id="val-perf-hud">45%</span>
+        </div>
+        <input type="range" class="slider-input" id="slider-perf" min="10" max="100" value="45" oninput="updatePerfHud(this.value)">
+        <div class="slider-desc" id="desc-perf">Intensidad del Campo: Regula escala del blindaje geométrico</div>
+      </div>
+
+      <!-- Interactive Node Inspector Detailed HUD -->
+      <div id="node-inspector-box">
+        <div class="inspector-title">
+          <span class="dot pulse" style="background:#D500F9"></span>
+          <span id="lbl-inspector">Inspector Detallado de Nodo</span>
+        </div>
+        <div id="inspector-details">
+          <div style="font-family: monospace; font-size: 10px; color: var(--silver-metal); text-align: center; padding: 6px 0;" id="lbl-inspect-prompt">
+            Selecciona un nodo para inspeccionarlo en tiempo real y reorientar el simulador 3D.
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Command Injector -->
+      <div class="section-title">
+        <span id="lbl-injector">Inyector de Comandos IA</span>
+      </div>
+      <div class="injector-grid">
+        <button class="inj-btn" id="ibtn-stress" onclick="injectStressTest()">Prueba de Estrés Solana</button>
+        <button class="inj-btn" id="ibtn-keys" onclick="injectResetKeys()">Reiniciar Claves Cuánticas</button>
+        <button class="inj-btn" id="ibtn-pulse" onclick="injectPulse()">Inyectar Pulso de Plasma</button>
+        <button class="inj-btn" id="ibtn-joints" onclick="injectCalibrate()">Calibrar Motores Biomecánicos</button>
+      </div>
+
+      <!-- Interactive Node List -->
+      <div class="section-title">
+        <span id="lbl-nodes">Sistema de Nodos IA (Panamá)</span>
+      </div>
+      <div class="node-list" id="node-list-container">
+        <!-- Will be filled dynamically by JS -->
+      </div>
+
+      <!-- Swarm AI Logs -->
+      <div class="section-title">
+        <span id="lbl-log">Registro de Actividad de Enjambre</span>
+      </div>
+      <div id="terminal">
+        <!-- Terminal lines -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Dynamic Certificate Modal -->
+  <div id="cert-popup">
+    <div id="cert-pop-title">¡Certificado Grabado en Blockchain!</div>
+    <div class="cert-body">
+      <div class="cert-row">
+        <span class="cert-lbl">ENTIDAD EMISORA:</span>
+        <span class="cert-val">Quantum Nexus Jcob. Panama</span>
+      </div>
+      <div class="cert-row">
+        <span class="cert-lbl">AUTOR / INVENTOR:</span>
+        <span class="cert-val" style="color:var(--cyan-luminous)">Dr. Julio César Oporta Barrera</span>
+      </div>
+      <div class="cert-row">
+        <span class="cert-lbl">DIRECCIÓN FÍSICA:</span>
+        <span class="cert-val" id="cert-val-loc">Ciudad del Saber, Panamá</span>
+      </div>
+      <div class="cert-row">
+        <span class="cert-lbl">COORDENADAS GPS:</span>
+        <span class="cert-val" id="cert-val-gps">Lat 9.0011, Lng -79.5842</span>
+      </div>
+      <div class="cert-row">
+        <span class="cert-lbl">TIMESTAMP REGISTRO:</span>
+        <span class="cert-val" id="cert-val-time">2026-06-30T17:15:33Z</span>
+      </div>
+      <div class="cert-row">
+        <span class="cert-lbl">SOLANA TRANSACTION:</span>
+        <span class="cert-val" id="cert-val-tx" style="color: #D500F9; font-size:10px;">SolTrans_77xN3p4...99aZ</span>
+      </div>
+      <div class="cert-row">
+        <span class="cert-lbl">HASH CRIPTOGRÁFICO:</span>
+        <span class="cert-val" id="cert-val-hash" style="color:var(--cyan-luminous); font-size:9px;"></span>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="closeCertPopup()">Cerrar</button>
+  </div>
+
+  <script>
+    // Embedded Languages Database
+    const languages = {"es":{"title":"Quantum Nexus Jcob. Panamá","subtitle":"Certificación Offshore de Alta Seguridad en Solana Blockchain","creator":"Prototipo de Patente y Simulador de Sistema","author":"Dr. Julio César Oporta Barrera","patentInfo":"Proceso de certificación nula con geovallado (Patente Pendiente)","offshoreDoc":"Revolucionando las Certificaciones Offshore con Blockchain en Panamá","downloadHtml":"Descargar Prototipo 3D Offline (.html)","downloadSuccess":"¡Prototipo standalone descargado! Puedes enviarlo por correo o WhatsApp y abrirlo con doble clic en cualquier computadora sin conexión a internet.","offlineNotice":"Este prototipo está diseñado para ejecutarse 100% sin internet ni instalaciones adicionales.","interactiveSimulator":"Simulador de Red Interactivo","tacticalHud":"HUD Táctico en Tiempo Real","swarmAi":"IA de Enjambre","hybridEnergy":"Energía Híbrida","biomechanics":"Biomecánica","physicsModular":"Física Modular","operationalModes":"Modos Operativos","advancedShaders":"Shaders Avanzados","arMode":"Realidad Aumentada (AR)","arModeDesc":"Visualiza el prototipo en tu mesa de trabajo usando la cámara","arCameraPermission":"Habilitar cámara para modo AR","arCameraActive":"Cámara Activa - Simulando Proyección en Mesa de Trabajo","arCameraInactive":"Cámara desactivada","startSimulation":"Iniciar Simulación Dinámica","stopSimulation":"Pausar Simulación","generatingCertification":"Generando Certificado Geovallado...","certSuccess":"¡Certificado Grabado en Blockchain!","currentHash":"Hash Inmutable (SHA-256)","nodeSystem":"Sistema de Nodos IA (Panamá)","nodeStatus":"Estado del Nodo","active":"Activo","syncing":"Sincronizando","offline":"Fuera de línea","nodeLoad":"Carga de Red","nodeEnergy":"Nivel de Energía","triggerBlock":"Emitir Certificación Nula","blockChainHeight":"Altura de Bloques (Solana)","avgLatency":"Latencia Promedio","activeTransactions":"Transacciones Activas","stealthMode":"Modo Stealth (Sigiloso)","tacticalMode":"Modo Táctico","calibrationMode":"Modo Calibración","diagnosticMode":"Modo Diagnóstico","selectLanguage":"Seleccionar Idioma","close":"Cerrar","howToUse":"Instrucciones de Uso de la Patente","howToUseDesc":"1. Recibe coordenadas aleatorias en Panamá. 2. Movilízate al punto. 3. Toma fotografía con sello GPS. 4. Se genera hash SHA-256 en 50ms y se autodestruye. 5. Se registra de forma inmutable en Solana.","panamaCanal":"Canal de Panamá (Logística)","colonFreeZone":"Zona Libre de Colón (Comercio)","awsCloud":"AWS Nube Secundaria (Redundancia)","cityOfKnowledge":"Ciudad del Saber (Sede Principal)","balboa":"Avenida Balboa (Nodo Financiero)","calle50":"Calle 50 (Banco Central)","metrics":"Métricas del Quantum Nexus","systemLog":"Registro de Actividad de Enjambre","bioMechanicalJoint":"Articulación Biomecánica","swarmParticles":"Partículas de Enjambre","energyFlow":"Flujo de Energía Híbrida","moduleBioEnergy":"Energía Híbrida Biomecánica","modulePhysicsModular":"Campo Físico Modular","hudTelemetry":"Telemetría Extendida","hudPerformance":"Rendimiento Cuántico","nodeInspector":"Inspector Detallado de Nodo","syncRate":"Tasa de Sincronización","fieldIntensity":"Intensidad del Campo","frequency":"Frecuencia Resonante","commandInjector":"Inyector de Comandos IA","runStressTest":"Prueba de Estrés Solana","resetKeys":"Reiniciar Claves Cuánticas","injectPulse":"Inyectar Pulso de Plasma","calibrateJoints":"Calibrar Motores Biomecánicos","telemetryStability":"Estabilidad del Campo","telemetryResonance":"Resonancia Sináptica","telemetryStress":"Factor de Estrés Físico","nodeDetails":"Detalles Técnicos","closeInspector":"Cerrar Inspector","clickToInspect":"Selecciona un nodo para inspeccionarlo en tiempo real y reorientar el simulador 3D.","modularSubsystem":"Subsistemas Avanzados","atmosphericInterference":"Interferencia Atmosférica","networkCongestion":"Congestión de Red","coreTemperature":"Temperatura de Núcleo","oscilloscopeTitle":"Analizador de Ondas Cuánticas","cameraPresets":"Alineación de Cámara","presetTop":"Superior (Planta)","presetIsometric":"Isométrica","presetOrbit":"Órbita Libre","presetClose":"Foco Nodo","geofenceTelemetry":"Telemetría de Geovalla","thermalWarning":"¡ADVERTENCIA DE TEMPERATURA!"},"en":{"title":"Quantum Nexus Jcob. Panama","subtitle":"High-Security Offshore Certification on Solana Blockchain","creator":"Patent Prototype & System Simulator","author":"Dr. Julio César Oporta Barrera","patentInfo":"Null certification process with geofencing (Patent Pending)","offshoreDoc":"Revolutionizing Offshore Certifications with Blockchain in Panama","downloadHtml":"Download Offline 3D Prototype (.html)","downloadSuccess":"Standalone prototype downloaded! You can send it by email or WhatsApp and double-click to open on any computer without internet.","offlineNotice":"This prototype is designed to run 100% offline with no installations required.","interactiveSimulator":"Interactive Network Simulator","tacticalHud":"Real-Time Tactical HUD","swarmAi":"Swarm AI","hybridEnergy":"Hybrid Energy","biomechanics":"Biomechanics","physicsModular":"Modular Physics","operationalModes":"Operational Modes","advancedShaders":"Advanced Shaders","arMode":"Augmented Reality (AR)","arModeDesc":"Visualize the prototype on your workspace table using the camera","arCameraPermission":"Enable camera for AR mode","arCameraActive":"Camera Active - Simulating Hologram Projection on Desk","arCameraInactive":"Camera disabled","startSimulation":"Start Dynamic Simulation","stopSimulation":"Pause Simulation","generatingCertification":"Generating Geofenced Certificate...","certSuccess":"Certificate Recorded on Blockchain!","currentHash":"Immutable Hash (SHA-256)","nodeSystem":"AI Node System (Panama)","nodeStatus":"Node Status","active":"Active","syncing":"Syncing","offline":"Offline","nodeLoad":"Network Load","nodeEnergy":"Energy Level","triggerBlock":"Issue Null Certification","blockChainHeight":"Blockchain Height (Solana)","avgLatency":"Average Latency","activeTransactions":"Active Transactions","stealthMode":"Stealth Mode","tacticalMode":"Tactical Mode","calibrationMode":"Calibration Mode","diagnosticMode":"Diagnostic Mode","selectLanguage":"Select Language","close":"Close","howToUse":"Patent Usage Instructions","howToUseDesc":"1. Receive random coordinates in Panama. 2. Navigate to the location. 3. Capture photo with GPS stamp. 4. Photo generates SHA-256 hash in 50ms and self-destructs. 5. Hash is immutably stored in Solana.","panamaCanal":"Panama Canal (Logistics)","colonFreeZone":"Colon Free Zone (Trade)","awsCloud":"AWS Secondary Cloud (Redundancy)","cityOfKnowledge":"City of Knowledge (Main HQ)","balboa":"Balboa Avenue (Financial Node)","calle50":"Calle 50 (Central Banking)","metrics":"Quantum Nexus Metrics","systemLog":"Swarm AI Activity Log","bioMechanicalJoint":"Biomechanical Joint","swarmParticles":"Swarm Particles","energyFlow":"Hybrid Energy Flow","moduleBioEnergy":"Biomechanical Hybrid Energy","modulePhysicsModular":"Modular Physics Field","hudTelemetry":"Extended Telemetry","hudPerformance":"Quantum Performance","nodeInspector":"Detailed Node Inspector","syncRate":"Synchronization Rate","fieldIntensity":"Field Intensity","frequency":"Resonant Frequency","commandInjector":"AI Command Injector","runStressTest":"Solana Stress Test","resetKeys":"Reset Quantum Keys","injectPulse":"Inject Plasma Pulse","calibrateJoints":"Calibrate Bio-Motors","telemetryStability":"Field Stability","telemetryResonance":"Synaptic Resonance","telemetryStress":"Physical Stress Factor","nodeDetails":"Technical Details","closeInspector":"Close Inspector","clickToInspect":"Select any node to inspect technical specifications and re-orient the 3D simulator.","modularSubsystem":"Advanced Subsystems","atmosphericInterference":"Atmospheric Interference","networkCongestion":"Network Congestion","coreTemperature":"Core Temperature","oscilloscopeTitle":"Quantum Wave Analyzer","cameraPresets":"Camera Alignment","presetTop":"Top View (2D)","presetIsometric":"Isometric View","presetOrbit":"Free Orbit","presetClose":"Focus Node","geofenceTelemetry":"Geofence Telemetry","thermalWarning":"CORE TEMPERATURE WARNING!"},"zh":{"title":"Quantum Nexus Jcob. 巴拿马","subtitle":"Solana 区块链上的高安全离岸认证系统","creator":"专利原型与系统模拟器","author":"Dr. Julio César Oporta Barrera (朱利奥·塞萨尔·奥波塔·巴雷拉 博士)","patentInfo":"带地理围栏的无认证流程 (专利申请中)","offshoreDoc":"巴拿马区块链离岸认证的革命性演进","downloadHtml":"下载离线3D交互原型 (.html)","downloadSuccess":"独立原型已成功下载！您可以通过电子邮件或微信/WhatsApp发送此文件，在任何无网电脑上双击即可直接运行3D交互模拟。","offlineNotice":"该原型专为100%离线运行而设计，无需任何额外安装或网络连接。","interactiveSimulator":"交互式网络模拟器","tacticalHud":"实时战术 HUD 面板","swarmAi":"集群人工智能 (Swarm AI)","hybridEnergy":"混合能源系统","biomechanics":"生物力学结构","physicsModular":"模块化物理系统","operationalModes":"系统运行模式","advancedShaders":"高级渲染着色器","arMode":"增强现实 (AR 投影)","arModeDesc":"调用摄像头将3D原型全息投影在您的工作桌面上","arCameraPermission":"开启摄像头以启用AR投影模式","arCameraActive":"摄像头已开启 - 正在模拟工作台全息投影","arCameraInactive":"摄像头已关闭","startSimulation":"启动动态模拟","stopSimulation":"暂停模拟","generatingCertification":"正在生成地理围栏安全证书...","certSuccess":"证书已成功写入区块链！","currentHash":"不可篡改哈希 (SHA-256)","nodeSystem":"AI节点网络 (巴拿马)","nodeStatus":"节点状态","active":"活跃","syncing":"同步中","offline":"离线","nodeLoad":"网络负载","nodeEnergy":"能源储备","triggerBlock":"触发零认证流程","blockChainHeight":"区块高度 (Solana)","avgLatency":"平均网络延迟","activeTransactions":"活动交易数","stealthMode":"隐形防卫模式 (Stealth)","tacticalMode":"战术攻防模式 (Tactical)","calibrationMode":"精密校准模式 (Calibration)","diagnosticMode":"系统诊断模式 (Diagnostic)","selectLanguage":"切换语言 (Language)","close":"关闭","howToUse":"专利流程说明","howToUseDesc":"1. 接收巴拿马境内的随机校验坐标。2. 移动至指定地点。3. 拍摄带GPS水印的水印照片。4. 50毫秒内生成SHA-256哈希，照片随即自毁。5. 将哈希值永久且不可篡改地注册于Solana链上。","panamaCanal":"巴拿马运河 (物流核心)","colonFreeZone":"科隆自由贸易区 (贸易节点)","awsCloud":"AWS二级云 (容灾冗余)","cityOfKnowledge":"知识城 (研发总部)","balboa":"巴尔博亚大道 (金融中心)","calle50":"50号公路 (银行枢纽)","metrics":"Quantum Nexus 核心指标","systemLog":"集群智能 control-panel 日志","bioMechanicalJoint":"生物力学关节","swarmParticles":"集群微粒","energyFlow":"混合能流","moduleBioEnergy":"生物力学混合能源","modulePhysicsModular":"模块化物理力场","hudTelemetry":"扩展远端遥测","hudPerformance":"量子计算性能","nodeInspector":"节点高级分析器","syncRate":"生物同步速率","fieldIntensity":"物理磁场强度","frequency":"谐振工作频率","commandInjector":"智能命令注入器","runStressTest":"Solana 压力测试","resetKeys":"重置量子秘钥","injectPulse":"注入等离子脉冲","calibrateJoints":"校准生物马达","telemetryStability":"力场几何稳定性","telemetryResonance":"突触能量共振","telemetryStress":"物理结构应力因子","nodeDetails":"详细技术规格","closeInspector":"关闭分析器","clickToInspect":"点击任意节点以启动 3D 对焦并检查高级遥测指标。","modularSubsystem":"高级物理子系统","atmosphericInterference":"大气层干扰","networkCongestion":"网络拥堵","coreTemperature":"核心温度","oscilloscopeTitle":"量子波形分析仪","cameraPresets":"相机视图预设","presetTop":"俯视图 (2D)","presetIsometric":"等距视图","presetOrbit":"自由轨道","presetClose":"对焦节点","geofenceTelemetry":"地理围栏遥测","thermalWarning":"核心温度过热警告！"}};
+    let currentLang = "es";
+
+    // Nodes Data
+    const nodes = [
+      { id: '1', name: 'Ciudad del Saber', desc: 'Sede Principal - 10 Nodos', lat: 9.0011, lng: -79.5842, type: 'core', load: 45, energy: 98, status: 'active' },
+      { id: '2', name: 'Canal de Panamá', desc: 'Sello Geográfico Marítimo', lat: 8.9862, lng: -79.5910, type: 'core', load: 38, energy: 95, status: 'active' },
+      { id: '3', name: 'Zona Libre de Colón', desc: 'Validación Comercial Logística', lat: 9.3564, lng: -79.9015, type: 'core', load: 62, energy: 88, status: 'active' },
+      { id: '4', name: 'Avenida Balboa', desc: 'Finanzas Transaccionales', lat: 8.9745, lng: -79.5290, type: 'local', load: 50, energy: 92, status: 'active' },
+      { id: '5', name: 'Calle 50', desc: 'Banca Internacional', lat: 8.9803, lng: -79.5195, type: 'local', load: 55, energy: 90, status: 'active' },
+      { id: '6', name: 'AWS Cloud Secondary', desc: 'Redundancia Multiregión', lat: 10.5000, lng: -78.2000, type: 'backup', load: 12, energy: 100, status: 'syncing' }
+    ];
+
+    // Simulation & UI State
+    let isSimulating = true;
+    let isARActive = false;
+    let currentMode = 'tactical'; // stealth, tactical, calibration, diagnostic
+    let blockchainHeight = 148209114;
+    let activeTransactions = 4810;
+    let avgLatency = 8.4;
+    
+    // Interactive Simulation Variables (Sliders)
+    let bioSyncRate = 55;
+    let couplingFrequency = 65;
+    let physicsFieldIntensity = 45;
+    let selectedNodeId = null;
+
+    // Camera perspective interpolation variables
+    let yaw = 0.5;
+    let pitch = -0.3;
+    let zoom = 1.0;
+    let cameraRadius = 1.0;
+    let targetRadius = 1.0;
+    
+    let isDragging = false;
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+    let targetYaw = yaw;
+    let targetPitch = pitch;
+
+    let targetLookX = 0;
+    let targetLookY = 0;
+    let targetLookZ = 0;
+    let currentLookX = 0;
+    let currentLookY = 0;
+    let currentLookZ = 0;
+
+    // Canvas WebGL-styled pure HTML5 Vector projection Engine
+    const canvas = document.getElementById('canvas3d');
+    const ctx = canvas.getContext('2d');
+    const video = document.getElementById('ar-video');
+
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Mouse Controls for 3D Camera Orbiting
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - lastMouseX;
+      const dy = e.clientY - lastMouseY;
+      targetYaw += dx * 0.007;
+      targetPitch += dy * 0.007;
+      // Clamp pitch to avoid gimbal lock
+      targetPitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, targetPitch));
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+    });
+
+    window.addEventListener('mouseup', () => { isDragging = false; });
+    
+    // Touch Controls for Mobile Orbiting
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        lastMouseX = e.touches[0].clientX;
+        lastMouseY = e.touches[0].clientY;
+      }
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (!isDragging || e.touches.length !== 1) return;
+      const dx = e.touches[0].clientX - lastMouseX;
+      const dy = e.touches[0].clientY - lastMouseY;
+      targetYaw += dx * 0.01;
+      targetPitch += dy * 0.01;
+      targetPitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, targetPitch));
+      lastMouseX = e.touches[0].clientX;
+      lastMouseY = e.touches[0].clientY;
+    });
+
+    canvas.addEventListener('touchend', () => { isDragging = false; });
+
+    // Trackpad / Wheel zoom handling
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      zoom = Math.max(0.5, Math.min(2.5, zoom - e.deltaY * 0.001));
+    });
+
+    // 3D Matrix Projection Library with Custom LookAt Focus Points
+    function project3D(x, y, z) {
+      // 1. Shift coordinates relative to lookAt center
+      let sx = x - currentLookX;
+      let sy = y - currentLookY;
+      let sz = z - currentLookZ;
+
+      // 2. Y-Rotation (Yaw)
+      let x1 = sx * Math.cos(yaw) - sz * Math.sin(yaw);
+      let z1 = sx * Math.sin(yaw) + sz * Math.cos(yaw);
+      let y1 = sy;
+
+      // 3. X-Rotation (Pitch)
+      let y2 = y1 * Math.cos(pitch) - z1 * Math.sin(pitch);
+      let z2 = y1 * Math.sin(pitch) + z1 * Math.cos(pitch);
+      let x2 = x1;
+
+      // Perspective projection
+      const cameraZ = 300;
+      // Combine zoom factor and dynamic camera focus scaling
+      const scale = (cameraZ / (cameraZ + z2)) * zoom * cameraRadius;
+      const projX = canvas.width / 2 + x2 * 120 * scale;
+      const projY = canvas.height / 2 + y2 * 120 * scale;
+
+      return { x: projX, y: projY, visible: z2 > -cameraZ, scale: scale };
+    }
+
+    // Swarm AI Particles
+    const swarmParticles = [];
+    for(let i=0; i<40; i++) {
+      swarmParticles.push({
+        x: (Math.random() - 0.5) * 2,
+        y: (Math.random() - 0.5) * 2,
+        z: (Math.random() - 0.5) * 2,
+        vx: (Math.random() - 0.5) * 0.012,
+        vy: (Math.random() - 0.5) * 0.012,
+        vz: (Math.random() - 0.5) * 0.012,
+        pulse: Math.random()
+      });
+    }
+
+    // Hybrid Energy Flow rings
+    const energyWaves = [
+      { r: 0.2, speed: 0.008, val: 0.1 },
+      { r: 0.5, speed: 0.005, val: 0.4 },
+      { r: 0.8, speed: 0.003, val: 0.7 }
+    ];
+
+    // Force expansion wave for block emission or command injection
+    let blockExpansionWave = 0; // 0 to 1.5
+
+    // Simulated scanner line
+    let scannerY = 0;
+    let scannerDir = 1;
+
+    // Advanced modular physics geometries (rotating octahedron for top of tower)
+    const octaVertices = [
+      { x: 0, y: -0.42, z: 0 }, // Top
+      { x: 0, y: 0.42, z: 0 },  // Bottom
+      { x: 0.32, y: 0, z: 0 },  // Ring 1
+      { x: 0, y: 0, z: 0.32 },  // Ring 2
+      { x: -0.32, y: 0, z: 0 }, // Ring 3
+      { x: 0, y: 0, z: -0.32 }  // Ring 4
+    ];
+
+    // Core Animation loop
+    let tick = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+      tick++;
+
+      // Smooth camera yaw/pitch transitions
+      yaw += (targetYaw - yaw) * 0.08;
+      pitch += (targetPitch - pitch) * 0.08;
+
+      // Smooth look-at translations
+      currentLookX += (targetLookX - currentLookX) * 0.05;
+      currentLookY += (targetLookY - currentLookY) * 0.05;
+      currentLookZ += (targetLookZ - currentLookZ) * 0.05;
+
+      // Smooth camera radial focal zoom
+      cameraRadius += (targetRadius - cameraRadius) * 0.05;
+
+      if (isSimulating) {
+        blockchainHeight += Math.random() > 0.7 ? 1 : 0;
+        
+        // Slightly fluctuate parameters
+        let stressCoeff = document.getElementById('ibtn-stress').classList.contains('active-diagnostic') ? 2.2 : 1.0;
+        activeTransactions = Math.floor((4500 + Math.sin(tick * 0.015) * 350 + Math.random() * 50) * stressCoeff);
+        avgLatency = +( (8.2 + Math.sin(tick * 0.05) * 0.3 + Math.random() * 0.1) * stressCoeff ).toFixed(2);
+        
+        // Update Stats DOM
+        document.getElementById('stat-height').textContent = blockchainHeight.toLocaleString();
+        document.getElementById('stat-latency').textContent = avgLatency + " ms";
+        document.getElementById('stat-tx').textContent = activeTransactions.toLocaleString();
+
+        // Update Nodes Load dynamically
+        nodes.forEach(n => {
+          if (n.status === 'active') {
+            n.load = Math.max(20, Math.min(95, Math.floor(n.load + (Math.random() - 0.5) * 3)));
+            n.energy = Math.max(80, Math.min(100, Math.floor(n.energy + (Math.random() - 0.5) * 1.5)));
+          }
+        });
+        updateNodesUI();
+
+        // Swarm logic
+        swarmParticles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.z += p.vz;
+          p.pulse += 0.02;
+
+          // Boundary bounce
+          if (Math.abs(p.x) > 1.2) p.vx *= -1;
+          if (Math.abs(p.y) > 1.2) p.vy *= -1;
+          if (Math.abs(p.z) > 1.2) p.vz *= -1;
+        });
+
+        // Energy waves
+        energyWaves.forEach(w => {
+          w.val += w.speed;
+          if (w.val > 1.0) w.val = 0;
+        });
+
+        if (blockExpansionWave > 0) {
+          blockExpansionWave += 0.035;
+          if (blockExpansionWave > 1.5) blockExpansionWave = 0;
+        }
+
+        // Scanner line animation
+        scannerY += 0.01 * scannerDir;
+        if (Math.abs(scannerY) > 1.1) scannerDir *= -1;
+      }
+
+      // Render Scene
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Render holographic grids / scanner based on Mode colors
+      let colorPrimary = 'rgba(79, 195, 247, 0.8)';
+      let colorPrimaryLight = 'rgba(79, 195, 247, 0.25)';
+      let colorAccent = '#4FC3F7';
+      let colorHexAccent = 0x4FC3F7;
+
+      if (currentMode === 'stealth') {
+        colorPrimary = 'rgba(38, 166, 154, 0.8)';
+        colorPrimaryLight = 'rgba(38, 166, 154, 0.15)';
+        colorAccent = '#26A69A';
+      } else if (currentMode === 'calibration') {
+        colorPrimary = 'rgba(213, 0, 249, 0.8)';
+        colorPrimaryLight = 'rgba(213, 0, 249, 0.15)';
+        colorAccent = '#D500F9';
+      } else if (currentMode === 'diagnostic') {
+        colorPrimary = 'rgba(0, 230, 118, 0.8)';
+        colorPrimaryLight = 'rgba(0, 230, 118, 0.15)';
+        colorAccent = '#00E676';
+      }
+
+      // Draw 3D Base Grid Map
+      ctx.lineWidth = 1;
+      const gridSize = 1.4;
+      const gridSteps = 12;
+
+      for (let i = -gridSteps; i <= gridSteps; i++) {
+        let p1 = project3D((i / gridSteps) * gridSize, 1.0, -gridSize);
+        let p2 = project3D((i / gridSteps) * gridSize, 1.0, gridSize);
+        if (p1.visible && p2.visible) {
+          ctx.strokeStyle = colorPrimaryLight;
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+        }
+
+        let p3 = project3D(-gridSize, 1.0, (i / gridSteps) * gridSize);
+        let p4 = project3D(gridSize, 1.0, (i / gridSteps) * gridSize);
+        if (p3.visible && p4.visible) {
+          ctx.strokeStyle = colorPrimaryLight;
+          ctx.beginPath();
+          ctx.moveTo(p3.x, p3.y);
+          ctx.lineTo(p4.x, p4.y);
+          ctx.stroke();
+        }
+      }
+
+      // Draw Geovallado / Panama Isthmus Outline in 3D Space
+      ctx.lineWidth = 2.0;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.beginPath();
+      const mapPoints = [];
+      const steps = 24;
+      for (let i = 0; i <= steps; i++) {
+        const tVal = i / steps;
+        const px = (tVal - 0.5) * 2.2;
+        const pz = Math.sin(tVal * Math.PI) * 0.45 - Math.cos(tVal * Math.PI * 1.5) * 0.2;
+        const py = 1.0;
+        mapPoints.push({ x: px, y: py, z: pz });
+      }
+
+      for (let i = 0; i < mapPoints.length - 1; i++) {
+        let pA = project3D(mapPoints[i].x, mapPoints[i].y, mapPoints[i].z);
+        let pB = project3D(mapPoints[i+1].x, mapPoints[i+1].y, mapPoints[i+1].z);
+        if (pA.visible && pB.visible) {
+          ctx.strokeStyle = colorPrimaryLight;
+          ctx.beginPath();
+          ctx.moveTo(pA.x, pA.y);
+          ctx.lineTo(pB.x, pB.y);
+          ctx.stroke();
+        }
+      }
+
+      // Draw Quantum Nexus Server Tower
+      const towerHeight = 1.8;
+      const towerRadius = 0.35;
+      const ringsCount = 6;
+      ctx.lineWidth = 1.5;
+
+      for (let r = 0; r < ringsCount; r++) {
+        const hOffset = -towerHeight * (r / (ringsCount - 1)) + 0.8;
+        const rotSpeed = 0.02 * (r % 2 === 0 ? 1 : -1) * tick;
+
+        const circlePoints = [];
+        const segments = 16;
+        for (let s = 0; s <= segments; s++) {
+          const angle = (s / segments) * Math.PI * 2 + rotSpeed;
+          const px = Math.cos(angle) * towerRadius;
+          const pz = Math.sin(angle) * towerRadius;
+          circlePoints.push(project3D(px, hOffset, pz));
+        }
+
+        ctx.strokeStyle = r === 0 || r === ringsCount - 1 ? colorAccent : colorPrimaryLight;
+        ctx.beginPath();
+        for (let s = 0; s < circlePoints.length; s++) {
+          if (circlePoints[s].visible) {
+            if (s === 0) ctx.moveTo(circlePoints[s].x, circlePoints[s].y);
+            else ctx.lineTo(circlePoints[s].x, circlePoints[s].y);
+          }
+        }
+        ctx.stroke();
+
+        if (r < ringsCount - 1) {
+          const nextHOffset = -towerHeight * ((r + 1) / (ringsCount - 1)) + 0.8;
+          for (let c = 0; c < 4; c++) {
+            const angle = (c / 4) * Math.PI * 2 + (0.005 * tick);
+            const pBase = project3D(Math.cos(angle) * towerRadius, hOffset, Math.sin(angle) * towerRadius);
+            const pTop = project3D(Math.cos(angle) * towerRadius, nextHOffset, Math.sin(angle) * towerRadius);
+            if (pBase.visible && pTop.visible) {
+              ctx.strokeStyle = 'rgba(176, 190, 197, 0.4)';
+              ctx.beginPath();
+              ctx.moveTo(pBase.x, pBase.y);
+              ctx.lineTo(pTop.x, pTop.y);
+              ctx.stroke();
+            }
+          }
+        }
+      }
+
+      // Draw Biomechanical Rotational Joint
+      const jointAngle = tick * 0.015;
+      const armLength = 0.65;
+      const pJointBase = project3D(0, 0, 0);
+      const pJointEnd = project3D(Math.cos(jointAngle) * armLength, -0.2, Math.sin(jointAngle) * armLength);
+      const pJointEnd2 = project3D(Math.cos(jointAngle + Math.PI) * armLength, 0.2, Math.sin(jointAngle + Math.PI) * armLength);
+
+      if (pJointBase.visible) {
+        if (pJointEnd.visible) {
+          ctx.strokeStyle = 'rgba(176, 190, 197, 0.8)';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(pJointBase.x, pJointBase.y);
+          ctx.lineTo(pJointEnd.x, pJointEnd.y);
+          ctx.stroke();
+
+          ctx.fillStyle = colorAccent;
+          ctx.beginPath();
+          ctx.arc(pJointEnd.x, pJointEnd.y, 4 * pJointEnd.scale, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        if (pJointEnd2.visible) {
+          ctx.strokeStyle = 'rgba(176, 190, 197, 0.8)';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(pJointBase.x, pJointBase.y);
+          ctx.lineTo(pJointEnd2.x, pJointEnd2.y);
+          ctx.stroke();
+
+          ctx.fillStyle = '#D500F9';
+          ctx.beginPath();
+          ctx.arc(pJointEnd2.x, pJointEnd2.y, 4 * pJointEnd2.scale, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // [ADDITION 1] 3D Biomechanical double-helix spiral particles matching the slider
+      const helixRadius = 0.55 + Math.sin(tick * 0.03) * 0.05;
+      const helixHeight = 1.6;
+      const helixSpeed = 0.01 + (bioSyncRate / 100) * 0.03;
+      const helixParticlesCount = 15;
+      
+      for (let i = 0; i < helixParticlesCount; i++) {
+        const progress = i / (helixParticlesCount - 1);
+        const yCoord = -helixHeight/2 + progress * helixHeight;
+        
+        // Strand A
+        const angleA = tick * helixSpeed + progress * Math.PI * 2.5;
+        const pAx = Math.cos(angleA) * helixRadius;
+        const pAz = Math.sin(angleA) * helixRadius;
+        const projA = project3D(pAx, yCoord, pAz);
+        
+        // Strand B
+        const angleB = angleA + Math.PI;
+        const pBx = Math.cos(angleB) * helixRadius;
+        const pBz = Math.sin(angleB) * helixRadius;
+        const projB = project3D(pBx, yCoord, pBz);
+        
+        if (projA.visible) {
+          ctx.fillStyle = colorAccent;
+          ctx.beginPath();
+          ctx.arc(projA.x, projA.y, 2.5 * projA.scale, 0, Math.PI*2);
+          ctx.fill();
+        }
+        if (projB.visible) {
+          ctx.fillStyle = '#26A69A';
+          ctx.beginPath();
+          ctx.arc(projB.x, projB.y, 2.5 * projB.scale, 0, Math.PI*2);
+          ctx.fill();
+        }
+
+        // Draw horizontal bridges between helices representing coupling links
+        if (projA.visible && projB.visible && i % 2 === 0) {
+          ctx.strokeStyle = 'rgba(176,190,197,0.3)';
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(projA.x, projA.y);
+          ctx.lineTo(projB.x, projB.y);
+          ctx.stroke();
+        }
+      }
+
+      // [ADDITION 2] 3D Physics Field Modular Generator (Floating rotating Octahedron at top)
+      const fieldIntensityCoeff = 0.5 + (physicsFieldIntensity / 100) * 0.8;
+      const physicsSpinSpeed = 0.005 + (couplingFrequency / 100) * 0.045;
+      const octaSpin = tick * physicsSpinSpeed;
+      const octaY = -1.25; // top of server core area
+
+      // Rotate and project octahedron vertices
+      const projOcta = octaVertices.map(v => {
+        // Rotate around Y
+        let rx1 = v.x * Math.cos(octaSpin) - v.z * Math.sin(octaSpin);
+        let rz1 = v.x * Math.sin(octaSpin) + v.z * Math.cos(octaSpin);
+        let ry1 = v.y;
+
+        // Apply scale matching the field intensity coefficient slider
+        return project3D(rx1 * fieldIntensityCoeff, ry1 * fieldIntensityCoeff + octaY, rz1 * fieldIntensityCoeff);
+      });
+
+      // Octahedron face definitions
+      const octaFaces = [
+        [0, 2, 3], [0, 3, 4], [0, 4, 5], [0, 5, 2], // Top 4 triangles
+        [1, 3, 2], [1, 4, 3], [1, 5, 4], [1, 2, 5]  // Bottom 4 triangles
+      ];
+
+      // Draw semitransparent wireframe octahedron faces
+      ctx.lineWidth = 1;
+      octaFaces.forEach(f => {
+        const p1 = projOcta[f[0]];
+        const p2 = projOcta[f[1]];
+        const p3 = projOcta[f[2]];
+        
+        if (p1.visible && p2.visible && p3.visible) {
+          ctx.fillStyle = 'rgba(213, 0, 249, 0.08)';
+          ctx.strokeStyle = 'rgba(213, 0, 249, 0.4)';
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.lineTo(p3.x, p3.y);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+      });
+
+      // Render outer cage orbit line
+      const cagePoints = [];
+      const cageSteps = 20;
+      const cageRadius = 0.5 * fieldIntensityCoeff;
+      for (let s = 0; s <= cageSteps; s++) {
+        const ang = (s / cageSteps) * Math.PI * 2;
+        cagePoints.push(project3D(Math.cos(ang) * cageRadius, octaY, Math.sin(ang) * cageRadius));
+      }
+      ctx.strokeStyle = 'rgba(79, 195, 247, 0.3)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      cagePoints.forEach((p, idx) => {
+        if (p.visible) {
+          if (idx === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        }
+      });
+      ctx.stroke();
+
+      // [ADDITION 3] Selected Node Target Reticle (High-tech red tracking rings & radar scan cone)
+      if (selectedNodeId) {
+        const activeNode = nodes.find(n => n.id === selectedNodeId);
+        if (activeNode) {
+          const mapX = ((activeNode.lng - (-80.5)) / 3.0) * 1.4;
+          const mapZ = -((activeNode.lat - 8.5) / 1.5) * 0.6;
+          const mapY = 1.0;
+
+          // Draw flat targeted circle flat on map floor
+          const ringRad = 0.16 + Math.sin(tick * 0.1) * 0.02;
+          const circleSteps = 16;
+          ctx.strokeStyle = '#FF1744';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          for (let s = 0; s <= circleSteps; s++) {
+            const ang = (s / circleSteps) * Math.PI * 2;
+            const cx = mapX + Math.cos(ang) * ringRad;
+            const cz = mapZ + Math.sin(ang) * ringRad;
+            const cp = project3D(cx, mapY, cz);
+            if (cp.visible) {
+              if (s === 0) ctx.moveTo(cp.x, cp.y);
+              else ctx.lineTo(cp.x, cp.y);
+            }
+          }
+          ctx.stroke();
+
+          // Draw vertical radar scan cone pointing to node
+          const pBase = project3D(mapX, mapY, mapZ);
+          const pApex = project3D(mapX, mapY - 0.5, mapZ);
+          if (pBase.visible && pApex.visible) {
+            ctx.strokeStyle = 'rgba(255, 23, 68, 0.25)';
+            ctx.lineWidth = 1;
+            // Draw lines forming a beautiful telemetry cone
+            for (let c = 0; c < 4; c++) {
+              const ang = (c / 4) * Math.PI * 2 + tick * 0.02;
+              const cx = mapX + Math.cos(ang) * ringRad;
+              const cz = mapZ + Math.sin(ang) * ringRad;
+              const cp = project3D(cx, mapY, cz);
+              if (cp.visible) {
+                ctx.beginPath();
+                ctx.moveTo(pApex.x, pApex.y);
+                ctx.lineTo(cp.x, cp.y);
+                ctx.stroke();
+              }
+            }
+          }
+        }
+      }
+
+      // Draw Hybrid Energy Wave spheres/rings
+      energyWaves.forEach(w => {
+        const ringRadius = w.val * 1.5;
+        const pRingCenter = project3D(0, 0, 0);
+        if (pRingCenter.visible) {
+          ctx.strokeStyle = "rgba(79, 195, 247, " + Math.max(0, 1 - w.val) + ")";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(pRingCenter.x, pRingCenter.y, ringRadius * 120 * pRingCenter.scale, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      });
+
+      // Draw Force wave on successful certification block or command injection
+      if (blockExpansionWave > 0) {
+        const pCenter = project3D(0, 0, 0);
+        if (pCenter.visible) {
+          ctx.strokeStyle = "rgba(0, 229, 255, " + Math.max(0, 1 - blockExpansionWave) + ")";
+          ctx.lineWidth = Math.max(0.5, 8 * (1 - blockExpansionWave));
+          ctx.beginPath();
+          ctx.arc(pCenter.x, pCenter.y, blockExpansionWave * 250 * pCenter.scale, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+
+      // Draw AI Swarm Particles
+      swarmParticles.forEach((p, idx) => {
+        let p3d = project3D(p.x, p.y, p.z);
+        if (p3d.visible) {
+          ctx.fillStyle = colorAccent;
+          ctx.beginPath();
+          ctx.arc(p3d.x, p3d.y, (3 + Math.sin(p.pulse) * 1.5) * p3d.scale, 0, Math.PI*2);
+          ctx.fill();
+
+          if (idx < swarmParticles.length - 1) {
+            let next3d = project3D(swarmParticles[idx+1].x, swarmParticles[idx+1].y, swarmParticles[idx+1].z);
+            let dist = Math.sqrt(Math.pow(p.x - swarmParticles[idx+1].x, 2) + Math.pow(p.y - swarmParticles[idx+1].y, 2));
+            if (next3d.visible && dist < 0.6) {
+              ctx.strokeStyle = "rgba(79, 195, 247, " + Math.max(0, (1 - dist/0.6) * 0.3) + ")";
+              ctx.lineWidth = 0.5;
+              ctx.beginPath();
+              ctx.moveTo(p3d.x, p3d.y);
+              ctx.lineTo(next3d.x, next3d.y);
+              ctx.stroke();
+            }
+          }
+        }
+      });
+
+      // Draw Node Coordinates in Panama Map
+      nodes.forEach(n => {
+        const mapX = ((n.lng - (-80.5)) / 3.0) * 1.4;
+        const mapZ = -((n.lat - 8.5) / 1.5) * 0.6;
+        const mapY = 1.0;
+
+        let pNode = project3D(mapX, mapY, mapZ);
+        if (pNode.visible) {
+          ctx.fillStyle = n.id === '6' ? '#D500F9' : (selectedNodeId === n.id ? '#FF1744' : colorAccent);
+          ctx.beginPath();
+          ctx.arc(pNode.x, pNode.y, (selectedNodeId === n.id ? 8 : 6) * pNode.scale, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = n.id === '6' ? 'rgba(213, 0, 249, 0.25)' : 'rgba(79, 195, 247, 0.2)';
+          ctx.lineWidth = 1;
+          const pTowerBase = project3D(0, 0.4, 0);
+          if (pTowerBase.visible) {
+            ctx.beginPath();
+            ctx.moveTo(pTowerBase.x, pTowerBase.y);
+            ctx.lineTo(pNode.x, pNode.y);
+            ctx.stroke();
+          }
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = '9px monospace';
+          ctx.fillText(n.name, pNode.x + 8, pNode.y + 3);
+        }
+      });
+
+      // Advanced Cybernetic Scanning line
+      let pTopLine = project3D(-1.2, scannerY, -1.2);
+      let pBottomLine = project3D(1.2, scannerY, 1.2);
+      if (pTopLine.visible && pBottomLine.visible) {
+        ctx.strokeStyle = "rgba(79, 195, 247, " + (0.1 + Math.abs(Math.sin(tick*0.1)) * 0.15) + ")";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, pTopLine.y);
+        ctx.lineTo(canvas.width, pBottomLine.y);
+        ctx.stroke();
+      }
+    }
+
+    // Start App
+    setTimeout(() => {
+      addLog("SYSTEM INITIALIZED", "term-cyan");
+      addLog("10 NODES SYNCED IN CIUDAD DEL SABER [64GB RAM, 1TB SSD]", "term-cyan");
+      addLog("SOLANA SMART CONTRACT LISTENING ON: 59JmKzV...", "term-magenta");
+      addLog("GEO-IMMUTABLE PROTOCOL IN PLACE", "term-cyan");
+      addLog("SWARM AI STABLE - STANDBY", "term-cyan");
+
+      updateNodesUI();
+      animate();
+    }, 100);
+
+    // Terminal Logging
+    function addLog(text, className) {
+      const term = document.getElementById('terminal');
+      const timeStr = new Date().toISOString().slice(11, 19);
+      const line = document.createElement('div');
+      line.className = 'term-line ' + (className || '');
+      line.innerHTML = "<span style='color:#555'>[" + timeStr + "]</span> Nexus_Jcob_Hub: " + text;
+      term.appendChild(line);
+      term.scrollTop = term.scrollHeight;
+
+      if (term.childNodes.length > 50) {
+        term.removeChild(term.firstChild);
+      }
+    }
+
+    // Update Node HUD
+    function updateNodesUI() {
+      const container = document.getElementById('node-list-container');
+      container.innerHTML = '';
+      nodes.forEach(n => {
+        const row = document.createElement('div');
+        row.className = 'node-row ' + (n.type === 'core' ? 'core' : 'backup') + (selectedNodeId === n.id ? ' selected-node' : '');
+        row.setAttribute('onclick', 'selectNode("' + n.id + '")');
+        
+        row.innerHTML = '<div class="node-info">' +
+            '<span class="node-name">' + n.name + '</span>' +
+            '<span class="node-desc">' + n.desc + '</span>' +
+          '</div>' +
+          '<div class="node-indicator">' +
+            '<span style="color:#888">' + n.load + '% CPU</span>' +
+            '<span class="dot pulse" style="background-color: ' + (n.status === "active" ? "#00E676" : n.status === "syncing" ? "#FFD600" : "#FF1744") + '"></span>' +
+          '</div>';
+        container.appendChild(row);
+      });
+    }
+
+    // Interactive Slider updates
+    function updateBioEnergy(val) {
+      bioSyncRate = val;
+      document.getElementById('val-bio-energy').textContent = val + "%";
+      // Render slider effects
+    }
+
+    function updatePhysModular(val) {
+      couplingFrequency = val;
+      document.getElementById('val-phys-modular').textContent = val + " GHz";
+    }
+
+    function updatePerfHud(val) {
+      physicsFieldIntensity = val;
+      document.getElementById('val-perf-hud').textContent = val + "%";
+    }
+
+    // Command Injector Triggers
+    function injectStressTest() {
+      addLog("INICIANDO PRUEBA DE ESTRÉS SOLANA EN TIEMPO REAL...", "term-warn");
+      const stressBtn = document.getElementById('ibtn-stress');
+      stressBtn.classList.add('active-diagnostic');
+      
+      setTimeout(() => {
+        stressBtn.classList.remove('active-diagnostic');
+        addLog("PRUEBA FINALIZADA: RENDIMIENTO ESTABLE - CERO CUELLOS DE BOTELLA", "term-cyan");
+      }, 3000);
+    }
+
+    function injectResetKeys() {
+      addLog("ROTANDO CLAVES CRIPTOGRÁFICAS CUÁNTICAS...", "term-magenta");
+      let randHash = Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join('');
+      addLog("NUEVAS CLAVES ASIGNADAS. ENTROPIA SHA-256 SEED FIRMA: " + randHash.substring(0, 16) + "...", "term-cyan");
+    }
+
+    function injectPulse() {
+      blockExpansionWave = 0.1;
+      addLog("¡ALERTA DE SEGURIDAD: INYECTANDO PULSO DE PLASMA EN NÚCLEO FÍSICO!", "term-warn");
+    }
+
+    function injectCalibrate() {
+      addLog("CALIBRANDO ARTICULACIONES BIOMECÁNICAS A TOLERANCIA FÍSICA CERO...", "term-cyan");
+    }
+
+    // Select node to inspect and focus camera
+    function selectNode(id) {
+      if (selectedNodeId === id) {
+        selectedNodeId = null;
+        targetLookX = 0;
+        targetLookY = 0;
+        targetLookZ = 0;
+        targetRadius = 1.0;
+        document.getElementById('inspector-details').innerHTML = '<div style="font-family: monospace; font-size: 10px; color: var(--silver-metal); text-align: center; padding: 6px 0;" id="lbl-inspect-prompt">' + languages[currentLang].clickToInspect + '</div>';
+        addLog("CÁMARA REORIENTADA AL NÚCLEO CENTRAL", "term-cyan");
+      } else {
+        selectedNodeId = id;
+        const n = nodes.find(item => item.id === id);
+        if (n) {
+          const mapX = ((n.lng - (-80.5)) / 3.0) * 1.4;
+          const mapZ = -((n.lat - 8.5) / 1.5) * 0.6;
+          const mapY = 1.0;
+
+          // Focalize lookAt vectors directly to geographic node coordinate
+          targetLookX = mapX;
+          targetLookY = mapY - 0.2;
+          targetLookZ = mapZ;
+          targetRadius = 0.72; // Zoom in perspective
+
+          // Fill detailed Node Inspector metrics inside HUD
+          const nodeLatVal = (avgLatency * (0.8 + (bioSyncRate / 100))).toFixed(1);
+          const resonanceVal = (couplingFrequency * 1.15).toFixed(1);
+          const stabilityVal = (physicsFieldIntensity * 0.98).toFixed(1);
+          const stressVal = (12 + (physicsFieldIntensity * 0.45)).toFixed(1);
+
+          document.getElementById('inspector-details').innerHTML = 
+            '<div class="inspector-row"><span class="inspector-lbl">NODO ACTIVO:</span><span class="inspector-val" style="color:var(--cyan-luminous)">' + n.name + '</span></div>' +
+            '<div class="inspector-row"><span class="inspector-lbl">COORDENADAS:</span><span class="inspector-val">' + n.lat.toFixed(4) + ', ' + n.lng.toFixed(4) + '</span></div>' +
+            '<div class="inspector-row"><span class="inspector-lbl">LATENCIA SOLANA:</span><span class="inspector-val">' + nodeLatVal + ' ms</span></div>' +
+            '<div class="inspector-row"><span class="inspector-lbl">' + languages[currentLang].telemetryResonance.toUpperCase() + ':</span><span class="inspector-val">' + resonanceVal + ' GHz</span></div>' +
+            '<div class="inspector-row"><span class="inspector-lbl">' + languages[currentLang].telemetryStability.toUpperCase() + ':</span><span class="inspector-val" style="color:#00E676">' + stabilityVal + '%</span></div>' +
+            '<div class="inspector-row"><span class="inspector-lbl">' + languages[currentLang].telemetryStress.toUpperCase() + ':</span><span class="inspector-val" style="color:#FF1744">' + stressVal + '%</span></div>' +
+            '<button class="btn" style="padding: 5px; font-size: 8px; margin-top: 8px;" onclick="closeInspector(event)">' + languages[currentLang].closeInspector.toUpperCase() + '</button>';
+
+          addLog("CÁMARA CON ENFOQUE EN NODO: " + n.name.toUpperCase(), "term-cyan");
+        }
+      }
+      updateNodesUI();
+    }
+
+    function closeInspector(e) {
+      if (e) e.stopPropagation();
+      selectedNodeId = null;
+      targetLookX = 0;
+      targetLookY = 0;
+      targetLookZ = 0;
+      targetRadius = 1.0;
+      document.getElementById('inspector-details').innerHTML = '<div style="font-family: monospace; font-size: 10px; color: var(--silver-metal); text-align: center; padding: 6px 0;" id="lbl-inspect-prompt">' + languages[currentLang].clickToInspect + '</div>';
+      updateNodesUI();
+    }
+
+    // Certify Function
+    function triggerCertify() {
+      addLog("EMITIENDO CERTIFICACIÓN NULA SOLICITADA...", "term-cyan");
+      const randomNode = nodes[Math.floor(Math.random() * 5)];
+      
+      const offsetLat = (Math.random() - 0.5) * 0.01;
+      const offsetLng = (Math.random() - 0.5) * 0.01;
+      const finalLat = (randomNode.lat + offsetLat).toFixed(4);
+      const finalLng = (randomNode.lng + offsetLng).toFixed(4);
+      
+      let randHash = Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join('');
+
+      addLog("GEOVALLADO CONFIRMADO EN " + randomNode.name + " (" + finalLat + ", " + finalLng + ")", "term-cyan");
+      addLog("GENERANDO HASH SHA-256 EN 50ms...", "term-cyan");
+      
+      blockExpansionWave = 0.1;
+
+      setTimeout(() => {
+        addLog("REGISTRANDO REGISTRO INMUTABLE EN SOLANA BLOCKCHAIN...", "term-magenta");
+        addLog("HASH: " + randHash.substring(0,20) + "...", "term-magenta");
+
+        document.getElementById('cert-val-loc').textContent = randomNode.name + ', Panamá';
+        document.getElementById('cert-val-gps').textContent = "Lat " + finalLat + ", Lng " + finalLng;
+        document.getElementById('cert-val-time').textContent = new Date().toISOString();
+        document.getElementById('cert-val-hash').textContent = randHash;
+        document.getElementById('cert-val-tx').textContent = "SolTrans_" + randHash.substring(0, 16) + "...";
+        
+        document.getElementById('cert-popup').classList.add('show');
+      }, 500);
+    }
+
+    function closeCertPopup() {
+      document.getElementById('cert-popup').classList.remove('show');
+      addLog("CERTIFICADO DESCARGADO Y VERIFICADO", "term-cyan");
+    }
+
+    // Toggle AR
+    function toggleAR() {
+      isARActive = !isARActive;
+      const btn = document.getElementById('btn-ar');
+      
+      if (isARActive) {
+        btn.textContent = "DESACTIVAR AR";
+        btn.classList.add('btn-active');
+        addLog("HABILITANDO PERMISOS DE CÁMARA PARA REALIDAD AUMENTADA...", "term-cyan");
+        
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+          .then(stream => {
+            video.srcObject = stream;
+            video.style.display = 'block';
+            addLog("MODO AR INICIADO: PROYECTANDO HOLOGRAMA SOBRE LA MESA", "term-cyan");
+          })
+          .catch(err => {
+            console.warn("Camera stream failed", err);
+            addLog("CÁMARA NO DISPONIBLE. SIMULANDO MODO AR...", "term-magenta");
+            video.style.display = 'none';
+            canvas.style.boxShadow = "inset 0 0 50px rgba(0, 229, 255, 0.4)";
+          });
+      } else {
+        btn.textContent = "Realidad Aumentada (AR)";
+        btn.classList.remove('btn-active');
+        video.style.display = 'none';
+        canvas.style.boxShadow = "none";
+        if (video.srcObject) {
+          video.srcObject.getTracks().forEach(track => track.stop());
+        }
+        addLog("MODO AR DESACTIVADO", "term-cyan");
+      }
+    }
+
+    // Set operational mode
+    function setMode(mode) {
+      currentMode = mode;
+      
+      document.getElementById('current-mode-lbl').textContent = mode.toUpperCase();
+      addLog("MODO DE OPERACIÓN CAMBIADO A: " + mode.toUpperCase(), "term-cyan");
+
+      const btns = ['tactical', 'stealth', 'calibration', 'diagnostic'];
+      btns.forEach(b => {
+        const el = document.getElementById('mbtn-' + b);
+        el.className = 'mode-btn';
+        if (b === mode) {
+          el.classList.add('active-' + b);
+        }
+      });
+    }
+
+    // Toggle Simulation
+    function toggleSimulation() {
+      isSimulating = !isSimulating;
+      const btn = document.getElementById('btn-sim');
+      if (isSimulating) {
+        btn.textContent = "Pausar Simulación";
+        btn.classList.remove('btn-active');
+        addLog("SIMULACIÓN DINÁMICA ACTIVADA", "term-cyan");
+      } else {
+        btn.textContent = "Iniciar Simulación Dinámica";
+        btn.classList.add('btn-active');
+        addLog("SIMULACIÓN PAUSADA - ESTADO CONGELADO", "term-magenta");
+      }
+    }
+
+    // Dynamic Multi-language Switcher fully working offline
+    function changeLanguage(langCode) {
+      currentLang = langCode;
+      const tr = languages[langCode];
+      
+      document.getElementById('creator-name').textContent = tr.author;
+      document.getElementById('project-title').textContent = tr.title;
+      document.getElementById('hud-title').textContent = tr.interactiveSimulator;
+      document.getElementById('hud-subtitle').textContent = tr.patentInfo;
+      document.getElementById('inst-title').textContent = tr.howToUse;
+      document.getElementById('inst-body').textContent = tr.howToUseDesc;
+      document.getElementById('btn-certify').textContent = tr.triggerBlock;
+      document.getElementById('btn-ar').textContent = isARActive ? (langCode === 'es' ? 'DESACTIVAR AR' : langCode === 'zh' ? '关闭AR' : 'DISABLE AR') : tr.arMode;
+      document.getElementById('btn-sim').textContent = isSimulating ? tr.stopSimulation : tr.startSimulation;
+      document.getElementById('lbl-modes').textContent = tr.operationalModes;
+      document.getElementById('lbl-metrics').textContent = tr.metrics;
+      document.getElementById('lbl-nodes').textContent = tr.nodeSystem;
+      document.getElementById('lbl-log').textContent = tr.systemLog;
+      document.getElementById('lbl-height').textContent = tr.blockChainHeight;
+      document.getElementById('lbl-latency').textContent = tr.avgLatency;
+      
+      document.getElementById('cert-pop-title').textContent = tr.certSuccess;
+
+      // Advanced Subsystems Sliders Lables
+      document.getElementById('lbl-subsystems').textContent = tr.modularSubsystem;
+      document.getElementById('lbl-bio-energy').textContent = tr.moduleBioEnergy;
+      document.getElementById('lbl-phys-modular').textContent = tr.modulePhysicsModular;
+      document.getElementById('lbl-perf-hud').textContent = tr.hudPerformance;
+      document.getElementById('desc-bio').textContent = tr.syncRate + ": Ajusta rotación del engranaje helicoidal";
+      document.getElementById('desc-phys').textContent = tr.frequency + ": Modula frecuencia del generador de campo cuántico";
+      document.getElementById('desc-perf').textContent = tr.fieldIntensity + ": Regula escala del blindaje geométrico";
+
+      // Command Injector
+      document.getElementById('lbl-injector').textContent = tr.commandInjector;
+      document.getElementById('ibtn-stress').textContent = tr.runStressTest;
+      document.getElementById('ibtn-keys').textContent = tr.resetKeys;
+      document.getElementById('ibtn-pulse').textContent = tr.injectPulse;
+      document.getElementById('ibtn-joints').textContent = tr.calibrateJoints;
+
+      // Detailed Inspector Box
+      document.getElementById('lbl-inspector').textContent = tr.nodeInspector;
+      if (!selectedNodeId) {
+        document.getElementById('inspector-details').innerHTML = '<div style="font-family: monospace; font-size: 10px; color: var(--silver-metal); text-align: center; padding: 6px 0;" id="lbl-inspect-prompt">' + tr.clickToInspect + '</div>';
+      } else {
+        const n = nodes.find(item => item.id === selectedNodeId);
+        if (n) {
+          const nodeLatVal = (avgLatency * (0.8 + (bioSyncRate / 100))).toFixed(1);
+          const resonanceVal = (couplingFrequency * 1.15).toFixed(1);
+          const stabilityVal = (physicsFieldIntensity * 0.98).toFixed(1);
+          const stressVal = (12 + (physicsFieldIntensity * 0.45)).toFixed(1);
+
+          document.getElementById('inspector-details').innerHTML = 
+            '<div class="inspector-row"><span class="inspector-lbl">NODO ACTIVO:</span><span class="inspector-val" style="color:var(--cyan-luminous)">' + n.name + '</span></div>' +
+            '<div class="inspector-row"><span class="inspector-lbl">COORDENADAS:</span><span class="inspector-val">' + n.lat.toFixed(4) + ', ' + n.lng.toFixed(4) + '</span></div>' +
+            '<div class="inspector-row"><span class="inspector-lbl">LATENCIA SOLANA:</span><span class="inspector-val">' + nodeLatVal + ' ms</span></div>' +
+            '<div class="inspector-row"><span class="inspector-lbl">' + tr.telemetryResonance.toUpperCase() + ':</span><span class="inspector-val">' + resonanceVal + ' GHz</span></div>' +
+            '<div class="inspector-row"><span class="inspector-lbl">' + tr.telemetryStability.toUpperCase() + ':</span><span class="inspector-val" style="color:#00E676">' + stabilityVal + '%</span></div>' +
+            '<div class="inspector-row"><span class="inspector-lbl">' + tr.telemetryStress.toUpperCase() + ':</span><span class="inspector-val" style="color:#FF1744">' + stressVal + '%</span></div>' +
+            '<button class="btn" style="padding: 5px; font-size: 8px; margin-top: 8px;" onclick="closeInspector(event)">' + tr.closeInspector.toUpperCase() + '</button>';
+        }
+      }
+
+      const langBtns = document.getElementsByClassName('lang-btn');
+      for (let btn of langBtns) {
+        btn.classList.remove('active');
+        if (btn.getAttribute('onclick').includes(langCode)) {
+          btn.classList.add('active');
+        }
+      }
+
+      addLog("IDIOMA CAMBIADO A: " + langCode.toUpperCase(), "term-cyan");
+    }
+  </script>
+</body>
+</html>
