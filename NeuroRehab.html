@@ -1,0 +1,1893 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VR NeuroRehab+ — Prototipo 3D Interactivo</title>
+<style>
+  :root {
+    --titanium: #6B7280;
+    --titanium-dark: #4B5563;
+    --cyan: #4FC3F7;
+    --cyan-dim: rgba(79,195,247,0.3);
+    --silver: #9CA3AF;
+    --white-clinic: #F3F4F6;
+    --anthracite: #1F2937;
+    --bg: #0D1117;
+    --hud-bg: rgba(13,17,23,0.85);
+    --border: rgba(79,195,247,0.25);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background: var(--bg); overflow:hidden; font-family:'Segoe UI',system-ui,sans-serif; color:var(--white-clinic); }
+  canvas { display:block; }
+
+  /* Nombre del Dr. */
+  #author-badge {
+    position:fixed; top:16px; left:16px; z-index:100;
+    background: linear-gradient(135deg, rgba(79,195,247,0.12), rgba(31,41,55,0.9));
+    border:1px solid var(--border); border-radius:8px;
+    padding:10px 18px; backdrop-filter:blur(12px);
+    font-size:13px; font-weight:600; letter-spacing:0.5px;
+    color: var(--cyan); text-shadow:0 0 12px rgba(79,195,247,0.3);
+    pointer-events:none;
+  }
+  #author-badge span { color: var(--white-clinic); font-weight:400; opacity:0.85; }
+
+  /* Selector de idioma */
+  #lang-selector {
+    position:fixed; top:16px; right:16px; z-index:100;
+    display:flex; gap:4px;
+  }
+  #lang-selector button {
+    background: var(--hud-bg); border:1px solid var(--border);
+    color: var(--silver); padding:7px 14px; border-radius:6px;
+    cursor:pointer; font-size:12px; font-weight:600;
+    transition: all 0.3s;
+  }
+  #lang-selector button:hover, #lang-selector button.active {
+    background: rgba(79,195,247,0.15); color: var(--cyan);
+    border-color: var(--cyan); box-shadow: 0 0 12px rgba(79,195,247,0.2);
+  }
+
+  /* Panel de controles */
+  #controls-panel {
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:100;
+    display:flex; gap:8px; flex-wrap:wrap; justify-content:center;
+    background: var(--hud-bg); border:1px solid var(--border);
+    border-radius:12px; padding:12px 16px; backdrop-filter:blur(16px);
+  }
+  #controls-panel button {
+    background: rgba(79,195,247,0.08); border:1px solid rgba(79,195,247,0.2);
+    color: var(--white-clinic); padding:8px 16px; border-radius:8px;
+    cursor:pointer; font-size:11px; font-weight:600;
+    transition: all 0.3s; white-space:nowrap;
+  }
+  #controls-panel button:hover {
+    background: rgba(79,195,247,0.2); border-color: var(--cyan);
+    color: var(--cyan); transform:translateY(-1px);
+    box-shadow: 0 4px 16px rgba(79,195,247,0.15);
+  }
+  #controls-panel button.active-mode {
+    background: rgba(79,195,247,0.25); border-color: var(--cyan);
+    color: var(--cyan); box-shadow: 0 0 16px rgba(79,195,247,0.25);
+  }
+
+  /* HUD lateral */
+  #hud-left {
+    position:fixed; left:16px; top:50%; transform:translateY(-50%); z-index:100;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .hud-stat {
+    background: var(--hud-bg); border:1px solid var(--border);
+    border-radius:8px; padding:10px 14px; backdrop-filter:blur(12px);
+    min-width:160px;
+  }
+  .hud-stat .label { font-size:9px; color:var(--silver); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; }
+  .hud-stat .value { font-size:18px; font-weight:700; color:var(--cyan); }
+  .hud-stat .bar { height:3px; background:rgba(79,195,247,0.15); border-radius:2px; margin-top:6px; }
+  .hud-stat .bar-fill { height:100%; background:var(--cyan); border-radius:2px; transition:width 0.8s; }
+
+  /* HUD derecho */
+  #hud-right {
+    position:fixed; right:16px; top:50%; transform:translateY(-50%); z-index:100;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .hud-node {
+    background: var(--hud-bg); border:1px solid var(--border);
+    border-radius:8px; padding:8px 12px; backdrop-filter:blur(12px);
+    font-size:10px; display:flex; align-items:center; gap:8px;
+    transition: all 0.3s;
+  }
+  .hud-node .dot { width:8px; height:8px; border-radius:50%; background:var(--cyan); box-shadow:0 0 8px var(--cyan); }
+  .hud-node.processing .dot { animation: pulse-dot 1s infinite; }
+  @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.3)} }
+
+  /* Indicador de modo */
+  #mode-indicator {
+    position:fixed; top:60px; left:50%; transform:translateX(-50%); z-index:100;
+    background: linear-gradient(90deg, transparent, rgba(79,195,247,0.1), transparent);
+    border:1px solid var(--border); border-radius:20px;
+    padding:6px 24px; font-size:11px; color:var(--cyan);
+    letter-spacing:2px; text-transform:uppercase; font-weight:600;
+    backdrop-filter:blur(8px);
+    opacity:0; transition: opacity 0.5s;
+  }
+  #mode-indicator.visible { opacity:1; }
+
+  /* AR overlay */
+  #ar-overlay {
+    position:fixed; top:0; left:0; width:100%; height:100%; z-index:50;
+    display:none; background:#000;
+  }
+  #ar-overlay video { width:100%; height:100%; object-fit:cover; }
+  #ar-overlay canvas { position:absolute; top:0; left:0; }
+  #ar-close {
+    position:absolute; top:16px; right:16px; z-index:60;
+    background:rgba(239,68,68,0.8); border:none; color:white;
+    width:40px; height:40px; border-radius:50%; cursor:pointer;
+    font-size:18px; font-weight:bold;
+  }
+
+  /* Tooltip */
+  #tooltip {
+    position:fixed; z-index:200; display:none;
+    background: var(--hud-bg); border:1px solid var(--cyan);
+    border-radius:8px; padding:10px 14px; backdrop-filter:blur(16px);
+    max-width:240px; font-size:11px; line-height:1.5;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  #tooltip .tt-title { color:var(--cyan); font-weight:700; font-size:12px; margin-bottom:4px; }
+
+  /* Loading */
+  #loading {
+    position:fixed; top:0; left:0; width:100%; height:100%; z-index:1000;
+    background: var(--bg); display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    transition: opacity 0.8s;
+  }
+  #loading.hidden { opacity:0; pointer-events:none; }
+  #loading h2 { color:var(--cyan); font-size:24px; margin-bottom:8px; letter-spacing:2px; }
+  #loading p { color:var(--silver); font-size:12px; margin-bottom:24px; }
+  .loader-ring {
+    width:48px; height:48px; border:3px solid rgba(79,195,247,0.15);
+    border-top-color:var(--cyan); border-radius:50%;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* Responsive */
+  @media(max-width:768px) {
+    #hud-left, #hud-right { display:none; }
+    #controls-panel { bottom:10px; padding:8px 10px; }
+    #controls-panel button { padding:6px 10px; font-size:10px; }
+    #author-badge { font-size:11px; padding:8px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Pantalla de carga -->
+<div id="loading">
+  <h2>VR NeuroRehab+</h2>
+  <p data-i18n="loading">Inicializando prototipo 3D...</p>
+  <div class="loader-ring"></div>
+</div>
+
+<!-- Nombre del autor -->
+<div id="author-badge">Dr. Julio César Oporta Barrera <span>| VR NeuroRehab+</span></div>
+
+<!-- Selector de idioma -->
+<div id="lang-selector">
+  <button data-lang="es" class="active">ESP</button>
+  <button data-lang="en">ENG</button>
+  <button data-lang="zh">中文</button>
+</div>
+
+<!-- Indicador de modo -->
+<div id="mode-indicator"></div>
+
+<!-- HUD izquierdo - Estadísticas -->
+<div id="hud-left">
+  <div class="hud-stat">
+    <div class="label" data-i18n="neural_activity">Actividad Neural</div>
+    <div class="value" id="stat-neural">87%</div>
+    <div class="bar"><div class="bar-fill" id="bar-neural" style="width:87%"></div></div>
+  </div>
+  <div class="hud-stat">
+    <div class="label" data-i18n="cognitive_load">Carga Cognitiva</div>
+    <div class="value" id="stat-cognitive">42%</div>
+    <div class="bar"><div class="bar-fill" id="bar-cognitive" style="width:42%"></div></div>
+  </div>
+  <div class="hud-stat">
+    <div class="label" data-i18n="attention">Atención</div>
+    <div class="value" id="stat-attention">91%</div>
+    <div class="bar"><div class="bar-fill" id="bar-attention" style="width:91%"></div></div>
+  </div>
+  <div class="hud-stat">
+    <div class="label" data-i18n="plasticity">Plasticidad</div>
+    <div class="value" id="stat-plasticity">73%</div>
+    <div class="bar"><div class="bar-fill" id="bar-plasticity" style="width:73%"></div></div>
+  </div>
+</div>
+
+<!-- HUD derecho - Nodos IA -->
+<div id="hud-right">
+  <div class="hud-node processing" id="node-eeg"><div class="dot"></div><span data-i18n="node_eeg">Captura EEG</span></div>
+  <div class="hud-node" id="node-fnirs"><div class="dot" style="background:#81C784;box-shadow:0 0 8px #81C784"></div><span data-i18n="node_fnirs">fNIRS Prefrontal</span></div>
+  <div class="hud-node" id="node-preprocess"><div class="dot" style="background:#FFB74D;box-shadow:0 0 8px #FFB74D"></div><span data-i18n="node_preprocess">Preprocesamiento</span></div>
+  <div class="hud-node" id="node-ai"><div class="dot"></div><span data-i18n="node_ai">IA Adaptativa</span></div>
+  <div class="hud-node" id="node-vr"><div class="dot" style="background:#CE93D8;box-shadow:0 0 8px #CE93D8"></div><span data-i18n="node_vr">Entorno VR</span></div>
+  <div class="hud-node" id="node-feedback"><div class="dot" style="background:#4DB6AC;box-shadow:0 0 8px #4DB6AC"></div><span data-i18n="node_feedback">Biofeedback</span></div>
+</div>
+
+<!-- Panel de controles inferior -->
+<div id="controls-panel">
+  <button data-mode="calibration" data-i18n="btn_calibrate">Calibración</button>
+  <button data-mode="therapy" data-i18n="btn_therapy">Terapia</button>
+  <button data-mode="analysis" data-i18n="btn_analysis">Análisis IA</button>
+  <button data-mode="biomechanics" data-i18n="btn_biomech">Biomecánica</button>
+  <button data-mode="swarm" data-i18n="btn_swarm">IA Enjambre</button>
+  <button data-mode="energy" data-i18n="btn_energy">Energía Híbrida</button>
+  <button data-mode="ar" data-i18n="btn_ar">Realidad Aumentada</button>
+  <button data-mode="reset" data-i18n="btn_reset">Reiniciar</button>
+</div>
+
+<!-- Tooltip -->
+<div id="tooltip"><div class="tt-title"></div><div class="tt-body"></div></div>
+
+<!-- Overlay AR -->
+<div id="ar-overlay">
+  <video id="ar-video" autoplay playsinline></video>
+  <canvas id="ar-canvas"></canvas>
+  <button id="ar-close">✕</button>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ============================================================
+// SISTEMA DE MULTILENGUAJE
+// ============================================================
+const i18n = {
+  es: {
+    loading: 'Inicializando prototipo 3D...',
+    neural_activity: 'Actividad Neural',
+    cognitive_load: 'Carga Cognitiva',
+    attention: 'Atención',
+    plasticity: 'Plasticidad',
+    node_eeg: 'Captura EEG',
+    node_fnirs: 'fNIRS Prefrontal',
+    node_preprocess: 'Preprocesamiento',
+    node_ai: 'IA Adaptativa',
+    node_vr: 'Entorno VR',
+    node_feedback: 'Biofeedback',
+    btn_calibrate: 'Calibración',
+    btn_therapy: 'Terapia',
+    btn_analysis: 'Análisis IA',
+    btn_biomech: 'Biomecánica',
+    btn_swarm: 'IA Enjambre',
+    btn_energy: 'Energía Híbrida',
+    btn_ar: 'Realidad Aumentada',
+    btn_reset: 'Reiniciar',
+    mode_calibrate: 'Modo: Calibración Sensorial',
+    mode_therapy: 'Modo: Terapia Adaptativa',
+    mode_analysis: 'Modo: Análisis de IA',
+    mode_biomech: 'Modo: Simulación Biomecánica',
+    mode_swarm: 'Modo: IA de Enjambre',
+    mode_energy: 'Modo: Energía Híbrida',
+    tt_headset: 'Visor VR NeuroRehab+ con sensores EEG/fNIRS integrados y pantalla de alta fidelidad.',
+    tt_brain: 'Modelo de cerebro con visualización de actividad neural en tiempo real y rutas de plasticidad.',
+    tt_eeg: 'Sensor de electroencefalografía portátil con 16 canales para captura de ritmos corticales.',
+    tt_fnirs: 'Sensor de espectroscopía infrarroja cercana para medir oxigenación prefrontal.',
+    tt_ai_node: 'Nodo de procesamiento de IA adaptativa con modelo AutoML y explicabilidad XAI.',
+    tt_data_flow: 'Flujo de datos neuronales en tiempo real entre sensores, IA y entorno VR.',
+    tt_bio: 'Modelo biomecánico para simulación de movimientos de rehabilitación.',
+    tt_swarm: 'Sistema de IA de enjambre para optimización distribuida de parámetros terapéuticos.',
+    tt_energy: 'Sistema de energía híbrida con gestión inteligente de consumo de sensores y VR.'
+  },
+  en: {
+    loading: 'Initializing 3D prototype...',
+    neural_activity: 'Neural Activity',
+    cognitive_load: 'Cognitive Load',
+    attention: 'Attention',
+    plasticity: 'Plasticity',
+    node_eeg: 'EEG Capture',
+    node_fnirs: 'Prefrontal fNIRS',
+    node_preprocess: 'Preprocessing',
+    node_ai: 'Adaptive AI',
+    node_vr: 'VR Environment',
+    node_feedback: 'Biofeedback',
+    btn_calibrate: 'Calibration',
+    btn_therapy: 'Therapy',
+    btn_analysis: 'AI Analysis',
+    btn_biomech: 'Biomechanics',
+    btn_swarm: 'Swarm AI',
+    btn_energy: 'Hybrid Energy',
+    btn_ar: 'Augmented Reality',
+    btn_reset: 'Reset',
+    mode_calibrate: 'Mode: Sensory Calibration',
+    mode_therapy: 'Mode: Adaptive Therapy',
+    mode_analysis: 'Mode: AI Analysis',
+    mode_biomech: 'Mode: Biomechanics Simulation',
+    mode_swarm: 'Mode: Swarm Intelligence',
+    mode_energy: 'Mode: Hybrid Energy',
+    tt_headset: 'VR NeuroRehab+ headset with integrated EEG/fNIRS sensors and high-fidelity display.',
+    tt_brain: 'Brain model with real-time neural activity visualization and plasticity pathways.',
+    tt_eeg: 'Portable electroencephalography sensor with 16 channels for cortical rhythm capture.',
+    tt_fnirs: 'Near-infrared spectroscopy sensor for measuring prefrontal oxygenation.',
+    tt_ai_node: 'Adaptive AI processing node with AutoML model and XAI explainability.',
+    tt_data_flow: 'Real-time neural data flow between sensors, AI, and VR environment.',
+    tt_bio: 'Biomechanical model for rehabilitation movement simulation.',
+    tt_swarm: 'Swarm AI system for distributed optimization of therapeutic parameters.',
+    tt_energy: 'Hybrid energy system with intelligent power management for sensors and VR.'
+  },
+  zh: {
+    loading: '正在初始化3D原型...',
+    neural_activity: '神经活动',
+    cognitive_load: '认知负荷',
+    attention: '注意力',
+    plasticity: '可塑性',
+    node_eeg: '脑电采集',
+    node_fnirs: '前额叶fNIRS',
+    node_preprocess: '预处理',
+    node_ai: '自适应AI',
+    node_vr: 'VR环境',
+    node_feedback: '生物反馈',
+    btn_calibrate: '校准',
+    btn_therapy: '治疗',
+    btn_analysis: 'AI分析',
+    btn_biomech: '生物力学',
+    btn_swarm: '群体智能',
+    btn_energy: '混合能源',
+    btn_ar: '增强现实',
+    btn_reset: '重置',
+    mode_calibrate: '模式：感觉校准',
+    mode_therapy: '模式：自适应治疗',
+    mode_analysis: '模式：AI分析',
+    mode_biomech: '模式：生物力学模拟',
+    mode_swarm: '模式：群体智能',
+    mode_energy: '模式：混合能源',
+    tt_headset: 'VR NeuroRehab+头显，集成EEG/fNIRS传感器和高保真显示屏。',
+    tt_brain: '大脑模型，实时显示神经活动和可塑性路径。',
+    tt_eeg: '便携式脑电传感器，16通道皮层节律采集。',
+    tt_fnirs: '近红外光谱传感器，测量前额叶氧合水平。',
+    tt_ai_node: '自适应AI处理节点，含AutoML模型和XAI可解释性。',
+    tt_data_flow: '传感器、AI和VR环境之间的实时神经数据流。',
+    tt_bio: '生物力学模型，用于康复运动模拟。',
+    tt_swarm: '群体AI系统，分布式优化治疗参数。',
+    tt_energy: '混合能源系统，智能管理传感器和VR功耗。'
+  }
+};
+
+let currentLang = 'es';
+function setLang(lang) {
+  currentLang = lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (i18n[lang][key]) el.textContent = i18n[lang][key];
+  });
+  document.querySelectorAll('#lang-selector button').forEach(b => {
+    b.classList.toggle('active', b.dataset.lang === lang);
+  });
+}
+document.querySelectorAll('#lang-selector button').forEach(b => {
+  b.addEventListener('click', () => setLang(b.dataset.lang));
+});
+
+// ============================================================
+// ESCENA 3D PRINCIPAL
+// ============================================================
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0D1117, 0.035);
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(6, 4, 8);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.prepend(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 3;
+controls.maxDistance = 25;
+controls.target.set(0, 1.5, 0);
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.4;
+
+// ============================================================
+// ILUMINACIÓN CINEMATOGRÁFICA
+// ============================================================
+// Luz clave - cálida lateral
+const keyLight = new THREE.DirectionalLight(0xFFF0E0, 1.8);
+keyLight.position.set(5, 8, 4);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.camera.near = 0.5;
+keyLight.shadow.camera.far = 30;
+keyLight.shadow.camera.left = -10;
+keyLight.shadow.camera.right = 10;
+keyLight.shadow.camera.top = 10;
+keyLight.shadow.camera.bottom = -10;
+keyLight.shadow.bias = -0.001;
+scene.add(keyLight);
+
+// Luz de relleno - fría
+const fillLight = new THREE.DirectionalLight(0xB0C4DE, 0.6);
+fillLight.position.set(-4, 3, -2);
+scene.add(fillLight);
+
+// Luz de borde - cian
+const rimLight = new THREE.DirectionalLight(0x4FC3F7, 1.2);
+rimLight.position.set(-3, 5, -6);
+scene.add(rimLight);
+
+// Luz ambiental suave
+const ambLight = new THREE.AmbientLight(0x1a2332, 0.8);
+scene.add(ambLight);
+
+// Puntos de acento cian
+const accentLight1 = new THREE.PointLight(0x4FC3F7, 2, 8, 2);
+accentLight1.position.set(0, 3, 0);
+scene.add(accentLight1);
+
+const accentLight2 = new THREE.PointLight(0x4FC3F7, 1, 6, 2);
+accentLight2.position.set(-3, 2, 2);
+scene.add(accentLight2);
+
+// Spotlight para el modelo principal
+const spotLight = new THREE.SpotLight(0xFFFFFF, 1.5, 20, Math.PI / 6, 0.5, 1);
+spotLight.position.set(0, 10, 0);
+spotLight.target.position.set(0, 1.5, 0);
+spotLight.castShadow = true;
+scene.add(spotLight);
+scene.add(spotLight.target);
+
+// ============================================================
+// MATERIALES
+// ============================================================
+const matTitanium = new THREE.MeshStandardMaterial({
+  color: 0x6B7280, metalness: 0.85, roughness: 0.35
+});
+const matTitaniumDark = new THREE.MeshStandardMaterial({
+  color: 0x4B5563, metalness: 0.9, roughness: 0.3
+});
+const matSilver = new THREE.MeshStandardMaterial({
+  color: 0x9CA3AF, metalness: 0.7, roughness: 0.4
+});
+const matWhite = new THREE.MeshStandardMaterial({
+  color: 0xF3F4F6, metalness: 0.1, roughness: 0.7
+});
+const matCyan = new THREE.MeshStandardMaterial({
+  color: 0x4FC3F7, emissive: 0x4FC3F7, emissiveIntensity: 0.5,
+  metalness: 0.3, roughness: 0.4
+});
+const matAnthracite = new THREE.MeshStandardMaterial({
+  color: 0x1F2937, metalness: 0.6, roughness: 0.5
+});
+const matPadding = new THREE.MeshStandardMaterial({
+  color: 0x2D3748, metalness: 0.0, roughness: 0.95
+});
+
+// Shader para visor holográfico
+const visorShaderMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: { value: 0 },
+    uColor: { value: new THREE.Color(0x4FC3F7) },
+    uIntensity: { value: 0.8 }
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec3 vViewDir;
+    void main(){
+      vUv = uv;
+      vNormal = normalize(normalMatrix * normal);
+      vec4 mvPos = modelViewMatrix * vec4(position,1.0);
+      vViewDir = normalize(-mvPos.xyz);
+      gl_Position = projectionMatrix * mvPos;
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    uniform vec3 uColor;
+    uniform float uIntensity;
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec3 vViewDir;
+    void main(){
+      float fresnel = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 3.0);
+      float scanLine = sin(vUv.y * 80.0 + uTime * 3.0) * 0.5 + 0.5;
+      scanLine = smoothstep(0.4, 0.6, scanLine) * 0.15;
+      float hNoise = sin(vUv.x * 40.0 + uTime * 1.5) * sin(vUv.y * 30.0 - uTime * 2.0);
+      hNoise = hNoise * 0.05 + 0.05;
+      float alpha = fresnel * uIntensity + scanLine + hNoise;
+      alpha = clamp(alpha, 0.05, 0.85);
+      vec3 col = uColor * (0.7 + fresnel * 0.5);
+      gl_FragColor = vec4(col, alpha);
+    }
+  `,
+  transparent: true, side: THREE.DoubleSide, depthWrite: false
+});
+
+// Shader para cerebro
+const brainShaderMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: { value: 0 },
+    uBaseColor: { value: new THREE.Color(0xD4A574) },
+    uActiveColor: { value: new THREE.Color(0x4FC3F7) },
+    uPulseIntensity: { value: 0.6 }
+  },
+  vertexShader: `
+    varying vec3 vPos;
+    varying vec3 vNorm;
+    varying vec2 vUv;
+    uniform float uTime;
+    void main(){
+      vUv = uv;
+      vNorm = normalize(normalMatrix * normal);
+      vec3 p = position;
+      float disp = sin(p.x * 5.0 + uTime) * sin(p.y * 4.0 + uTime * 0.7) * sin(p.z * 6.0 - uTime * 0.5) * 0.03;
+      p += normal * disp;
+      vPos = (modelViewMatrix * vec4(p,1.0)).xyz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(p,1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    uniform vec3 uBaseColor;
+    uniform vec3 uActiveColor;
+    uniform float uPulseIntensity;
+    varying vec3 vPos;
+    varying vec3 vNorm;
+    varying vec2 vUv;
+    void main(){
+      float pulse = sin(vUv.y * 12.0 + uTime * 2.0) * 0.5 + 0.5;
+      pulse *= sin(vUv.x * 8.0 - uTime * 1.5) * 0.5 + 0.5;
+      float activity = smoothstep(0.3, 0.8, pulse) * uPulseIntensity;
+      vec3 col = mix(uBaseColor, uActiveColor, activity);
+      float fresnel = pow(1.0 - max(dot(vNorm, normalize(-vPos)), 0.0), 2.0);
+      col += uActiveColor * fresnel * 0.3;
+      gl_FragColor = vec4(col, 0.88);
+    }
+  `,
+  transparent: true
+});
+
+// Shader para partículas de flujo de datos
+const dataFlowShaderMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: { value: 0 },
+    uColor: { value: new THREE.Color(0x4FC3F7) }
+  },
+  vertexShader: `
+    attribute float aPhase;
+    attribute float aSpeed;
+    varying float vAlpha;
+    uniform float uTime;
+    void main(){
+      vAlpha = sin(uTime * aSpeed + aPhase) * 0.5 + 0.5;
+      vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = (3.0 + vAlpha * 4.0) * (80.0 / -mvPos.z);
+      gl_Position = projectionMatrix * mvPos;
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 uColor;
+    varying float vAlpha;
+    void main(){
+      float d = length(gl_PointCoord - 0.5) * 2.0;
+      float alpha = smoothstep(1.0, 0.0, d) * vAlpha;
+      gl_FragColor = vec4(uColor, alpha * 0.9);
+    }
+  `,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+});
+
+// Shader para enjambre
+const swarmShaderMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: { value: 0 },
+    uColor: { value: new THREE.Color(0x4FC3F7) }
+  },
+  vertexShader: `
+    attribute float aPhase;
+    varying float vAlpha;
+    uniform float uTime;
+    void main(){
+      vAlpha = 0.5 + 0.5 * sin(uTime * 2.0 + aPhase);
+      vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = (2.5 + vAlpha * 3.5) * (100.0 / -mvPos.z);
+      gl_Position = projectionMatrix * mvPos;
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 uColor;
+    varying float vAlpha;
+    void main(){
+      float d = length(gl_PointCoord - 0.5) * 2.0;
+      float glow = exp(-d * d * 3.0);
+      gl_FragColor = vec4(uColor, glow * vAlpha * 0.8);
+    }
+  `,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+});
+
+// Shader para energía
+const energyShaderMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: { value: 0 }
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main(){
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    varying vec2 vUv;
+    void main(){
+      vec3 c1 = vec3(0.31, 0.77, 0.97);
+      vec3 c2 = vec3(0.51, 0.87, 0.52);
+      vec3 c3 = vec3(1.0, 0.72, 0.3);
+      float t = vUv.x;
+      float wave = sin(t * 20.0 - uTime * 4.0) * 0.5 + 0.5;
+      wave *= sin(t * 15.0 + uTime * 3.0) * 0.3 + 0.7;
+      vec3 col = mix(c1, c2, smoothstep(0.0, 0.5, t));
+      col = mix(col, c3, smoothstep(0.5, 1.0, t));
+      col *= 0.6 + wave * 0.4;
+      float alpha = wave * 0.7 * smoothstep(0.0, 0.1, vUv.y) * smoothstep(1.0, 0.9, vUv.y);
+      gl_FragColor = vec4(col, alpha);
+    }
+  `,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide
+});
+
+// ============================================================
+// SUELO CON CUADRÍCULA
+// ============================================================
+const gridHelper = new THREE.GridHelper(30, 60, 0x1a3a4a, 0x0f1f2a);
+gridHelper.position.y = -0.5;
+scene.add(gridHelper);
+
+// Plano de suelo sutil
+const floorGeom = new THREE.PlaneGeometry(30, 30);
+const floorMat = new THREE.MeshStandardMaterial({
+  color: 0x0a1018, metalness: 0.5, roughness: 0.8, transparent: true, opacity: 0.9
+});
+const floor = new THREE.Mesh(floorGeom, floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -0.51;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// ============================================================
+// MODELO 3D: VISOR VR NEUROREHAB+
+// ============================================================
+const headsetGroup = new THREE.Group();
+headsetGroup.userData = { type: 'headset', tooltip: 'tt_headset' };
+
+// Cuerpo principal
+const bodyGeom = new THREE.BoxGeometry(2.4, 1.2, 1.0, 4, 4, 2);
+// Redondear ligeramente los bordes del cuerpo
+const bodyPositions = bodyGeom.attributes.position;
+for (let i = 0; i < bodyPositions.count; i++) {
+  const x = bodyPositions.getX(i);
+  const y = bodyPositions.getY(i);
+  const z = bodyPositions.getZ(i);
+  const absX = Math.abs(x), absY = Math.abs(y), absZ = Math.abs(z);
+  const maxDim = Math.max(absX / 1.2, absY / 0.6, absZ / 0.5);
+  if (maxDim > 0.9) {
+    const scale = 0.92 + 0.08 * (1.0 / Math.max(maxDim, 0.01));
+    bodyPositions.setXYZ(i, x * scale, y * scale, z * scale);
+  }
+}
+bodyGeom.computeVertexNormals();
+const body = new THREE.Mesh(bodyGeom, matTitanium);
+body.castShadow = true;
+headsetGroup.add(body);
+
+// Marco frontal
+const frameGeom = new THREE.BoxGeometry(2.5, 1.3, 0.15);
+const frame = new THREE.Mesh(frameGeom, matTitaniumDark);
+frame.position.z = 0.45;
+frame.castShadow = true;
+headsetGroup.add(frame);
+
+// Visor holográfico
+const visorGeom = new THREE.PlaneGeometry(2.1, 1.0, 32, 16);
+const visor = new THREE.Mesh(visorGeom, visorShaderMat);
+visor.position.z = 0.54;
+headsetGroup.add(visor);
+
+// Almohadillas de silicona
+const padGeom = new THREE.TorusGeometry(0.55, 0.12, 8, 24);
+const padTop = new THREE.Mesh(padGeom, matPadding);
+padTop.position.set(0, 0.6, -0.1);
+padTop.rotation.x = Math.PI / 2;
+headsetGroup.add(padTop);
+const padBottom = padTop.clone();
+padBottom.position.y = -0.6;
+headsetGroup.add(padBottom);
+const padLeft = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.12, 8, 24), matPadding);
+padLeft.position.set(-1.15, 0, -0.1);
+padLeft.rotation.y = Math.PI / 2;
+headsetGroup.add(padLeft);
+const padRight = padLeft.clone();
+padRight.position.x = 1.15;
+headsetGroup.add(padRight);
+
+// Correa superior
+const strapCurve = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(0, 0.6, -0.3),
+  new THREE.Vector3(0, 1.3, -0.6),
+  new THREE.Vector3(0, 1.5, -0.3),
+  new THREE.Vector3(0, 0.6, -0.3)
+]);
+const strapGeom = new THREE.TubeGeometry(strapCurve, 20, 0.04, 8, false);
+const strap = new THREE.Mesh(strapGeom, matAnthracite);
+headsetGroup.add(strap);
+
+// Correas laterales
+for (let side of [-1, 1]) {
+  const sideCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(side * 1.2, 0, -0.1),
+    new THREE.Vector3(side * 1.5, 0, -0.4),
+    new THREE.Vector3(side * 1.3, -0.2, -0.7),
+    new THREE.Vector3(side * 0.8, -0.5, -0.5),
+    new THREE.Vector3(0, -0.5, -0.3)
+  ]);
+  const sideStrapGeom = new THREE.TubeGeometry(sideCurve, 16, 0.035, 6, false);
+  const sideStrap = new THREE.Mesh(sideStrapGeom, matAnthracite);
+  headsetGroup.add(sideStrap);
+}
+
+// ============================================================
+// Banda de sensores EEG
+// ============================================================
+const eegGroup = new THREE.Group();
+eegGroup.userData = { type: 'eeg', tooltip: 'tt_eeg' };
+
+const bandCurve = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(-1.3, 0, 0),
+  new THREE.Vector3(-1.2, 0.8, -0.1),
+  new THREE.Vector3(-0.6, 1.2, -0.15),
+  new THREE.Vector3(0, 1.3, -0.15),
+  new THREE.Vector3(0.6, 1.2, -0.15),
+  new THREE.Vector3(1.2, 0.8, -0.1),
+  new THREE.Vector3(1.3, 0, 0)
+]);
+const bandGeom = new THREE.TubeGeometry(bandCurve, 30, 0.06, 8, false);
+const band = new THREE.Mesh(bandGeom, matTitaniumDark);
+eegGroup.add(band);
+
+// Electrodos EEG
+const electrodePositions = [];
+for (let i = 0; i < 16; i++) {
+  const t = (i + 1) / 17;
+  const pt = bandCurve.getPointAt(t);
+  electrodePositions.push(pt.clone());
+  const elecGeom = new THREE.CylinderGeometry(0.035, 0.035, 0.05, 8);
+  const elec = new THREE.Mesh(elecGeom, matCyan);
+  elec.position.copy(pt);
+  elec.lookAt(pt.clone().add(new THREE.Vector3(0, -1, 0)));
+  eegGroup.add(elec);
+  // Anillo indicador
+  const ringGeom = new THREE.RingGeometry(0.04, 0.06, 12);
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0x4FC3F7, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+  const ring = new THREE.Mesh(ringGeom, ringMat);
+  ring.position.copy(pt);
+  ring.position.y -= 0.03;
+  ring.rotation.x = -Math.PI / 2;
+  ring.userData = { pulsePhase: Math.random() * Math.PI * 2 };
+  eegGroup.add(ring);
+}
+headsetGroup.add(eegGroup);
+
+// ============================================================
+// Sensor fNIRS (módulo frontal)
+// ============================================================
+const fnirsGroup = new THREE.Group();
+fnirsGroup.userData = { type: 'fnirs', tooltip: 'tt_fnirs' };
+
+const fnirsBody = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 0.2, 2, 2, 1), matTitanium);
+fnirsBody.position.set(0, -0.5, 0.55);
+fnirsGroup.add(fnirsBody);
+
+// Emisores/detectores fNIRS
+for (let i = 0; i < 8; i++) {
+  const x = -0.45 + (i * 0.13);
+  const isEmitter = i % 2 === 0;
+  const fnirsDot = new THREE.Mesh(
+    new THREE.SphereGeometry(Math.max(0.02, 0.02), 8, 8),
+    new THREE.MeshBasicMaterial({ color: isEmitter ? 0x81C784 : 0xFFB74D })
+  );
+  fnirsDot.position.set(x, -0.5, 0.67);
+  fnirsGroup.add(fnirsDot);
+}
+headsetGroup.add(fnirsGroup);
+
+// Indicadores LED laterales
+for (let side of [-1, 1]) {
+  for (let j = 0; j < 3; j++) {
+    const led = new THREE.Mesh(
+      new THREE.SphereGeometry(Math.max(0.025, 0.025), 8, 8),
+      new THREE.MeshBasicMaterial({ color: 0x4FC3F7 })
+    );
+    led.position.set(side * 1.22, 0.2 - j * 0.2, 0.2);
+    led.userData = { ledPhase: j * 0.5 };
+    headsetGroup.add(led);
+  }
+}
+
+headsetGroup.position.set(0, 2.5, 0);
+scene.add(headsetGroup);
+
+// ============================================================
+// MODELO 3D: CEREBRO CON ACTIVIDAD NEURAL
+// ============================================================
+const brainGroup = new THREE.Group();
+brainGroup.userData = { type: 'brain', tooltip: 'tt_brain' };
+
+// Hemisferio izquierdo
+const hemiL = new THREE.Mesh(
+  new THREE.SphereGeometry(Math.max(0.8, 0.8), 48, 32, 0, Math.PI),
+  brainShaderMat
+);
+hemiL.scale.set(1, 0.85, 1.1);
+hemiL.position.x = -0.05;
+brainGroup.add(hemiL);
+
+// Hemisferio derecho
+const hemiR = new THREE.Mesh(
+  new THREE.SphereGeometry(Math.max(0.8, 0.8), 48, 32, Math.PI, Math.PI),
+  brainShaderMat
+);
+hemiR.scale.set(1, 0.85, 1.1);
+hemiR.position.x = 0.05;
+brainGroup.add(hemiR);
+
+// Surcos cerebrales (líneas decorativas)
+for (let i = 0; i < 12; i++) {
+  const points = [];
+  const startAngle = Math.random() * Math.PI * 2;
+  const startPhi = Math.random() * Math.PI * 0.6 + 0.2;
+  for (let j = 0; j < 10; j++) {
+    const t = j / 9;
+    const theta = startAngle + t * 1.2;
+    const phi = startPhi + t * 0.4;
+    const r = 0.82;
+    points.push(new THREE.Vector3(
+      r * Math.sin(phi) * Math.cos(theta),
+      r * Math.cos(phi) * 0.85,
+      r * Math.sin(phi) * Math.sin(theta) * 1.1
+    ));
+  }
+  const sulcusCurve = new THREE.CatmullRomCurve3(points);
+  const sulcusGeom = new THREE.TubeGeometry(sulcusCurve, 16, 0.008, 4, false);
+  const sulcusMat = new THREE.MeshBasicMaterial({ color: 0x8B7355, transparent: true, opacity: 0.4 });
+  brainGroup.add(new THREE.Mesh(sulcusGeom, sulcusMat));
+}
+
+// Rutas de plasticidad neural (vías animadas)
+const neuralPaths = [];
+for (let i = 0; i < 20; i++) {
+  const pts = [];
+  const sa = Math.random() * Math.PI * 2;
+  const sp = Math.random() * Math.PI * 0.5 + 0.3;
+  for (let j = 0; j < 8; j++) {
+    const t = j / 7;
+    const theta = sa + t * (Math.random() * 2 - 0.5);
+    const phi = sp + t * (Math.random() * 1 - 0.3);
+    const r = 0.83 + Math.sin(t * Math.PI) * 0.05;
+    pts.push(new THREE.Vector3(
+      r * Math.sin(phi) * Math.cos(theta),
+      r * Math.cos(phi) * 0.85,
+      r * Math.sin(phi) * Math.sin(theta) * 1.1
+    ));
+  }
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const tubeGeom = new THREE.TubeGeometry(curve, 20, 0.012, 6, false);
+  const tubeMat = new THREE.MeshBasicMaterial({
+    color: 0x4FC3F7, transparent: true, opacity: 0.3
+  });
+  const tube = new THREE.Mesh(tubeGeom, tubeMat);
+  tube.userData = { pathCurve: curve, phase: Math.random() * Math.PI * 2, speed: 0.5 + Math.random() * 1.5 };
+  neuralPaths.push(tube);
+  brainGroup.add(tube);
+
+  // Nodo de sinapsis
+  const nodePos = curve.getPointAt(Math.random());
+  const synapse = new THREE.Mesh(
+    new THREE.SphereGeometry(Math.max(0.03, 0.03), 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0x4FC3F7, transparent: true, opacity: 0.8 })
+  );
+  synapse.position.copy(nodePos);
+  synapse.userData = { pulsePhase: Math.random() * Math.PI * 2 };
+  brainGroup.add(synapse);
+}
+
+// Tronco cerebral
+const brainstem = new THREE.Mesh(
+  new THREE.CylinderGeometry(Math.max(0.15, 0.15), Math.max(0.2, 0.2), 0.6, 12),
+  brainShaderMat
+);
+brainstem.position.set(0, -0.7, -0.1);
+brainstem.rotation.x = 0.2;
+brainGroup.add(brainstem);
+
+// Cerebelo
+const cerebellum = new THREE.Mesh(
+  new THREE.SphereGeometry(Math.max(0.35, 0.35), 24, 16),
+  brainShaderMat
+);
+cerebellum.scale.set(1.2, 0.6, 0.9);
+cerebellum.position.set(0, -0.6, -0.5);
+brainGroup.add(cerebellum);
+
+brainGroup.position.set(0, 4.5, -1.5);
+brainGroup.scale.set(1.2, 1.2, 1.2);
+scene.add(brainGroup);
+
+// ============================================================
+// RED DE NODOS IA
+// ============================================================
+const aiNodesGroup = new THREE.Group();
+aiNodesGroup.userData = { type: 'ai_node', tooltip: 'tt_ai_node' };
+
+const nodeData = [
+  { label: 'EEG In', pos: [-3, 3, 2], color: 0x4FC3F7 },
+  { label: 'fNIRS In', pos: [-3, 2, 2.5], color: 0x81C784 },
+  { label: 'Preproc', pos: [-1.5, 2.5, 2], color: 0xFFB74D },
+  { label: 'Feature', pos: [0, 2.8, 1.5], color: 0xFFB74D },
+  { label: 'AutoML', pos: [1.5, 3, 1], color: 0x4FC3F7 },
+  { label: 'XAI', pos: [1.5, 2, 1.5], color: 0xCE93D8 },
+  { label: 'Decision', pos: [3, 2.5, 1], color: 0x4FC3F7 },
+  { label: 'VR Out', pos: [4.5, 3, 0.5], color: 0xCE93D8 },
+  { label: 'Feedback', pos: [4.5, 2, 0], color: 0x4DB6AC },
+  { label: 'Log', pos: [3, 1.5, 0.5], color: 0x9CA3AF },
+  { label: 'Monitor', pos: [0, 1.5, 2], color: 0x9CA3AF },
+  { label: 'Swarm', pos: [-1.5, 1.5, 2.5], color: 0x4FC3F7 }
+];
+
+const nodeMeshes = [];
+const nodeConnections = [];
+
+nodeData.forEach((nd, idx) => {
+  // Esfera del nodo
+  const nodeSphere = new THREE.Mesh(
+    new THREE.SphereGeometry(Math.max(0.15, 0.15), 16, 16),
+    new THREE.MeshStandardMaterial({
+      color: nd.color, emissive: nd.color, emissiveIntensity: 0.4,
+      metalness: 0.3, roughness: 0.5
+    })
+  );
+  nodeSphere.position.set(...nd.pos);
+  nodeSphere.userData = { idx, phase: Math.random() * Math.PI * 2 };
+  aiNodesGroup.add(nodeSphere);
+  nodeMeshes.push(nodeSphere);
+
+  // Anillo orbital
+  const orbitRing = new THREE.Mesh(
+    new THREE.RingGeometry(Math.max(0.2, 0.2), Math.max(0.25, 0.25), 32),
+    new THREE.MeshBasicMaterial({ color: nd.color, transparent: true, opacity: 0.3, side: THREE.DoubleSide })
+  );
+  orbitRing.position.copy(nodeSphere.position);
+  orbitRing.rotation.x = Math.random() * Math.PI;
+  orbitRing.rotation.y = Math.random() * Math.PI;
+  aiNodesGroup.add(orbitRing);
+
+  // Conexiones a nodos siguientes
+  const nextIndices = [];
+  if (idx < 2) nextIndices.push(2);
+  else if (idx === 2) nextIndices.push(3);
+  else if (idx === 3) nextIndices.push(4);
+  else if (idx === 4) nextIndices.push(5, 6);
+  else if (idx === 5) nextIndices.push(6);
+  else if (idx === 6) nextIndices.push(7, 8);
+  else if (idx === 7) nextIndices.push(8);
+  else if (idx === 8) nextIndices.push(9);
+  else if (idx === 11) nextIndices.push(0, 1);
+
+  nextIndices.forEach(ni => {
+    if (ni < nodeData.length) {
+      const lineGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(...nd.pos),
+        new THREE.Vector3(...nodeData[ni].pos)
+      ]);
+      const lineMat = new THREE.LineBasicMaterial({ color: nd.color, transparent: true, opacity: 0.2 });
+      const line = new THREE.Line(lineGeom, lineMat);
+      aiNodesGroup.add(line);
+      nodeConnections.push({ from: idx, to: ni, line });
+    }
+  });
+});
+
+scene.add(aiNodesGroup);
+
+// ============================================================
+// PARTÍCULAS DE FLUJO DE DATOS
+// ============================================================
+const dataFlowCount = 500;
+const dfPositions = new Float32Array(dataFlowCount * 3);
+const dfPhases = new Float32Array(dataFlowCount);
+const dfSpeeds = new Float32Array(dataFlowCount);
+const dfPaths = []; // Cada partícula sigue una conexión
+
+for (let i = 0; i < dataFlowCount; i++) {
+  dfPhases[i] = Math.random() * Math.PI * 2;
+  dfSpeeds[i] = 0.5 + Math.random() * 2.0;
+  if (nodeConnections.length > 0) {
+    const connIdx = Math.floor(Math.random() * nodeConnections.length);
+    const conn = nodeConnections[connIdx];
+    const t = Math.random();
+    const from = new THREE.Vector3(...nodeData[conn.from].pos);
+    const to = new THREE.Vector3(...nodeData[conn.to].pos);
+    const pos = from.clone().lerp(to, t);
+    dfPositions[i * 3] = pos.x;
+    dfPositions[i * 3 + 1] = pos.y;
+    dfPositions[i * 3 + 2] = pos.z;
+    dfPaths.push({ connIdx, t, speed: 0.2 + Math.random() * 0.6 });
+  } else {
+    dfPositions[i * 3] = (Math.random() - 0.5) * 6;
+    dfPositions[i * 3 + 1] = 1.5 + Math.random() * 2;
+    dfPositions[i * 3 + 2] = Math.random() * 3;
+    dfPaths.push({ connIdx: 0, t: Math.random(), speed: 0.3 });
+  }
+}
+
+const dfGeom = new THREE.BufferGeometry();
+dfGeom.setAttribute('position', new THREE.BufferAttribute(dfPositions, 3));
+dfGeom.setAttribute('aPhase', new THREE.BufferAttribute(dfPhases, 1));
+dfGeom.setAttribute('aSpeed', new THREE.BufferAttribute(dfSpeeds, 1));
+const dataFlowPoints = new THREE.Points(dfGeom, dataFlowShaderMat);
+dataFlowPoints.userData = { paths: dfPaths, visible: true };
+scene.add(dataFlowPoints);
+
+// ============================================================
+// MODELO BIOMECÁNICO
+// ============================================================
+const bioGroup = new THREE.Group();
+bioGroup.userData = { type: 'bio', tooltip: 'tt_bio' };
+bioGroup.visible = false;
+
+const jointPositions = {
+  hips: new THREE.Vector3(0, 1.2, 0),
+  spine: new THREE.Vector3(0, 1.8, 0),
+  chest: new THREE.Vector3(0, 2.3, 0),
+  neck: new THREE.Vector3(0, 2.6, 0),
+  head: new THREE.Vector3(0, 2.9, 0),
+  lShoulder: new THREE.Vector3(-0.4, 2.5, 0),
+  rShoulder: new THREE.Vector3(0.4, 2.5, 0),
+  lElbow: new THREE.Vector3(-0.7, 2.0, 0),
+  rElbow: new THREE.Vector3(0.7, 2.0, 0),
+  lHand: new THREE.Vector3(-0.9, 1.5, 0.2),
+  rHand: new THREE.Vector3(0.9, 1.5, 0.2),
+  lHip: new THREE.Vector3(-0.2, 1.2, 0),
+  rHip: new THREE.Vector3(0.2, 1.2, 0),
+  lKnee: new THREE.Vector3(-0.25, 0.6, 0),
+  rKnee: new THREE.Vector3(0.25, 0.6, 0),
+  lFoot: new THREE.Vector3(-0.25, 0.05, 0.1),
+  rFoot: new THREE.Vector3(0.25, 0.05, 0.1)
+};
+
+const bioMaterials = {
+  bone: new THREE.MeshStandardMaterial({ color: 0x9CA3AF, metalness: 0.5, roughness: 0.5 }),
+  joint: new THREE.MeshStandardMaterial({ color: 0x4FC3F7, emissive: 0x4FC3F7, emissiveIntensity: 0.3, metalness: 0.3, roughness: 0.5 }),
+  mesh: new THREE.MeshStandardMaterial({ color: 0x6B7280, transparent: true, opacity: 0.25, wireframe: true })
+};
+
+// Esqueleto
+const boneConnections = [
+  ['hips','spine'],['spine','chest'],['chest','neck'],['neck','head'],
+  ['chest','lShoulder'],['lShoulder','lElbow'],['lElbow','lHand'],
+  ['chest','rShoulder'],['rShoulder','rElbow'],['rElbow','rHand'],
+  ['hips','lHip'],['lHip','lKnee'],['lKnee','lFoot'],
+  ['hips','rHip'],['rHip','rKnee'],['rKnee','rFoot']
+];
+
+const bioBones = {};
+boneConnections.forEach(([a, b]) => {
+  const pA = jointPositions[a], pB = jointPositions[b];
+  const dir = pB.clone().sub(pA);
+  const len = Math.max(0.01, dir.length());
+  const mid = pA.clone().add(pB).multiplyScalar(0.5);
+  const boneGeom = new THREE.CylinderGeometry(Math.max(0.025, 0.025), Math.max(0.025, 0.025), len, 6);
+  const bone = new THREE.Mesh(boneGeom, bioMaterials.bone);
+  bone.position.copy(mid);
+  bone.lookAt(pB);
+  bone.rotateX(Math.PI / 2);
+  bioGroup.add(bone);
+  bioBones[`${a}_${b}`] = { mesh: bone, a, b, origA: pA.clone(), origB: pB.clone() };
+});
+
+// Articulaciones
+Object.entries(jointPositions).forEach(([name, pos]) => {
+  const jMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(Math.max(0.04, 0.04), 10, 10),
+    bioMaterials.joint
+  );
+  jMesh.position.copy(pos);
+  jMesh.userData = { jointName: name, origPos: pos.clone() };
+  bioGroup.add(jMesh);
+});
+
+// Malla corporal wireframe
+const bodyShape = new THREE.CapsuleGeometry(Math.max(0.3, 0.3), 1.0, 8, 16);
+const bodyMesh = new THREE.Mesh(bodyShape, bioMaterials.mesh);
+bodyMesh.position.set(0, 1.7, 0);
+bioGroup.add(bodyMesh);
+
+// Cabeza wireframe
+const headMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(Math.max(0.18, 0.18), 12, 12),
+  bioMaterials.mesh
+);
+headMesh.position.set(0, 2.9, 0);
+bioGroup.add(headMesh);
+
+bioGroup.position.set(0, 0.5, 3);
+scene.add(bioGroup);
+
+// ============================================================
+// PARTÍCULAS DE ENJAMBRE IA
+// ============================================================
+const swarmCount = 800;
+const swarmPositions = new Float32Array(swarmCount * 3);
+const swarmVelocities = [];
+const swarmPhases = new Float32Array(swarmCount);
+
+for (let i = 0; i < swarmCount; i++) {
+  swarmPositions[i * 3] = (Math.random() - 0.5) * 8;
+  swarmPositions[i * 3 + 1] = 2 + Math.random() * 4;
+  swarmPositions[i * 3 + 2] = (Math.random() - 0.5) * 8;
+  swarmVelocities.push(new THREE.Vector3(
+    (Math.random() - 0.5) * 0.02,
+    (Math.random() - 0.5) * 0.02,
+    (Math.random() - 0.5) * 0.02
+  ));
+  swarmPhases[i] = Math.random() * Math.PI * 2;
+}
+
+const swarmGeom = new THREE.BufferGeometry();
+swarmGeom.setAttribute('position', new THREE.BufferAttribute(swarmPositions, 3));
+swarmGeom.setAttribute('aPhase', new THREE.BufferAttribute(swarmPhases, 1));
+const swarmPoints = new THREE.Points(swarmGeom, swarmShaderMat);
+swarmPoints.visible = false;
+scene.add(swarmPoints);
+
+// ============================================================
+// VISUALIZACIÓN DE ENERGÍA HÍBRIDA
+// ============================================================
+const energyGroup = new THREE.Group();
+energyGroup.userData = { type: 'energy', tooltip: 'tt_energy' };
+energyGroup.visible = false;
+
+// Anillo de energía principal
+const energyRing = new THREE.Mesh(
+  new THREE.TorusGeometry(Math.max(2, 2), Math.max(0.08, 0.08), 16, 64),
+  energyShaderMat.clone()
+);
+energyRing.position.set(0, 2.5, 0);
+energyRing.rotation.x = Math.PI / 2;
+energyGroup.add(energyRing);
+
+// Anillos secundarios
+for (let i = 0; i < 3; i++) {
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(Math.max(1.5 + i * 0.4, 0.1), Math.max(0.04, 0.04), 12, 48),
+    energyShaderMat.clone()
+  );
+  ring.position.set(0, 2.5, 0);
+  ring.rotation.x = Math.PI / 2 + (i - 1) * 0.3;
+  ring.rotation.z = i * 0.5;
+  ring.userData = { rotSpeed: 0.3 + i * 0.15, axis: i };
+  energyGroup.add(ring);
+}
+
+// Núcleo de energía
+const energyCore = new THREE.Mesh(
+  new THREE.IcosahedronGeometry(Math.max(0.3, 0.3), 2),
+  new THREE.MeshStandardMaterial({
+    color: 0x4FC3F7, emissive: 0x4FC3F7, emissiveIntensity: 0.8,
+    metalness: 0.2, roughness: 0.3, transparent: true, opacity: 0.7
+  })
+);
+energyCore.position.set(0, 2.5, 0);
+energyGroup.add(energyCore);
+
+// Partículas de energía
+const energyPartCount = 300;
+const epPositions = new Float32Array(energyPartCount * 3);
+const epPhases = new Float32Array(energyPartCount);
+const epSpeeds = new Float32Array(energyPartCount);
+for (let i = 0; i < energyPartCount; i++) {
+  const angle = Math.random() * Math.PI * 2;
+  const r = 1.2 + Math.random() * 2;
+  const y = 2.5 + (Math.random() - 0.5) * 2;
+  epPositions[i * 3] = Math.cos(angle) * r;
+  epPositions[i * 3 + 1] = y;
+  epPositions[i * 3 + 2] = Math.sin(angle) * r;
+  epPhases[i] = angle;
+  epSpeeds[i] = 0.3 + Math.random() * 0.7;
+}
+const epGeom = new THREE.BufferGeometry();
+epGeom.setAttribute('position', new THREE.BufferAttribute(epPositions, 3));
+epGeom.setAttribute('aPhase', new THREE.BufferAttribute(epPhases, 1));
+epGeom.setAttribute('aSpeed', new THREE.BufferAttribute(epSpeeds, 1));
+const energyParticles = new THREE.Points(epGeom, dataFlowShaderMat);
+energyGroup.add(energyParticles);
+
+scene.add(energyGroup);
+
+// ============================================================
+// LÍNEAS DE CONEXIÓN CEREBRO-VR (flujo principal)
+// ============================================================
+const mainFlowLines = [];
+const flowPoints = [
+  new THREE.Vector3(0, 3.6, -0.5),  // Desde cerebro
+  new THREE.Vector3(0, 3.2, 0),
+  new THREE.Vector3(0, 2.8, 0.3),
+  new THREE.Vector3(0, 2.5, 0.5)   // Hasta visor
+];
+
+for (let i = 0; i < flowPoints.length - 1; i++) {
+  const curve = new THREE.CatmullRomCurve3([flowPoints[i], flowPoints[i + 1]]);
+  const tubeGeom = new THREE.TubeGeometry(curve, 12, 0.015, 6, false);
+  const tubeMat = new THREE.MeshBasicMaterial({ color: 0x4FC3F7, transparent: true, opacity: 0.4 });
+  const tube = new THREE.Mesh(tubeGeom, tubeMat);
+  scene.add(tube);
+  mainFlowLines.push(tube);
+}
+
+// ============================================================
+// PARTÍCULAS AMBIENTALES
+// ============================================================
+const ambientCount = 200;
+const ambPositions = new Float32Array(ambientCount * 3);
+const ambPhases = new Float32Array(ambientCount);
+const ambSpeeds = new Float32Array(ambientCount);
+for (let i = 0; i < ambientCount; i++) {
+  ambPositions[i * 3] = (Math.random() - 0.5) * 20;
+  ambPositions[i * 3 + 1] = Math.random() * 8;
+  ambPositions[i * 3 + 2] = (Math.random() - 0.5) * 20;
+  ambPhases[i] = Math.random() * Math.PI * 2;
+  ambSpeeds[i] = 0.2 + Math.random() * 0.5;
+}
+const ambGeom = new THREE.BufferGeometry();
+ambGeom.setAttribute('position', new THREE.BufferAttribute(ambPositions, 3));
+ambGeom.setAttribute('aPhase', new THREE.BufferAttribute(ambPhases, 1));
+ambGeom.setAttribute('aSpeed', new THREE.BufferAttribute(ambSpeeds, 1));
+const ambMat = new THREE.ShaderMaterial({
+  uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(0x4FC3F7) } },
+  vertexShader: `
+    attribute float aPhase;
+    attribute float aSpeed;
+    varying float vAlpha;
+    uniform float uTime;
+    void main(){
+      vAlpha = 0.3 + 0.3 * sin(uTime * aSpeed + aPhase);
+      vec3 p = position;
+      p.y += sin(uTime * 0.3 + aPhase) * 0.3;
+      vec4 mvPos = modelViewMatrix * vec4(p, 1.0);
+      gl_PointSize = (1.5 + vAlpha * 2.0) * (60.0 / -mvPos.z);
+      gl_Position = projectionMatrix * mvPos;
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 uColor;
+    varying float vAlpha;
+    void main(){
+      float d = length(gl_PointCoord - 0.5) * 2.0;
+      float a = exp(-d * d * 4.0) * vAlpha * 0.4;
+      gl_FragColor = vec4(uColor, a);
+    }
+  `,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+});
+scene.add(new THREE.Points(ambGeom, ambMat));
+
+// ============================================================
+// SISTEMA DE INTERACCIÓN (RAYCASTING)
+// ============================================================
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const tooltip = document.getElementById('tooltip');
+const ttTitle = tooltip.querySelector('.tt-title');
+const ttBody = tooltip.querySelector('.tt-body');
+
+const interactiveObjects = [];
+scene.traverse(obj => {
+  if (obj.userData && obj.userData.tooltip) {
+    interactiveObjects.push(obj);
+  }
+  // También añadir el grupo del headset
+  if (obj.parent === headsetGroup && !obj.userData.tooltip) {
+    obj.userData = obj.userData || {};
+    if (!obj.userData.tooltip) obj.userData.tooltip = 'tt_headset';
+    interactiveObjects.push(obj);
+  }
+});
+
+renderer.domElement.addEventListener('mousemove', (e) => {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(interactiveObjects, false);
+
+  if (hits.length > 0) {
+    let obj = hits[0].object;
+    // Subir hasta encontrar tooltip
+    while (obj && !obj.userData.tooltip) obj = obj.parent;
+    if (obj && obj.userData.tooltip) {
+      const key = obj.userData.tooltip;
+      const text = i18n[currentLang][key] || key;
+      ttTitle.textContent = key.replace('tt_', '').replace(/_/g, ' ').toUpperCase();
+      ttBody.textContent = text;
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX + 16) + 'px';
+      tooltip.style.top = (e.clientY + 16) + 'px';
+      renderer.domElement.style.cursor = 'pointer';
+      return;
+    }
+  }
+  tooltip.style.display = 'none';
+  renderer.domElement.style.cursor = 'grab';
+});
+
+// ============================================================
+// ESTADOS DINÁMICOS Y MODOS OPERATIVOS
+// ============================================================
+let currentMode = 'default';
+const modeIndicator = document.getElementById('mode-indicator');
+let modeTimeout = null;
+
+function setMode(mode) {
+  // Desactivar modo anterior
+  document.querySelectorAll('#controls-panel button').forEach(b => b.classList.remove('active-mode'));
+
+  if (mode === 'reset') {
+    currentMode = 'default';
+    headsetGroup.visible = true;
+    brainGroup.visible = true;
+    aiNodesGroup.visible = true;
+    dataFlowPoints.visible = true;
+    bioGroup.visible = false;
+    swarmPoints.visible = false;
+    energyGroup.visible = false;
+    mainFlowLines.forEach(l => l.visible = true);
+    controls.autoRotate = true;
+    controls.target.set(0, 1.5, 0);
+    camera.position.set(6, 4, 8);
+    showModeIndicator('');
+    return;
+  }
+
+  if (mode === 'ar') {
+    startAR();
+    return;
+  }
+
+  currentMode = mode;
+  const btn = document.querySelector(`[data-mode="${mode}"]`);
+  if (btn) btn.classList.add('active-mode');
+
+  const modeTextKey = `mode_${mode}`;
+  showModeIndicator(i18n[currentLang][modeTextKey] || mode);
+
+  // Resetear visibilidad
+  headsetGroup.visible = true;
+  brainGroup.visible = true;
+  aiNodesGroup.visible = true;
+  dataFlowPoints.visible = true;
+  bioGroup.visible = false;
+  swarmPoints.visible = false;
+  energyGroup.visible = false;
+  mainFlowLines.forEach(l => l.visible = true);
+  controls.autoRotate = true;
+
+  switch (mode) {
+    case 'calibration':
+      // Mostrar solo headset y sensores, pulsar electrodos
+      brainGroup.visible = false;
+      aiNodesGroup.visible = false;
+      dataFlowPoints.visible = false;
+      mainFlowLines.forEach(l => l.visible = false);
+      controls.autoRotate = false;
+      break;
+
+    case 'therapy':
+      // Todo visible, flujo de datos activo
+      break;
+
+    case 'analysis':
+      // Enfocar en nodos IA y cerebro
+      headsetGroup.visible = false;
+      mainFlowLines.forEach(l => l.visible = false);
+      break;
+
+    case 'biomechanics':
+      headsetGroup.visible = false;
+      brainGroup.visible = false;
+      aiNodesGroup.visible = false;
+      dataFlowPoints.visible = false;
+      mainFlowLines.forEach(l => l.visible = false);
+      bioGroup.visible = true;
+      controls.autoRotate = false;
+      break;
+
+    case 'swarm':
+      headsetGroup.visible = false;
+      brainGroup.visible = false;
+      aiNodesGroup.visible = false;
+      dataFlowPoints.visible = false;
+      mainFlowLines.forEach(l => l.visible = false);
+      swarmPoints.visible = true;
+      break;
+
+    case 'energy':
+      headsetGroup.visible = false;
+      brainGroup.visible = false;
+      aiNodesGroup.visible = false;
+      dataFlowPoints.visible = false;
+      mainFlowLines.forEach(l => l.visible = false);
+      energyGroup.visible = true;
+      break;
+  }
+}
+
+function showModeIndicator(text) {
+  modeIndicator.textContent = text;
+  modeIndicator.classList.toggle('visible', !!text);
+  if (modeTimeout) clearTimeout(modeTimeout);
+  if (text) {
+    modeTimeout = setTimeout(() => modeIndicator.classList.remove('visible'), 3000);
+  }
+}
+
+document.querySelectorAll('#controls-panel button').forEach(btn => {
+  btn.addEventListener('click', () => setMode(btn.dataset.mode));
+});
+
+// ============================================================
+// REALIDAD AUMENTADA
+// ============================================================
+let arActive = false;
+let arScene, arCamera, arRenderer, arAnimationId;
+
+async function startAR() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    const overlay = document.getElementById('ar-overlay');
+    const video = document.getElementById('ar-video');
+    const arCanvas = document.getElementById('ar-canvas');
+    video.srcObject = stream;
+    overlay.style.display = 'block';
+
+    arCanvas.width = window.innerWidth;
+    arCanvas.height = window.innerHeight;
+
+    arScene = new THREE.Scene();
+    arCamera = new THREE.PerspectiveCamera(50, arCanvas.width / arCanvas.height, 0.1, 100);
+    arCamera.position.set(0, 2, 5);
+    arCamera.lookAt(0, 2, 0);
+
+    arRenderer = new THREE.WebGLRenderer({ canvas: arCanvas, alpha: true, antialias: true });
+    arRenderer.setSize(arCanvas.width, arCanvas.height);
+    arRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    arRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+    // Luz AR
+    arScene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const arDir = new THREE.DirectionalLight(0xffffff, 1.5);
+    arDir.position.set(3, 5, 4);
+    arScene.add(arDir);
+    const arPoint = new THREE.PointLight(0x4FC3F7, 2, 8);
+    arPoint.position.set(0, 3, 0);
+    arScene.add(arPoint);
+
+    // Clonar headset para AR
+    const arHeadset = headsetGroup.clone();
+    arHeadset.position.set(0, 2, 0);
+    arHeadset.scale.set(0.8, 0.8, 0.8);
+    arScene.add(arHeadset);
+
+    // Clonar cerebro para AR
+    const arBrain = brainGroup.clone();
+    arBrain.position.set(0, 4, -1);
+    arBrain.scale.set(0.6, 0.6, 0.6);
+    arScene.add(arBrain);
+
+    // Plano de referencia (mesa)
+    const arPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(4, 4),
+      new THREE.MeshStandardMaterial({ color: 0x4FC3F7, transparent: true, opacity: 0.08, side: THREE.DoubleSide })
+    );
+    arPlane.rotation.x = -Math.PI / 2;
+    arPlane.position.y = 0;
+    arScene.add(arPlane);
+
+    const arGrid = new THREE.GridHelper(4, 20, 0x4FC3F7, 0x4FC3F7);
+    arGrid.material.transparent = true;
+    arGrid.material.opacity = 0.15;
+    arScene.add(arGrid);
+
+    // Controles AR (touch/mouse)
+    let arRotY = 0;
+    let arLastX = 0;
+    const onPointerDown = (e) => { arLastX = e.clientX || e.touches[0].clientX; };
+    const onPointerMove = (e) => {
+      const x = e.clientX || (e.touches && e.touches[0].clientX) || arLastX;
+      arRotY += (x - arLastX) * 0.005;
+      arLastX = x;
+    };
+    arCanvas.addEventListener('mousedown', onPointerDown);
+    arCanvas.addEventListener('mousemove', onPointerMove);
+    arCanvas.addEventListener('touchstart', onPointerDown, { passive: true });
+    arCanvas.addEventListener('touchmove', onPointerMove, { passive: true });
+
+    arActive = true;
+    controls.autoRotate = false;
+
+    function arLoop() {
+      if (!arActive) return;
+      arAnimationId = requestAnimationFrame(arLoop);
+      arHeadset.rotation.y = arRotY;
+      arBrain.rotation.y = arRotY * 0.5;
+
+      // Actualizar shaders AR
+      arHeadset.traverse(child => {
+        if (child.material === visorShaderMat || (child.material && child.material.uniforms && child.material.uniforms.uTime)) {
+          child.material.uniforms.uTime.value = performance.now() * 0.001;
+        }
+      });
+
+      arRenderer.render(arScene, arCamera);
+    }
+    arLoop();
+
+  } catch (err) {
+    console.warn('AR no disponible:', err);
+    showModeIndicator(i18n[currentLang].btn_ar + ' - No disponible');
+  }
+}
+
+function stopAR() {
+  arActive = false;
+  if (arAnimationId) cancelAnimationFrame(arAnimationId);
+  const overlay = document.getElementById('ar-overlay');
+  overlay.style.display = 'none';
+  const video = document.getElementById('ar-video');
+  if (video.srcObject) {
+    video.srcObject.getTracks().forEach(t => t.stop());
+    video.srcObject = null;
+  }
+  controls.autoRotate = true;
+}
+
+document.getElementById('ar-close').addEventListener('click', stopAR);
+
+// ============================================================
+// SIMULACIÓN DE HUD EN TIEMPO REAL
+// ============================================================
+function updateHUD(time) {
+  const neural = 75 + Math.sin(time * 0.8) * 12 + Math.sin(time * 2.3) * 5;
+  const cognitive = 35 + Math.sin(time * 0.5) * 15 + Math.cos(time * 1.7) * 8;
+  const attention = 80 + Math.sin(time * 0.3) * 10 + Math.sin(time * 1.9) * 6;
+  const plasticity = 65 + Math.sin(time * 0.6) * 10 + Math.cos(time * 2.1) * 5;
+
+  document.getElementById('stat-neural').textContent = Math.round(neural) + '%';
+  document.getElementById('bar-neural').style.width = neural + '%';
+  document.getElementById('stat-cognitive').textContent = Math.round(cognitive) + '%';
+  document.getElementById('bar-cognitive').style.width = cognitive + '%';
+  document.getElementById('stat-attention').textContent = Math.round(attention) + '%';
+  document.getElementById('bar-attention').style.width = attention + '%';
+  document.getElementById('stat-plasticity').textContent = Math.round(plasticity) + '%';
+  document.getElementById('bar-plasticity').style.width = plasticity + '%';
+
+  // Animar nodos IA del HUD
+  const nodeEls = document.querySelectorAll('.hud-node');
+  nodeEls.forEach((el, i) => {
+    el.classList.toggle('processing', Math.sin(time * 1.5 + i * 1.2) > -0.3);
+  });
+}
+
+// ============================================================
+// ANIMACIÓN BIOMECÁNICA
+// ============================================================
+function animateBiomechanics(time) {
+  if (!bioGroup.visible) return;
+
+  bioGroup.traverse(child => {
+    if (child.userData && child.userData.jointName) {
+      const name = child.userData.jointName;
+      const orig = child.userData.origPos;
+      let offset = new THREE.Vector3();
+
+      switch (name) {
+        case 'rHand':
+          offset.set(Math.sin(time * 1.5) * 0.3, Math.cos(time * 1.5) * 0.2 + 0.3, Math.sin(time * 0.8) * 0.15);
+          break;
+        case 'rElbow':
+          offset.set(Math.sin(time * 1.5) * 0.15, Math.cos(time * 1.5) * 0.1 + 0.1, 0);
+          break;
+        case 'lHand':
+          offset.set(Math.sin(time * 1.2 + 1) * 0.2, Math.cos(time * 1.2 + 1) * 0.15 + 0.2, Math.sin(time * 0.7 + 1) * 0.1);
+          break;
+        case 'lElbow':
+          offset.set(Math.sin(time * 1.2 + 1) * 0.1, Math.cos(time * 1.2 + 1) * 0.08, 0);
+          break;
+        case 'head':
+          offset.set(Math.sin(time * 0.5) * 0.05, 0, 0);
+          break;
+        case 'rKnee':
+          offset.y = Math.sin(time * 0.8) * 0.05;
+          break;
+        case 'lKnee':
+          offset.y = Math.sin(time * 0.8 + Math.PI) * 0.05;
+          break;
+      }
+      child.position.copy(orig).add(offset);
+    }
+  });
+
+  // Actualizar huesos
+  Object.values(bioBones).forEach(bone => {
+    const aPos = bioGroup.children.find(c => c.userData.jointName === bone.a);
+    const bPos = bioGroup.children.find(c => c.userData.jointName === bone.b);
+    if (aPos && bPos) {
+      const mid = aPos.position.clone().add(bPos.position).multiplyScalar(0.5);
+      bone.mesh.position.copy(mid);
+      const dir = bPos.position.clone().sub(aPos.position);
+      const len = Math.max(0.01, dir.length());
+      bone.mesh.scale.y = len / (bone.origB.clone().sub(bone.origA).length());
+      bone.mesh.lookAt(bPos.position);
+      bone.mesh.rotateX(Math.PI / 2);
+    }
+  });
+}
+
+// ============================================================
+// SIMULACIÓN DE ENJAMBRE
+// ============================================================
+function animateSwarm(time) {
+  if (!swarmPoints.visible) return;
+  const pos = swarmGeom.attributes.position.array;
+  const center = new THREE.Vector3(0, 3, 0);
+
+  for (let i = 0; i < swarmCount; i++) {
+    const idx = i * 3;
+    const vel = swarmVelocities[i];
+    const px = pos[idx], py = pos[idx + 1], pz = pos[idx + 2];
+    const posVec = new THREE.Vector3(px, py, pz);
+
+    // Reglas de enjambre simplificadas
+    const toCenter = center.clone().sub(posVec).multiplyScalar(0.001);
+    vel.add(toCenter);
+
+    // Separación (muestreo parcial para rendimiento)
+    if (i % 4 === 0) {
+      for (let j = Math.max(0, i - 8); j < Math.min(swarmCount, i + 8); j++) {
+        if (i === j) continue;
+        const dx = pos[idx] - pos[j * 3];
+        const dy = pos[idx + 1] - pos[j * 3 + 1];
+        const dz = pos[idx + 2] - pos[j * 3 + 2];
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (dist < 0.5 && dist > 0.001) {
+          vel.add(new THREE.Vector3(dx / dist, dy / dist, dz / dist).multiplyScalar(0.002));
+        }
+      }
+    }
+
+    // Alineación y cohesión (muestreo)
+    if (i % 10 === 0) {
+      const sampleIdx = Math.floor(Math.random() * swarmCount) * 3;
+      const otherVel = swarmVelocities[Math.floor(sampleIdx / 3)];
+      vel.add(otherVel.clone().sub(vel).multiplyScalar(0.01));
+    }
+
+    // Movimiento orbital
+    const angle = Math.atan2(pz - center.z, px - center.x) + 0.005;
+    const radius = Math.sqrt((px - center.x) ** 2 + (pz - center.z) ** 2);
+    const targetR = 2 + Math.sin(time * 0.3 + i * 0.01) * 1;
+    vel.x += (Math.cos(angle) * targetR - px + center.x) * 0.002;
+    vel.z += (Math.sin(angle) * targetR - pz + center.z) * 0.002;
+    vel.y += (3 + Math.sin(time * 0.5 + i * 0.02) - py) * 0.001;
+
+    // Limitar velocidad
+    const speed = vel.length();
+    if (speed > 0.04) vel.multiplyScalar(0.04 / speed);
+
+    vel.multiplyScalar(0.98); // Fricción
+    pos[idx] += vel.x;
+    pos[idx + 1] += vel.y;
+    pos[idx + 2] += vel.z;
+  }
+  swarmGeom.attributes.position.needsUpdate = true;
+}
+
+// ============================================================
+// BUCLE PRINCIPAL DE ANIMACIÓN
+// ============================================================
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const time = clock.getElapsedTime();
+  const delta = clock.getDelta();
+
+  controls.update();
+
+  // Actualizar shaders con tiempo
+  visorShaderMat.uniforms.uTime.value = time;
+  brainShaderMat.uniforms.uTime.value = time;
+  dataFlowShaderMat.uniforms.uTime.value = time;
+  swarmShaderMat.uniforms.uTime.value = time;
+  ambMat.uniforms.uTime.value = time;
+
+  // Actualizar shader de energía
+  energyGroup.traverse(child => {
+    if (child.material && child.material.uniforms && child.material.uniforms.uTime) {
+      child.material.uniforms.uTime.value = time;
+    }
+  });
+
+  // Pulsar electrodos EEG
+  eegGroup.children.forEach(child => {
+    if (child.userData && child.userData.pulsePhase !== undefined) {
+      const scale = 1 + Math.sin(time * 3 + child.userData.pulsePhase) * 0.3;
+      child.scale.setScalar(scale);
+      child.material.opacity = 0.3 + Math.sin(time * 3 + child.userData.pulsePhase) * 0.3;
+    }
+  });
+
+  // Pulsar nodos de sinapsis en cerebro
+  brainGroup.children.forEach(child => {
+    if (child.userData && child.userData.pulsePhase !== undefined) {
+      const s = 1 + Math.sin(time * 4 + child.userData.pulsePhase) * 0.5;
+      child.scale.setScalar(s);
+    }
+    // Animar rutas neurales
+    if (child.userData && child.userData.pathCurve) {
+      child.material.opacity = 0.15 + Math.sin(time * child.userData.speed + child.userData.phase) * 0.2;
+    }
+  });
+
+  // Rotar cerebro lentamente
+  brainGroup.rotation.y = Math.sin(time * 0.2) * 0.3;
+
+  // Pulsar nodos IA
+  nodeMeshes.forEach((nm, i) => {
+    const s = 1 + Math.sin(time * 2 + nm.userData.phase) * 0.15;
+    nm.scale.setScalar(s);
+    if (nm.material.emissiveIntensity !== undefined) {
+      nm.material.emissiveIntensity = 0.3 + Math.sin(time * 2 + nm.userData.phase) * 0.3;
+    }
+  });
+
+  // Animar flujo de datos
+  if (dataFlowPoints.visible && nodeConnections.length > 0) {
+    const dfPos = dfGeom.attributes.position.array;
+    const paths = dataFlowPoints.userData.paths;
+    for (let i = 0; i < dataFlowCount; i++) {
+      const p = paths[i];
+      p.t += p.speed * 0.005;
+      if (p.t > 1) p.t -= 1;
+      const conn = nodeConnections[p.connIdx];
+      if (conn) {
+        const from = new THREE.Vector3(...nodeData[conn.from].pos);
+        const to = new THREE.Vector3(...nodeData[conn.to].pos);
+        const pos = from.clone().lerp(to, p.t);
+        // Añadir algo de variación
+        pos.x += Math.sin(time * 2 + i) * 0.05;
+        pos.y += Math.cos(time * 1.5 + i * 0.5) * 0.05;
+        dfPos[i * 3] = pos.x;
+        dfPos[i * 3 + 1] = pos.y;
+        dfPos[i * 3 + 2] = pos.z;
+      }
+    }
+    dfGeom.attributes.position.needsUpdate = true;
+  }
+
+  // Pulsar líneas de flujo principal
+  mainFlowLines.forEach((line, i) => {
+    line.material.opacity = 0.2 + Math.sin(time * 3 + i * 0.8) * 0.2;
+  });
+
+  // Animar LEDs del headset
+  headsetGroup.children.forEach(child => {
+    if (child.userData && child.userData.ledPhase !== undefined) {
+      child.material.opacity = 0.5 + Math.sin(time * 4 + child.userData.ledPhase) * 0.5;
+    }
+  });
+
+  // Animar energía
+  if (energyGroup.visible) {
+    energyCore.rotation.y = time * 0.5;
+    energyCore.rotation.x = time * 0.3;
+    const coreScale = 1 + Math.sin(time * 2) * 0.15;
+    energyCore.scale.setScalar(coreScale);
+
+    energyGroup.children.forEach(child => {
+      if (child.userData && child.userData.rotSpeed) {
+        if (child.userData.axis === 0) child.rotation.z += child.userData.rotSpeed * 0.01;
+        else if (child.userData.axis === 1) child.rotation.x += child.userData.rotSpeed * 0.01;
+        else child.rotation.y += child.userData.rotSpeed * 0.01;
+      }
+    });
+
+    // Rotar partículas de energía
+    const epPos = epGeom.attributes.position.array;
+    for (let i = 0; i < energyPartCount; i++) {
+      const angle = epPhases[i] + time * epSpeeds[i] * 0.3;
+      const r = 1.2 + (i / energyPartCount) * 2;
+      epPos[i * 3] = Math.cos(angle) * r;
+      epPos[i * 3 + 2] = Math.sin(angle) * r;
+      epPos[i * 3 + 1] = 2.5 + Math.sin(time * epSpeeds[i] + i) * 0.8;
+    }
+    epGeom.attributes.position.needsUpdate = true;
+  }
+
+  // Luces de acento pulsantes
+  accentLight1.intensity = 1.5 + Math.sin(time * 1.5) * 0.5;
+  accentLight2.intensity = 0.8 + Math.sin(time * 2 + 1) * 0.3;
+
+  // Simulaciones
+  animateBiomechanics(time);
+  animateSwarm(time);
+  updateHUD(time);
+
+  renderer.render(scene, camera);
+}
+
+// ============================================================
+// REDIMENSIONAR VENTANA
+// ============================================================
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  if (arActive) {
+    const arCanvas = document.getElementById('ar-canvas');
+    arCanvas.width = window.innerWidth;
+    arCanvas.height = window.innerHeight;
+    if (arRenderer) arRenderer.setSize(arCanvas.width, arCanvas.height);
+    if (arCamera) {
+      arCamera.aspect = arCanvas.width / arCanvas.height;
+      arCamera.updateProjectionMatrix();
+    }
+  }
+});
+
+// ============================================================
+// INICIALIZAR
+// ============================================================
+setTimeout(() => {
+  document.getElementById('loading').classList.add('hidden');
+}, 1500);
+
+animate();
+</script>
+</body>
+</html>
