@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PEPSI COLA NEURO™ - Prototipo 3D Interactivo Avanzado</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #030305; color: #FAFAFA; }
+        #app-container { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; background: radial-gradient(circle at center, #0B1520 0%, #030305 100%); }
+        #webcam-video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: none; z-index: 1; transform: scaleX(-1); }
+        
+        /* Asegurar que el canvas capte eventos de ratón/toque prioritariamente */
+        #canvas-3d { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; cursor: grab; display: block; touch-action: none; }
+        #canvas-3d:active { cursor: grabbing; }
+        
+        .hud-element { position: absolute; z-index: 3; pointer-events: auto; background: rgba(8, 12, 18, 0.9); border: 1px solid rgba(79, 195, 247, 0.25); border-left: 4px solid #004B93; border-radius: 6px; padding: 12px; backdrop-filter: blur(16px); box-shadow: 0 15px 35px rgba(0,0,0,0.9); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        #header-author { top: 15px; left: 15px; min-width: 320px; }
+        #header-author h1 { font-size: 15px; font-weight: 800; letter-spacing: 1px; color: #FAFAFA; margin-bottom: 2px; }
+        #header-author p { font-size: 11px; color: #4FC3F7; text-transform: uppercase; font-weight: 700; text-shadow: 0 0 8px rgba(79,195,247,0.4); }
+        
+        #language-selector { top: 15px; right: 15px; display: flex; gap: 6px; background: transparent; border: none; padding: 0; box-shadow: none; border-left: none; }
+        .lang-btn { background: rgba(16, 22, 30, 0.9); border: 1px solid rgba(79,195,247,0.3); color: #B0BEC5; padding: 5px 10px; font-size: 11px; font-weight: bold; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
+        .lang-btn.active { background: #004B93; color: #FAFAFA; border-color: #4FC3F7; box-shadow: 0 0 12px rgba(0, 75, 147, 0.6); }
+        
+        #control-panel { top: 90px; left: 15px; width: 330px; bottom: 15px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+        .panel-section { border-bottom: 1px solid rgba(79, 195, 247, 0.15); padding-bottom: 10px; }
+        .panel-section:last-child { border-bottom: none; }
+        .section-title { font-size: 11px; color: #90A4AE; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.8px; display: flex; justify-content: space-between; font-weight: 700; }
+        
+        .grid-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .control-btn { background: rgba(20, 28, 38, 0.9); border: 1px solid rgba(79, 195, 247, 0.2); color: #CFD8DC; padding: 7px; font-size: 11px; cursor: pointer; border-radius: 4px; text-align: center; transition: all 0.2s; }
+        .control-btn:hover { border-color: #4FC3F7; background: rgba(0, 75, 147, 0.2); }
+        .control-btn.active { background: #004B93; color: #FFFFFF; font-weight: bold; border-color: #4FC3F7; box-shadow: 0 0 10px rgba(0,75,147,0.4); }
+        
+        #telemetry-panel { top: 90px; right: 15px; width: 330px; bottom: 15px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+        .telemetry-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
+        .telemetry-label { color: #90A4AE; }
+        .telemetry-value { font-family: monospace; color: #4FC3F7; font-weight: bold; text-shadow: 0 0 8px rgba(79,195,247,0.3); }
+        
+        .progress-bar-container { width: 100%; height: 4px; background: rgba(255,255,255,0.04); border-radius: 2px; margin-bottom: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.06); }
+        .progress-bar-fill { height: 100%; width: 50%; background: linear-gradient(90deg, #004B93, #4FC3F7); transition: width 0.4s ease; box-shadow: 0 0 8px #4FC3F7; }
+        
+        .mini-graph { width: 100%; height: 65px; background: rgba(5, 8, 12, 0.85); border-radius: 4px; margin-top: 4px; border: 1px solid rgba(79, 195, 247, 0.15); display: block; }
+        
+        #alert-banner { position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); background: rgba(3, 10, 20, 0.95); border: 1px solid #4FC3F7; padding: 8px 25px; border-radius: 20px; font-size: 11px; letter-spacing: 2px; color: #4FC3F7; animation: pulse-glow 2.5s infinite; z-index: 4; text-transform: uppercase; box-shadow: 0 0 25px rgba(0,75,147,0.7); pointer-events: none;}
+        #nav-instructions { position: absolute; bottom: 65px; left: 50%; transform: translateX(-50%); font-size: 11px; color: #78909C; text-shadow: 0 2px 4px rgba(0,0,0,1); z-index: 4; pointer-events: none; text-align: center; width: 80%; }
+        
+        @keyframes pulse-glow { 0% { box-shadow: 0 0 10px rgba(79,195,247,0.4); opacity: 0.8; } 50% { box-shadow: 0 0 25px rgba(79,195,247,0.8); opacity: 1; } 100% { box-shadow: 0 0 10px rgba(79,195,247,0.4); opacity: 0.8; } }
+        #control-panel::-webkit-scrollbar, #telemetry-panel::-webkit-scrollbar { width: 3px; }
+        #control-panel::-webkit-scrollbar-thumb, #telemetry-panel::-webkit-scrollbar-thumb { background: rgba(79, 195, 247, 0.3); border-radius: 2px; }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <video id="webcam-video" autoplay playsinline></video>
+        <!-- Canvas principal de motor 3D interactivo -->
+        <canvas id="canvas-3d"></canvas>
+
+        <div id="header-author" class="hud-element">
+            <h1 id="txt-author-title">Dr. Julio César Oporta Barrera</h1>
+            <p id="txt-project-sub">PEPSI COLA NEURO™ • Core v4.0 Matrix</p>
+        </div>
+
+        <div id="language-selector" class="hud-element">
+            <button class="lang-btn active" onclick="setLanguage('es')">ES</button>
+            <button class="lang-btn" onclick="setLanguage('en')">EN</button>
+            <button class="lang-btn" onclick="setLanguage('zh')">ZH</button>
+        </div>
+
+        <div id="control-panel" class="hud-element">
+            <div class="panel-section">
+                <div class="section-title" id="lbl-operational-modes">Modos Operativos</div>
+                <div class="grid-buttons">
+                    <button class="control-btn active" id="btn-mode-focus" onclick="setOperationalMode('focus')">NeuroFocus™</button>
+                    <button class="control-btn" id="btn-mode-balance" onclick="setOperationalMode('balance')">NeuroBalance™</button>
+                    <button class="control-btn" id="btn-mode-vital" onclick="setOperationalMode('vital')">NeuroVital™</button>
+                    <button class="control-btn" id="btn-mode-stealth" onclick="setOperationalMode('stealth')">Stealth Tactical</button>
+                </div>
+                <button class="control-btn" id="btn-mode-hyperdrive" onclick="setOperationalMode('hyperdrive')" style="width: 100%; margin-top: 6px; background: linear-gradient(135deg, #4A148C, #004B93); border-color: #BA68C8; font-weight: bold;">
+                    🚀 NeuroHyperdrive™ Mode
+                </button>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title" id="lbl-simulators">Simuladores Activos</div>
+                <div class="grid-buttons">
+                    <button class="control-btn active" id="btn-sim-biomech" onclick="toggleSim('biomech')">Biomecánica</button>
+                    <button class="control-btn active" id="btn-sim-physics" onclick="toggleSim('physics')">Física Modular</button>
+                    <button class="control-btn active" id="btn-sim-energy" onclick="toggleSim('energy')">Energía Híbrida</button>
+                    <button class="control-btn active" id="btn-sim-swarm" onclick="toggleSim('swarm')">IA de Enjambre</button>
+                    <button class="control-btn active" id="btn-sim-carbonation" onclick="toggleSim('carbonation')" style="border-color: #81D4FA;">Carbonatación CO₂</button>
+                    <button class="control-btn active" id="btn-sim-thermal" onclick="toggleSim('thermal')" style="border-color: #FF8A80;">Flujo Térmico</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title" id="lbl-shaders">Shaders y Renderizado</div>
+                <div class="grid-buttons" style="grid-template-columns: 1fr;">
+                    <button class="control-btn active" id="btn-shader-cinematic" onclick="toggleShader('cinematic')">Render Sólido Metálico</button>
+                    <button class="control-btn" id="btn-shader-wireframe" onclick="toggleShader('wireframe')">Estructura de Red Metálica</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title" id="lbl-flavor-spectrum">Inhibidor Neuro-Sensorial</div>
+                <div class="grid-buttons">
+                    <button class="control-btn active" id="btn-flavor-classic" onclick="setFlavorSpectrum('classic')">Pepsi Neuro Blue</button>
+                    <button class="control-btn" id="btn-flavor-zero" onclick="setFlavorSpectrum('zero')">Pepsi Neuro Zero</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title" id="lbl-ar-mode">Interfaz Inmersiva</div>
+                <button class="control-btn" id="btn-ar-toggle" onclick="toggleAR()" style="width: 100%; border-color: #4FC3F7; font-weight: bold;">
+                    Activar Realidad Aumentada (AR)
+                </button>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title" id="lbl-ai-nodes">Sistema de Nodos IA (Flujo)</div>
+                <canvas id="node-network-canvas" class="mini-graph"></canvas>
+            </div>
+        </div>
+
+        <div id="telemetry-panel" class="hud-element">
+            <div class="panel-section">
+                <div class="section-title" id="lbl-telemetry-title">Telemetría en Tiempo Real</div>
+                
+                <div class="telemetry-row">
+                    <span class="telemetry-label" id="lbl-tel-status">Estado del Sistema</span>
+                    <span class="telemetry-value" id="val-tel-status">OPTIMAL</span>
+                </div>
+                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-status" style="width: 94%;"></div></div>
+
+                <div class="telemetry-row">
+                    <span class="telemetry-label" id="lbl-tel-bio">Estabilidad Biomimética</span>
+                    <span class="telemetry-value" id="val-tel-bio">98.7%</span>
+                </div>
+                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-bio" style="width: 98.7%;"></div></div>
+
+                <div class="telemetry-row">
+                    <span class="telemetry-label" id="lbl-tel-energy">Carga Híbrida Cuántica</span>
+                    <span class="telemetry-value" id="val-tel-energy">84.2%</span>
+                </div>
+                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-energy" style="width: 84.2%;"></div></div>
+
+                <div class="telemetry-row">
+                    <span class="telemetry-label" id="lbl-tel-swarm">Sincronización de Enjambre</span>
+                    <span class="telemetry-value" id="val-tel-swarm">512 pts</span>
+                </div>
+                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-swarm" style="width: 76%;"></div></div>
+
+                <div class="telemetry-row">
+                    <span class="telemetry-label" id="lbl-tel-freq">Frecuencia Neuroactiva</span>
+                    <span class="telemetry-value" id="val-tel-freq">432 Hz</span>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title" id="lbl-roi-title">Ecosistema Global de Capitalización</div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">Adopción Global Simulada</span>
+                    <span class="telemetry-value" id="val-roi-adoption">1.2B users</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">Monetización en Red</span>
+                    <span class="telemetry-value" id="val-roi-revenue" style="color: #00E676;">$45,210 / sec</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">Tasa de Engagement Integrada</span>
+                    <span class="telemetry-value">94.8% (Matrix)</span>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title" id="lbl-oscillo-title">Osciloscopio Sincrónico Cerebral</div>
+                <canvas id="neuro-oscilloscope-canvas" class="mini-graph"></canvas>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title" id="lbl-molecular-title">Análisis de Compuestos</div>
+                <div class="telemetry-row"><span class="telemetry-label">Guaranina Tropical</span><span class="telemetry-value">35%</span></div>
+                <div class="telemetry-row"><span class="telemetry-label">Teanina Pura</span><span class="telemetry-value">25%</span></div>
+                <div class="telemetry-row"><span class="telemetry-label">Extracto de Pasiflora</span><span class="telemetry-value">20%</span></div>
+                <div class="telemetry-row"><span class="telemetry-label">Bio-Adaptógenos</span><span class="telemetry-value">20%</span></div>
+            </div>
+        </div>
+
+        <div id="alert-banner">SISTEMA COGNITIVO OPERACIONAL EN LÍNEA</div>
+        <div id="nav-instructions">Arrastra para rotar la matriz estructural en 3D • Usa la rueda para Zoom • Haz clic para un pulso cinético</div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN DE MULTILENGUAJE
+        const langData = {
+            es: { projectSub: "PEPSI COLA NEURO™ • Core v4.0 Matrix", operationalModes: "Modos Operativos", simulators: "Simuladores Activos", shaders: "Shaders y Renderizado", flavorSpectrum: "Inhibidor Neuro-Sensorial", arMode: "Interfaz Inmersiva", arActivate: "Activar Realidad Aumentada (AR)", arDeactivate: "Desactivar Realidad Aumentada (AR)", aiNodes: "Sistema de Nodos IA (Flujo)", telemetryTitle: "Telemetría en Tiempo Real", telStatus: "Estado del Sistema", telBio: "Estabilidad Biomimética", telEnergy: "Carga Híbrida Cuántica", telSwarm: "Sincronización de Enjambre", telFreq: "Frecuencia Neuroactiva", roiTitle: "Ecosistema Global de Capitalización", oscilloTitle: "Osciloscopio Sincrónico Cerebral", molecularTitle: "Análisis de Compuestos", alertBanner: "SISTEMA COGNITIVO OPERACIONAL EN LÍNEA", instructions: "Arrastra para rotar la matriz estructural en 3D • Usa la rueda para Zoom • Haz clic para un pulso cinético" },
+            en: { projectSub: "PEPSI COLA NEURO™ • Core v4.0 Matrix", operationalModes: "Operational Modes", simulators: "Active Simulators", shaders: "Shaders & Rendering", flavorSpectrum: "Neuro-Sensory Inhibitor", arMode: "Immersive Interface", arActivate: "Activate Augmented Reality (AR)", arDeactivate: "Deactivate Augmented Reality (AR)", aiNodes: "AI Node System (Flow)", telemetryTitle: "Real-Time Telemetry", telStatus: "System Status", telBio: "Biomimetic Stability", telEnergy: "Quantum Hybrid Charge", telSwarm: "Swarm Synchronization", telFreq: "Neuroactive Frequency", roiTitle: "Global Capitalization Ecosystem", oscilloTitle: "Cerebral Synchronic Oscilloscope", molecularTitle: "Compound Analysis", alertBanner: "ONLINE COGNITIVE SYSTEM", instructions: "Drag to rotate 3D structural matrix • Use mouse wheel to zoom • Click for kinetic pulse" },
+            zh: { projectSub: "PEPSI COLA NEURO™ • 核心企业级 v4.0", operationalModes: "运行模式", simulators: "激活的模拟器", shaders: "着色器与渲染", flavorSpectrum: "神经感官抑制器", arMode: "沉浸式界面", arActivate: "激活增强现实 (AR)", arDeactivate: "关闭增强现实 (AR)", aiNodes: "人工智能节点系统 (数据流)", telemetryTitle: "实时遥测数据", telStatus: "系统运行状态", telBio: "仿生架构稳定性", telEnergy: "量子混合电荷", telSwarm: "集群同步率", telFreq: "神经活性频率", roiTitle: "全球资本化生态系统", oscilloTitle: "大脑同步示波器", molecularTitle: "天然化合物分析", alertBanner: "认知系统正常运行", instructions: "拖动以旋转3D结构矩阵 • 使用鼠标滚轮进行缩放 • 点击以产生动能脉冲" }
+        };
+
+        let currentLang = 'es';
+        function setLanguage(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            const data = langData[lang];
+            document.getElementById('txt-project-sub').innerText = data.projectSub;
+            document.getElementById('lbl-operational-modes').innerText = data.operationalModes;
+            document.getElementById('lbl-simulators').innerText = data.simulators;
+            document.getElementById('lbl-shaders').innerText = data.shaders;
+            document.getElementById('lbl-flavor-spectrum').innerText = data.flavorSpectrum;
+            document.getElementById('lbl-ar-mode').innerText = data.arMode;
+            document.getElementById('btn-ar-toggle').innerText = isARActive ? data.arDeactivate : data.arActivate;
+            document.getElementById('lbl-ai-nodes').innerText = data.aiNodes;
+            document.getElementById('lbl-telemetry-title').innerText = data.telemetryTitle;
+            document.getElementById('lbl-tel-status').innerText = data.telStatus;
+            document.getElementById('lbl-tel-bio').innerText = data.telBio;
+            document.getElementById('lbl-tel-energy').innerText = data.telEnergy;
+            document.getElementById('lbl-tel-swarm').innerText = data.telSwarm;
+            document.getElementById('lbl-tel-freq').innerText = data.telFreq;
+            document.getElementById('lbl-roi-title').innerText = data.roiTitle;
+            document.getElementById('lbl-oscillo-title').innerText = data.oscilloTitle;
+            document.getElementById('lbl-molecular-title').innerText = data.molecularTitle;
+            document.getElementById('alert-banner').innerText = data.alertBanner;
+            document.getElementById('nav-instructions').innerText = data.instructions;
+        }
+
+        // VARIABLES GLOBALES DE SIMULACIÓN Y ESTADO
+        let activeMode = 'focus';
+        let activeFlavor = 'classic';
+        let simulators = { biomech: true, physics: true, energy: true, swarm: true, carbonation: true, thermal: true };
+        let shaders = { cinematic: true, wireframe: false };
+        let isARActive = false;
+        let kineticPulse = 0; 
+        
+        function setOperationalMode(mode) {
+            activeMode = mode;
+            document.querySelectorAll('#control-panel .panel-section:nth-child(1) .control-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-mode-${mode}`).classList.add('active');
+            
+            if(mode === 'focus') updateTelemetry('OPTIMAL', '98.7%', '84.2%', '512 pts', '432 Hz', 94, 98, 84, 76);
+            else if(mode === 'balance') updateTelemetry('BALANCED', '95.1%', '91.0%', '420 pts', '380 Hz', 88, 95, 91, 65);
+            else if(mode === 'vital') updateTelemetry('MAX POWER', '92.4%', '99.8%', '780 pts', '520 Hz', 99, 92, 99, 95);
+            else if(mode === 'stealth') updateTelemetry('STEALTH', '99.9%', '34.5%', '128 pts', '150 Hz', 70, 99, 34, 30);
+            else if(mode === 'hyperdrive') updateTelemetry('HYPERDRIVE', '100.0%', '150.4%', '2048 pts', '950 Hz', 100, 100, 100, 100);
+        }
+
+        function setFlavorSpectrum(flavor) {
+            activeFlavor = flavor;
+            document.getElementById('btn-flavor-classic').classList.remove('active');
+            document.getElementById('btn-flavor-zero').classList.remove('active');
+            document.getElementById(`btn-flavor-${flavor}`).classList.add('active');
+        }
+
+        function updateTelemetry(status, bio, energy, swarm, freq, bStatus, bBio, bEnergy, bSwarm) {
+            document.getElementById('val-tel-status').innerText = status;
+            document.getElementById('val-tel-bio').innerText = bio;
+            document.getElementById('val-tel-energy').innerText = energy;
+            document.getElementById('val-tel-swarm').innerText = swarm;
+            document.getElementById('val-tel-freq').innerText = freq;
+            document.getElementById('bar-status').style.width = bStatus + '%';
+            document.getElementById('bar-bio').style.width = bBio + '%';
+            document.getElementById('bar-energy').style.width = bEnergy + '%';
+            document.getElementById('bar-swarm').style.width = bSwarm + '%';
+        }
+
+        function toggleSim(sim) {
+            simulators[sim] = !simulators[sim];
+            document.getElementById(`btn-sim-${sim}`).classList.toggle('active');
+        }
+
+        function toggleShader(type) {
+            if(type === 'cinematic') {
+                shaders.cinematic = true; shaders.wireframe = false;
+                document.getElementById('btn-shader-cinematic').classList.add('active');
+                document.getElementById('btn-shader-wireframe').classList.remove('active');
+            } else if(type === 'wireframe') {
+                shaders.cinematic = false; shaders.wireframe = true;
+                document.getElementById('btn-shader-wireframe').classList.add('active');
+                document.getElementById('btn-shader-cinematic').classList.remove('active');
+            }
+        }
+
+        function toggleAR() {
+            const video = document.getElementById('webcam-video');
+            isARActive = !isARActive;
+            if(isARActive) {
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                    .then(stream => { video.srcObject = stream; video.style.display = 'block'; })
+                    .catch(() => { alert("Simulando fondo de Realidad Aumentada (cámara no accesible)."); isARActive = false; document.getElementById('btn-ar-toggle').innerText = langData[currentLang].arActivate;});
+                    document.getElementById('btn-ar-toggle').innerText = langData[currentLang].arDeactivate;
+                } else {
+                    alert("Cámara no soportada en este entorno.");
+                    isARActive = false;
+                }
+            } else {
+                if(video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+                video.style.display = 'none';
+                document.getElementById('btn-ar-toggle').innerText = langData[currentLang].arActivate;
+            }
+        }
+
+        // CONFIGURACIÓN DEL CANVAS PRINCIPAL 3D
+        const canvas = document.getElementById('canvas-3d');
+        const ctx = canvas.getContext('2d');
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+        
+        window.addEventListener('resize', () => { 
+            width = canvas.width = window.innerWidth; 
+            height = canvas.height = window.innerHeight; 
+        });
+
+        // CÁMARA MATEMÁTICA INTERACTIVA
+        let camera = { x: 0, y: 0, z: -500, rotX: 0.15, rotY: 0, zoom: 1.5 };
+        let isDragging = false; 
+        let previousMousePosition = { x: 0, y: 0 };
+        
+        // Manejadores de ratón
+        canvas.addEventListener('mousedown', (e) => { 
+            isDragging = true; 
+            previousMousePosition = { x: e.clientX, y: e.clientY }; 
+        });
+        window.addEventListener('mouseup', () => isDragging = false);
+        window.addEventListener('mouseleave', () => isDragging = false);
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            let deltaX = e.clientX - previousMousePosition.x;
+            let deltaY = e.clientY - previousMousePosition.y;
+            camera.rotY += deltaX * 0.008;
+            camera.rotX += deltaY * 0.008;
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        });
+        
+        // Manejadores táctiles para móviles
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 0) {
+                isDragging = true;
+                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+        }, {passive: false});
+        
+        canvas.addEventListener('touchend', () => isDragging = false);
+        canvas.addEventListener('touchcancel', () => isDragging = false);
+        
+        canvas.addEventListener('touchmove', (e) => {
+            if (!isDragging || e.touches.length === 0) return;
+            e.preventDefault(); // Prevenir el scroll de la página
+            let deltaX = e.touches[0].clientX - previousMousePosition.x;
+            let deltaY = e.touches[0].clientY - previousMousePosition.y;
+            camera.rotY += deltaX * 0.008;
+            camera.rotX += deltaY * 0.008;
+            previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }, {passive: false});
+
+        // Zoom y Click
+        canvas.addEventListener('wheel', (e) => {
+            camera.zoom -= e.deltaY * 0.0015;
+            camera.zoom = Math.max(0.6, Math.min(camera.zoom, 3.5));
+        });
+        canvas.addEventListener('click', () => { kineticPulse = 1.0; });
+
+        // GENERACIÓN TOPOLÓGICA DE LA LATA
+        let vertices = []; let facesList = []; let particles = []; let co2Bubbles = [];
+        const layers = 35; const radialSegments = 32; const maxRadius = 55; const coreHeight = 240;
+
+        for (let i = 0; i <= layers; i++) {
+            let t = i / layers; 
+            let y = -coreHeight / 2 + (coreHeight * t);
+            let currentRadius = maxRadius;
+            
+            // Función paramétrica esculpiendo la topología exacta de la lata Sleek
+            if (t < 0.1) {
+                currentRadius = maxRadius * (0.80 + 0.20 * Math.sin((t / 0.1) * (Math.PI / 2)));
+            } else if (t > 0.9) {
+                currentRadius = maxRadius * (0.80 + 0.20 * Math.cos(((t - 0.9) / 0.1) * (Math.PI / 2)));
+            }
+
+            for (let j = 0; j < radialSegments; j++) {
+                let angle = (j / radialSegments) * Math.PI * 2;
+                vertices.push({ 
+                    x: Math.cos(angle) * currentRadius, 
+                    y: y, 
+                    z: Math.sin(angle) * currentRadius, 
+                    u: j / radialSegments, 
+                    v: t, 
+                    layer: i, 
+                    seg: j 
+                });
+            }
+        }
+        
+        // Conexión de polígonos
+        for (let i = 0; i < layers; i++) {
+            for (let j = 0; j < radialSegments; j++) {
+                let p1 = i * radialSegments + j;
+                let p2 = i * radialSegments + ((j + 1) % radialSegments);
+                let p3 = (i + 1) * radialSegments + ((j + 1) % radialSegments);
+                let p4 = (i + 1) * radialSegments + j;
+                facesList.push([p1, p2, p3, p4]);
+            }
+        }
+
+        // Anillos Externos
+        let ringVerticesStart = vertices.length;
+        for (let r = 0; r < 3; r++) {
+            let yRing = -60 + r * 60;
+            let ringRad = maxRadius * 1.6;
+            for (let j = 0; j < 30; j++) {
+                let angle = (j / 30) * Math.PI * 2;
+                vertices.push({ x: Math.cos(angle) * ringRad, y: yRing, z: Math.sin(angle) * ringRad, type: 'ring', ringIdx: r });
+            }
+        }
+
+        // Partículas (Enjambre efervescente y CO2)
+        for(let p=0; p<150; p++) {
+            particles.push({ 
+                x: (Math.random()-0.5)*300, y: (Math.random()-0.5)*400, z: (Math.random()-0.5)*300, 
+                vx: (Math.random()-0.5)*2.5, vy: (Math.random()-0.5)*2.5, vz: (Math.random()-0.5)*2.5 
+            });
+        }
+        for(let b=0; b<80; b++) {
+            co2Bubbles.push({ 
+                x: (Math.random()-0.5)*maxRadius*1.7, y: (Math.random()*coreHeight)-coreHeight/2, z: (Math.random()-0.5)*maxRadius*1.7, 
+                speedY: 1.0 + Math.random()*2.0, size: 1.5 + Math.random()*2.5 
+            });
+        }
+
+        // Motor Matemático de Proyección a Perspectiva 2D
+        function project(v, rotX, rotY, zoom) {
+            let cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+            let x1 = v.x * cosY - v.z * sinY; 
+            let z1 = v.x * sinY + v.z * cosY;
+            
+            let cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+            let y2 = v.y * cosX - z1 * sinX; 
+            let z2 = v.y * sinX + z1 * cosX;
+            
+            let distance = 550; // Plano focal
+            let scale = (distance / (distance + z2)) * zoom * 2;
+            return { x: width / 2 + x1 * scale, y: height / 2 + y2 * scale, z: z2, scale: scale, rawX1: x1 };
+        }
+
+        let time = 0;
+        
+        // BUCLE PRINCIPAL DE ANIMACIÓN
+        function animate() {
+            time += 0.02;
+            if (kineticPulse > 0) kineticPulse -= 0.03; 
+            ctx.clearRect(0, 0, width, height);
+
+            // Renderizado de fondo adaptativo
+            if(!isARActive) {
+                let bgGrad = ctx.createRadialGradient(width/2, height/2, 50, width/2, height/2, width*0.8);
+                if(activeFlavor === 'classic') { 
+                    bgGrad.addColorStop(0, '#0A1726'); bgGrad.addColorStop(1, '#020204'); 
+                } else { 
+                    bgGrad.addColorStop(0, '#1E0B0B'); bgGrad.addColorStop(1, '#020202'); 
+                }
+                ctx.fillStyle = bgGrad; 
+                ctx.fillRect(0, 0, width, height);
+            }
+
+            // Rotación Idle
+            if (!isDragging) camera.rotY += 0.005;
+
+            // Procesamiento de Geometría
+            let projected = vertices.map(v => {
+                let offsetX = 0, offsetY = 0, offsetZ = 0;
+                
+                // Módulo: Flujo Térmico
+                if(simulators.thermal && v.v !== undefined) {
+                    let thermalWave = Math.sin(time*2.5 + v.v*Math.PI*5) * 2.0;
+                    offsetX += (v.x/maxRadius) * thermalWave;
+                    offsetZ += (v.z/maxRadius) * thermalWave;
+                }
+
+                // Módulo: Biomecánica
+                if (simulators.biomech && v.v !== undefined) {
+                    let pulse = Math.sin(time * 3 + v.layer * 0.3) * (activeMode === 'vital' ? 2.5 : 0.8);
+                    offsetX += (v.x / maxRadius) * pulse; 
+                    offsetZ += (v.z / maxRadius) * pulse;
+                }
+                
+                // Módulo Física de Anillos
+                if (simulators.physics && v.type === 'ring') {
+                    offsetX += Math.cos(time + v.x) * Math.sin(time * 2 + v.ringIdx) * 3;
+                }
+
+                // Interacción: Onda de Choque
+                if(kineticPulse > 0 && v.v !== undefined) {
+                    let shock = Math.sin(kineticPulse * Math.PI * 4 - v.v*6) * 15 * kineticPulse;
+                    offsetX += (v.x/maxRadius) * shock; 
+                    offsetZ += (v.z/maxRadius) * shock;
+                }
+
+                return { proj: project({ x: v.x + offsetX, y: v.y + offsetY, z: v.z + offsetZ }, camera.rotX, camera.rotY, camera.zoom), orig: v };
+            });
+
+            // Asignación de Paleta Activa
+            let accentColor = '#4FC3F7';
+            if(activeMode === 'balance') accentColor = '#00C853';
+            if(activeMode === 'vital') accentColor = '#FF9100';
+            if(activeMode === 'stealth') accentColor = '#78909C';
+            if(activeMode === 'hyperdrive') accentColor = '#E040FB'; 
+            if(activeFlavor === 'zero' && activeMode === 'focus') accentColor = '#FF1744'; 
+
+            // Algoritmo del Pintor (Renderizado de Caras Sólidas)
+            if (shaders.cinematic) {
+                let facesToDraw = [];
+                for (let i = 0; i < facesList.length; i++) {
+                    let face = facesList[i];
+                    let p1 = projected[face[0]], p2 = projected[face[1]], p3 = projected[face[2]];
+                    let zAvg = (p1.proj.z + p2.proj.z + p3.proj.z + projected[face[3]].proj.z) / 4;
+                    
+                    // Backface culling
+                    let cross = (p2.proj.x - p1.proj.x) * (p3.proj.y - p2.proj.y) - (p2.proj.y - p1.proj.y) * (p3.proj.x - p2.proj.x);
+
+                    if (cross > 0 && zAvg > -300) {
+                        // Sombreado simulado
+                        let light = Math.max(0.1, Math.min(1, (p1.proj.rawX1 + maxRadius) / (maxRadius * 2.1)));
+                        let r = 2, g = 18, b = 45; 
+                        
+                        if(activeFlavor === 'zero') { r = 18; g = 18; b = 22; } 
+                        if(activeMode === 'hyperdrive') { r = 35; g = 8; b = 55; } 
+
+                        facesToDraw.push({
+                            poly: face, z: zAvg, 
+                            color: `rgb(${Math.floor(r + light*40)},${Math.floor(g + light*75)},${Math.floor(b + light*130)})`
+                        });
+                    }
+                }
+                // Ordenar por Z (profundidad)
+                facesToDraw.sort((a, b) => b.z - a.z);
+                
+                // Dibujar
+                facesToDraw.forEach(f => {
+                    ctx.beginPath();
+                    ctx.moveTo(projected[f.poly[0]].proj.x, projected[f.poly[0]].proj.y);
+                    for(let k=1; k<4; k++) ctx.lineTo(projected[f.poly[k]].proj.x, projected[f.poly[k]].proj.y);
+                    ctx.closePath(); 
+                    ctx.fillStyle = f.color; 
+                    ctx.fill();
+                    // Antialiasing hack (trazar la línea del mismo color)
+                    ctx.strokeStyle = f.color; 
+                    ctx.lineWidth = 0.5; 
+                    ctx.stroke();
+                });
+            } else {
+                // Modo Wireframe Estructural
+                ctx.lineWidth = 0.8;
+                for (let i = 0; i < facesList.length; i++) {
+                    let face = facesList[i];
+                    if ((projected[face[1]].proj.x - projected[face[0]].proj.x)*(projected[face[2]].proj.y - projected[face[1]].proj.y) > 0) {
+                        ctx.beginPath(); 
+                        ctx.moveTo(projected[face[0]].proj.x, projected[face[0]].proj.y);
+                        ctx.lineTo(projected[face[1]].proj.x, projected[face[1]].proj.y);
+                        ctx.lineTo(projected[face[2]].proj.x, projected[face[2]].proj.y);
+                        ctx.strokeStyle = (face[0] % 4 === 0) ? accentColor : 'rgba(79,195,247,0.18)'; 
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // INYECCIÓN DE MARCA: PEPSI COLA NEURO™ LOGO FRONTAL
+            // Se proyecta un punto ligeramente fuera del radio máximo hacia la cámara
+            let frontCenter = project({x: 0, y: 0, z: maxRadius + 5}, camera.rotX, camera.rotY, camera.zoom);
+            let facingCamera = Math.cos(camera.rotY);
+            
+            if (facingCamera > 0) {
+                ctx.save(); 
+                ctx.translate(frontCenter.x, frontCenter.y);
+                
+                // Escalar según proximidad y ángulo para simular perspectiva curva
+                let scaleSize = facingCamera * frontCenter.scale * 0.9;
+                ctx.scale(scaleSize, scaleSize); 
+                
+                ctx.shadowBlur = 20; 
+                ctx.shadowColor = accentColor;
+
+                // Dibujo Procedural del Logo Pepsi (Sin imágenes externas)
+                let logoRadius = 24;
+                ctx.beginPath(); ctx.arc(0, -35, logoRadius, 0, Math.PI, true); ctx.fillStyle = '#E51C23'; ctx.fill(); // Rojo
+                ctx.beginPath(); ctx.arc(0, -35, logoRadius, 0, Math.PI, false); ctx.fillStyle = '#004B93'; ctx.fill(); // Azul
+                
+                // Ola blanca central
+                ctx.beginPath(); 
+                ctx.moveTo(-logoRadius, -35); 
+                ctx.bezierCurveTo(-15, -48, 15, -22, logoRadius, -35);
+                ctx.lineTo(logoRadius, -30); 
+                ctx.bezierCurveTo(15, -17, -15, -43, -logoRadius, -30);
+                ctx.fillStyle = '#FFFFFF'; 
+                ctx.fill();
+
+                // Textos Corporativos
+                ctx.textAlign = 'center'; 
+                
+                ctx.font = 'bold 26px "Arial Black", Arial, sans-serif'; 
+                ctx.fillStyle = '#FFFFFF';
+                ctx.shadowBlur = 0; // Apagar glow para texto principal
+                ctx.fillText('PEPSI', 0, 10);
+                
+                ctx.font = '12px "Arial", sans-serif'; 
+                ctx.letterSpacing = '5px'; 
+                ctx.fillText('COLA', 0, 28);
+                
+                ctx.font = 'bold 16px "Arial Black", Arial, sans-serif'; 
+                ctx.fillStyle = accentColor;
+                ctx.shadowColor = accentColor; 
+                ctx.shadowBlur = 12; // Encender glow para Neuro
+                ctx.letterSpacing = '1px';
+                ctx.fillText('NEURO™', 0, 52);
+                
+                ctx.restore();
+            }
+
+            // RENDERS DE MÓDULOS DE SIMULACIÓN VISUAL
+            
+            // Anillos Híbridos
+            if (simulators.energy) {
+                ctx.lineWidth = 2.5;
+                for (let r = 0; r < 3; r++) {
+                    ctx.beginPath();
+                    let startIdx = ringVerticesStart + r * 30;
+                    for (let j = 0; j <= 30; j++) {
+                        let idx = startIdx + (j % 30);
+                        let p = projected[idx];
+                        if (j === 0) ctx.moveTo(p.proj.x, p.proj.y);
+                        else ctx.lineTo(p.proj.x, p.proj.y);
+                    }
+                    ctx.shadowBlur = 12; ctx.shadowColor = accentColor;
+                    ctx.strokeStyle = accentColor;
+                    ctx.stroke();
+                    ctx.shadowBlur = 0; 
+                }
+            }
+
+            // Carbonatación CO2 Ascendente
+            if(simulators.carbonation) {
+                co2Bubbles.forEach(b => {
+                    b.y -= (activeMode === 'hyperdrive' ? b.speedY * 2 : b.speedY);
+                    // Resetear posición al salir de la lata
+                    if(b.y < -coreHeight/2 - 20) { 
+                        b.y = coreHeight/2 + 20; 
+                        b.x = (Math.random()-0.5)*maxRadius*1.5; 
+                        b.z = (Math.random()-0.5)*maxRadius*1.5; 
+                    }
+                    let projBubble = project({x: b.x, y: b.y, z: b.z}, camera.rotX, camera.rotY, camera.zoom);
+                    
+                    if(projBubble.z > -200) {
+                        ctx.beginPath(); 
+                        ctx.arc(projBubble.x, projBubble.y, b.size * projBubble.scale * 0.4, 0, Math.PI*2);
+                        // Opacidad parpadeante
+                        ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + Math.sin(time*2 + b.y)*0.4})`;
+                        ctx.fill();
+                    }
+                });
+            }
+
+            // Enjambre Cognitivo
+            if (simulators.swarm) {
+                particles.forEach(p => {
+                    // Velocidad dependiente del modo
+                    let speedMult = activeMode === 'hyperdrive' ? 3.0 : (activeMode === 'vital' ? 1.5 : (activeMode === 'stealth' ? 0.2 : 1.0));
+                    
+                    p.x += p.vx * speedMult; 
+                    p.y += p.vy * speedMult; 
+                    p.z += p.vz * speedMult;
+                    
+                    // Límites de rebote esférico
+                    let dist = Math.sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
+                    if (dist > 220) { 
+                        p.vx *= -1; p.vy *= -1; p.vz *= -1; 
+                        // Corregir posición para no escapar
+                        p.x *= 0.95; p.y *= 0.95; p.z *= 0.95;
+                    }
+                    
+                    let projP = project(p, camera.rotX, camera.rotY, camera.zoom);
+                    if(projP.z > -200) {
+                        ctx.beginPath(); 
+                        ctx.arc(projP.x, projP.y, Math.max(1.5, projP.scale * 1.5), 0, Math.PI * 2);
+                        ctx.fillStyle = (Math.random() > 0.95) ? '#FFFFFF' : accentColor; 
+                        ctx.fill();
+                    }
+                });
+            }
+
+            // Actualización asíncrona de datos financieros simulados en la telemetría
+            if(Math.random() > 0.9) {
+                let baseROI = activeMode === 'hyperdrive' ? 125000 : 45210;
+                let currentROI = baseROI + Math.floor(Math.random()*2500);
+                let element = document.getElementById('val-roi-revenue');
+                if(element) element.innerText = `$${currentROI.toLocaleString()} / sec`;
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // --- SISTEMAS DE DIBUJO DE HUDS SECUNDARIOS ---
+
+        // Nodos IA
+        const nodeCanvas = document.getElementById('node-network-canvas');
+        const nCtx = nodeCanvas.getContext('2d');
+        function animateNodes() {
+            nCtx.clearRect(0, 0, nodeCanvas.width, nodeCanvas.height);
+            let nodes = [ {x: 40, y: 35, label: "IN_NEURO"}, {x: 120, y: 15, label: "SYS_QUANT"}, {x: 120, y: 50, label: "CO2_MATRX"}, {x: 210, y: 35, label: "ROI_DIST"}, {x: 290, y: 35, label: "ALIB_NET"} ];
+            nCtx.lineWidth = 1; 
+            nCtx.strokeStyle = 'rgba(79, 195, 247, 0.25)';
+            nCtx.beginPath(); 
+            nCtx.moveTo(nodes[0].x, nodes[0].y); nCtx.lineTo(nodes[1].x, nodes[1].y); nCtx.lineTo(nodes[3].x, nodes[3].y); 
+            nCtx.moveTo(nodes[0].x, nodes[0].y); nCtx.lineTo(nodes[2].x, nodes[2].y); nCtx.lineTo(nodes[3].x, nodes[3].y); 
+            nCtx.lineTo(nodes[4].x, nodes[4].y); 
+            nCtx.stroke();
+            
+            nodes.forEach(n => { 
+                nCtx.beginPath(); nCtx.arc(n.x, n.y, 4, 0, Math.PI*2); nCtx.fillStyle = '#004B93'; nCtx.fill(); 
+                nCtx.fillStyle = '#90A4AE'; nCtx.font = '9px monospace'; nCtx.fillText(n.label, n.x - 22, n.y - 8); 
+            });
+            requestAnimationFrame(animateNodes);
+        }
+
+        // Osciloscopio Cerebral
+        const oscilloCanvas = document.getElementById('neuro-oscilloscope-canvas');
+        const oCtx = oscilloCanvas.getContext('2d');
+        let oscIdx = 0;
+        function animateOscilloscope() {
+            let speed = activeMode === 'hyperdrive' ? 0.35 : (activeMode === 'stealth' ? 0.05 : 0.15);
+            oscIdx += speed;
+            oCtx.clearRect(0, 0, oscilloCanvas.width, oscilloCanvas.height);
+            
+            let strokeColor = '#4FC3F7';
+            if (activeMode === 'hyperdrive') strokeColor = '#E040FB';
+            else if (activeMode === 'balance') strokeColor = '#00C853';
+            else if (activeFlavor === 'zero' && activeMode === 'focus') strokeColor = '#FF1744';
+            
+            oCtx.strokeStyle = strokeColor;
+            oCtx.lineWidth = 1.5; 
+            oCtx.beginPath();
+            
+            for(let x=0; x<oscilloCanvas.width; x++) {
+                // Suma de ondas para crear patrón sináptico
+                let y = oscilloCanvas.height/2 + Math.sin(x*0.06 + oscIdx)*12 + Math.cos(x*0.02 - oscIdx)*8;
+                if(activeMode === 'vital') y += Math.random() * 6 - 3; // Añadir ruido
+                
+                if(x===0) oCtx.moveTo(x, y); else oCtx.lineTo(x, y);
+            }
+            oCtx.stroke();
+            requestAnimationFrame(animateOscilloscope);
+        }
+
+        // AJUSTE INICIAL PARA RESOLUCIÓN DE HUDS
+        function resizeHUDs() {
+            let nodePanel = document.getElementById('node-network-canvas');
+            let oscilloPanel = document.getElementById('neuro-oscilloscope-canvas');
+            // Obtener el ancho real del contenedor en el DOM
+            let panelWidth = document.getElementById('control-panel').clientWidth - 24; 
+            if(nodePanel) { nodePanel.width = panelWidth; nodePanel.height = 65; }
+            if(oscilloPanel) { oscilloPanel.width = panelWidth; oscilloPanel.height = 65; }
+        }
+        
+        // Disparar redimensionamiento al cargar
+        window.addEventListener('load', resizeHUDs);
+        window.addEventListener('resize', resizeHUDs);
+
+        // INICIALIZACIÓN
+        animate(); 
+        animateNodes(); 
+        animateOscilloscope();
+        
+    </script>
+</body>
+</html>
