@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Walmart AgriNova 360 — Centroamérica</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+tailwind.config={theme:{extend:{colors:{bio:{950:'#040a07',900:'#060d0a',800:'#0d1a14',700:'#111f18',600:'#1b3a2a',500:'#2e5e42',400:'#4caf50',300:'#81c784',200:'#a5d6a7',100:'#e8f5e9'},acc:{green:'#00e676',amber:'#ffab00',red:'#ff5252',cyan:'#00e5ff',magenta:'#e040fb',orange:'#ff6e40',lime:'#76ff03',sky:'#40c4ff'}},fontFamily:{display:['Space Grotesk','sans-serif'],body:['DM Sans','sans-serif']}}}}
+</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;scrollbar-width:thin;scrollbar-color:#1b3a2a #060d0a}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#060d0a}::-webkit-scrollbar-thumb{background:#1b3a2a;border-radius:3px}
+body{background:#040a07;color:#e8f5e9;font-family:'DM Sans',sans-serif;overflow:hidden;height:100vh}
+#bgCanvas{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.4}
+#statusBar{position:fixed;top:0;left:0;right:0;height:28px;background:linear-gradient(90deg,#060d0a,#0d1a14,#060d0a);border-bottom:1px solid #1b3a2a;z-index:100;display:flex;align-items:center;padding:0 16px;gap:24px;font-size:11px;font-family:'Space Grotesk',sans-serif;letter-spacing:.5px}
+.status-dot{width:6px;height:6px;border-radius:50%;background:#00e676;animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;box-shadow:0 0 4px #00e676}50%{opacity:.5;box-shadow:0 0 8px #00e676}}
+#sidebar{position:fixed;top:28px;left:0;bottom:0;width:220px;background:linear-gradient(180deg,#0a1610,#060d0a);border-right:1px solid #1b3a2a;z-index:90;display:flex;flex-direction:column;padding:16px 0;transition:width .3s}
+#sidebar .logo{padding:0 16px 20px;border-bottom:1px solid #1b3a2a;margin-bottom:8px}
+#sidebar nav{flex:1;display:flex;flex-direction:column;gap:2px;padding:0 8px}
+#sidebar nav button{display:flex;align-items:center;gap:10px;padding:10px 12px;border:none;background:transparent;color:#81c784;font-size:13px;font-family:'Space Grotesk',sans-serif;cursor:pointer;border-radius:8px;transition:all .2s;text-align:left;width:100%}
+#sidebar nav button:hover{background:#111f18;color:#e8f5e9}
+#sidebar nav button.active{background:linear-gradient(90deg,#1b3a2a,transparent);color:#00e676;border-left:2px solid #00e676}
+#sidebar nav button i{width:18px;text-align:center;font-size:14px}
+.sidebar-score{padding:12px 16px;border-top:1px solid #1b3a2a;margin-top:8px}
+#main{position:fixed;top:28px;left:220px;right:0;bottom:0;overflow:hidden;display:flex;flex-direction:column}
+#mainHeader{height:56px;min-height:56px;background:rgba(13,26,20,.8);backdrop-filter:blur(12px);border-bottom:1px solid #1b3a2a;display:flex;align-items:center;justify-content:space-between;padding:0 24px;z-index:10}
+#contentArea{flex:1;overflow-y:auto;overflow-x:hidden;position:relative}
+.section{display:none;padding:24px;min-height:100%;animation:fadeUp .4s ease}
+.section.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.glass{background:rgba(17,31,24,.6);backdrop-filter:blur(16px);border:1px solid rgba(27,58,42,.6);border-radius:12px}
+.glass-strong{background:rgba(17,31,24,.85);backdrop-filter:blur(20px);border:1px solid rgba(27,58,42,.8);border-radius:12px}
+/* MAPA */
+.map-wrap{position:relative;width:100%;height:calc(100vh - 108px);min-height:500px}
+.map-node{position:absolute;transform:translate(-50%,-50%);cursor:pointer;z-index:5;transition:transform .3s}
+.map-node:hover{transform:translate(-50%,-50%) scale(1.15)}
+.map-node .node-ring{border-radius:50%;border:2px solid;animation:node-pulse 3s infinite;display:flex;align-items:center;justify-content:center;flex-direction:column;transition:all .3s}
+.map-node:hover .node-ring{box-shadow:0 0 30px var(--nc)}
+.map-node.selected .node-ring{box-shadow:0 0 40px var(--nc);border-width:3px}
+@keyframes node-pulse{0%,100%{box-shadow:0 0 8px var(--nc)}50%{box-shadow:0 0 20px var(--nc)}}
+.map-node .node-label{font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:600;margin-top:4px;text-align:center;white-space:nowrap;text-shadow:0 1px 4px rgba(0,0,0,.8)}
+.map-node .node-count{font-family:'Space Grotesk',sans-serif;font-size:8px;opacity:.7}
+.map-connections{position:absolute;inset:0;z-index:1;pointer-events:none}
+.map-connections line{stroke-dasharray:6 4;animation:dash-flow 2s linear infinite}
+@keyframes dash-flow{to{stroke-dashoffset:-20}}
+.map-tooltip{position:absolute;background:rgba(6,13,10,.95);border:1px solid #1b3a2a;border-radius:8px;padding:12px 16px;font-size:12px;pointer-events:none;z-index:20;opacity:0;transition:opacity .2s;min-width:200px;backdrop-filter:blur(12px)}
+.map-tooltip.show{opacity:1}
+/* PANEL PAÍS */
+#countryPanel{position:fixed;top:28px;right:0;bottom:0;width:420px;background:linear-gradient(180deg,#0a1610ee,#060d0aee);backdrop-filter:blur(20px);border-left:1px solid #1b3a2a;z-index:80;transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);overflow-y:auto;padding:24px}
+#countryPanel.open{transform:translateX(0)}
+#countryPanel .close-btn{position:absolute;top:12px;right:12px;background:none;border:none;color:#81c784;cursor:pointer;font-size:18px;padding:4px 8px;border-radius:6px;transition:all .2s}
+#countryPanel .close-btn:hover{background:#1b3a2a;color:#e8f5e9}
+/* GAUGES */
+.gauge-ring{position:relative;width:120px;height:120px}
+.gauge-ring svg{transform:rotate(-90deg)}
+.gauge-ring .gauge-val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700}
+.gauge-bg{fill:none;stroke:#111f18;stroke-width:8}
+.gauge-fill{fill:none;stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1),stroke .3s}
+/* SIM CHAIN */
+.sim-chain{display:flex;align-items:center;gap:0;justify-content:center;padding:20px 0;position:relative}
+.sim-chain-node{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px;border-radius:12px;min-width:100px;position:relative;z-index:2}
+.sim-chain-node .chain-icon{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:2px solid;transition:all .3s}
+.sim-chain-node.active .chain-icon{animation:chain-glow 1.5s infinite}
+@keyframes chain-glow{0%,100%{box-shadow:0 0 8px var(--cc)}50%{box-shadow:0 0 24px var(--cc)}}
+.sim-chain-arrow{width:60px;height:2px;position:relative;z-index:1;margin:0 -4px;margin-bottom:32px}
+.sim-chain-arrow .arrow-dot{position:absolute;width:6px;height:6px;border-radius:50%;top:-2px;animation:arrow-move 1.5s linear infinite}
+@keyframes arrow-move{0%{left:0;opacity:0}10%{opacity:1}90%{opacity:1}100%{left:100%;opacity:0}}
+/* HUD OVERLAYS */
+.hud-overlay{position:absolute;z-index:15;pointer-events:auto;transition:all .3s}
+.hud-overlay.minimized .hud-body{display:none}
+.hud-overlay.minimized{width:auto!important}
+.hud-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;font-size:11px;font-family:'Space Grotesk',sans-serif;letter-spacing:.5px;text-transform:uppercase;border-radius:8px 8px 0 0}
+.hud-body{padding:12px;font-size:12px;border-radius:0 0 8px 8px}
+/* ARTICULACIÓN CARDS */
+.artic-card{border:1px solid #1b3a2a;border-radius:16px;overflow:hidden;transition:all .3s;cursor:pointer;background:#0d1a14}
+.artic-card:hover{border-color:#2e5e42;transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.artic-card .card-accent{height:4px;width:100%}
+.artic-card.expanded{border-color:var(--ac)}
+/* TRACE EXPLORER */
+.trace-step{display:flex;align-items:flex-start;gap:12px;padding:12px 0;position:relative}
+.trace-step:not(:last-child)::after{content:'';position:absolute;left:15px;top:36px;bottom:-12px;width:2px;background:#1b3a2a}
+.trace-dot{width:32px;height:32px;min-width:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid}
+/* SCENARIO TABS */
+.scenario-tab{padding:8px 20px;border:1px solid #1b3a2a;border-radius:8px;background:transparent;color:#81c784;font-family:'Space Grotesk',sans-serif;font-size:13px;cursor:pointer;transition:all .2s}
+.scenario-tab:hover{background:#111f18}
+.scenario-tab.active{background:#1b3a2a;color:#00e676;border-color:#2e5e42}
+/* MISC */
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:.3px;text-transform:uppercase}
+.metric-mini{text-align:center;padding:8px}
+.metric-mini .val{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700}
+.metric-mini .lbl{font-size:10px;color:#81c784;margin-top:2px;text-transform:uppercase;letter-spacing:.3px}
+@media(prefers-reduced-motion:reduce){*{animation-duration:0s!important;transition-duration:0s!important}}
+</style>
+</head>
+<body>
+
+<!-- Barra de estado del ecosistema -->
+<div id="statusBar">
+  <div class="flex items-center gap-2"><span class="status-dot"></span><span style="color:#00e676">ECOSISTEMA ACTIVO</span></div>
+  <span style="color:#81c784">BioHubs: <span id="sbHubs" style="color:#e8f5e9">42</span>/42</span>
+  <span style="color:#81c784">Datos/s: <span id="sbData" style="color:#00e5ff">1,247</span></span>
+  <span style="color:#81c784">Blockchain: <span id="sbBlock" style="color:#ffab00">8,432,156</span></span>
+  <span style="color:#81c784">Productores: <span id="sbProd" style="color:#76ff03">6,470</span></span>
+  <div style="margin-left:auto;color:#4caf50"><i class="fas fa-signal"></i> Conexión estable</div>
+</div>
+
+<!-- Canvas de fondo -->
+<canvas id="bgCanvas"></canvas>
+
+<!-- Sidebar -->
+<aside id="sidebar">
+  <div class="logo">
+    <div class="font-display font-bold text-sm" style="color:#00e676">AgriNova</div>
+    <div class="font-display text-xs" style="color:#4caf50">360 — Centroamérica</div>
+  </div>
+  <nav>
+    <button class="active" data-sec="mapa"><i class="fas fa-globe-americas"></i>Mapa Regional</button>
+    <button data-sec="simulacion"><i class="fas fa-atom"></i>Simulaciones</button>
+    <button data-sec="huds"><i class="fas fa-layer-group"></i>Módulos HUD</button>
+    <button data-sec="estados"><i class="fas fa-heart-pulse"></i>Estados Dinámicos</button>
+    <button data-sec="interacciones"><i class="fas fa-hand-pointer"></i>Interacciones</button>
+    <button data-sec="articulacion"><i class="fas fa-map-location-dot"></i>Articulación País</button>
+  </nav>
+  <div class="sidebar-score">
+    <div class="text-xs font-display" style="color:#81c784;letter-spacing:.5px">SALUD ECOSISTEMA</div>
+    <div class="flex items-center gap-2 mt-2">
+      <div style="flex:1;height:6px;background:#111f18;border-radius:3px;overflow:hidden">
+        <div id="ecoBar" style="width:81%;height:100%;background:linear-gradient(90deg,#00e676,#76ff03);border-radius:3px;transition:width 1s"></div>
+      </div>
+      <span id="ecoVal" class="font-display font-bold text-sm" style="color:#00e676">81%</span>
+    </div>
+    <div class="text-xs mt-2" style="color:#4caf50">7 países · 42 BioHubs</div>
+  </div>
+</aside>
+
+<!-- Contenido principal -->
+<div id="main">
+  <header id="mainHeader">
+    <div>
+      <h1 id="secTitle" class="font-display font-bold text-base" style="color:#e8f5e9">Mapa Regional de BioHubs</h1>
+      <p id="secSub" class="text-xs" style="color:#81c784">Red descentralizada centroamericana — 42 nodos operativos</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="relative">
+        <input id="searchInput" type="text" placeholder="Buscar país, cultivo..." class="bg-bio-700 border border-bio-600 rounded-lg px-3 py-1.5 text-xs text-bio-100 placeholder-bio-300 focus:outline-none focus:border-bio-500 w-52 font-body">
+        <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-bio-300 text-xs"></i>
+      </div>
+      <button id="notifBtn" class="relative bg-bio-700 border border-bio-600 rounded-lg px-3 py-1.5 text-xs text-bio-300 hover:text-bio-100 hover:border-bio-500 transition-all">
+        <i class="fas fa-bell"></i>
+        <span class="absolute -top-1 -right-1 w-4 h-4 bg-acc-red rounded-full text-[9px] flex items-center justify-center text-white font-bold">3</span>
+      </button>
+      <div class="flex items-center gap-2 bg-bio-700 border border-bio-600 rounded-lg px-3 py-1.5">
+        <div class="w-6 h-6 rounded-full bg-bio-500 flex items-center justify-center text-xs font-bold text-bio-100">JC</div>
+        <span class="text-xs text-bio-200 font-display">Operador</span>
+      </div>
+    </div>
+  </header>
+
+  <div id="contentArea">
+    <!-- SECCIÓN: MAPA REGIONAL -->
+    <section id="sec-mapa" class="section active">
+      <div class="map-wrap" id="mapContainer">
+        <svg class="map-connections" id="mapSvg"></svg>
+        <div id="mapNodes"></div>
+        <div class="map-tooltip" id="mapTooltip"></div>
+        <!-- HUD superpuesto al mapa -->
+        <div class="hud-overlay glass" style="top:16px;left:16px;width:220px" id="hudMapa">
+          <div class="hud-header" style="background:rgba(0,230,118,.1);color:#00e676" onclick="toggleHud('hudMapa')">
+            <span><i class="fas fa-satellite-dish mr-1"></i> HUD Territorial</span>
+            <i class="fas fa-chevron-up hud-chevron" style="font-size:9px"></i>
+          </div>
+          <div class="hud-body" style="background:rgba(6,13,10,.9)">
+            <div class="grid grid-cols-2 gap-2" id="hudTerrMetrics"></div>
+          </div>
+        </div>
+        <div class="hud-overlay glass" style="bottom:16px;left:16px;width:240px" id="hudMapa2">
+          <div class="hud-header" style="background:rgba(0,229,255,.1);color:#00e5ff" onclick="toggleHud('hudMapa2')">
+            <span><i class="fas fa-truck-fast mr-1"></i> HUD Logístico</span>
+            <i class="fas fa-chevron-up hud-chevron" style="font-size:9px"></i>
+          </div>
+          <div class="hud-body" style="background:rgba(6,13,10,.9)">
+            <div id="hudLogData"></div>
+          </div>
+        </div>
+        <div class="hud-overlay glass" style="top:16px;right:16px;width:200px" id="hudMapa3">
+          <div class="hud-header" style="background:rgba(255,171,0,.1);color:#ffab00" onclick="toggleHud('hudMapa3')">
+            <span><i class="fas fa-leaf mr-1"></i> HUD Regenerativo</span>
+            <i class="fas fa-chevron-up hud-chevron" style="font-size:9px"></i>
+          </div>
+          <div class="hud-body" style="background:rgba(6,13,10,.9)" id="hudRegenData"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN: SIMULACIONES -->
+    <section id="sec-simulacion" class="section">
+      <div class="flex gap-3 mb-6">
+        <button class="scenario-tab active" data-sim="cadena" onclick="switchSim(this)">Cadena de Suministro</button>
+        <button class="scenario-tab" data-sim="demanda" onclick="switchSim(this)">Predicción de Demanda</button>
+        <button class="scenario-tab" data-sim="carbono" onclick="switchSim(this)">Captura de Carbono</button>
+        <button class="scenario-tab" data-sim="energia" onclick="switchSim(this)">Energía Circular</button>
+      </div>
+      <div id="simContent"></div>
+    </section>
+
+    <!-- SECCIÓN: MÓDULOS HUD -->
+    <section id="sec-huds" class="section">
+      <div class="grid grid-cols-2 gap-6" id="hudGrid"></div>
+    </section>
+
+    <!-- SECCIÓN: ESTADOS DINÁMICOS -->
+    <section id="sec-estados" class="section">
+      <div class="grid grid-cols-4 gap-6 mb-8" id="gaugeGrid"></div>
+      <div class="glass-strong p-6">
+        <h3 class="font-display font-semibold text-sm mb-4" style="color:#00e676"><i class="fas fa-wave-square mr-2"></i>Evolución Temporal del Ecosistema</h3>
+        <canvas id="timelineChart" height="100"></canvas>
+      </div>
+    </section>
+
+    <!-- SECCIÓN: INTERACCIONES AVANZADAS -->
+    <section id="sec-interacciones" class="section">
+      <div class="grid grid-cols-2 gap-6">
+        <div class="glass-strong p-6">
+          <h3 class="font-display font-semibold text-sm mb-4" style="color:#00e5ff"><i class="fas fa-route mr-2"></i>Explorador de Trazabilidad</h3>
+          <div class="flex gap-2 mb-4 flex-wrap" id="traceProducts"></div>
+          <div id="tracePath" class="mt-4"></div>
+        </div>
+        <div class="glass-strong p-6">
+          <h3 class="font-display font-semibold text-sm mb-4" style="color:#ffab00"><i class="fas fa-sliders mr-2"></i>Simulador de Escenarios</h3>
+          <div class="space-y-4" id="scenarioControls"></div>
+          <div class="mt-6 grid grid-cols-3 gap-4" id="scenarioResults"></div>
+        </div>
+        <div class="glass-strong p-6 col-span-2">
+          <h3 class="font-display font-semibold text-sm mb-4" style="color:#76ff03"><i class="fas fa-timeline mr-2"></i>Línea Temporal Interactiva</h3>
+          <input type="range" id="timeSlider" min="0" max="24" value="12" class="w-full mb-4" style="accent-color:#00e676">
+          <div class="flex justify-between text-xs mb-6" style="color:#81c784">
+            <span>Ene 2025</span><span>Jul 2025</span><span>Dic 2025</span><span>Jun 2026</span><span>Dic 2026</span>
+          </div>
+          <div class="grid grid-cols-4 gap-4" id="timeMetrics"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN: ARTICULACIÓN POR PAÍS -->
+    <section id="sec-articulacion" class="section">
+      <div class="mb-6">
+        <p class="text-sm" style="color:#81c784">Estrategia de articulación territorial del ecosistema Walmart BioHubs 360 en cada país centroamericano. Haz clic en cada tarjeta para desplegar el detalle completo.</p>
+      </div>
+      <div class="grid grid-cols-1 gap-4" id="articGrid"></div>
+    </section>
+  </div>
+</div>
+
+<!-- Panel de detalle de país -->
+<div id="countryPanel">
+  <button class="close-btn" onclick="closeCountryPanel()"><i class="fas fa-xmark"></i></button>
+  <div id="countryPanelContent"></div>
+</div>
+
+<!-- Notificación toast -->
+<div id="toast" class="fixed bottom-6 right-6 z-[200] glass-strong px-5 py-3 text-sm font-display flex items-center gap-3 opacity-0 translate-y-4 transition-all duration-300 pointer-events-none" style="border-left:3px solid #00e676">
+  <i class="fas fa-circle-check" style="color:#00e676"></i>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+// ============ DATOS DE PAÍSES ============
+const P={
+GT:{nombre:"Guatemala",code:"GT",biohubs:8,productores:1240,conectados:89,cultivos:["Café Altura","Cardamomo","Berries","Maca","Hortalizas"],carbono:2840,agua:15600,biodiv:142,desperdicio:42,solar:78,regen:87,emocional:76,resiliencia:82,circular:72,pos:{x:18,y:22},color:"#00e676",
+desc:"Epicentro cafetero mesoamericano con integración de cardamomo y berries de altura. Los 8 BioHubs guatemaltecos se especializan en fermentación controlada para cafés funcionales, encapsulación de antioxidantes de maca adaptada, y snacks de hortalizas deshidratadas con bioconservación. La red de 1,240 productores —el 89% conectados digitalmente— opera principalmente en Alta Verapaz, Huehuetenango y San Marcos.",
+estrat:"BioHubs en Alta Verapaz (café + cardamomo), Huehuetenango (berries + maca) y San Marcos (hortalizas funcionales). Conexión con 89 cooperativas mediante contratos inteligentes que bonifican prácticas regenerativas. Focus en café con certificación de carbono y denominación de origen digital. Energía: 78% solar, complementada con biomasa de bagazo."},
+SV:{nombre:"El Salvador",code:"SV",biohubs:5,productores:820,conectados:76,cultivos:["Café","Azúcar Funcional","Frutas Tropicales","Cacao"],carbono:1920,agua:9800,biodiv:98,desperdicio:38,solar:85,regen:79,emocional:82,resiliencia:74,circular:68,pos:{x:24,y:44},color:"#00e5ff",
+desc:"Transformación pionera de caña de azúcar en edulcorantes funcionales de bajo índice glicémico mediante biotecnología enzimática. Los 5 BioHubs salvadoreños incluyen unidades costeras en Usulután para procesamiento de frutas tropicales con bioconservación por bacterias lácticas. Red de 820 productores con el 76% integrado digitalmente.",
+estrat:"BioHubs en Santa Ana (café funcional), Usulután (frutas tropicales) y La Libertad (cacao + azúcar funcional). Alianza con ingenios azucareros para conversión a edulcorantes funcionales. El 85% de energía proviene de solar fotovoltaica —el mayor ratio regional. Conexión emocional fuerte: los consumidores pueden rastrear cada café hasta la finca específica."},
+HN:{nombre:"Honduras",code:"HN",biohubs:7,productores:1050,conectados:72,cultivos:["Banano","Café","Melón","Palma Funcional","Cacao"],carbono:2460,agua:13200,biodiv:128,desperdicio:45,solar:72,regen:81,emocional:71,resiliencia:78,circular:74,pos:{x:40,y:32},color:"#ffab00",
+desc:"Hub logístico clave que conecta el norte y sur centroamericano. Los 7 BioHubs hondureños incluyen conversión de banano en harinas funcionales y snacks fermentados, y palma aceitera transformada en biocombustibles para la flota logística local. Con 1,050 productores y reducción de desperdicio del 45% —la más alta del ecosistema—.",
+estrat:"BioHubs en Choluteca (melón + banano funcional), Comayagua (café + cacao) y La Ceiba (palma funcional + biocombustible). Nodo logístico central: las rutas de Honduras conectan Guatemala-Belice con Nicaragua-Costa Rica. Biomasa de palma como fuente energética primaria (72% solar + 28% biomasa). Estrategia de reducción de desperdicio líder regional."},
+NI:{nombre:"Nicaragua",code:"NI",biohubs:6,productores:980,conectados:68,cultivos:["Café","Cacao Fino","Maní","Frijol Funcional","Plátano"],carbono:2180,agua:11800,biodiv:156,desperdicio:40,solar:80,regen:83,emocional:69,resiliencia:76,circular:72,pos:{x:34,y:56},color:"#ff6e40",
+desc:"Corredor biológico con la mayor biodiversidad relativa del ecosistema (156 especies monitoreadas). Los 6 BioHubs nicaragüenses se especializan en cacao fino de aroma con fermentación territorial única que genera perfiles de sabor verificables por blockchain. Frijol funcional fortificado con minerales biodisponibles.",
+estrat:"BioHubs en Matagalpa (cacao fino + café), Jinotega (frijol funcional + café) y Granada (plátano + maní). Focus en cacao de aroma con denominación de origen digital —cada lote tiene huella de fermentación registrada en blockchain. Energía: 80% solar + complemento geotérmico del volcán Momotombo. Integración con reservas naturales para monitoreo de biodiversidad."},
+CR:{nombre:"Costa Rica",code:"CR",biohubs:9,productores:1380,conectados:92,cultivos:["Piña","Banano","Café","Guanábana","Mango Funcional"],carbono:3120,agua:16400,biodiv:198,desperdicio:52,solar:91,regen:94,emocional:88,resiliencia:90,circular:86,pos:{x:40,y:72},color:"#76ff03",
+desc:"País líder en sostenibilidad regional y nodo de referencia del ecosistema. Los 9 BioHubs costarricenses son los más avanzados tecnológicamente, con mini-hidroeléctrica integrada en 3 de ellos. Piña y guanábana como productos bandera transformados en jugos funcionales, snacks liofilizados y suplementos inmunológicos. El 92% de productores conectados —el máximo regional—.",
+estrat:"BioHubs en San Carlos (piña + guanábana), Alajuela (banano + mango funcional) y Pérez Zeledón (café de especialidad). Integración con la red eléctrica limpia de Costa Rica (91% renovable). Este país funciona como 'BioHub de BioHubs': los protocolos exitosos aquí se replican en los otros 6 países. Exportación de modelos operativos y capacitación regional."},
+PA:{nombre:"Panamá",code:"PA",biohubs:4,productores:620,conectados:65,cultivos:["Cacao Geisha","Frutas Exóticas","Mariscos Funcionales","Café Geisha"],carbono:1680,agua:8400,biodiv:178,desperdicio:36,solar:74,regen:77,emocional:85,resiliencia:72,circular:65,pos:{x:58,y:80},color:"#e040fb",
+desc:"Nodo logístico hemisférico con BioHubs especializados en productos de ultra-premium. El cacao Geisha y café Geisha se procesan con protocolos de fermentación exclusivos registrados en blockchain. Los mariscos funcionales (ostiones, camarones) se fortifican con omega-3 verificado. Conexión directa con el canal interoceánico para distribución internacional.",
+estrat:"BioHubs en Bocas del Toro (cacao Geisha + mariscos), Chiriquí (café Geisha + frutas exóticas) y Panamá Oeste (hub logístico multimodal). Focus en productos premium para exportación: cada unidad de cacao Geisha tiene trazabilidad completa desde la parcela hasta el consumidor en EE.UU. o Europa. Logística multimodal: terrestre + marítima + aérea desde el hub del Canal."},
+BZ:{nombre:"Belice",code:"BZ",biohubs:3,productores:380,conectados:58,cultivos:["Cítricos Funcionales","Caña Orgánica","Productos del Mar","Cacao Orgánico"],carbono:1240,agua:6200,biodiv:210,desperdicio:33,solar:68,regen:85,emocional:73,resiliencia:68,circular:62,pos:{x:52,y:14},color:"#40c4ff",
+desc:"Reserva de biodiversidad con la mayor densidad de especies monitoreadas (210) y el menor número de BioHubs (3), pero con el mayor valor ecológico por nodo. Especialización en cítricos funcionales (naranja, toronja) con biofortificación de vitamina C, y acuicultura regenerativa vinculada a la barrera arrecifal.",
+estrat:"BioHubs en Orange Walk (cítricos funcionales + caña orgánica), Stann Creek (productos del mar regenerativos) y Toledo (cacao orgánico + biodiversidad). Integración con la barrera arrecifal para acuicultura regenerativa: los BioHubs costeros usan agua de mar filtrada naturalmente. Biomasa costera (algas, residuos de mariscos) como fuente energética. Menor densidad de nodos pero mayor impacto ecológico por unidad."}
+};
+
+const RUTAS=[
+  {d:"GT",h:"SV",tipo:"terrestre"},{d:"GT",h:"HN",tipo:"terrestre"},{d:"GT",h:"BZ",tipo:"marítimo"},
+  {d:"HN",h:"NI",tipo:"terrestre"},{d:"SV",h:"NI",tipo:"terrestre"},{d:"NI",h:"CR",tipo:"terrestre"},
+  {d:"CR",h:"PA",tipo:"terrestre"},{d:"HN",h:"BZ",tipo:"marítimo"},{d:"PA",h:"BZ",tipo:"marítimo"},
+  {d:"GT",h:"NI",tipo:"terrestre"}
+];
+
+let selectedCountry=null;
+let simInterval=null;
+let charts={};
+
+// ============ INICIALIZACIÓN ============
+document.addEventListener('DOMContentLoaded',()=>{
+  initBgCanvas();
+  initNav();
+  renderMap();
+  renderHudTerritorial();
+  renderHudLogistico();
+  renderHudRegenerativo();
+  renderSimulacion('cadena');
+  renderHudsSection();
+  renderGauges();
+  renderTimelineChart();
+  renderInteracciones();
+  renderArticulacion();
+  startLiveUpdates();
+});
+
+// ============ CANVAS DE FONDO ============
+function initBgCanvas(){
+  const c=document.getElementById('bgCanvas'),ctx=c.getContext('2d');
+  let w,h,particles=[];
+  function resize(){w=c.width=window.innerWidth;h=c.height=window.innerHeight}
+  resize();window.addEventListener('resize',resize);
+  for(let i=0;i<60;i++) particles.push({x:Math.random()*w,y:Math.random()*h,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:Math.random()*1.5+.5,a:Math.random()*.4+.1});
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    particles.forEach(p=>{
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0)p.x=w;if(p.x>w)p.x=0;if(p.y<0)p.y=h;if(p.y>h)p.y=0;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(0,230,118,${p.a})`;ctx.fill();
+    });
+    // Líneas de conexión cercanas
+    for(let i=0;i<particles.length;i++)for(let j=i+1;j<particles.length;j++){
+      const dx=particles[i].x-particles[j].x,dy=particles[i].y-particles[j].y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d<120){ctx.beginPath();ctx.moveTo(particles[i].x,particles[i].y);ctx.lineTo(particles[j].x,particles[j].y);
+      ctx.strokeStyle=`rgba(0,230,118,${.06*(1-d/120)})`;ctx.stroke()}
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ============ NAVEGACIÓN ============
+function initNav(){
+  document.querySelectorAll('#sidebar nav button').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('#sidebar nav button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const sec=btn.dataset.sec;
+      document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+      document.getElementById('sec-'+sec).classList.add('active');
+      const titles={mapa:['Mapa Regional de BioHubs','Red descentralizada centroamericana — 42 nodos operativos'],
+        simulacion:['Módulos de Simulación','Modelos predictivos y escenarios de impacto regional'],
+        huds:['Módulos HUD','Paneles de monitoreo en tiempo real por dimensión'],
+        estados:['Estados Dinámicos del Ecosistema','Indicadores vivos de regeneración, emoción, resiliencia y circularidad'],
+        interacciones:['Interacciones Avanzadas','Trazabilidad, simulador de escenarios y línea temporal'],
+        articacion:['Articulación por País','Estrategia territorial diferenciada para cada nodo centroamericano']};
+      const t=titles[sec]||['',''];
+      document.getElementById('secTitle').textContent=t[0];
+      document.getElementById('secSub').textContent=t[1];
+    });
+  });
+}
+
+// ============ MAPA REGIONAL ============
+function renderMap(){
+  const container=document.getElementById('mapNodes');
+  const svg=document.getElementById('mapSvg');
+  container.innerHTML='';svg.innerHTML='';
+  // Renderizar nodos
+  Object.entries(P).forEach(([code,p])=>{
+    const size=36+p.biohubs*3;
+    const node=document.createElement('div');
+    node.className='map-node';
+    node.id='node-'+code;
+    node.style.cssText=`left:${p.pos.x}%;top:${p.pos.y}%;--nc:${p.color}`;
+    node.innerHTML=`
+      <div class="node-ring" style="width:${size}px;height:${size}px;border-color:${p.color};background:rgba(6,13,10,.8)">
+        <span class="font-display font-bold text-xs" style="color:${p.color}">${p.code}</span>
+        <span class="node-count" style="color:${p.color}">${p.biohubs} hubs</span>
+      </div>
+      <div class="node-label" style="color:${p.color}">${p.nombre}</div>`;
+    node.addEventListener('click',()=>openCountryPanel(code));
+    node.addEventListener('mouseenter',(e)=>showTooltip(e,code));
+    node.addEventListener('mouseleave',hideTooltip);
+    container.appendChild(node);
+  });
+  // Renderizar conexiones SVG
+  RUTAS.forEach(r=>{
+    const a=P[r.d],b=P[r.h];
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',a.pos.x+'%');line.setAttribute('y1',a.pos.y+'%');
+    line.setAttribute('x2',b.pos.x+'%');line.setAttribute('y2',b.pos.y+'%');
+    line.setAttribute('stroke',r.tipo==='marítimo'?'rgba(0,229,255,.15)':'rgba(0,230,118,.12)');
+    line.setAttribute('stroke-width',r.tipo==='marítimo'?'1.5':'1');
+    if(r.tipo==='marítimo')line.setAttribute('stroke-dasharray','4 6');
+    svg.appendChild(line);
+  });
+}
+
+function showTooltip(e,code){
+  const p=P[code],tt=document.getElementById('mapTooltip');
+  tt.innerHTML=`
+    <div class="font-display font-bold text-sm mb-2" style="color:${p.color}">${p.nombre}</div>
+    <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+      <span style="color:#81c784">BioHubs</span><span class="font-display font-semibold">${p.biohubs}</span>
+      <span style="color:#81c784">Productores</span><span class="font-display font-semibold">${p.productores.toLocaleString()}</span>
+      <span style="color:#81c784">Conectados</span><span class="font-display font-semibold" style="color:${p.conectados>80?'#00e676':'#ffab00'}">${p.conectados}%</span>
+      <span style="color:#81c784">Carbono</span><span class="font-display font-semibold">${p.carbono.toLocaleString()} t</span>
+      <span style="color:#81c784">Agua regen.</span><span class="font-display font-semibold">${(p.agua/1000).toFixed(1)}k L</span>
+      <span style="color:#81c784">Biodiversidad</span><span class="font-display font-semibold">${p.biodiv} esp.</span>
+    </div>
+    <div class="mt-2 text-xs" style="color:#4caf50">Clic para ver detalle completo</div>`;
+  const rect=e.currentTarget.getBoundingClientRect();
+  const mapRect=document.getElementById('mapContainer').getBoundingClientRect();
+  let left=rect.right-mapRect.left+12,top=rect.top-mapRect.top-20;
+  if(left+220>mapRect.width)left=rect.left-mapRect.left-220;
+  tt.style.left=left+'px';tt.style.top=top+'px';
+  tt.classList.add('show');
+}
+function hideTooltip(){document.getElementById('mapTooltip').classList.remove('show')}
+
+// ============ PANEL DE PAÍS ============
+function openCountryPanel(code){
+  selectedCountry=code;
+  const p=P[code];
+  document.querySelectorAll('.map-node').forEach(n=>n.classList.remove('selected'));
+  document.getElementById('node-'+code).classList.add('selected');
+  const panel=document.getElementById('countryPanel');
+  const cont=document.getElementById('countryPanelContent');
+  cont.innerHTML=`
+    <div class="mb-6">
+      <div class="flex items-center gap-3 mb-1">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-sm" style="background:${p.color}20;color:${p.color};border:2px solid ${p.color}">${p.code}</div>
+        <div>
+          <h2 class="font-display font-bold text-xl" style="color:${p.color}">${p.nombre}</h2>
+          <span class="tag" style="background:${p.color}20;color:${p.color}">${p.biohubs} BioHubs activos</span>
+        </div>
+      </div>
+    </div>
+    <div class="grid grid-cols-3 gap-3 mb-6">
+      <div class="metric-mini glass"><div class="val" style="color:#00e676">${p.productores.toLocaleString()}</div><div class="lbl">Productores</div></div>
+      <div class="metric-mini glass"><div class="val" style="color:${p.conectados>80?'#00e676':'#ffab00'}">${p.conectados}%</div><div class="lbl">Conectados</div></div>
+      <div class="metric-mini glass"><div class="val" style="color:#00e5ff">${p.desperdicio}%</div><div class="lbl">Red. Desperd.</div></div>
+    </div>
+    <div class="mb-6">
+      <h4 class="font-display font-semibold text-xs mb-3" style="color:#81c784;letter-spacing:.5px">CULTIVOS PRINCIPALES</h4>
+      <div class="flex flex-wrap gap-2">${p.cultivos.map(c=>`<span class="tag" style="background:#1b3a2a;color:#e8f5e9">${c}</span>`).join('')}</div>
+    </div>
+    <div class="mb-6">
+      <h4 class="font-display font-semibold text-xs mb-2" style="color:#81c784;letter-spacing:.5px">IMPACTO AMBIENTAL</h4>
+      <div class="space-y-2">
+        <div class="flex justify-between text-xs"><span style="color:#81c784">Carbono capturado</span><span class="font-display font-semibold">${p.carbono.toLocaleString()} ton</span></div>
+        <div style="height:4px;background:#111f18;border-radius:2px;overflow:hidden"><div style="width:${p.carbono/35}%;height:100%;background:#00e676;border-radius:2px"></div></div>
+        <div class="flex justify-between text-xs"><span style="color:#81c784">Agua regenerada</span><span class="font-display font-semibold">${(p.agua/1000).toFixed(1)}k litros</span></div>
+        <div style="height:4px;background:#111f18;border-radius:2px;overflow:hidden"><div style="width:${p.agua/200}%;height:100%;background:#00e5ff;border-radius:2px"></div></div>
+        <div class="flex justify-between text-xs"><span style="color:#81c784">Biodiversidad</span><span class="font-display font-semibold">${p.biodiv} especies</span></div>
+        <div style="height:4px;background:#111f18;border-radius:2px;overflow:hidden"><div style="width:${p.biodiv/2.2}%;height:100%;background:#ffab00;border-radius:2px"></div></div>
+      </div>
+    </div>
+    <div class="mb-6">
+      <h4 class="font-display font-semibold text-xs mb-3" style="color:#81c784;letter-spacing:.5px">PERFIL RADAR</h4>
+      <canvas id="radarChart" height="200"></canvas>
+    </div>
+    <div class="mb-6">
+      <h4 class="font-display font-semibold text-xs mb-2" style="color:#81c784;letter-spacing:.5px">DESCRIPCIÓN</h4>
+      <p class="text-xs leading-relaxed" style="color:#a5d6a7">${p.desc}</p>
+    </div>
+    <div class="glass p-4" style="border-color:${p.color}40">
+      <h4 class="font-display font-semibold text-xs mb-2" style="color:${p.color};letter-spacing:.5px">ESTRATEGIA DE ARTICULACIÓN</h4>
+      <p class="text-xs leading-relaxed" style="color:#a5d6a7">${p.estrat}</p>
+    </div>`;
+  panel.classList.add('open');
+  // Renderizar radar
+  setTimeout(()=>{
+    if(charts.radar)charts.radar.destroy();
+    const ctx=document.getElementById('radarChart');
+    if(!ctx)return;
+    charts.radar=new Chart(ctx,{type:'radar',data:{
+      labels:['Regeneración','Conexión Emocional','Resiliencia','Circularidad','Conectividad','Energía Limpia'],
+      datasets:[{label:p.nombre,data:[p.regen,p.emocional,p.resiliencia,p.circular,p.conectados,p.solar],
+        backgroundColor:p.color+'20',borderColor:p.color,borderWidth:2,pointBackgroundColor:p.color,pointRadius:4}]},
+      options:{responsive:true,plugins:{legend:{display:false}},scales:{r:{beginAtZero:true,max:100,
+        grid:{color:'#1b3a2a'},angleLines:{color:'#1b3a2a'},pointLabels:{color:'#81c784',font:{size:9,family:'Space Grotesk'}},
+        ticks:{display:false}}}}});
+  },100);
+  showToast(`BioHubs de ${p.nombre} cargados — ${p.biohubs} nodos activos`);
+}
+function closeCountryPanel(){
+  document.getElementById('countryPanel').classList.remove('open');
+  document.querySelectorAll('.map-node').forEach(n=>n.classList.remove('selected'));
+  selectedCountry=null;
+}
+
+// ============ HUDS DEL MAPA ============
+function renderHudTerritorial(){
+  const totalHubs=Object.values(P).reduce((s,p)=>s+p.biohubs,0);
+  const totalProd=Object.values(P).reduce((s,p)=>s+p.productores,0);
+  const avgConn=Math.round(Object.values(P).reduce((s,p)=>s+p.conectados,0)/7);
+  document.getElementById('hudTerrMetrics').innerHTML=`
+    <div class="metric-mini"><div class="val" style="color:#00e676;font-size:16px">${totalHubs}</div><div class="lbl">BioHubs</div></div>
+    <div class="metric-mini"><div class="val" style="color:#00e5ff;font-size:16px">${totalProd.toLocaleString()}</div><div class="lbl">Productores</div></div>
+    <div class="metric-mini"><div class="val" style="color:#ffab00;font-size:16px">${avgConn}%</div><div class="lbl">Conectados</div></div>
+    <div class="metric-mini"><div class="val" style="color:#76ff03;font-size:16px">7</div><div class="lbl">Países</div></div>`;
+}
+function renderHudLogistico(){
+  document.getElementById('hudLogData').innerHTML=`
+    <div class="space-y-2 text-xs">
+      <div class="flex justify-between"><span style="color:#81c784">Rutas activas</span><span class="font-display font-semibold">${RUTAS.length}</span></div>
+      <div class="flex justify-between"><span style="color:#81c784">Rutas terrestres</span><span class="font-display font-semibold">${RUTAS.filter(r=>r.tipo==='terrestre').length}</span></div>
+      <div class="flex justify-between"><span style="color:#81c784">Rutas marítimas</span><span class="font-display font-semibold">${RUTAS.filter(r=>r.tipo==='marítimo').length}</span></div>
+      <div style="height:1px;background:#1b3a2a;margin:4px 0"></div>
+      <div class="flex justify-between"><span style="color:#81c784">Eficiencia logística</span><span class="font-display font-semibold" style="color:#00e676">94.2%</span></div>
+      <div class="flex justify-between"><span style="color:#81c784">Emisiones reducidas</span><span class="font-display font-semibold" style="color:#00e5ff">-38%</span></div>
+      <div class="flex justify-between"><span style="color:#81c784">Tiempo entrega prom.</span><span class="font-display font-semibold">4.2h</span></div>
+    </div>`;
+}
+function renderHudRegenerativo(){
+  const totalC=Object.values(P).reduce((s,p)=>s+p.carbono,0);
+  const totalA=Object.values(P).reduce((s,p)=>s+p.agua,0);
+  const totalB=Object.values(P).reduce((s,p)=>s+p.biodiv,0);
+  document.getElementById('hudRegenData').innerHTML=`
+    <div class="space-y-2 text-xs">
+      <div class="flex justify-between"><span style="color:#81c784">Carbono total</span><span class="font-display font-semibold" style="color:#00e676">${(totalC/1000).toFixed(1)}k t</span></div>
+      <div class="flex justify-between"><span style="color:#81c784">Agua regenerada</span><span class="font-display font-semibold" style="color:#00e5ff">${(totalA/1000).toFixed(1)}k L</span></div>
+      <div class="flex justify-between"><span style="color:#81c784">Especies monit.</span><span class="font-display font-semibold" style="color:#ffab00">${totalB}</span></div>
+      <div style="height:1px;background:#1b3a2a;margin:4px 0"></div>
+      <div class="flex justify-between"><span style="color:#81c784">Red. desperdicio avg</span><span class="font-display font-semibold" style="color:#76ff03">${Math.round(Object.values(P).reduce((s,p)=>s+p.desperdicio,0)/7)}%</span></div>
+      <div class="flex justify-between"><span style="color:#81c784">Energía solar avg</span><span class="font-display font-semibold" style="color:#ffab00">${Math.round(Object.values(P).reduce((s,p)=>s+p.solar,0)/7)}%</span></div>
+    </div>`;
+}
+function toggleHud(id){
+  document.getElementById(id).classList.toggle('minimized');
+  const chevron=document.getElementById(id).querySelector('.hud-chevron');
+  chevron.style.transform=document.getElementById(id).classList.contains('minimized')?'rotate(180deg)':'';
+}
+
+// ============ SIMULACIONES ============
+function switchSim(btn){
+  document.querySelectorAll('.scenario-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderSimulacion(btn.dataset.sim);
+}
+function renderSimulacion(type){
+  const cont=document.getElementById('simContent');
+  if(simInterval)clearInterval(simInterval);
+  if(type==='cadena'){
+    cont.innerHTML=`
+      <div class="glass-strong p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-display font-semibold text-sm" style="color:#00e676">Flujo de Cadena de Suministro en Tiempo Real</h3>
+          <div class="flex gap-2">
+            <button id="simPlayBtn" onclick="toggleSim()" class="px-3 py-1 rounded-lg text-xs font-display font-semibold" style="background:#1b3a2a;color:#00e676;border:1px solid #2e5e42"><i class="fas fa-play mr-1"></i>Ejecutar</button>
+            <select id="simSpeed" class="bg-bio-700 border border-bio-600 rounded-lg px-2 py-1 text-xs text-bio-200" onchange="changeSimSpeed()">
+              <option value="2000">Lento</option><option value="1000" selected>Normal</option><option value="500">Rápido</option>
+            </select>
+          </div>
+        </div>
+        <div class="sim-chain" id="simChain"></div>
+        <div class="grid grid-cols-4 gap-4 mt-4" id="simMetrics"></div>
+      </div>
+      <div class="glass-strong p-6"><canvas id="simChart" height="80"></canvas></div>`;
+    renderChainNodes();
+    renderSimMetrics();
+    renderSimChart();
+  }else if(type==='demanda'){
+    cont.innerHTML=`
+      <div class="glass-strong p-6">
+        <h3 class="font-display font-semibold text-sm mb-4" style="color:#00e5ff">Predicción de Demanda por Producto — Próximos 6 Meses</h3>
+        <canvas id="demandaChart" height="100"></canvas>
+      </div>`;
+    renderDemandaChart();
+  }else if(type==='carbono'){
+    cont.innerHTML=`
+      <div class="glass-strong p-6">
+        <h3 class="font-display font-semibold text-sm mb-4" style="color:#00e676">Captura de Carbono por País — Acumulado 2025</h3>
+        <canvas id="carbonoChart" height="100"></canvas>
+      </div>`;
+    renderCarbonoChart();
+  }else if(type==='energia'){
+    cont.innerHTML=`
+      <div class="grid grid-cols-2 gap-6">
+        <div class="glass-strong p-6"><h3 class="font-display font-semibold text-sm mb-4" style="color:#ffab00">Mix Energético Regional</h3><canvas id="energiaChart" height="160"></canvas></div>
+        <div class="glass-strong p-6"><h3 class="font-display font-semibold text-sm mb-4" style="color:#76ff03">Energía Solar por País</h3><canvas id="solarChart" height="160"></canvas></div>
+      </div>`;
+    renderEnergiaCharts();
+  }
+}
+
+let simRunning=false,simStep=0,simSpeed=1000;
+function renderChainNodes(){
+  const nodes=[
+    {id:'producer',icon:'fa-seedling',label:'Productor',color:'#76ff03'},
+    {id:'biohub',icon:'fa-flask',label:'BioHub',color:'#00e676'},
+    {id:'logistics',icon:'fa-truck',label:'Logística IA',color:'#00e5ff'},
+    {id:'store',icon:'fa-store',label:'Tienda Walmart',color:'#ffab00'},
+    {id:'consumer',icon:'fa-user',label:'Consumidor',color:'#e040fb'}
+  ];
+  document.getElementById('simChain').innerHTML=nodes.map((n,i)=>`
+    ${i>0?`<div class="sim-chain-arrow"><div class="arrow-dot" style="background:${n.color};animation-delay:${i*0.3}s"></div><div style="position:absolute;inset:0;height:2px;background:linear-gradient(90deg,${nodes[i-1].color}40,${n.color}40);border-radius:1px"></div></div>`:''}
+    <div class="sim-chain-node" id="chain-${n.id}" style="--cc:${n.color}">
+      <div class="chain-icon" style="border-color:${n.color};color:${n.color}"><i class="fas ${n.icon}"></i></div>
+      <span class="text-xs font-display" style="color:${n.color}">${n.label}</span>
+    </div>`).join('');
+}
+function renderSimMetrics(){
+  const m=[
+    {id:'sm1',label:'Productos en tránsito',val:0,color:'#00e676',icon:'fa-box'},
+    {id:'sm2',label:'Trazabilidad verificada',val:0,color:'#00e5ff',icon:'fa-check-double'},
+    {id:'sm3',label:'Pérdida evitada',val:0,color:'#ffab00',icon:'fa-recycle'},
+    {id:'sm4',label:'Impacto emocional',val:0,color:'#e040fb',icon:'fa-heart'}
+  ];
+  document.getElementById('simMetrics').innerHTML=m.map(mm=>`
+    <div class="glass p-3 text-center">
+      <i class="fas ${mm.icon} text-xs mb-1" style="color:${mm.color}"></i>
+      <div class="font-display font-bold text-lg" style="color:${mm.color}" id="${mm.id}">0</div>
+      <div class="text-xs" style="color:#81c784">${mm.label}</div>
+    </div>`).join('');
+}
+function renderSimChart(){
+  if(charts.sim)charts.sim.destroy();
+  const ctx=document.getElementById('simChart');
+  if(!ctx)return;
+  const labels=Array.from({length:20},(_,i)=>`T${i+1}`);
+  charts.sim=new Chart(ctx,{type:'line',data:{labels,datasets:[
+    {label:'Productos procesados',data:Array(20).fill(0),borderColor:'#00e676',backgroundColor:'#00e67620',fill:true,tension:.4},
+    {label:'Pérdida (%)',data:Array(20).fill(0),borderColor:'#ff5252',backgroundColor:'#ff525220',fill:true,tension:.4}
+  ]},options:{responsive:true,plugins:{legend:{labels:{color:'#81c784',font:{size:10,family:'Space Grotesk'}}}},scales:{x:{grid:{color:'#1b3a2a20'},ticks:{color:'#4caf50',font:{size:9}}},y:{grid:{color:'#1b3a2a40'},ticks:{color:'#4caf50',font:{size:9}}}}}});
+}
+function toggleSim(){
+  simRunning=!simRunning;
+  const btn=document.getElementById('simPlayBtn');
+  if(simRunning){
+    btn.innerHTML='<i class="fas fa-pause mr-1"></i>Pausar';
+    simStep=0;
+    simInterval=setInterval(runSimStep,simSpeed);
+  }else{
+    btn.innerHTML='<i class="fas fa-play mr-1"></i>Ejecutar';
+    clearInterval(simInterval);
+  }
+}
+function changeSimSpeed(){simSpeed=parseInt(document.getElementById('simSpeed').value);if(simRunning){clearInterval(simInterval);simInterval=setInterval(runSimStep,simSpeed)}}
+function runSimStep(){
+  if(simStep>=20){simRunning=false;clearInterval(simInterval);document.getElementById('simPlayBtn').innerHTML='<i class="fas fa-play mr-1"></i>Ejecutar';return}
+  const prod=Math.floor(Math.random()*200+300);
+  const trace=Math.floor(prod*(0.92+Math.random()*0.07));
+  const perdida=Math.max(2,Math.floor(Math.random()*8+3));
+  const emocional=Math.floor(Math.random()*30+65);
+  document.getElementById('sm1').textContent=prod;
+  document.getElementById('sm2').textContent=trace+'%';
+  document.getElementById('sm3').textContent=perdida+'%';
+  document.getElementById('sm4').textContent=emocional+'%';
+  // Activar nodo actual
+  const chainOrder=['producer','biohub','logistics','store','consumer'];
+  const activeNode=chainOrder[simStep%5];
+  document.querySelectorAll('.sim-chain-node').forEach(n=>n.classList.remove('active'));
+  document.getElementById('chain-'+activeNode).classList.add('active');
+  // Actualizar gráfico
+  if(charts.sim){
+    charts.sim.data.datasets[0].data[simStep]=prod;
+    charts.sim.data.datasets[1].data[simStep]=perdida;
+    charts.sim.update('none');
+  }
+  simStep++;
+}
+
+function renderDemandaChart(){
+  if(charts.demanda)charts.demanda.destroy();
+  const ctx=document.getElementById('demandaChart');if(!ctx)return;
+  const meses=['Ene','Feb','Mar','Abr','May','Jun'];
+  charts.demanda=new Chart(ctx,{type:'line',data:{labels:meses,datasets:[
+    {label:'Café Funcional',data:[4200,4500,4800,5100,4900,5300],borderColor:'#00e676',tension:.4},
+    {label:'Snacks Fermentados',data:[2800,3100,3400,3200,3600,3900],borderColor:'#ffab00',tension:.4},
+    {label:'Suplementos',data:[1500,1700,1900,2100,2300,2600],borderColor:'#00e5ff',tension:.4},
+    {label:'Frutas Funcionales',data:[3200,3000,3500,3800,4100,4400],borderColor:'#e040fb',tension:.4}
+  ]},options:{responsive:true,plugins:{legend:{labels:{color:'#81c784',font:{size:10,family:'Space Grotesk'}}}},scales:{x:{grid:{color:'#1b3a2a20'},ticks:{color:'#4caf50',font:{size:10}}},y:{grid:{color:'#1b3a2a40'},ticks:{color:'#4caf50',font:{size:10}}}}}});
+}
+function renderCarbonoChart(){
+  if(charts.carbono)charts.carbono.destroy();
+  const ctx=document.getElementById('carbonoChart');if(!ctx)return;
+  const sorted=Object.entries(P).sort((a,b)=>b[1].carbono-a[1].carbono);
+  charts.carbono=new Chart(ctx,{type:'bar',data:{labels:sorted.map(s=>s[1].nombre),datasets:[{label:'Toneladas CO2 capturado',data:sorted.map(s=>s[1].carbono),backgroundColor:sorted.map(s=>s[1].color+'80'),borderColor:sorted.map(s=>s[1].color),borderWidth:1}]},
+  options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#1b3a2a40'},ticks:{color:'#4caf50',font:{size:10}}},y:{grid:{display:false},ticks:{color:'#e8f5e9',font:{size:11,family:'Space Grotesk'}}}}}});
+}
+function renderEnergiaCharts(){
+  if(charts.energia)charts.energia.destroy();
+  if(charts.solar)charts.solar.destroy();
+  const ctx1=document.getElementById('energiaChart'),ctx2=document.getElementById('solarChart');
+  if(!ctx1||!ctx2)return;
+  charts.energia=new Chart(ctx1,{type:'doughnut',data:{labels:['Solar','Biomasa','Mini-hidro','Geotérmica','Otro'],datasets:[{data:[78,10,6,4,2],backgroundColor:['#ffab0080','#76ff0380','#00e5ff80','#ff6e4080','#4caf5080'],borderColor:['#ffab00','#76ff03','#00e5ff','#ff6e40','#4caf50'],borderWidth:1}]},
+  options:{responsive:true,plugins:{legend:{labels:{color:'#81c784',font:{size:10,family:'Space Grotesk'}}}}}});
+  charts.solar=new Chart(ctx2,{type:'bar',data:{labels:Object.values(P).map(p=>p.nombre),datasets:[{label:'Solar %',data:Object.values(P).map(p=>p.solar),backgroundColor:Object.values(P).map(p=>p.color+'60'),borderColor:Object.values(P).map(p=>p.color),borderWidth:1}]},
+  options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#e8f5e9',font:{size:9,family:'Space Grotesk'}}},y:{max:100,grid:{color:'#1b3a2a40'},ticks:{color:'#4caf50',font:{size:10}}}}}});
+}
+
+// ============ MÓDULOS HUD ============
+function renderHudsSection(){
+  const huds=[
+    {title:'HUD de Productor',icon:'fa-user-group',color:'#76ff03',metrics:[
+      {l:'Productores activos',v:'5,892',c:'#76ff03'},{l:'Con contratos inteligentes',v:'4,231',c:'#00e676'},
+      {l:'Con sensores IoT',v:'3,456',c:'#00e5ff'},{l:'Bonificados este mes',v:'1,890',c:'#ffab00'},
+      {l:'En capacitación',v:'720',c:'#e040fb'},{l:'Nuevos este trimestre',v:'342',c:'#ff6e40'}
+    ]},
+    {title:'HUD de Consumidor',icon:'fa-cart-shopping',color:'#e040fb',metrics:[
+      {l:'QR escaneados (mes)',v:'128,450',c:'#e040fb'},{l:'BioHubs adoptados',v:'34,200',c:'#ff6e40'},
+      {l:'Productos personalizados',v:'18,900',c:'#00e5ff'},{l:'Tasa fidelización',v:'87%',c:'#00e676'},
+      {l:'Retorno de empaques',v:'72%',c:'#76ff03'},{l:'NPS emocional',v:'+82',c:'#ffab00'}
+    ]},
+    {title:'HUD de BioHub',icon:'fa-microscope',color:'#00e676',metrics:[
+      {l:'BioHubs operativos',v:'42/42',c:'#00e676'},{l:'Capacidad utilizada',v:'78%',c:'#00e5ff'},
+      {l:'Lotes procesados (día)',v:'1,240',c:'#76ff03'},{l:'Trazabilidad blockchain',v:'99.7%',c:'#ffab00'},
+      {l:'Alertas de calidad',v:'3',c:'#ff5252'},{l:'Tiempo ciclo prom.',v:'2.4h',c:'#e040fb'}
+    ]},
+    {title:'HUD de Blockchain',icon:'fa-link',color:'#ffab00',metrics:[
+      {l:'Bloques creados (día)',v:'8,432',c:'#ffab00'},{l:'Transacciones verificadas',v:'42,156',c:'#00e676'},
+      {l:'Smart contracts activos',v:'4,231',c:'#00e5ff'},{l:'Tokens de impacto',v:'1.2M',c:'#76ff03'},
+      {l:'Auditorías automáticas',v:'342',c:'#e040fb'},{l:'Tiempo confirmación',v:'4.2s',c:'#ff6e40'}
+    ]}
+  ];
+  document.getElementById('hudGrid').innerHTML=huds.map(h=>`
+    <div class="glass-strong p-5">
+      <div class="flex items-center gap-3 mb-4 pb-3" style="border-bottom:1px solid #1b3a2a">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:${h.color}15"><i class="fas ${h.icon}" style="color:${h.color}"></i></div>
+        <h3 class="font-display font-semibold text-sm" style="color:${h.color}">${h.title}</h3>
+      </div>
+      <div class="space-y-3">${h.metrics.map(m=>`
+        <div class="flex justify-between items-center">
+          <span class="text-xs" style="color:#81c784">${m.l}</span>
+          <span class="font-display font-bold text-sm" style="color:${m.c}">${m.v}</span>
+        </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+// ============ ESTADOS DINÁMICOS ============
+function renderGauges(){
+  const gauges=[
+    {label:'Regeneración',val:83,color:'#00e676',icon:'fa-leaf'},
+    {label:'Conexión Emocional',val:78,color:'#e040fb',icon:'fa-heart'},
+    {label:'Resiliencia',val:77,color:'#00e5ff',icon:'fa-shield-halved'},
+    {label:'Circularidad',val:71,color:'#ffab00',icon:'fa-arrows-spin'}
+  ];
+  document.getElementById('gaugeGrid').innerHTML=gauges.map(g=>{
+    const circ=2*Math.PI*48;
+    const offset=circ-(g.val/100)*circ;
+    return `
+    <div class="glass-strong p-6 flex flex-col items-center">
+      <div class="gauge-ring mb-3">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle class="gauge-bg" cx="60" cy="60" r="48"/>
+          <circle class="gauge-fill" cx="60" cy="60" r="48" stroke="${g.color}" stroke-dasharray="${circ}" stroke-dashoffset="${circ}" data-target="${offset}"/>
+        </svg>
+        <div class="gauge-val" style="color:${g.color}">${g.val}%</div>
+      </div>
+      <i class="fas ${g.icon} text-xs mb-1" style="color:${g.color}"></i>
+      <span class="font-display text-xs font-semibold" style="color:${g.color}">${g.label}</span>
+    </div>`}).join('');
+  // Animar gauges
+  setTimeout(()=>{
+    document.querySelectorAll('.gauge-fill').forEach(el=>{
+      el.style.strokeDashoffset=el.dataset.target;
+    });
+  },200);
+}
+function renderTimelineChart(){
+  if(charts.timeline)charts.timeline.destroy();
+  const ctx=document.getElementById('timelineChart');if(!ctx)return;
+  const meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  charts.timeline=new Chart(ctx,{type:'line',data:{labels:meses,datasets:[
+    {label:'Regeneración',data:[72,74,76,78,79,80,81,82,83,83,83,83],borderColor:'#00e676',tension:.4,pointRadius:3},
+    {label:'Emocional',data:[65,67,69,71,73,74,75,76,77,78,78,78],borderColor:'#e040fb',tension:.4,pointRadius:3},
+    {label:'Resiliencia',data:[68,69,70,71,73,74,75,76,76,77,77,77],borderColor:'#00e5ff',tension:.4,pointRadius:3},
+    {label:'Circularidad',data:[58,60,62,63,65,66,68,69,70,71,71,71],borderColor:'#ffab00',tension:.4,pointRadius:3}
+  ]},options:{responsive:true,plugins:{legend:{labels:{color:'#81c784',font:{size:10,family:'Space Grotesk'}}}},scales:{x:{grid:{color:'#1b3a2a20'},ticks:{color:'#4caf50',font:{size:10}}},y:{min:50,max:100,grid:{color:'#1b3a2a40'},ticks:{color:'#4caf50',font:{size:10}}}}}});
+}
+
+// ============ INTERACCIONES AVANZADAS ============
+function renderInteracciones(){
+  // Explorador de trazabilidad
+  const products=['Café Funcional GT','Cacao Geisha PA','Piña Funcional CR','Banano Fermentado HN','Cítricos BZ','Azúcar Funcional SV','Frijol Funcional NI'];
+  document.getElementById('traceProducts').innerHTML=products.map((p,i)=>`
+    <button class="scenario-tab ${i===0?'active':''}" onclick="selectTrace(this,'${p}')" data-prod="${p}">${p}</button>`).join('');
+  renderTracePath(products[0]);
+
+  // Simulador de escenarios
+  const controls=[
+    {id:'scBiohubs',label:'BioHubs adicionales',min:0,max:20,val:5,step:1},
+    {id:'scConn',label:'Conectividad productores (%)',min:50,max:100,val:85,step:1},
+    {id:'scSolar',label:'Energía solar (%)',min:50,max:100,val:82,step:1},
+    {id:'scRegen',label:'Prácticas regenerativas (%)',min:40,max:100,val:75,step:1}
+  ];
+  document.getElementById('scenarioControls').innerHTML=controls.map(c=>`
+    <div>
+      <div class="flex justify-between text-xs mb-1">
+        <span style="color:#81c784">${c.label}</span>
+        <span class="font-display font-semibold" style="color:#ffab00" id="${c.id}Val">${c.val}</span>
+      </div>
+      <input type="range" id="${c.id}" min="${c.min}" max="${c.max}" value="${c.val}" step="${c.step}" class="w-full" style="accent-color:#ffab00" oninput="updateScenario()">
+    </div>`).join('');
+  updateScenario();
+
+  // Timeline
+  document.getElementById('timeSlider').addEventListener('input',updateTimeMetrics);
+  updateTimeMetrics();
+}
+function selectTrace(btn,prod){
+  document.querySelectorAll('#traceProducts .scenario-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTracePath(prod);
+}
+function renderTracePath(prod){
+  const steps=[
+    {icon:'fa-seedling',label:'Finca de origen',color:'#76ff03',detail:prod.includes('GT')?'Alta Verapaz, Guatemala — Finca La Esperanza':prod.includes('PA')?'Chiriquí, Panamá — Finca Geisha Estate':prod.includes('CR')?'San Carlos, Costa Rica — Finca Piña Dorada':prod.includes('HN')?'Choluteca, Honduras — Finca El Bananito':prod.includes('BZ')?'Orange Walk, Belice — Citrus Valley Farm':prod.includes('SV')?'Santa Ana, El Salvador — Ingenio San Andrés':'Matagalpa, Nicaragua — Finca Monte Verde'},
+    {icon:'fa-qrcode',label:'Registro blockchain',color:'#ffab00',detail:'Bloque #'+(8432156+Math.floor(Math.random()*1000))+' — Hash verificado — Smart contract activado'},
+    {icon:'fa-flask',label:'BioHub de procesamiento',color:'#00e676',detail:prod.includes('Café')?'Fermentación controlada 48h — Tostado funcional — Encapsulación de antioxidantes':prod.includes('Cacao')?'Fermentación territorial 72h — Conchado 24h — Moldeo con trazabilidad de perfil':prod.includes('Piña')?'Liofilización — Encapsulación de bromelina — Fortificación con vitamina C':prod.includes('Banano')?'Deshidratación — Harina funcional — Snack fermentado con probióticos':prod.includes('Cítricos')?'Extracción de aceite esencial — Biofortificación de vitamina C — Pulpa funcional':'Biotecnología enzimática — Biofortificación — Procesamiento de valor agregado'},
+    {icon:'fa-truck',label:'Logística inteligente',color:'#00e5ff',detail:'Ruta optimizada por IA — Emisiones: -38% vs. tradicional — Tiempo: 4.2h — Temp. controlada: 4°C'},
+    {icon:'fa-store',label:'Tienda Walmart',color:'#ff6e40',detail:'Recepción verificada — QR generado — Empaque biodegradable — Inventario conectado'},
+    {icon:'fa-user',label:'Consumidor final',color:'#e040fb',detail:'QR escaneado — Historia completa visible — Impacto emocional: +82 NPS — BioHub adoptado'}
+  ];
+  document.getElementById('tracePath').innerHTML=steps.map((s,i)=>`
+    <div class="trace-step" style="animation:fadeUp .3s ease ${i*0.1}s both">
+      <div class="trace-dot" style="border-color:${s.color};color:${s.color}"><i class="fas ${s.icon}"></i></div>
+      <div class="flex-1">
+        <div class="font-display font-semibold text-xs mb-1" style="color:${s.color}">${s.label}</div>
+        <div class="text-xs leading-relaxed" style="color:#a5d6a7">${s.detail}</div>
+      </div>
+    </div>`).join('');
+}
+function updateScenario(){
+  const b=+document.getElementById('scBiohubs').value;
+  const c=+document.getElementById('scConn').value;
+  const s=+document.getElementById('scSolar').value;
+  const r=+document.getElementById('scRegen').value;
+  ['scBiohubs','scConn','scSolar','scRegen'].forEach(id=>{
+    document.getElementById(id+'Val').textContent=document.getElementById(id).value;
+  });
+  const carbono=Math.round((42+b)*67*r/100);
+  const agua=Math.round((42+b)*3800*c/100);
+  const ahorro=Math.round(b*120+s*8.5+c*12+r*5.2);
+  document.getElementById('scenarioResults').innerHTML=`
+    <div class="glass p-4 text-center"><div class="font-display font-bold text-lg" style="color:#00e676">${carbono.toLocaleString()}</div><div class="text-xs mt-1" style="color:#81c784">Ton CO2/año</div></div>
+    <div class="glass p-4 text-center"><div class="font-display font-bold text-lg" style="color:#00e5ff">${(agua/1000).toFixed(0)}k</div><div class="text-xs mt-1" style="color:#81c784">Litros agua/año</div></div>
+    <div class="glass p-4 text-center"><div class="font-display font-bold text-lg" style="color:#ffab00">$${ahorro.toLocaleString()}k</div><div class="text-xs mt-1" style="color:#81c784">Ahorro anual</div></div>`;
+}
+function updateTimeMetrics(){
+  const v=+document.getElementById('timeSlider').value;
+  const factor=v/12;
+  const m=[
+    {l:'BioHubs activos',v:Math.round(28+14*factor),c:'#00e676'},
+    {l:'Productores conectados',v:Math.round(3800+2670*factor),c:'#76ff03'},
+    {l:'Carbono capturado',v:Math.round(12000+9000*factor),c:'#00e5ff',suf:'t'},
+    {l:'Regeneración',v:Math.round(68+15*factor),c:'#e040fb',suf:'%'}
+  ];
+  document.getElementById('timeMetrics').innerHTML=m.map(mm=>`
+    <div class="glass p-4 text-center">
+      <div class="font-display font-bold text-xl" style="color:${mm.c}">${mm.v.toLocaleString()}${mm.suf||''}</div>
+      <div class="text-xs mt-1" style="color:#81c784">${mm.l}</div>
+    </div>`).join('');
+}
+
+// ============ ARTICULACIÓN POR PAÍS ============
+function renderArticulacion(){
+  const grid=document.getElementById('articGrid');
+  grid.innerHTML=Object.entries(P).map(([code,p])=>`
+    <div class="artic-card" id="art-${code}" style="--ac:${p.color}" onclick="toggleArtic('${code}')">
+      <div class="card-accent" style="background:linear-gradient(90deg,${p.color},${p.color}40)"></div>
+      <div class="p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl flex items-center justify-center font-display font-bold" style="background:${p.color}15;color:${p.color};border:2px solid ${p.color}40">${p.code}</div>
+            <div>
+              <h3 class="font-display font-bold text-base" style="color:${p.color}">${p.nombre}</h3>
+              <span class="text-xs" style="color:#81c784">${p.biohubs} BioHubs · ${p.productores.toLocaleString()} productores</span>
+            </div>
+          </div>
+          <i class="fas fa-chevron-down artic-chevron text-xs" style="color:${p.color};transition:transform .3s"></i>
+        </div>
+        <div class="flex flex-wrap gap-2 mb-3">${p.cultivos.map(c=>`<span class="tag" style="background:${p.color}15;color:${p.color}">${c}</span>`).join('')}</div>
+        <div class="grid grid-cols-6 gap-2 mb-0">
+          <div class="metric-mini"><div class="val" style="color:#00e676;font-size:14px">${p.regen}</div><div class="lbl">Regen.</div></div>
+          <div class="metric-mini"><div class="val" style="color:#e040fb;font-size:14px">${p.emocional}</div><div class="lbl">Emoc.</div></div>
+          <div class="metric-mini"><div class="val" style="color:#00e5ff;font-size:14px">${p.resiliencia}</div><div class="lbl">Resil.</div></div>
+          <div class="metric-mini"><div class="val" style="color:#ffab00;font-size:14px">${p.circular}</div><div class="lbl">Circ.</div></div>
+          <div class="metric-mini"><div class="val" style="color:#76ff03;font-size:14px">${p.solar}%</div><div class="lbl">Solar</div></div>
+          <div class="metric-mini"><div class="val" style="color:#ff6e40;font-size:14px">${p.desperdicio}%</div><div class="lbl">Red. Desp.</div></div>
+        </div>
+        <div class="artic-detail" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid #1b3a2a">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <h4 class="font-display font-semibold text-xs mb-2" style="color:${p.color};letter-spacing:.5px">DESCRIPCIÓN TERRITORIAL</h4>
+              <p class="text-xs leading-relaxed" style="color:#a5d6a7">${p.desc}</p>
+            </div>
+            <div>
+              <h4 class="font-display font-semibold text-xs mb-2" style="color:${p.color};letter-spacing:.5px">ESTRATEGIA DE ARTICULACIÓN</h4>
+              <p class="text-xs leading-relaxed" style="color:#a5d6a7">${p.estrat}</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-3 mt-4">
+            <div class="glass p-3 text-center"><div class="font-display font-bold text-sm" style="color:#00e676">${p.carbono.toLocaleString()}</div><div class="text-xs" style="color:#81c784">t CO2 capturado</div></div>
+            <div class="glass p-3 text-center"><div class="font-display font-bold text-sm" style="color:#00e5ff">${(p.agua/1000).toFixed(1)}k</div><div class="text-xs" style="color:#81c784">L agua regenerada</div></div>
+            <div class="glass p-3 text-center"><div class="font-display font-bold text-sm" style="color:#ffab00">${p.biodiv}</div><div class="text-xs" style="color:#81c784">Especies monit.</div></div>
+          </div>
+          <div class="mt-4">
+            <h4 class="font-display font-semibold text-xs mb-2" style="color:${p.color};letter-spacing:.5px">CONEXIONES EN LA RED</h4>
+            <div class="flex flex-wrap gap-2">${RUTAS.filter(r=>r.d===code||r.h===code).map(r=>{
+              const other=r.d===code?r.h:r.d;const tipo=r.tipo==='marítimo'?'Marítimo':'Terrestre';
+              return `<span class="tag" style="background:#1b3a2a;color:${P[other].color}"><i class="fas fa-${r.tipo==='marítimo'?'ship':'road'} mr-1"></i>${P[other].nombre} (${tipo})</span>`}).join('')}</div>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+function toggleArtic(code){
+  const card=document.getElementById('art-'+code);
+  const detail=card.querySelector('.artic-detail');
+  const chevron=card.querySelector('.artic-chevron');
+  const isOpen=detail.style.display!=='none';
+  // Cerrar todos
+  document.querySelectorAll('.artic-detail').forEach(d=>d.style.display='none');
+  document.querySelectorAll('.artic-chevron').forEach(c=>c.style.transform='');
+  document.querySelectorAll('.artic-card').forEach(c=>c.classList.remove('expanded'));
+  if(!isOpen){
+    detail.style.display='block';
+    chevron.style.transform='rotate(180deg)';
+    card.classList.add('expanded');
+  }
+}
+
+// ============ ACTUALIZACIONES EN VIVO ============
+function startLiveUpdates(){
+  setInterval(()=>{
+    const dataPts=Math.floor(1200+Math.random()*200);
+    const blocks=Math.floor(8432156+Math.random()*50);
+    document.getElementById('sbData').textContent=dataPts.toLocaleString();
+    document.getElementById('sbBlock').textContent=blocks.toLocaleString();
+  },2000);
+  // Fluctuación suave de barra del ecosistema
+  setInterval(()=>{
+    const v=79+Math.floor(Math.random()*5);
+    document.getElementById('ecoBar').style.width=v+'%';
+    document.getElementById('ecoVal').textContent=v+'%';
+  },5000);
+}
+
+// ============ TOAST ============
+function showToast(msg){
+  const t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  t.style.opacity='1';t.style.transform='translateY(0)';t.style.pointerEvents='auto';
+  setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(16px)';t.style.pointerEvents='none'},3000);
+}
+
+// ============ BÚSQUEDA ============
+document.getElementById('searchInput').addEventListener('input',function(){
+  const q=this.value.toLowerCase().trim();
+  if(!q){document.querySelectorAll('.map-node').forEach(n=>n.style.opacity='1');return}
+  Object.entries(P).forEach(([code,p])=>{
+    const match=p.nombre.toLowerCase().includes(q)||p.cultivos.some(c=>c.toLowerCase().includes(q))||code.toLowerCase().includes(q);
+    document.getElementById('node-'+code).style.opacity=match?'1':'0.2';
+  });
+});
+
+// ============ NOTIFICACIONES ============
+document.getElementById('notifBtn').addEventListener('click',()=>{
+  showToast('BioHub CR-03: Lote de piña funcional liberado — trazabilidad verificada');
+});
+</script>
+
+<!-- ======================================================= -->
+<!-- INICIO DE ELEMENTOS AGREGADOS -->
+<!-- ======================================================= -->
+
+<!-- 1. Nombre: Dr. Julio César Oporta Barrera -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; background: rgba(6,13,10,0.95); backdrop-filter: blur(12px); border: 1px solid #1b3a2a; border-radius: 8px; padding: 10px 18px; color: #00e676; font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 700; box-shadow: 0 8px 24px rgba(0,0,0,0.6); display: flex; align-items: center; gap: 8px; pointer-events: none;">
+  <i class="fas fa-user-md" style="color: #4caf50;"></i> Dr. Julio César Oporta Barrera
+</div>
+
+<!-- 2. Multilenguaje Funcional (Google Translate API configurada para ES, EN, ZH-CN) -->
+<div style="position: fixed; top: 11px; right: 250px; z-index: 9999;" id="google_translate_wrapper">
+  <div id="google_translate_element"></div>
+</div>
+
+<style>
+  /* Estilización para adaptar el widget de traducción al diseño visual del prototipo */
+  #google_translate_wrapper .goog-te-gadget-simple {
+    background-color: #111f18 !important;
+    border: 1px solid #1b3a2a !important;
+    border-radius: 8px !important;
+    padding: 4px 10px !important;
+    font-family: 'DM Sans', sans-serif !important;
+    display: flex;
+    align-items: center;
+    height: 32px;
+  }
+  #google_translate_wrapper .goog-te-gadget-simple span {
+    color: #81c784 !important;
+    font-size: 12px !important;
+  }
+  #google_translate_wrapper .goog-te-gadget-icon {
+    display: none !important;
+  }
+  /* Elimina la barra superior por defecto de Google */
+  .goog-te-banner-frame.skiptranslate { display: none !important; }
+  body { top: 0px !important; }
+  .skiptranslate { color: transparent !important; }
+  .skiptranslate span { color: #81c784 !important; }
+</style>
+
+<script type="text/javascript">
+  function googleTranslateElementInit() {
+    new google.translate.TranslateElement({
+      pageLanguage: 'es',
+      includedLanguages: 'es,en,zh-CN', /* Español, Inglés, Mandarín */
+      layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+      autoDisplay: false
+    }, 'google_translate_element');
+  }
+</script>
+<script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+<!-- ======================================================= -->
+<!-- FIN DE ELEMENTOS AGREGADOS -->
+<!-- ======================================================= -->
+</body>
+</html>
