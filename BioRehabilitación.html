@@ -1,667 +1,1235 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BRIO - Sistema de Bio-Rehabilitacion Autonoma</title>
-<style>
-:root{--neon:#00d4ff;--neon-dim:rgba(0,212,255,0.3);--neon-glow:rgba(0,212,255,0.15);--bg-deep:#050508;--bg-panel:rgba(4,10,20,0.85);--bg-card:rgba(0,15,30,0.6);--border:rgba(0,212,255,0.2);--text:rgba(0,212,255,0.9);--text-dim:rgba(0,212,255,0.5);--danger:#ff3366;--success:#00ff88;--warning:#ffaa00;--font:'Consolas','Courier New',monospace}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{width:100%;height:100%;overflow:hidden;background:var(--bg-deep);color:var(--text);font-family:var(--font);font-size:11px;line-height:1.4}
-body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,212,255,0.012) 2px,rgba(0,212,255,0.012) 4px);pointer-events:none;z-index:10000}
-#loader{position:fixed;inset:0;z-index:99999;background:var(--bg-deep);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.8s}
-#loader.hidden{opacity:0;pointer-events:none}
-#loader h2{color:var(--neon);font-size:18px;letter-spacing:6px;margin-bottom:30px;text-transform:uppercase}
-.loader-bar{width:280px;height:3px;background:rgba(0,212,255,0.1);border-radius:2px;overflow:hidden}
-.loader-fill{height:100%;width:0%;background:var(--neon);box-shadow:0 0 12px var(--neon);transition:width 0.3s}
-.loader-pct{margin-top:12px;color:var(--text-dim);font-size:10px;letter-spacing:3px}
-#app{width:100%;height:100%;position:relative}
-#canvasContainer{position:absolute;inset:0;z-index:1}
-canvas{display:block;width:100%!important;height:100%!important}
-#topBar{position:fixed;top:0;left:0;right:0;height:44px;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:linear-gradient(180deg,rgba(4,10,20,0.95) 0%,rgba(4,10,20,0.5) 80%,transparent 100%);border-bottom:1px solid var(--border)}
-#authorName{color:var(--neon);font-size:11px;font-weight:700;letter-spacing:1px;text-shadow:0 0 8px var(--neon-glow);white-space:nowrap}
-#topRight{display:flex;align-items:center;gap:6px}
-.lang-btn,.top-btn{background:transparent;border:1px solid var(--border);color:var(--text-dim);padding:3px 10px;cursor:pointer;font-family:var(--font);font-size:10px;letter-spacing:1px;transition:all 0.3s}
-.lang-btn:hover,.lang-btn.active,.top-btn:hover{color:var(--neon);border-color:var(--neon);box-shadow:0 0 8px var(--neon-glow);background:rgba(0,212,255,0.05)}
-#dlBtn{position:relative;overflow:hidden}
-#dlBtn::after{content:'';position:absolute;inset:0;background:var(--neon);opacity:0;transition:opacity 0.3s}
-#dlBtn.flash::after{opacity:0.3}
-.hud-panel{position:fixed;z-index:100;background:var(--bg-panel);border:1px solid var(--border);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
-#leftHud{left:10px;top:56px;width:210px;max-height:calc(100vh - 120px);overflow-y:auto;padding:10px;border-radius:4px}
-#rightHud{right:10px;top:56px;width:200px;padding:10px;border-radius:4px}
-.hud-title{font-size:9px;text-transform:uppercase;letter-spacing:3px;color:var(--text-dim);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
-.hud-section{margin-bottom:12px}
-.sim-btn{display:block;width:100%;text-align:left;background:transparent;border:1px solid transparent;color:var(--text-dim);padding:5px 8px;margin-bottom:3px;cursor:pointer;font-family:var(--font);font-size:10px;transition:all 0.2s;border-radius:2px}
-.sim-btn:hover{border-color:var(--border);color:var(--text);background:var(--bg-card)}
-.sim-btn.active{border-color:var(--neon);color:var(--neon);background:rgba(0,212,255,0.08);box-shadow:inset 0 0 8px var(--neon-glow)}
-.sim-btn .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:middle;background:var(--text-dim);transition:all 0.3s}
-.sim-btn.active .dot{background:var(--neon);box-shadow:0 0 6px var(--neon)}
-.param-row{margin-bottom:8px}
-.param-label{display:flex;justify-content:space-between;color:var(--text-dim);font-size:9px;margin-bottom:3px;letter-spacing:1px}
-.param-val{color:var(--neon)}
-input[type=range]{width:100%;height:3px;-webkit-appearance:none;appearance:none;background:rgba(0,212,255,0.1);border-radius:2px;outline:none}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:var(--neon);cursor:pointer;box-shadow:0 0 6px var(--neon)}
-.status-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(0,212,255,0.05);font-size:10px}
-.status-label{color:var(--text-dim)}
-.status-value{color:var(--neon);font-weight:700}
-.status-value.warn{color:var(--warning)}.status-value.danger{color:var(--danger)}.status-value.ok{color:var(--success)}
-#phaseBox{margin-top:8px;padding:6px 8px;border:1px solid var(--neon-dim);border-radius:2px;background:rgba(0,212,255,0.03);font-size:10px;color:var(--neon);text-align:center;letter-spacing:1px}
-#bottomPanel{position:fixed;bottom:0;left:0;right:0;z-index:100;max-height:200px;transition:transform 0.4s}
-#bottomPanel.collapsed{transform:translateY(160px)}
-#bottomToggle{position:absolute;top:-28px;left:50%;transform:translateX(-50%);background:var(--bg-panel);border:1px solid var(--border);border-bottom:none;color:var(--text-dim);padding:4px 20px;cursor:pointer;font-family:var(--font);font-size:9px;letter-spacing:2px;border-radius:4px 4px 0 0}
-#bottomToggle:hover{color:var(--neon)}
-#bottomInner{display:flex;gap:0;background:var(--bg-panel);border-top:1px solid var(--border);height:160px;backdrop-filter:blur(12px)}
-#logicGates{flex:1;padding:10px 14px;border-right:1px solid var(--border);overflow-x:auto}
-#swarmConsole{flex:1;padding:10px 14px;overflow-y:auto}
-.panel-title{font-size:9px;text-transform:uppercase;letter-spacing:3px;color:var(--text-dim);margin-bottom:8px}
-.gates-row{display:flex;gap:20px;align-items:flex-start}
-.gate-block{min-width:220px}
-.gate-name{font-size:10px;color:var(--neon);margin-bottom:6px;letter-spacing:1px}
-.gate-viz{display:flex;align-items:center;gap:6px}
-.gate-inputs{display:flex;flex-direction:column;gap:4px}
-.io-row{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--text-dim)}
-.io-toggle{width:22px;height:16px;border:1px solid var(--border);background:transparent;color:var(--text-dim);cursor:pointer;font-family:var(--font);font-size:9px;text-align:center;border-radius:2px;transition:all 0.2s}
-.io-toggle.on{border-color:var(--neon);color:var(--neon);background:rgba(0,212,255,0.1);box-shadow:0 0 4px var(--neon-glow)}
-.io-line{width:20px;height:2px;background:var(--border);position:relative;overflow:hidden}
-.io-line .pulse{position:absolute;top:0;left:-8px;width:8px;height:2px;background:var(--neon);border-radius:1px;opacity:0}
-.io-line.active .pulse{opacity:1;animation:ioPulse 0.8s linear infinite}
-@keyframes ioPulse{0%{left:-8px}100%{left:20px}}
-.gate-shape{width:40px;height:36px;border:2px solid var(--neon-dim);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--neon);font-weight:700;letter-spacing:1px;flex-shrink:0}
-.gate-shape.and{border-radius:4px 16px 16px 4px}
-.gate-shape.or{border-radius:16px}
-.gate-output{display:flex;flex-direction:column;align-items:flex-start;gap:2px;font-size:9px}
-.out-val{color:var(--neon);font-weight:700;font-size:12px}
-.out-val.zero{color:var(--text-dim)}
-#consoleLog{font-size:9px;line-height:1.6;color:var(--text-dim);max-height:120px;overflow-y:auto}
-#consoleLog::-webkit-scrollbar{width:3px}
-#consoleLog::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-.log-line .ts{color:var(--text-dim);opacity:0.5;margin-right:4px}
-.log-line .msg{color:var(--text)}
-.log-line.info .msg{color:var(--neon)}.log-line.ok .msg{color:var(--success)}.log-line.warn .msg{color:var(--warning)}
-#infoPanel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:200;width:380px;max-width:90vw;background:var(--bg-panel);border:1px solid var(--neon);border-radius:4px;padding:16px;backdrop-filter:blur(16px);box-shadow:0 0 30px var(--neon-glow),0 0 60px rgba(0,0,0,0.5);display:none}
-#infoPanel.show{display:block;animation:fadeScale 0.3s ease-out}
-@keyframes fadeScale{from{opacity:0;transform:translate(-50%,-50%) scale(0.9)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
-#infoPanel h4{color:var(--neon);font-size:13px;margin-bottom:8px;letter-spacing:2px}
-#infoPanel p{color:var(--text);font-size:10px;line-height:1.6}
-#closeInfo{position:absolute;top:8px;right:10px;background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer}
-#closeInfo:hover{color:var(--neon)}
-#toast{position:fixed;bottom:220px;left:50%;transform:translateX(-50%);z-index:300;background:var(--bg-panel);border:1px solid var(--neon);color:var(--neon);padding:8px 20px;border-radius:3px;font-size:10px;letter-spacing:1px;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap}
-#toast.show{opacity:1}
-.corner-deco{position:fixed;z-index:99;width:30px;height:30px;pointer-events:none}
-.corner-deco.tl{top:44px;left:0;border-top:1px solid var(--neon-dim);border-left:1px solid var(--neon-dim)}
-.corner-deco.tr{top:44px;right:0;border-top:1px solid var(--neon-dim);border-right:1px solid var(--neon-dim)}
-.corner-deco.bl{bottom:0;left:0;border-bottom:1px solid var(--neon-dim);border-left:1px solid var(--neon-dim)}
-.corner-deco.br{bottom:0;right:0;border-bottom:1px solid var(--neon-dim);border-right:1px solid var(--neon-dim)}
-::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-@media(max-width:768px){#leftHud{width:160px;font-size:9px}#rightHud{width:160px;font-size:9px}#bottomInner{flex-direction:column;height:240px}#bottomPanel.collapsed{transform:translateY(220px)}#authorName{font-size:9px;letter-spacing:0}}
-@media(max-width:500px){#leftHud{display:none}#rightHud{display:none}}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BRIO - Prototipo 3D Autónomo</title>
+    <style>
+        :root {
+            --bg-dark: #0f1215;
+            --bg-panel: #1a2026;
+            --titanium: #374151;
+            --cyan: #4fc3f7;
+            --cyan-glow: rgba(79, 195, 247, 0.3);
+            --green: #00e676;
+            --red: #ef4444;
+            --amber: #f59e0b;
+            --white: #eceff1;
+            --text-gray: #9ca3af;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--white);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Tactical HUD Grid Overlay */
+        .hud-grid {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(79, 195, 247, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(79, 195, 247, 0.02) 1px, transparent 1px);
+            background-size: 30px 30px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Top Bar */
+        header {
+            background-color: rgba(15, 18, 21, 0.85);
+            border-bottom: 1px solid rgba(176, 190, 197, 0.15);
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-title {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .creator-tag {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--cyan);
+            letter-spacing: 0.5px;
+            font-family: monospace;
+        }
+
+        .project-title {
+            font-size: 11px;
+            color: var(--text-gray);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        /* Language Toggle buttons */
+        .lang-selector {
+            display: flex;
+            gap: 8px;
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 4px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .lang-btn {
+            background: none;
+            border: none;
+            color: var(--text-gray);
+            padding: 5px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        .lang-btn.active {
+            background-color: var(--cyan);
+            color: var(--bg-dark);
+            box-shadow: 0 0 10px var(--cyan-glow);
+        }
+
+        /* Main Frame Split */
+        .app-container {
+            display: flex;
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Left Interactive 3D viewport */
+        .viewport-section {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(circle at center, #1e252b 0%, #0f1215 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: grab;
+        }
+
+        canvas:active {
+            cursor: grabbing;
+        }
+
+        /* Right Control sidebar Panel */
+        .controls-section {
+            width: 340px;
+            background-color: rgba(26, 32, 38, 0.95);
+            border-left: 1px solid rgba(176, 190, 197, 0.12);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 10;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .group-title {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--cyan);
+            border-bottom: 1px solid rgba(79, 195, 247, 0.25);
+            padding-bottom: 5px;
+            font-family: monospace;
+        }
+
+        /* Toggle Button Grid */
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+
+        .option-btn {
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--white);
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.25s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .option-btn:hover {
+            background-color: rgba(255, 255, 255, 0.07);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .option-btn.active {
+            background-color: rgba(79, 195, 247, 0.1);
+            border-color: var(--cyan);
+            color: var(--cyan);
+            box-shadow: inset 0 0 8px rgba(79, 195, 247, 0.05);
+        }
+
+        .option-btn.active.remediating {
+            background-color: rgba(0, 230, 118, 0.1);
+            border-color: var(--green);
+            color: var(--green);
+        }
+
+        .option-btn.active.apoptosis {
+            background-color: rgba(239, 68, 68, 0.1);
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .option-btn.active.conjugation {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--amber);
+            color: var(--amber);
+        }
+
+        /* Range Slider Styling */
+        .slider-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .slider-label-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-gray);
+            font-family: monospace;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: #2d3748;
+            border-radius: 5px;
+            outline: none;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--cyan);
+            box-shadow: 0 0 5px var(--cyan);
+        }
+
+        /* Technical Indicator Box */
+        .info-panel {
+            background-color: rgba(15, 18, 21, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 11px;
+            line-height: 1.5;
+            color: var(--text-gray);
+        }
+
+        .indicator-pill {
+            display: inline-block;
+            font-size: 9px;
+            font-weight: 700;
+            color: var(--cyan);
+            background-color: rgba(79, 195, 247, 0.15);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            font-family: monospace;
+        }
+
+        /* Quick warning tag */
+        .apoptosis-banner {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(127, 29, 29, 0.85);
+            border: 1px solid var(--red);
+            color: #fca5a5;
+            font-family: monospace;
+            font-size: 11px;
+            letter-spacing: 1px;
+            padding: 8px 16px;
+            border-radius: 4px;
+            z-index: 5;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+        }
+
+        .dot-pulse {
+            width: 8px;
+            height: 8px;
+            background-color: var(--red);
+            border-radius: 50%;
+            animation: pulse 1.2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.5; }
+            100% { transform: scale(0.9); opacity: 1; }
+        }
+
+        /* Scrollbar styles */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.25);
+        }
+    </style>
 </head>
 <body>
 
-<div id="loader">
-    <h2>BRIO</h2>
-    <div class="loader-bar"><div class="loader-fill" id="loaderFill"></div></div>
-    <div class="loader-pct" id="loaderPct">0%</div>
-</div>
+    <div class="hud-grid"></div>
 
-<div class="corner-deco tl"></div>
-<div class="corner-deco tr"></div>
-<div class="corner-deco bl"></div>
-<div class="corner-deco br"></div>
+    <header>
+        <div class="header-title">
+            <div class="creator-tag">Dr. Julio César Oporta Barrera</div>
+            <div class="project-title" id="project-tag-text">SISTEMA BRIO — PROTOTIPO 3D OFFLINE</div>
+        </div>
 
-<div id="app">
-    <header id="topBar">
-        <div id="authorName">Dr. Julio Cesar Oporta Barrera</div>
-        <div id="topRight">
-            <button class="lang-btn active" data-lang="es">ES</button>
-            <button class="lang-btn" data-lang="en">EN</button>
-            <button class="lang-btn" data-lang="zh">中文</button>
-            <button class="top-btn" id="arBtn">AR</button>
-            <button class="top-btn" id="dlBtn">DL</button>
+        <div class="lang-selector">
+            <button class="lang-btn active" onclick="switchLanguage('es')">ES</button>
+            <button class="lang-btn" onclick="switchLanguage('en')">EN</button>
+            <button class="lang-btn" onclick="switchLanguage('zh')">ZH</button>
         </div>
     </header>
 
-    <aside id="leftHud" class="hud-panel">
-        <div class="hud-section">
-            <div class="hud-title" data-t="simulations">Simulaciones</div>
-            <button class="sim-btn" data-sim="rheological"><span class="dot"></span><span data-t="rheological">Flujo Reologico</span></button>
-            <button class="sim-btn" data-sim="molecular"><span class="dot"></span><span data-t="molecular">Colisiones Moleculares</span></button>
-            <button class="sim-btn" data-sim="swarm"><span class="dot"></span><span data-t="swarm">IA de Enjambre</span></button>
-            <button class="sim-btn" data-sim="energy"><span class="dot"></span><span data-t="energy">Energia Biomimetica</span></button>
-            <button class="sim-btn" data-sim="biomech"><span class="dot"></span><span data-t="biomech">Biomecanica</span></button>
-        </div>
-        <div class="hud-section">
-            <div class="hud-title" data-t="parameters">Parametros</div>
-            <div class="param-row">
-                <div class="param-label"><span data-t="viscosity">Viscosidad</span><span class="param-val" id="viscVal">50</span></div>
-                <input type="range" id="viscosity" min="0" max="100" value="50">
+    <div class="app-container">
+        <!-- Center Interactive viewport -->
+        <main class="viewport-section" id="canvas-container">
+            <div class="apoptosis-banner" id="banner-apoptosis">
+                <span class="dot-pulse"></span>
+                <span id="banner-text">APOPTOSIS_LISIS_ACTIVA</span>
             </div>
-            <div class="param-row">
-                <div class="param-label"><span data-t="temperature">Temperatura</span><span class="param-val" id="tempVal">50</span></div>
-                <input type="range" id="temperature" min="0" max="100" value="50">
-            </div>
-            <div class="param-row">
-                <div class="param-label"><span data-t="concentration">Concentracion</span><span class="param-val" id="concVal">50</span></div>
-                <input type="range" id="concentration" min="0" max="100" value="50">
-            </div>
-        </div>
-    </aside>
+            <canvas id="brio-canvas"></canvas>
+        </main>
 
-    <aside id="rightHud" class="hud-panel">
-        <div class="hud-section">
-            <div class="hud-title" data-t="systemStatus">Estado del Sistema</div>
-            <div class="status-row"><span class="status-label" data-t="coreTemp">Temp. Nucleo</span><span class="status-value ok" id="sCoreTemp">37.2 C</span></div>
-            <div class="status-row"><span class="status-label" data-t="bioactivity">Bioactividad</span><span class="status-value ok" id="sBioact">94.7%</span></div>
-            <div class="status-row"><span class="status-label" data-t="degradation">Degradacion</span><span class="status-value ok" id="sDegrad">78.3%</span></div>
-            <div class="status-row"><span class="status-label" data-t="co2capture">Captura CO2</span><span class="status-value ok" id="sCo2">220 lb/m2</span></div>
-            <div class="status-row"><span class="status-label" data-t="phLevel">pH Nivel</span><span class="status-value ok" id="sPh">6.8</span></div>
-            <div class="status-row"><span class="status-label" data-t="viability">Viabilidad</span><span class="status-value ok" id="sViab">87.2%</span></div>
-        </div>
-        <div class="hud-section">
-            <div class="hud-title" data-t="phaseState">Fase Actual</div>
-            <div id="phaseBox" data-t="phase3">Fase 3: Monitoreo</div>
-        </div>
-    </aside>
-
-    <div id="bottomPanel">
-        <button id="bottomToggle">CONSOLE</button>
-        <div id="bottomInner">
-            <div id="logicGates">
-                <div class="panel-title" data-t="logicGates">Circuitos Logicos Biologicos</div>
-                <div class="gates-row">
-                    <div class="gate-block">
-                        <div class="gate-name" data-t="and_gate">AND (pSal ^ pTet)</div>
-                        <div class="gate-viz">
-                            <div class="gate-inputs">
-                                <div class="io-row"><span data-t="inputA">A</span><button class="io-toggle" data-gate="and" data-input="0">0</button><div class="io-line" id="andLine0"><div class="pulse"></div></div></div>
-                                <div class="io-row"><span data-t="inputB">B</span><button class="io-toggle" data-gate="and" data-input="1">0</button><div class="io-line" id="andLine1"><div class="pulse"></div></div></div>
-                            </div>
-                            <div class="gate-shape and">AND</div>
-                            <div class="gate-output"><div class="io-line" id="andLineOut"><div class="pulse"></div></div><span class="out-val zero" id="andOut">0</span></div>
-                        </div>
-                    </div>
-                    <div class="gate-block">
-                        <div class="gate-name" data-t="or_gate">OR (pLux v pSal)</div>
-                        <div class="gate-viz">
-                            <div class="gate-inputs">
-                                <div class="io-row"><span data-t="inputA">A</span><button class="io-toggle" data-gate="or" data-input="0">0</button><div class="io-line" id="orLine0"><div class="pulse"></div></div></div>
-                                <div class="io-row"><span data-t="inputB">B</span><button class="io-toggle" data-gate="or" data-input="1">0</button><div class="io-line" id="orLine1"><div class="pulse"></div></div></div>
-                            </div>
-                            <div class="gate-shape or">OR</div>
-                            <div class="gate-output"><div class="io-line" id="orLineOut"><div class="pulse"></div></div><span class="out-val zero" id="orOut">0</span></div>
-                        </div>
-                    </div>
+        <!-- Right Side controls sidebar -->
+        <aside class="controls-section">
+            
+            <!-- Operating Mode selection -->
+            <div class="control-group">
+                <div class="group-title" id="lbl-modes">MODO OPERATIVO</div>
+                <div class="btn-grid">
+                    <button class="option-btn active" id="btn-mode-soil" onclick="setMode('soil')">
+                        <span id="lbl-mode-soil">Suelos (Plásticos / Metales)</span>
+                    </button>
+                    <button class="option-btn" id="btn-mode-water" onclick="setMode('water')">
+                        <span id="lbl-mode-water">Aguas (Descontaminación)</span>
+                    </button>
+                    <button class="option-btn" id="btn-mode-air" onclick="setMode('air')">
+                        <span id="lbl-mode-air">Aire (Captura de Carbono)</span>
+                    </button>
+                    <button class="option-btn" id="btn-mode-marine" onclick="setMode('marine')">
+                        <span id="lbl-mode-marine">Marina (Plásticos / Arrecife)</span>
+                    </button>
+                    <button class="option-btn" id="btn-mode-space" onclick="setMode('space')">
+                        <span id="lbl-mode-space">Espacio (Cosmoteñido)</span>
+                    </button>
                 </div>
             </div>
-            <div id="swarmConsole">
-                <div class="panel-title" data-t="swarmConsole">Consola IA Enjambre</div>
-                <div id="consoleLog"></div>
+
+            <!-- Dynamic State selection -->
+            <div class="control-group">
+                <div class="group-title" id="lbl-states">ESTADOS DINÁMICOS</div>
+                <div class="btn-grid">
+                    <button class="option-btn active" id="btn-state-idle" onclick="setState('idle')">
+                        <span id="lbl-state-idle">Reposo / Inactivo</span>
+                    </button>
+                    <button class="option-btn" id="btn-state-scanning" onclick="setState('scanning')">
+                        <span id="lbl-state-scanning">Escaneo y Quimiotaxis</span>
+                    </button>
+                    <button class="option-btn" id="btn-state-remediating" onclick="setState('remediating')">
+                        <span id="lbl-state-remediating">Biorremediación Activa</span>
+                    </button>
+                    <button class="option-btn" id="btn-state-conjugation" onclick="setState('conjugation')">
+                        <span id="lbl-state-conjugation">Transferencia Plásmida (Conjugación)</span>
+                    </button>
+                    <button class="option-btn" id="btn-state-apoptosis" onclick="setState('apoptosis')">
+                        <span id="lbl-state-apoptosis">Autodestrucción / Apoptosis</span>
+                    </button>
+                </div>
             </div>
-        </div>
+
+            <!-- Parameters Sliders -->
+            <div class="control-group">
+                <div class="group-title" id="lbl-params">PARÁMETROS DEL ENJAMBRE</div>
+                
+                <div class="slider-item">
+                    <div class="slider-label-row">
+                        <span id="lbl-param-speed">Velocidad</span>
+                        <span id="val-speed">50%</span>
+                    </div>
+                    <input type="range" id="slide-speed" min="0" max="100" value="50" oninput="updateParam('speed', this.value)">
+                </div>
+
+                <div class="slider-item">
+                    <div class="slider-label-row">
+                        <span id="lbl-param-density">Densidad</span>
+                        <span id="val-density">50%</span>
+                    </div>
+                    <input type="range" id="slide-density" min="1" max="100" value="50" oninput="updateParam('density', this.value)">
+                </div>
+
+                <div class="slider-item">
+                    <div class="slider-label-row">
+                        <span id="lbl-param-energy">Batería ATP</span>
+                        <span id="val-energy">100%</span>
+                    </div>
+                    <input type="range" id="slide-energy" min="0" max="100" value="100" oninput="updateParam('energy', this.value)">
+                </div>
+
+                <div class="slider-item">
+                    <div class="slider-label-row">
+                        <span id="lbl-param-ph">pH del Medio</span>
+                        <span id="val-ph">7.0</span>
+                    </div>
+                    <input type="range" id="slide-ph" min="4" max="10" step="0.1" value="7.0" oninput="updateParam('ph', this.value)">
+                </div>
+
+                <div class="slider-item">
+                    <div class="slider-label-row">
+                        <span id="lbl-param-temp">Temperatura Ambiental</span>
+                        <span id="val-temp">25.0°C</span>
+                    </div>
+                    <input type="range" id="slide-temp" min="4" max="45" step="0.5" value="25" oninput="updateParam('temp', this.value)">
+                </div>
+
+                <div class="slider-item">
+                    <div class="slider-label-row">
+                        <span id="lbl-param-concentration">Concentración Contaminante</span>
+                        <span id="val-concentration">50%</span>
+                    </div>
+                    <input type="range" id="slide-concentration" min="0" max="100" value="50" oninput="updateParam('concentration', this.value)">
+                </div>
+            </div>
+
+            <!-- Feature toggle switches -->
+            <div class="control-group">
+                <div class="group-title" id="lbl-toggles">SISTEMAS INTERACTIVOS</div>
+                <div class="btn-grid">
+                    <button class="option-btn active" id="toggle-biomechanics" onclick="toggleOption('biomechanics')">
+                        <span id="lbl-toggle-bio">Biomecánica de Flagelos</span>
+                        <span>[ON]</span>
+                    </button>
+                    <button class="option-btn active" id="toggle-physics" onclick="toggleOption('physics')">
+                        <span id="lbl-toggle-phys">Física Modular</span>
+                        <span>[ON]</span>
+                    </button>
+                    <button class="option-btn active" id="toggle-swarm" onclick="toggleOption('swarm')">
+                        <span id="lbl-toggle-swarm">IA de Enjambre</span>
+                        <span>[ON]</span>
+                    </button>
+                    <button class="option-btn active" id="toggle-lighting" onclick="toggleOption('lighting')">
+                        <span id="lbl-toggle-light">Luz Cinematográfica</span>
+                        <span>[ON]</span>
+                    </button>
+                    <button class="option-btn active" id="toggle-hud" onclick="toggleOption('hud')">
+                        <span id="lbl-toggle-hud">HUD Táctico</span>
+                        <span>[ON]</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Technical context Box -->
+            <div class="info-panel">
+                <span class="indicator-pill" id="lbl-tech-pill">DOCUMENTACIÓN TÉCNICA</span>
+                <p id="lbl-tech-desc" style="font-size: 10px; color: var(--text-gray); font-family: monospace;">
+                    Modo Suelo: Expresión de gen mphR y circuito IsPETasa para escisión catalítica de plásticos de ingeniería a escala microbiana.
+                </p>
+            </div>
+
+        </aside>
     </div>
 
-    <div id="infoPanel">
-        <button id="closeInfo">&times;</button>
-        <h4 id="infoTitle"></h4>
-        <p id="infoText"></p>
-    </div>
-    <div id="toast"></div>
-    <div id="canvasContainer"></div>
-</div>
-
-<!-- Three.js cargado como script NORMAL (no modulo) para que DL funcione -->
-<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-
-<script>
-/* ================================================================
-   BRIO - Prototipo 3D Interactivo - VERSION DESCARGABLE FUNCIONAL
-   Dr. Julio Cesar Oporta Barrera
-   ================================================================ */
-
-/* --- OrbitControls nativo (sin import) --- */
-function BRIOOrbitControls(cam, el){
-    this.camera=cam; this.el=el;
-    this.target=new THREE.Vector3(0,0.5,0);
-    this.minDistance=3; this.maxDistance=20;
-    this.maxPolarAngle=Math.PI*0.85;
-    this.enableDamping=true; this.dampingFactor=0.05;
-    this._sph=new THREE.Spherical();
-    this._sphD=new THREE.Spherical();
-    this._off=new THREE.Vector3();
-    this._down=false; this._px=0; this._py=0;
-    this._td=0; this._pinchDist=0;
-    var self=this;
-    this._updateSph();
-    el.addEventListener('mousedown',function(e){e.preventDefault();self._down=true;self._px=e.clientX;self._py=e.clientY;});
-    el.addEventListener('mousemove',function(e){if(!self._down)return;var dx=e.clientX-self._px,dy=e.clientY-self._py;self._px=e.clientX;self._py=e.clientY;self._sphD.theta-=dx*0.005;self._sphD.phi-=dy*0.005;self._sphD.phi=Math.max(0.1,Math.min(Math.PI-0.1,self._sphD.phi));});
-    el.addEventListener('mouseup',function(){self._down=false;});
-    el.addEventListener('mouseleave',function(){self._down=false;});
-    el.addEventListener('wheel',function(e){e.preventDefault();var f=e.deltaY>0?1.05:0.95;self._sph.radius*=f;self._sph.radius=Math.max(self.minDistance,Math.min(self.maxDistance,self._sph.radius));},{passive:false});
-    el.addEventListener('contextmenu',function(e){e.preventDefault();});
-    el.addEventListener('touchstart',function(e){e.preventDefault();if(e.touches.length===1){self._down=true;self._px=e.touches[0].clientX;self._py=e.touches[0].clientY;}if(e.touches.length===2){self._td=1;var dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;self._pinchDist=Math.sqrt(dx*dx+dy*dy);}},{passive:false});
-    el.addEventListener('touchmove',function(e){e.preventDefault();if(e.touches.length===1&&self._down){var dx=e.touches[0].clientX-self._px,dy=e.touches[0].clientY-self._py;self._px=e.touches[0].clientX;self._py=e.touches[0].clientY;self._sphD.theta-=dx*0.005;self._sphD.phi-=dy*0.005;self._sphD.phi=Math.max(0.1,Math.min(Math.PI-0.1,self._sphD.phi));}if(e.touches.length===2){var dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;var d=Math.sqrt(dx*dx+dy*dy);if(self._pinchDist>0){var s=self._pinchDist/d;self._sph.radius*=s;self._sph.radius=Math.max(self.minDistance,Math.min(self.maxDistance,self._sph.radius));}self._pinchDist=d;}},{passive:false});
-    el.addEventListener('touchend',function(){self._down=false;self._td=0;self._pinchDist=0;});
-}
-BRIOOrbitControls.prototype._updateSph=function(){this._off.copy(this.camera.position).sub(this.target);this._sph.setFromVector3(this._off);};
-BRIOOrbitControls.prototype.update=function(){
-    this._sph.theta+=this._sphD.theta;this._sph.phi+=this._sphD.phi;
-    this._sph.phi=Math.max(0.1,Math.min(this.maxPolarAngle,this._sph.phi));
-    this._sph.radius=Math.max(this.minDistance,Math.min(this.maxDistance,this._sph.radius));
-    this._off.setFromSpherical(this._sph);
-    this.camera.position.copy(this.target).add(this._off);
-    this.camera.lookAt(this.target);
-    if(this.enableDamping){this._sphD.theta*=(1-this.dampingFactor);this._sphD.phi*=(1-this.dampingFactor);}else{this._sphD.theta=0;this._sphD.phi=0;}
-};
-
-/* --- Traducciones --- */
-var T={
-es:{simulations:'Simulaciones',rheological:'Flujo Reologico',molecular:'Colisiones Moleculares',swarm:'IA de Enjambre',energy:'Energia Biomimetica',biomech:'Biomecanica',parameters:'Parametros',viscosity:'Viscosidad',temperature:'Temperatura',concentration:'Concentracion',systemStatus:'Estado del Sistema',coreTemp:'Temp. Nucleo',bioactivity:'Bioactividad',degradation:'Degradacion',co2capture:'Captura CO2',phLevel:'pH Nivel',viability:'Viabilidad',phaseState:'Fase Actual',phase1:'Fase 1: Caracterizacion',phase2:'Fase 2: Diseno',phase3:'Fase 3: Monitoreo',phase4:'Fase 4: Ajustes',phase5:'Fase 5: Evaluacion',logicGates:'Circuitos Logicos Biologicos',swarmConsole:'Consola IA Enjambre',and_gate:'AND (pSal ^ pTet)',or_gate:'OR (pLux v pSal)',inputA:'A',inputB:'B',arNotSupported:'WebXR no soportado en este dispositivo',core_i:'Nucleo de Procesamiento Biologico',core_t:'Contiene microorganismos programables (Pseudomonas putida, Bacillus subtilis) en suspension activa. Temperatura controlada a 37C para maxima eficiencia enzimatica. Circuitos biosinteticos con promotores pSal, pTet y pLux.',body_i:'Reactor Principal',body_t:'Camara de liberacion controlada con sensores de pH, temperatura y concentracion. Portadores: liposomas, silice mesoporosa, hidrogeles de quitina y polimeros PLA. Capacidad: 50L por ciclo.',channel_i:'Canales de Flujo Reologico',channel_t:'Transporte de nanoparticulas magneticas (Fe3O4) y agentes degradadores. Flujo controlado por gradiente de presion. Mecanismos de disparo: pH, enzimas, radiacion UV y temperatura.',membrane_i:'Membrana Semipermeable',membrane_t:'Membrana de quitina modificada. Permite intercambio selectivo de nutrientes y productos de degradacion. Porosidad controlada: 2-50 nm. Funcionalizacion covalente y no covalente.',base_i:'Plataforma de Energia Hibrida',base_t:'Integra celdas microbianas de combustible y paneles fotovoltaicos flexibles. Autonomia: 72 horas. Comunicacion LoRaWAN con encriptacion AES-256.',antenna_i:'Sensor de Comunicacion',antenna_t:'Antena LoRaWAN para transmision de datos en tiempo real. Rango: 15 km. Almacenamiento en blockchain. Protocolos RSA-2048 y HMAC-SHA256.'},
-en:{simulations:'Simulations',rheological:'Rheological Flow',molecular:'Molecular Collisions',swarm:'Swarm AI',energy:'Biomimetic Energy',biomech:'Biomechanics',parameters:'Parameters',viscosity:'Viscosity',temperature:'Temperature',concentration:'Concentration',systemStatus:'System Status',coreTemp:'Core Temp',bioactivity:'Bioactivity',degradation:'Degradation',co2capture:'CO2 Capture',phLevel:'pH Level',viability:'Viability',phaseState:'Current Phase',phase1:'Phase 1: Characterization',phase2:'Phase 2: Design',phase3:'Phase 3: Monitoring',phase4:'Phase 4: Adjustments',phase5:'Phase 5: Evaluation',logicGates:'Biological Logic Circuits',swarmConsole:'Swarm AI Console',and_gate:'AND (pSal AND pTet)',or_gate:'OR (pLux OR pSal)',inputA:'A',inputB:'B',arNotSupported:'WebXR not supported on this device',core_i:'Biological Processing Core',core_t:'Contains programmable microorganisms (Pseudomonas putida, Bacillus subtilis) in active suspension. Temperature controlled at 37C for maximum enzymatic efficiency. Biosynthetic circuits with pSal, pTet and pLux promoters.',body_i:'Main Reactor',body_t:'Controlled-release chamber with pH, temperature and concentration sensors. Carriers: liposomes, mesoporous silica, chitin hydrogels and PLA polymers. Capacity: 50L per cycle.',channel_i:'Rheological Flow Channels',channel_t:'Transport of magnetic nanoparticles (Fe3O4) and degrading agents. Flow controlled by pressure gradient. Trigger mechanisms: pH, enzymes, UV radiation and temperature.',membrane_i:'Semipermeable Membrane',membrane_t:'Modified chitin membrane. Allows selective exchange of nutrients and degradation products. Controlled porosity: 2-50 nm. Covalent and non-covalent functionalization.',base_i:'Hybrid Energy Platform',base_t:'Integrates microbial fuel cells and flexible photovoltaic panels. Autonomy: 72 hours. LoRaWAN communication with AES-256 encryption.',antenna_i:'Communication Sensor',antenna_t:'LoRaWAN antenna for real-time data transmission. Range: 15 km. Blockchain storage. RSA-2048 and HMAC-SHA256 protocols.'},
-zh:{simulations:'模拟系统',rheological:'流变流动',molecular:'分子碰撞',swarm:'群体智能',energy:'仿生能量',biomech:'生物力学',parameters:'参数设置',viscosity:'粘度',temperature:'温度',concentration:'浓度',systemStatus:'系统状态',coreTemp:'核心温度',bioactivity:'生物活性',degradation:'降解率',co2capture:'CO2捕获',phLevel:'pH值',viability:'存活率',phaseState:'当前阶段',phase1:'阶段1：特征分析',phase2:'阶段2：设计',phase3:'阶段3：监控',phase4:'阶段4：调整',phase5:'阶段5：评估',logicGates:'生物逻辑电路',swarmConsole:'群体智能控制台',and_gate:'与门 (pSal AND pTet)',or_gate:'或门 (pLux OR pSal)',inputA:'A',inputB:'B',arNotSupported:'此设备不支持WebXR',core_i:'生物处理核心',core_t:'含有活性悬浮状态的可编程微生物（恶臭假单胞菌、枯草芽孢杆菌）。温度控制在37C以实现最大酶效率。配备pSal、pTet和pLux启动子的生物合成电路。',body_i:'主反应器',body_t:'控释腔体，配备pH、温度和浓度传感器。载体：脂质体、介孔二氧化硅、甲壳素水凝胶和PLA聚合物。容量：每周期50升。',channel_i:'流变流动通道',channel_t:'输送磁性纳米颗粒（Fe3O4）和降解剂。流量由压力梯度控制。触发机制：pH值、酶、紫外线辐射和温度。',membrane_i:'半透膜',membrane_t:'改性甲壳素膜。允许营养物质和降解产物的选择性交换。可控孔隙率：2-50纳米。共价和非共价功能化。',base_i:'混合能源平台',base_t:'集成微生物燃料电池和柔性光伏板。自主运行时间：72小时。LoRaWAN通信，AES-256加密。',antenna_i:'通信传感器',antenna_t:'LoRaWAN天线，用于实时数据传输。范围：15公里。区块链存储。RSA-2048和HMAC-SHA256协议。'}
-};
-var currentLang='es';
-function applyLang(lang){currentLang=lang;var els=document.querySelectorAll('[data-t]');for(var i=0;i<els.length;i++){var k=els[i].getAttribute('data-t');if(T[lang][k])els[i].textContent=T[lang][k];}var btns=document.querySelectorAll('.lang-btn');for(var j=0;j<btns.length;j++)btns[j].classList.toggle('active',btns[j].dataset.lang===lang);}
-
-/* --- Estado global --- */
-var simState={rheological:false,molecular:false,swarm:false,energy:false,biomech:false};
-var params={viscosity:50,temperature:50,concentration:50};
-var gateState={and:[0,0],or:[0,0]};
-var elapsed=0;
-
-/* --- Loader --- */
-var loadP=0;
-function setLoad(p){loadP=Math.min(p,100);document.getElementById('loaderFill').style.width=loadP+'%';document.getElementById('loaderPct').textContent=Math.floor(loadP)+'%';}
-setLoad(10);
-
-/* --- Escena --- */
-var container=document.getElementById('canvasContainer');
-var scene=new THREE.Scene();
-scene.fog=new THREE.FogExp2(0x050508,0.06);
-setLoad(20);
-
-var camera=new THREE.PerspectiveCamera(50,window.innerWidth/window.innerHeight,0.1,200);
-camera.position.set(5,3.5,6);
-
-var renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
-renderer.setSize(window.innerWidth,window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.2;
-renderer.shadowMap.enabled=true;
-renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-renderer.outputColorSpace=THREE.SRGBColorSpace;
-container.appendChild(renderer.domElement);
-setLoad(30);
-
-var controls=new BRIOOrbitControls(camera,renderer.domElement);
-
-/* --- Iluminacion cinematografica --- */
-scene.add(new THREE.AmbientLight(0x0a1520,0.8));
-var keyL=new THREE.DirectionalLight(0xc0e8ff,2.5);keyL.position.set(5,8,4);keyL.castShadow=true;keyL.shadow.mapSize.set(1024,1024);keyL.shadow.camera.near=0.5;keyL.shadow.camera.far=30;keyL.shadow.camera.left=-8;keyL.shadow.camera.right=8;keyL.shadow.camera.top=8;keyL.shadow.camera.bottom=-8;scene.add(keyL);
-var fillL=new THREE.DirectionalLight(0x0066aa,0.8);fillL.position.set(-4,3,-3);scene.add(fillL);
-var rimL=new THREE.DirectionalLight(0x00d4ff,1.2);rimL.position.set(-2,5,-6);scene.add(rimL);
-var corePL=new THREE.PointLight(0x00d4ff,3,8,2);corePL.position.set(0,1.2,0);scene.add(corePL);
-var botGL=new THREE.PointLight(0x003366,1.5,5,2);botGL.position.set(0,-0.5,0);scene.add(botGL);
-setLoad(40);
-
-/* --- Suelo --- */
-var floorG=new THREE.PlaneGeometry(40,40);var floorM=new THREE.MeshStandardMaterial({color:0x060810,roughness:0.85,metalness:0.3});var floor=new THREE.Mesh(floorG,floorM);floor.rotation.x=-Math.PI/2;floor.position.y=-1.5;floor.receiveShadow=true;scene.add(floor);
-var grid=new THREE.GridHelper(20,40,0x001a2e,0x000d18);grid.position.y=-1.49;scene.add(grid);
-setLoad(50);
-
-/* --- Shaders personalizados --- */
-var fresnelVS='varying vec3 vWN;varying vec3 vVD;void main(){vec4 wp=modelMatrix*vec4(position,1.0);vWN=normalize(mat3(modelMatrix)*normal);vVD=normalize(cameraPosition-wp.xyz);gl_Position=projectionMatrix*viewMatrix*wp;}';
-var fresnelFS='uniform vec3 uBase;uniform vec3 uFr;uniform float uPow;uniform float uT;varying vec3 vWN;varying vec3 vVD;void main(){float f=pow(1.0-max(dot(vWN,vVD),0.0),uPow);float s=0.5+0.5*sin(vWN.y*20.0+uT*2.0);vec3 c=mix(uBase,uFr,f);c+=uFr*f*s*0.15;gl_FragColor=vec4(c,0.75+f*0.25);}';
-var fresnelMat=new THREE.ShaderMaterial({uniforms:{uBase:{value:new THREE.Color(0x0a0a12)},uFr:{value:new THREE.Color(0x00d4ff)},uPow:{value:3.0},uT:{value:0}},vertexShader:fresnelVS,fragmentShader:fresnelFS,transparent:true,side:THREE.DoubleSide});
-
-var coreVS='varying vec3 vP;void main(){vP=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}';
-var coreFS='uniform float uT;uniform vec3 uC1;uniform vec3 uC2;varying vec3 vP;void main(){float d=length(vP)*2.0;float p=0.5+0.5*sin(uT*3.0+d*6.0);vec3 c=mix(uC1,uC2,p);float a=max((1.0-d)*0.9,0.0);gl_FragColor=vec4(c,a);}';
-var coreMat=new THREE.ShaderMaterial({uniforms:{uT:{value:0},uC1:{value:new THREE.Color(0x00d4ff)},uC2:{value:new THREE.Color(0x00ff88)}},vertexShader:coreVS,fragmentShader:coreFS,transparent:true,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,depthWrite:false});
-
-var nanoVS='attribute float aSize;attribute float aPhase;uniform float uT;varying float vA;void main(){vec3 p=position;p.y+=sin(uT*1.2+aPhase)*0.15;p.x+=cos(uT*0.8+aPhase*1.3)*0.12;p.z+=sin(uT*0.6+aPhase*0.7)*0.1;vec4 mv=modelViewMatrix*vec4(p,1.0);gl_PointSize=max(aSize*(250.0/-mv.z),1.0);gl_Position=projectionMatrix*mv;vA=0.3+0.7*(0.5+0.5*sin(uT*2.5+aPhase));}';
-var nanoFS='uniform vec3 uPC;varying float vA;void main(){float d=length(gl_PointCoord-vec2(0.5));if(d>0.5)discard;float g=exp(-d*7.0);gl_FragColor=vec4(uPC,g*vA*0.7);}';
-var nanoMat=new THREE.ShaderMaterial({uniforms:{uT:{value:0},uPC:{value:new THREE.Color(0x00d4ff)}},vertexShader:nanoVS,fragmentShader:nanoFS,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false});
-
-var volVS='varying vec2 vUV;void main(){vUV=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}';
-var volFS='uniform float uT;varying vec2 vUV;void main(){float f=smoothstep(1.0,0.0,vUV.y);float fl=0.92+0.08*sin(uT*4.0+vUV.y*12.0);gl_FragColor=vec4(0.0,0.83,1.0,f*0.06*fl);}';
-var volMat=new THREE.ShaderMaterial({uniforms:{uT:{value:0}},vertexShader:volVS,fragmentShader:volFS,transparent:true,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,depthWrite:false});
-setLoad(60);
-
-/* --- Modelo BRIO --- */
-var brioGroup=new THREE.Group();scene.add(brioGroup);
-var clickParts={};
-
-// Base hexagonal
-var baseG=new THREE.CylinderGeometry(2.0,2.2,0.25,6);var baseM=new THREE.MeshStandardMaterial({color:0x0c0c14,roughness:0.3,metalness:0.9});var baseMesh=new THREE.Mesh(baseG,baseM);baseMesh.position.y=-1.0;baseMesh.castShadow=true;baseMesh.receiveShadow=true;brioGroup.add(baseMesh);clickParts['base']=baseMesh;
-
-// Anillo base
-var brG=new THREE.TorusGeometry(2.1,0.03,8,48);var brM=new THREE.MeshBasicMaterial({color:0x00d4ff});var bRing=new THREE.Mesh(brG,brM);bRing.rotation.x=Math.PI/2;bRing.position.y=-0.87;brioGroup.add(bRing);
-
-// Cuerpo principal
-var bodyG=new THREE.CylinderGeometry(1.1,1.35,2.8,6);var bodyMesh=new THREE.Mesh(bodyG,fresnelMat);bodyMesh.position.y=0.55;bodyMesh.castShadow=true;brioGroup.add(bodyMesh);clickParts['body']=bodyMesh;
-
-// Bordes wireframe
-var bodyE=new THREE.EdgesGeometry(bodyG);var bodyL=new THREE.LineSegments(bodyE,new THREE.LineBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.15}));bodyL.position.y=0.55;brioGroup.add(bodyL);
-
-// Anillos decorativos
-var ringYs=[0.0,0.8,1.6];
-for(var ri=0;ri<ringYs.length;ri++){
-    var rr=1.1+(2.8-2.8*(ringYs[ri]+1.4)/2.8)*0.25*(1-ringYs[ri]/2.8);
-    var rg=new THREE.TorusGeometry(Math.max(rr,0.01),0.015,6,48);
-    var rm=new THREE.MeshBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.3+ri*0.15});
-    var rMsh=new THREE.Mesh(rg,rm);rMsh.rotation.x=Math.PI/2;rMsh.position.y=ringYs[ri]-0.85;brioGroup.add(rMsh);
-}
-
-// Puertos de sensores
-for(var pi=0;pi<6;pi++){
-    var pa=(pi/6)*Math.PI*2;
-    var ppx=Math.cos(pa)*1.22,ppz=Math.sin(pa)*1.22;
-    var ppG=new THREE.CylinderGeometry(0.08,0.08,0.05,12);
-    var ppM=new THREE.MeshBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.6});
-    var pp=new THREE.Mesh(ppG,ppM);pp.position.set(ppx,0.9,ppz);brioGroup.add(pp);
-}
-
-// Nucleo
-var coG=new THREE.SphereGeometry(0.45,32,32);var coMesh=new THREE.Mesh(coG,coreMat);coMesh.position.y=0.7;brioGroup.add(coMesh);clickParts['core']=coMesh;
-var haG=new THREE.TorusGeometry(0.55,0.02,8,48);var haM=new THREE.MeshBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.4});var halo=new THREE.Mesh(haG,haM);halo.position.y=0.7;brioGroup.add(halo);
-
-// Canales de flujo
-var chGrp=new THREE.Group();brioGroup.add(chGrp);clickParts['channel']=chGrp;
-var channelCurves=[];
-for(var ci=0;ci<3;ci++){
-    var cPts=[];var cba=(ci/3)*Math.PI*2;
-    for(var ct=0;ct<=1;ct+=0.05){
-        var ca=cba+ct*Math.PI*1.5;var cr=1.5+Math.sin(ct*Math.PI)*0.6;var cy=-0.8+ct*3.0;
-        cPts.push(new THREE.Vector3(Math.cos(ca)*cr,cy,Math.sin(ca)*cr));
-    }
-    var cc=new THREE.CatmullRomCurve3(cPts);channelCurves.push(cc);
-    var ctG=new THREE.TubeGeometry(cc,40,0.04,8,false);
-    var ctM=new THREE.MeshStandardMaterial({color:0x0088aa,roughness:0.4,metalness:0.8,transparent:true,opacity:0.6});
-    chGrp.add(new THREE.Mesh(ctG,ctM));
-}
-
-// Membrana
-var meG=new THREE.IcosahedronGeometry(2.2,2);var meM=new THREE.MeshStandardMaterial({color:0x001122,roughness:0.5,metalness:0.3,transparent:true,opacity:0.08,side:THREE.DoubleSide});var meMesh=new THREE.Mesh(meG,meM);meMesh.position.y=0.5;brioGroup.add(meMesh);clickParts['membrane']=meMesh;
-var mwG=new THREE.IcosahedronGeometry(2.22,2);var mwM=new THREE.MeshBasicMaterial({color:0x00d4ff,wireframe:true,transparent:true,opacity:0.06});var mwMesh=new THREE.Mesh(mwG,mwM);mwMesh.position.y=0.5;brioGroup.add(mwMesh);
-
-// Antena
-var anG=new THREE.CylinderGeometry(0.02,0.04,1.2,6);var anM=new THREE.MeshStandardMaterial({color:0x1a1a2e,roughness:0.3,metalness:0.9});var antenna=new THREE.Mesh(anG,anM);antenna.position.y=2.3;antenna.castShadow=true;brioGroup.add(antenna);clickParts['antenna']=antenna;
-var atG=new THREE.SphereGeometry(0.06,12,12);var atM=new THREE.MeshBasicMaterial({color:0x00d4ff});var antTip=new THREE.Mesh(atG,atM);antTip.position.y=2.9;brioGroup.add(antTip);
-
-// Soportes
-for(var si=0;si<3;si++){
-    var sa=(si/3)*Math.PI*2+Math.PI/6;
-    var stG=new THREE.CylinderGeometry(0.03,0.05,0.8,6);var stM=new THREE.MeshStandardMaterial({color:0x0c0c18,roughness:0.4,metalness:0.8});
-    var strut=new THREE.Mesh(stG,stM);strut.position.set(Math.cos(sa)*1.6,-0.5,Math.sin(sa)*1.6);strut.rotation.z=Math.cos(sa)*0.3;strut.rotation.x=-Math.sin(sa)*0.3;brioGroup.add(strut);
-}
-
-// Nanobots particulas
-var nanoN=300,nanoPos=new Float32Array(nanoN*3),nanoSz=new Float32Array(nanoN),nanoPh=new Float32Array(nanoN);
-for(var ni=0;ni<nanoN;ni++){
-    var nt=Math.random()*Math.PI*2,np=Math.random()*Math.PI,nr=1.8+Math.random()*1.5;
-    nanoPos[ni*3]=nr*Math.sin(np)*Math.cos(nt);nanoPos[ni*3+1]=(Math.random()-0.3)*3;nanoPos[ni*3+2]=nr*Math.sin(np)*Math.sin(nt);
-    nanoSz[ni]=1.5+Math.random()*3;nanoPh[ni]=Math.random()*Math.PI*2;
-}
-var nanoGeo=new THREE.BufferGeometry();nanoGeo.setAttribute('position',new THREE.BufferAttribute(nanoPos,3));nanoGeo.setAttribute('aSize',new THREE.BufferAttribute(nanoSz,1));nanoGeo.setAttribute('aPhase',new THREE.BufferAttribute(nanoPh,1));
-var nanoPts=new THREE.Points(nanoGeo,nanoMat);brioGroup.add(nanoPts);
-
-// Cono volumetrico
-var vcG=new THREE.ConeGeometry(1.5,4,32,1,true);var vcMesh=new THREE.Mesh(vcG,volMat);vcMesh.position.y=1.0;brioGroup.add(vcMesh);
-setLoad(75);
-
-/* === SIMULACIONES === */
-var simGroups={};
-
-function createRheological(){
-    var g=new THREE.Group();var n=200;var pos=new Float32Array(n*3);var vel=[];
-    for(var i=0;i<n;i++){pos[i*3]=(Math.random()-0.5)*2;pos[i*3+1]=-0.8+Math.random()*3;pos[i*3+2]=(Math.random()-0.5)*2;vel.push(new THREE.Vector3((Math.random()-0.5)*0.02,0.01+Math.random()*0.03,(Math.random()-0.5)*0.02));}
-    var geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
-    var mat=new THREE.PointsMaterial({color:0x00ffaa,size:0.06,transparent:true,opacity:0.7,blending:THREE.AdditiveBlending,depthWrite:false});
-    g.add(new THREE.Points(geo,mat));g.userData={vel:vel,geo:geo};return g;
-}
-function updateRheological(g){
-    var v=1.0-params.viscosity/150;var p=g.userData.geo.attributes.position.array;var vel=g.userData.vel;
-    for(var i=0;i<vel.length;i++){vel[i].x+=(Math.random()-0.5)*0.005*v;vel[i].z+=(Math.random()-0.5)*0.005*v;vel[i].y=0.015+params.concentration*0.0003;vel[i].multiplyScalar(0.98);p[i*3]+=vel[i].x;p[i*3+1]+=vel[i].y;p[i*3+2]+=vel[i].z;if(p[i*3+1]>2.5){p[i*3+1]=-0.8;p[i*3]=(Math.random()-0.5)*2;p[i*3+2]=(Math.random()-0.5)*2;}}
-    g.userData.geo.attributes.position.needsUpdate=true;
-}
-
-function createMolecular(){
-    var g=new THREE.Group();var mols=[];var cols=[0x00d4ff,0x00ff88,0xff3366,0xffaa00,0xaa44ff];
-    for(var i=0;i<25;i++){var r=Math.max(0.06+Math.random()*0.08,0.01);var geo=new THREE.SphereGeometry(r,12,12);var mat=new THREE.MeshStandardMaterial({color:cols[i%5],emissive:cols[i%5],emissiveIntensity:0.3,roughness:0.3,metalness:0.5});var m=new THREE.Mesh(geo,mat);m.position.set((Math.random()-0.5)*3,Math.random()*2.5-0.5,(Math.random()-0.5)*3);g.add(m);mols.push({mesh:m,r:r,vel:new THREE.Vector3((Math.random()-0.5)*0.04,(Math.random()-0.5)*0.04,(Math.random()-0.5)*0.04)});}
-    var bxG=new THREE.BoxGeometry(3.2,3.2,3.2);var bxE=new THREE.EdgesGeometry(bxG);var bxL=new THREE.LineSegments(bxE,new THREE.LineBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.15}));bxL.position.y=0.7;g.add(bxL);
-    g.userData={mols:mols};return g;
-}
-function updateMolecular(g){
-    var tmp=0.5+params.temperature/100*2;var ms=g.userData.mols;var bh=1.5;
-    for(var i=0;i<ms.length;i++){
-        var m=ms[i];m.mesh.position.add(m.vel.clone().multiplyScalar(tmp));
-        var ax=['x','y','z'];for(var a=0;a<3;a++){var lim=a===1?[bh-0.8,bh+0.8]:[-bh,bh];if(m.mesh.position[ax[a]]<lim[0]){m.mesh.position[ax[a]]=lim[0];m.vel[ax[a]]*=-0.9;}if(m.mesh.position[ax[a]]>lim[1]){m.mesh.position[ax[a]]=lim[1];m.vel[ax[a]]*=-0.9;}}
-        for(var j=i+1;j<ms.length;j++){var m2=ms[j];var dist=m.mesh.position.distanceTo(m2.mesh.position);var minD=m.r+m2.r;if(dist<minD&&dist>0.001){var n=m.mesh.position.clone().sub(m2.mesh.position).normalize();var rv=m.vel.clone().sub(m2.vel);var vn=rv.dot(n);if(vn>0)continue;m.vel.add(n.clone().multiplyScalar(-vn));m2.vel.add(n.clone().multiplyScalar(vn));var ov=minD-dist;m.mesh.position.add(n.clone().multiplyScalar(ov*0.5));m2.mesh.position.sub(n.clone().multiplyScalar(ov*0.5));m.mesh.material.emissiveIntensity=1.0;m2.mesh.material.emissiveIntensity=1.0;}}
-        m.mesh.material.emissiveIntensity*=0.95;
-    }
-}
-
-function createSwarm(){
-    var g=new THREE.Group();var agents=[];
-    for(var i=0;i<40;i++){var geo=new THREE.SphereGeometry(0.04,8,8);var mat=new THREE.MeshBasicMaterial({color:0x00d4ff});var m=new THREE.Mesh(geo,mat);m.position.set((Math.random()-0.5)*4,Math.random()*3-0.5,(Math.random()-0.5)*4);g.add(m);agents.push({mesh:m,vel:new THREE.Vector3((Math.random()-0.5)*0.02,(Math.random()-0.5)*0.02,(Math.random()-0.5)*0.02)});}
-    var lp=new Float32Array(40*40*6);var lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.BufferAttribute(lp,3));var ll=new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.1}));g.add(ll);
-    g.userData={agents:agents,lines:ll};return g;
-}
-function updateSwarm(g){
-    var ag=g.userData.agents;var ln=g.userData.lines;var pa=ln.geometry.attributes.position.array;var li=0;
-    for(var i=0;i<ag.length;i++){
-        var a=ag[i];var sep=new THREE.Vector3(),ali=new THREE.Vector3(),coh=new THREE.Vector3();var sn=0,an=0,cn=0;
-        for(var j=0;j<ag.length;j++){if(i===j)continue;var d=a.mesh.position.distanceTo(ag[j].mesh.position);if(d<0.5&&d>0.001){sep.add(a.mesh.position.clone().sub(ag[j].mesh.position).normalize().divideScalar(d));sn++;}if(d<1.5){ali.add(ag[j].vel);an++;}if(d<2.0){coh.add(ag[j].mesh.position);cn++;}}
-        var st=new THREE.Vector3();if(sn>0){sep.divideScalar(sn).multiplyScalar(0.05);st.add(sep);}if(an>0){ali.divideScalar(an).sub(a.vel).multiplyScalar(0.02);st.add(ali);}if(cn>0){coh.divideScalar(cn).sub(a.mesh.position).multiplyScalar(0.003);st.add(coh);}
-        a.vel.add(st);a.vel.clampLength(0,0.04);a.mesh.position.add(a.vel);if(a.mesh.position.length()>3)a.vel.multiplyScalar(-0.5);a.mesh.position.y=Math.max(-0.5,Math.min(2.5,a.mesh.position.y));
-        for(var j2=i+1;j2<ag.length;j2++){var dd=a.mesh.position.distanceTo(ag[j2].mesh.position);if(dd<1.2&&li<pa.length-6){pa[li++]=a.mesh.position.x;pa[li++]=a.mesh.position.y;pa[li++]=a.mesh.position.z;pa[li++]=ag[j2].mesh.position.x;pa[li++]=ag[j2].mesh.position.y;pa[li++]=ag[j2].mesh.position.z;}}
-    }
-    for(var k=li;k<pa.length;k++)pa[k]=0;ln.geometry.attributes.position.needsUpdate=true;ln.geometry.setDrawRange(0,li/3);
-}
-
-function createEnergy(){
-    var g=new THREE.Group();var pulses=[];
-    for(var c=0;c<3;c++){var pts=[];var ba=(c/3)*Math.PI*2;for(var t=0;t<=1;t+=0.05){var a=ba+t*Math.PI*1.5;var r=1.5+Math.sin(t*Math.PI)*0.6;var y=-0.8+t*3.0;pts.push(new THREE.Vector3(Math.cos(a)*r,y,Math.sin(a)*r));}var cv=new THREE.CatmullRomCurve3(pts);for(var p=0;p<5;p++){var geo=new THREE.SphereGeometry(0.05,8,8);var mat=new THREE.MeshBasicMaterial({color:0x00ff88,transparent:true,opacity:0.8});var m=new THREE.Mesh(geo,mat);g.add(m);pulses.push({mesh:m,curve:cv,t:p/5,speed:0.15+Math.random()*0.1});}}
-    g.userData={pulses:pulses};return g;
-}
-function updateEnergy(g,dt){
-    var ps=g.userData.pulses;for(var i=0;i<ps.length;i++){var p=ps[i];p.t+=p.speed*dt;if(p.t>1)p.t-=1;var pt=p.curve.getPointAt(p.t);p.mesh.position.copy(pt);p.mesh.material.opacity=0.4+0.6*Math.sin(p.t*Math.PI);var s=0.8+0.4*Math.sin(p.t*Math.PI);p.mesh.scale.setScalar(s);}
-}
-
-function createBiomech(){
-    var g=new THREE.Group();var segs=[];var sc=8;
-    for(var i=0;i<sc;i++){var r=Math.max(0.06-i*0.005,0.01);var geo=new THREE.CylinderGeometry(r,r,0.3,8);var mat=new THREE.MeshStandardMaterial({color:0x00d4ff,emissive:0x003344,roughness:0.4,metalness:0.6});var m=new THREE.Mesh(geo,mat);g.add(m);segs.push(m);if(i<sc-1){var jg=new THREE.SphereGeometry(0.05,8,8);var jm=new THREE.MeshBasicMaterial({color:0x00ff88});g.add(new THREE.Mesh(jg,jm));segs.push(jm);}}
-    g.position.set(2.5,0.5,0);g.userData={segCount:sc};return g;
-}
-function updateBiomech(g,time){
-    var sc=g.userData.segCount;var py=0,px=0;
-    for(var i=0;i<sc;i++){var seg=g.children[i*2];var ang=Math.sin(time*2+i*0.6)*0.4;var ang2=Math.cos(time*1.5+i*0.8)*0.2;px+=Math.sin(ang2)*0.15;py+=0.15;seg.position.set(px,py,0);seg.rotation.z=ang;seg.rotation.x=ang2;if(i<sc-1){var jt=g.children[i*2+1];jt.position.set(px+Math.sin(ang2)*0.15,py+0.15,0);jt.material.color.setHSL(0.45+Math.sin(time*3+i)*0.1,1,0.5);}}
-}
-setLoad(85);
-
-function toggleSim(name){
-    simState[name]=!simState[name];
-    if(simState[name]){var g;switch(name){case 'rheological':g=createRheological();break;case 'molecular':g=createMolecular();break;case 'swarm':g=createSwarm();break;case 'energy':g=createEnergy();break;case 'biomech':g=createBiomech();break;}if(g){scene.add(g);simGroups[name]=g;}}else{if(simGroups[name]){scene.remove(simGroups[name]);simGroups[name]=null;}}
-    var btns=document.querySelectorAll('.sim-btn');for(var i=0;i<btns.length;i++)btns[i].classList.toggle('active',simState[btns[i].dataset.sim]);
-}
-
-/* === PUERTAS LOGICAS === */
-function updateGates(){
-    var andR=gateState.and[0]&&gateState.and[1]?1:0;
-    document.getElementById('andOut').textContent=andR;document.getElementById('andOut').classList.toggle('zero',!andR);
-    document.getElementById('andLine0').classList.toggle('active',!!gateState.and[0]);document.getElementById('andLine1').classList.toggle('active',!!gateState.and[1]);document.getElementById('andLineOut').classList.toggle('active',!!andR);
-    var orR=gateState.or[0]||gateState.or[1]?1:0;
-    document.getElementById('orOut').textContent=orR;document.getElementById('orOut').classList.toggle('zero',!orR);
-    document.getElementById('orLine0').classList.toggle('active',!!gateState.or[0]);document.getElementById('orLine1').classList.toggle('active',!!gateState.or[1]);document.getElementById('orLineOut').classList.toggle('active',!!orR);
-}
-var ioToggles=document.querySelectorAll('.io-toggle');
-for(var ti=0;ti<ioToggles.length;ti++){
-    (function(btn){
-        btn.addEventListener('click',function(){
-            var gt=btn.dataset.gate;var idx=parseInt(btn.dataset.input);
-            gateState[gt][idx]=gateState[gt][idx]?0:1;btn.textContent=gateState[gt][idx];btn.classList.toggle('on',!!gateState[gt][idx]);
-            updateGates();addLog('>> '+gt.toUpperCase()+' input '+idx+': '+(gateState[gt][idx]?'HIGH':'LOW'),'info');
-        });
-    })(ioToggles[ti]);
-}
-updateGates();
-
-/* === CONSOLA === */
-var consoleLog=document.getElementById('consoleLog');
-var logMsgs=[
-    {msg:'Nodo_01: Estado activo, cohesion 0.87',type:'info'},{msg:'Nodo_07: Deteccion de contaminante Pb2+',type:'warn'},
-    {msg:'Nodo_12: Sincronizacion completa',type:'ok'},{msg:'Nodo_03: Degradacion PET al 23%',type:'info'},
-    {msg:'Nodo_19: Quorum sensing activado',type:'ok'},{msg:'Nodo_05: Reduccion Hg2+ confirmada',type:'ok'},
-    {msg:'Nodo_22: Frontera de cluster redefinida',type:'info'},{msg:'Nodo_09: Captura CO2 = 12.4 mg/min',type:'ok'},
-    {msg:'Nodo_15: Alerta - pH bajo en sector 4',type:'warn'},{msg:'Nodo_28: Biofilm formado, estabilidad OK',type:'ok'},
-    {msg:'SISTEMA: Kill switch verificado',type:'info'},{msg:'Nodo_31: LuxCDABE reporter activo',type:'info'},
-    {msg:'Nodo_18: Transferencia horizontal: ninguna',type:'ok'},{msg:'SISTEMA: Protocolo de contencion OK',type:'ok'},
-    {msg:'Nodo_25: Temperatura within range',type:'info'}
-];
-function addLog(msg,type){
-    var now=new Date();var ts=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')+':'+String(now.getSeconds()).padStart(2,'0');
-    var line=document.createElement('div');line.className='log-line '+(type||'info');line.innerHTML='<span class="ts">['+ts+']</span><span class="msg">'+msg+'</span>';
-    consoleLog.appendChild(line);if(consoleLog.children.length>50)consoleLog.removeChild(consoleLog.firstChild);consoleLog.scrollTop=consoleLog.scrollHeight;
-}
-addLog('SISTEMA BRIO v3.2.1 - Iniciado','ok');addLog('Cepas activas: P.putida, B.subtilis, D.radiodurans','info');addLog('Circuitos biosinteticos: pSal, pTet, pLux OK','ok');
-setInterval(function(){var l=logMsgs[Math.floor(Math.random()*logMsgs.length)];addLog(l.msg,l.type);},2500);
-
-/* === HUD DINAMICO === */
-function updateHUD(time){
-    var temp=36.5+Math.sin(time*0.3)*0.8+params.temperature*0.02;
-    var bio=90+Math.sin(time*0.5)*4+params.concentration*0.05;
-    var degr=75+Math.sin(time*0.2)*5+params.concentration*0.1;
-    var co2=200+Math.sin(time*0.15)*30+params.concentration*0.5;
-    var ph=6.5+Math.sin(time*0.4)*0.4;
-    var viab=85+Math.sin(time*0.35)*3;
-    document.getElementById('sCoreTemp').textContent=temp.toFixed(1)+' C';
-    document.getElementById('sBioact').textContent=bio.toFixed(1)+'%';
-    document.getElementById('sDegrad').textContent=degr.toFixed(1)+'%';
-    document.getElementById('sCo2').textContent=co2.toFixed(0)+' lb/m2';
-    document.getElementById('sPh').textContent=ph.toFixed(1);
-    document.getElementById('sViab').textContent=viab.toFixed(1)+'%';
-    var ids=['sCoreTemp','sBioact','sDegrad','sCo2','sPh','sViab'];
-    for(var i=0;i<ids.length;i++){var el=document.getElementById(ids[i]);el.classList.remove('ok','warn','danger');var v=parseFloat(el.textContent);if(ids[i]==='sPh'){el.classList.add(v>=6&&v<=7.5?'ok':v>=5.5?'warn':'danger');}else if(ids[i]==='sCoreTemp'){el.classList.add(v>=35&&v<=39?'ok':v>=33&&v<=42?'warn':'danger');}else{el.classList.add(v>=80?'ok':v>=50?'warn':'danger');}}
-    var pi=Math.floor((time*0.05)%5);var pk=['phase1','phase2','phase3','phase4','phase5'];var pb=document.getElementById('phaseBox');pb.setAttribute('data-t',pk[pi]);pb.textContent=T[currentLang][pk[pi]];
-}
-
-/* === RAYCASTER === */
-var raycaster=new THREE.Raycaster();var mouse=new THREE.Vector2();
-var partNames={core:'core_i',body:'body_i',channel:'channel_i',membrane:'membrane_i',base:'base_i',antenna:'antenna_i'};
-var partTexts={core:'core_t',body:'body_t',channel:'channel_t',membrane:'membrane_t',base:'base_t',antenna:'antenna_t'};
-renderer.domElement.addEventListener('click',function(e){
-    mouse.x=(e.clientX/window.innerWidth)*2-1;mouse.y=-(e.clientY/window.innerHeight)*2+1;raycaster.setFromCamera(mouse,camera);
-    var keys=Object.keys(clickParts);
-    for(var i=0;i<keys.length;i++){var int=raycaster.intersectObject(clickParts[keys[i]],true);if(int.length>0){var tk=partNames[keys[i]];var txk=partTexts[keys[i]];if(tk&&txk){document.getElementById('infoTitle').textContent=T[currentLang][tk];document.getElementById('infoText').textContent=T[currentLang][txk];document.getElementById('infoPanel').classList.add('show');}break;}}
-});
-document.getElementById('closeInfo').addEventListener('click',function(){document.getElementById('infoPanel').classList.remove('show');});
-
-/* === AR === */
-document.getElementById('arBtn').addEventListener('click',function(){
-    if(!navigator.xr){showToast(T[currentLang].arNotSupported);return;}
-    navigator.xr.isSessionSupported('immersive-ar').then(function(supported){
-        if(!supported){showToast(T[currentLang].arNotSupported);return;}
-        navigator.xr.requestSession('immersive-ar',{requiredFeatures:['local-floor'],optionalFeatures:['dom-overlay'],domOverlay:{root:document.getElementById('app')}}).then(function(session){
-            renderer.xr.enabled=true;renderer.xr.setSession(session);showToast('AR Mode Activado');
-            session.addEventListener('end',function(){renderer.xr.enabled=false;});
-        }).catch(function(){showToast(T[currentLang].arNotSupported);});
-    }).catch(function(){showToast(T[currentLang].arNotSupported);});
-});
-
-/* === TOAST === */
-function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2500);}
-
-/* ============================================================
-   BOTON DL - CORREGIDO: Funciona con scripts normales
-   ============================================================ */
-document.getElementById('dlBtn').addEventListener('click', function() {
-    // Feedback visual inmediato
-    var btn = this;
-    btn.classList.add('flash');
-    setTimeout(function(){ btn.classList.remove('flash'); }, 400);
-
-    try {
-        // Serializar el DOM completo (funciona porque NO hay script type="module")
-        var doctype = '<!DOCTYPE html>\n';
-        var htmlContent = doctype + document.documentElement.outerHTML;
-
-        // Crear blob y descargar
-        var blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-        var url = URL.createObjectURL(blob);
-
-        var a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = 'BRIO_Prototipo_3D.html';
-        document.body.appendChild(a);
-
-        // Forzar click en el enlace
-        a.click();
-
-        // Limpiar
-        setTimeout(function() {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }, 200);
-
-        showToast('BRIO_Prototipo_3D.html descargado');
-
-    } catch(err) {
-        // Fallback si falla: abrir en nueva pestaña para guardar con Ctrl+S
-        try {
-            var w = window.open('', '_blank');
-            if(w) {
-                w.document.write('<!DOCTYPE html>\n' + document.documentElement.outerHTML);
-                w.document.close();
-                showToast('Abierto en nueva pestana - guarde con Ctrl+S');
-            } else {
-                showToast('Permita ventanas emergentes e intente de nuevo');
+    <!-- Standalone interactive 3D WebGL Canvas Engine script -->
+    <script>
+        // 1. Translation data sets (100% self-contained)
+        const i18n = {
+            es: {
+                projectTag: "SISTEMA BRIO — PROTOTIPO 3D INTERACTIVO",
+                modes: "MODO OPERATIVO",
+                modeSoil: "Suelos (Plásticos / Metales)",
+                modeWater: "Aguas (Descontaminación)",
+                modeAir: "Aire (Captura de Carbono)",
+                modeMarine: "Marina (Plásticos / Arrecife)",
+                modeSpace: "Espacio (Cosmoteñido)",
+                states: "ESTADOS DINÁMICOS",
+                stateIdle: "Reposo / Inactivo",
+                stateScanning: "Escaneo y Quimiotaxis",
+                stateRemediating: "Biorremediación Activa",
+                stateConjugation: "Transferencia de Plásmidos",
+                stateApoptosis: "Autodestrucción / Apoptosis",
+                params: "PARÁMETROS DEL ENJAMBRE",
+                paramSpeed: "Velocidad",
+                paramDensity: "Densidad",
+                paramEnergy: "Batería ATP",
+                paramPh: "pH del Medio",
+                paramTemp: "Temperatura Ambiental",
+                paramConcentration: "Concentración Contaminante",
+                toggles: "SISTEMAS INTERACTIVOS",
+                toggleBio: "Biomecánica de Flagelos",
+                togglePhys: "Física Modular",
+                toggleSwarm: "IA de Enjambre",
+                toggleLight: "Luz Cinematográfica",
+                toggleHud: "HUD Táctico",
+                techPill: "DOCUMENTACIÓN TÉCNICA",
+                techSoil: "Modo Suelo: Expresión de gen mphR y circuito IsPETasa para escisión catalítica de plásticos de ingeniería a escala microbiana.",
+                techWater: "Modo Agua: Activación del gen merA para reducción enzimática del mercurio Hg²⁺ a estado elemental inocuo Hg⁰.",
+                techAir: "Modo Aire: Red de fotorreceptores pLux impulsando la conversión metabólica de CO₂ a Oxígeno puro O₂.",
+                techMarine: "Modo Marino: Biomineralización acelerada de microplásticos suspendidos y polímeros sintéticos en ambientes costeros.",
+                techSpace: "Modo Espacial: Escudo biológico resistente a radiación cósmica mediante síntesis de melaninas extremófilas y conjugación recombinante.",
+                bannerApoptosis: "APOPTOSIS_LISIS_ACTIVA"
+            },
+            en: {
+                projectTag: "BRIO SYSTEM — INTERACTIVE 3D PROTOTYPE",
+                modes: "OPERATING MODE",
+                modeSoil: "Soil (Plastics / Metals)",
+                modeWater: "Water (Decontamination)",
+                modeAir: "Air (Carbon Capture)",
+                modeMarine: "Marine (Plastics / Reefs)",
+                modeSpace: "Space (Cosmo-shielding)",
+                states: "DYNAMIC STATES",
+                stateIdle: "Idle / Dormant",
+                stateScanning: "Scanning & Chemotaxis",
+                stateRemediating: "Active Bioremediation",
+                stateConjugation: "Plasmid Transfer",
+                stateApoptosis: "Self-Destruct / Apoptosis",
+                params: "SWARM PARAMETERS",
+                paramSpeed: "Speed",
+                paramDensity: "Density",
+                paramEnergy: "ATP Battery",
+                paramPh: "pH Level",
+                paramTemp: "Ambient Temperature",
+                paramConcentration: "Pollutant Concentration",
+                toggles: "INTERACTIVE SYSTEMS",
+                toggleBio: "Flagella Biomechanics",
+                togglePhys: "Modular Physics",
+                toggleSwarm: "Swarm AI",
+                toggleLight: "Cinematic Lighting",
+                toggleHud: "Tactical HUD",
+                techPill: "TECHNICAL LOGS",
+                techSoil: "Soil Mode: Expressions of mphR genes and IsPETasa circuits for catalytic cleavage of PET plastics on a micro-scale.",
+                techWater: "Water Mode: Activation of merA reductase enzyme turning toxic ionic Hg²⁺ into inert, volatile metallic Hg⁰.",
+                techAir: "Air Mode: Photoreceptor pLux loops driving carbon dioxide capturing and transformation into oxygen molecules.",
+                techMarine: "Marine Mode: Accelerated biomineralization of suspended microplastics and synthetics in coastlines.",
+                techSpace: "Space Mode: Extremophile melanin synthesis and protective conjugational pathways resistant to cosmic radiation.",
+                bannerApoptosis: "APOPTOSIS_LYSIS_ACTIVE"
+            },
+            zh: {
+                projectTag: "BRIO 生物修复系统 — 交互式 3D 离线原型",
+                modes: "当前运行模式",
+                modeSoil: "土壤层（重金属和塑料修复）",
+                modeWater: "水体层（净化去污修复）",
+                modeAir: "大气层（自主碳捕集）",
+                modeMarine: "海洋层（微塑料及珊瑚修复）",
+                modeSpace: "太空层（宇宙极地辐射防御）",
+                states: "动态运行状态",
+                stateIdle: "不活跃 / 静默休眠",
+                stateScanning: "智能扫描与趋化运动",
+                stateRemediating: "活性生物降解修复",
+                stateConjugation: "质粒结合转移",
+                stateApoptosis: "生物安全自毁 (凋亡)",
+                params: "集群控制参数",
+                paramSpeed: "推进运行速度",
+                paramDensity: "集群分布密度",
+                paramEnergy: "能量蓄积 (ATP)",
+                paramPh: "运行环境 pH 酸碱度",
+                paramTemp: "运行环境温度",
+                paramConcentration: "待修复毒物富集浓度",
+                toggles: "交互系统配置",
+                toggleBio: "鞭毛生物力学",
+                togglePhys: "模块化物理学",
+                toggleSwarm: "集群智能 (AI)",
+                toggleLight: "电影级光影照明",
+                toggleHud: "战术全息 HUD",
+                techPill: "技术文档摘要",
+                techSoil: "土壤修复：表达 mphR 基因和 IsPETasa 塑料水解回路，在微生物层面上催化裂解工程 PET 塑料。",
+                techWater: "水体修复：激活 merA 汞还原酶。将剧毒的水溶性离子汞 (Hg²⁺) 还原为挥发、无害的金属汞 (Hg⁰)。",
+                techAir: "大气固碳：pLux 光敏调控回路，吸收高纯度二氧化碳并将其光合转化释放为洁净氧气分子 (O₂)。",
+                techMarine: "海洋层：在沿海和深海环境中对悬浮的微塑料和合成聚合物进行加速生物矿化处理。",
+                techSpace: "太空修复：极端微生物黑色素固化合成及抗电离宇宙辐射的多质粒结合重组防御机制。",
+                bannerApoptosis: "自毁程序_细胞裂解激活"
             }
-        } catch(e2) {
-            showToast('Use Ctrl+S para guardar esta pagina');
+        };
+
+        // State Machine
+        let currentLang = 'es';
+        let activeMode = 'soil';
+        let activeState = 'idle';
+        
+        let config = {
+            speed: 50,
+            density: 50,
+            energy: 100,
+            ph: 7.0,
+            temp: 25.0,
+            concentration: 50,
+            biomechanics: true,
+            physics: true,
+            swarm: true,
+            lighting: true,
+            hud: true
+        };
+
+        // 2. Multilingual engine router
+        function switchLanguage(lang) {
+            currentLang = lang;
+            
+            // Toggle button states
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.innerText.toLowerCase() === lang);
+            });
+
+            const dict = i18n[lang];
+            
+            // Apply text translations
+            document.getElementById('project-tag-text').innerText = dict.projectTag;
+            document.getElementById('lbl-modes').innerText = dict.modes;
+            document.getElementById('lbl-mode-soil').innerText = dict.modeSoil;
+            document.getElementById('lbl-mode-water').innerText = dict.modeWater;
+            document.getElementById('lbl-mode-air').innerText = dict.modeAir;
+            document.getElementById('lbl-mode-marine').innerText = dict.modeMarine;
+            document.getElementById('lbl-mode-space').innerText = dict.modeSpace;
+            
+            document.getElementById('lbl-states').innerText = dict.states;
+            document.getElementById('lbl-state-idle').innerText = dict.stateIdle;
+            document.getElementById('lbl-state-scanning').innerText = dict.stateScanning;
+            document.getElementById('lbl-state-remediating').innerText = dict.stateRemediating;
+            document.getElementById('lbl-state-conjugation').innerText = dict.stateConjugation;
+            document.getElementById('lbl-state-apoptosis').innerText = dict.stateApoptosis;
+
+            document.getElementById('lbl-params').innerText = dict.params;
+            document.getElementById('lbl-param-speed').innerText = dict.paramSpeed;
+            document.getElementById('lbl-param-density').innerText = dict.paramDensity;
+            document.getElementById('lbl-param-energy').innerText = dict.paramEnergy;
+            document.getElementById('lbl-param-ph').innerText = dict.paramPh;
+            document.getElementById('lbl-param-temp').innerText = dict.paramTemp;
+            document.getElementById('lbl-param-concentration').innerText = dict.paramConcentration;
+
+            document.getElementById('lbl-toggles').innerText = dict.toggles;
+            document.getElementById('lbl-toggle-bio').innerText = dict.toggleBio;
+            document.getElementById('lbl-toggle-phys').innerText = dict.togglePhys;
+            document.getElementById('lbl-toggle-swarm').innerText = dict.toggleSwarm;
+            document.getElementById('lbl-toggle-light').innerText = dict.toggleLight;
+            document.getElementById('lbl-toggle-hud').innerText = dict.toggleHud;
+
+            document.getElementById('lbl-tech-pill').innerText = dict.techPill;
+            document.getElementById('banner-text').innerText = dict.bannerApoptosis;
+
+            updateTechLog();
         }
-    }
-});
 
-/* === EVENTOS === */
-var langBtns=document.querySelectorAll('.lang-btn');
-for(var lb=0;lb<langBtns.length;lb++){(function(b){b.addEventListener('click',function(){applyLang(b.dataset.lang);});})(langBtns[lb]);}
+        function updateTechLog() {
+            const dict = i18n[currentLang];
+            const desc = document.getElementById('lbl-tech-desc');
+            if (activeMode === 'soil') desc.innerText = dict.techSoil;
+            else if (activeMode === 'water') desc.innerText = dict.techWater;
+            else if (activeMode === 'air') desc.innerText = dict.techAir;
+            else if (activeMode === 'marine') desc.innerText = dict.techMarine;
+            else desc.innerText = dict.techSpace;
+        }
 
-var simBtns=document.querySelectorAll('.sim-btn');
-for(var sb=0;sb<simBtns.length;sb++){(function(b){b.addEventListener('click',function(){toggleSim(b.dataset.sim);});})(simBtns[sb]);}
+        // 3. Control actions
+        function setMode(mode) {
+            activeMode = mode;
+            document.querySelectorAll('[id^="btn-mode-"]').forEach(btn => {
+                btn.classList.toggle('active', btn.id === 'btn-mode-' + mode);
+            });
+            updateTechLog();
+            initParticles();
+        }
 
-document.getElementById('viscosity').addEventListener('input',function(e){params.viscosity=+e.target.value;document.getElementById('viscVal').textContent=e.target.value;});
-document.getElementById('temperature').addEventListener('input',function(e){params.temperature=+e.target.value;document.getElementById('tempVal').textContent=e.target.value;});
-document.getElementById('concentration').addEventListener('input',function(e){params.concentration=+e.target.value;document.getElementById('concVal').textContent=e.target.value;});
-document.getElementById('bottomToggle').addEventListener('click',function(){document.getElementById('bottomPanel').classList.toggle('collapsed');});
-window.addEventListener('resize',function(){camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
-setLoad(95);
+        function setState(state) {
+            activeState = state;
+            
+            // Reset special button color classes
+            document.querySelectorAll('[id^="btn-state-"]').forEach(btn => {
+                btn.classList.remove('active', 'remediating', 'apoptosis', 'conjugation');
+                if (btn.id === 'btn-state-' + state) {
+                    btn.classList.add('active');
+                    if (state === 'remediating') btn.classList.add('remediating');
+                    if (state === 'apoptosis') btn.classList.add('apoptosis');
+                    if (state === 'conjugation') btn.classList.add('conjugation');
+                }
+            });
 
-/* === BUCLE DE ANIMACION === */
-var clock=new THREE.Clock();
-function animate(){
-    requestAnimationFrame(animate);
-    var dt=Math.min(clock.getDelta(),0.05);elapsed+=dt;var time=elapsed;
+            // Apoptosis banner
+            const banner = document.getElementById('banner-apoptosis');
+            banner.style.display = state === 'apoptosis' ? 'flex' : 'none';
+        }
 
-    fresnelMat.uniforms.uT.value=time;coreMat.uniforms.uT.value=time;nanoMat.uniforms.uT.value=time;volMat.uniforms.uT.value=time;
+        function updateParam(param, value) {
+            config[param] = parseFloat(value);
+            let suffix = '%';
+            if (param === 'ph') suffix = '';
+            else if (param === 'temp') suffix = '°C';
+            document.getElementById('val-' + param).innerText = parseFloat(value).toFixed(1) + suffix;
+            if (param === 'density') initParticles();
+        }
 
-    coMesh.rotation.y=time*0.5;halo.rotation.x=time*0.3;halo.rotation.z=time*0.2;meMesh.rotation.y=-time*0.1;mwMesh.rotation.y=-time*0.1;
-    antTip.material.color.setHSL(0.5+Math.sin(time*3)*0.05,1,0.5);
-    corePL.intensity=2.5+Math.sin(time*2)*1.0;corePL.distance=7+Math.sin(time*1.5)*1.5;
-    nanoPts.rotation.y=time*0.05;
+        function toggleOption(opt) {
+            config[opt] = !config[opt];
+            const btn = document.getElementById('toggle-' + opt);
+            btn.classList.toggle('active', config[opt]);
+            btn.querySelector('span:last-child').innerText = config[opt] ? '[ON]' : '[OFF]';
+        }
 
-    if(simGroups.rheological)updateRheological(simGroups.rheological);
-    if(simGroups.molecular)updateMolecular(simGroups.molecular);
-    if(simGroups.swarm)updateSwarm(simGroups.swarm);
-    if(simGroups.energy)updateEnergy(simGroups.energy,dt);
-    if(simGroups.biomech)updateBiomech(simGroups.biomech,time);
+        // 4. Interactive 3D Canvas Vector Engine (100% dependency-free math)
+        const canvas = document.getElementById('brio-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, cx, cy;
 
-    updateHUD(time);controls.update();renderer.render(scene,camera);
-}
+        // 3D rotations state
+        let rotation = { x: 0.5, y: -0.6, z: 0 };
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let rotationStart = { x: 0, y: 0 };
+        let waveOffset = 0;
 
-setLoad(100);
-setTimeout(function(){document.getElementById('loader').classList.add('hidden');animate();},600);
-</script>
+        // Click-to-spill tracking
+        let clickTime = 0;
+        let clickStartPos = { x: 0, y: 0 };
+        let activeSpill = null;
+
+        // Particles
+        let particles = [];
+
+        function resize() {
+            const container = document.getElementById('canvas-container');
+            width = canvas.width = container.clientWidth;
+            height = canvas.height = container.clientHeight;
+            cx = width / 2;
+            cy = height / 2;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function initParticles() {
+            const list = [];
+            const count = Math.floor(config.density * 1.5) + 30;
+            
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 100 + Math.random() * 250;
+                const zVal = (Math.random() - 0.5) * 400;
+                
+                let color = '#4fc3f7';
+                let type = 'contaminant';
+                let size = 2 + Math.random() * 3;
+                
+                if (activeMode === 'soil') {
+                    color = Math.random() > 0.5 ? '#FF8A65' : '#81C784';
+                } else if (activeMode === 'water') {
+                    color = Math.random() > 0.5 ? '#BA68C8' : '#FFD54F';
+                } else if (activeMode === 'air') {
+                    const isCO2 = Math.random() > 0.4;
+                    color = isCO2 ? '#90A4AE' : '#A7FFEB';
+                    type = isCO2 ? 'contaminant' : 'oxygen';
+                } else if (activeMode === 'marine') {
+                    color = Math.random() > 0.5 ? '#FF4081' : '#26A69A';
+                } else if (activeMode === 'space') {
+                    color = Math.random() > 0.5 ? '#FFEA00' : '#8E24AA';
+                }
+                
+                list.push({
+                    x: Math.cos(angle) * radius,
+                    y: Math.sin(angle) * radius,
+                    z: zVal,
+                    vx: (Math.random() - 0.5) * 0.8,
+                    vy: (Math.random() - 0.5) * 0.8,
+                    vz: (Math.random() - 0.5) * 0.8,
+                    color,
+                    size,
+                    type
+                });
+            }
+
+            if (config.swarm) {
+                for (let i = 0; i < 20; i++) {
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos((Math.random() * 2) - 1);
+                    const r = 120 + Math.random() * 180;
+                    list.push({
+                        x: r * Math.sin(phi) * Math.cos(theta),
+                        y: r * Math.sin(phi) * Math.sin(theta),
+                        z: r * Math.cos(phi),
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 2,
+                        vz: (Math.random() - 0.5) * 2,
+                        color: '#4fc3f7',
+                        size: 3,
+                        type: 'swarm'
+                    });
+                }
+            }
+            particles = list;
+        }
+        initParticles();
+
+        // Mouse rotation & click tracking
+        canvas.addEventListener('mousedown', e => {
+            isDragging = true;
+            dragStart = { x: e.clientX, y: e.clientY };
+            rotationStart = { x: rotation.x, y: rotation.y };
+            clickTime = Date.now();
+            clickStartPos = { x: e.clientX, y: e.clientY };
+        });
+
+        canvas.addEventListener('mouseup', e => {
+            isDragging = false;
+            
+            // Fast click to spawn contaminants
+            const duration = Date.now() - clickTime;
+            const dx = e.clientX - clickStartPos.x;
+            const dy = e.clientY - clickStartPos.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (duration < 250 && dist < 6) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                activeSpill = { x: mouseX, y: mouseY, size: 100 };
+                
+                // Spawn target contaminants
+                const cxVal = rect.width / 2;
+                const cyVal = rect.height / 2;
+                const pX = (mouseX - cxVal) / 1.2;
+                const pY = (mouseY - cyVal) / 1.2;
+                
+                let col = '#FF4081';
+                if (activeMode === 'soil') col = '#FF8A65';
+                else if (activeMode === 'water') col = '#BA68C8';
+                else if (activeMode === 'air') col = '#90A4AE';
+                else if (activeMode === 'marine') col = '#FF4081';
+                else if (activeMode === 'space') col = '#FFEA00';
+                
+                for (let i = 0; i < 20; i++) {
+                    particles.push({
+                        x: pX + (Math.random() - 0.5) * 60,
+                        y: pY + (Math.random() - 0.5) * 60,
+                        z: (Math.random() - 0.5) * 60,
+                        vx: (Math.random() - 0.5) * 1.5,
+                        vy: (Math.random() - 0.5) * 1.5,
+                        vz: (Math.random() - 0.5) * 1.5,
+                        color: col,
+                        size: 2.5 + Math.random() * 3,
+                        type: 'contaminant'
+                    });
+                }
+            }
+        });
+
+        window.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            const dx = e.clientX - dragStart.x;
+            const dy = e.clientY - dragStart.y;
+            rotation.x = rotationStart.x + dy * 0.01;
+            rotation.y = rotationStart.y + dx * 0.01;
+        });
+
+        // Touch mobile drag support
+        canvas.addEventListener('touchstart', e => {
+            if (e.touches.length === 0) return;
+            isDragging = true;
+            dragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            rotationStart = { x: rotation.x, y: rotation.y };
+        });
+        canvas.addEventListener('touchmove', e => {
+            if (!isDragging || e.touches.length === 0) return;
+            const dx = e.touches[0].clientX - dragStart.x;
+            const dy = e.touches[0].clientY - dragStart.y;
+            rotation.x = rotationStart.x + dy * 0.01;
+            rotation.y = rotationStart.y + dx * 0.01;
+        });
+        canvas.addEventListener('touchend', () => { isDragging = false; });
+
+        // 3D Rendering Calculations
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+
+            const cosX = Math.cos(rotation.x);
+            const sinX = Math.sin(rotation.x);
+            const cosY = Math.cos(rotation.y);
+            const sinY = Math.sin(rotation.y);
+            const cosZ = Math.cos(rotation.z);
+            const sinZ = Math.sin(rotation.z);
+
+            function project(p) {
+                let x1 = p.x * cosY - p.z * sinY;
+                let z1 = p.x * sinY + p.z * cosY;
+                let y2 = p.y * cosX - z1 * sinX;
+                let z2 = p.y * sinX + z1 * cosX;
+                let x3 = x1 * cosZ - y2 * sinZ;
+                let y3 = x1 * sinZ + y2 * cosZ;
+                const d = 500;
+                const perspective = d / (d + z2);
+                return {
+                    x: cx + x3 * perspective * 1.2,
+                    y: cy + y3 * perspective * 1.2,
+                    depth: z2
+                };
+            }
+
+            const actualSpeed = activeState === 'apoptosis' ? 0.5 : (activeState === 'idle' ? 0.8 : 2.5) * (config.speed / 50 + 0.2);
+            waveOffset += 0.08 * actualSpeed;
+
+            // Decay active spill
+            if (activeSpill && activeSpill.size > 0) {
+                activeSpill.size -= 0.15;
+                if (activeSpill.size <= 0) activeSpill = null;
+            }
+
+            // Generate capsule points
+            const mesh = [];
+            const R = 45;
+            const L = 80;
+            const rings = 12;
+            const pointsPerRing = 16;
+            const capSteps = 6;
+
+            for (let r = 0; r <= rings; r++) {
+                const zPos = -L/2 + (L * r) / rings;
+                for (let p = 0; p < pointsPerRing; p++) {
+                    const theta = (p * Math.PI * 2) / pointsPerRing;
+                    mesh.push({ x: R * Math.cos(theta), y: R * Math.sin(theta), z: zPos });
+                }
+            }
+            for (let c = 1; c <= capSteps; c++) {
+                const phi = (c * Math.PI) / (2 * capSteps);
+                const rSub = R * Math.cos(phi);
+                const zSub = L/2 + R * Math.sin(phi);
+                for (let p = 0; p < pointsPerRing; p++) {
+                    const theta = (p * Math.PI * 2) / pointsPerRing;
+                    mesh.push({ x: rSub * Math.cos(theta), y: rSub * Math.sin(theta), z: zSub });
+                }
+            }
+            for (let c = 1; c <= capSteps; c++) {
+                const phi = (c * Math.PI) / (2 * capSteps);
+                const rSub = R * Math.cos(phi);
+                const zSub = -L/2 - R * Math.sin(phi);
+                for (let p = 0; p < pointsPerRing; p++) {
+                    const theta = (p * Math.PI * 2) / pointsPerRing;
+                    mesh.push({ x: rSub * Math.cos(theta), y: rSub * Math.sin(theta), z: zSub });
+                }
+            }
+
+            const projected = mesh.map(p => ({ orig: p, proj: project(p) }));
+            projected.sort((a, b) => b.proj.depth - a.proj.depth);
+
+            // Draw Background particles
+            particles.forEach(p => {
+                if (config.physics && activeState !== 'apoptosis') {
+                    p.z += p.vz + actualSpeed * 0.5;
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    
+                    // Click spill tracking drift physics
+                    if (activeSpill && activeSpill.size > 0 && p.type === 'swarm') {
+                        const sProj = project(p);
+                        const sDx = activeSpill.x - sProj.proj.x;
+                        const sDy = activeSpill.y - sProj.proj.y;
+                        const sDist = Math.sqrt(sDx*sDx + sDy*sDy);
+                        if (sDist < 180) {
+                            p.vx += (sDx / sDist) * 0.25;
+                            p.vy += (sDy / sDist) * 0.25;
+                        }
+                    }
+
+                    if (activeState === 'remediating') {
+                        const dx = -p.x, dy = -p.y, dz = -p.z;
+                        const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                        if (dist < 300) {
+                            const force = 0.5 / (dist/50 + 0.1);
+                            p.vx += (dx / dist) * force;
+                            p.vy += (dy / dist) * force;
+                            p.vz += (dz / dist) * force;
+                            if (dist < R + 20) {
+                                p.color = '#00E676';
+                                p.vx = (Math.random() - 0.5) * 5;
+                                p.vy = (Math.random() - 0.5) * 5;
+                                p.vz = -5 - Math.random() * 5;
+                            }
+                        }
+                    }
+                } else {
+                    const speedFact = 0.002 * actualSpeed;
+                    const cosA = Math.cos(speedFact), sinA = Math.sin(speedFact);
+                    const rx = p.x * cosA - p.z * sinA;
+                    const rz = p.x * sinA + p.z * cosA;
+                    p.x = rx; p.z = rz;
+                }
+
+                if (p.z > 350) p.z = -350;
+                if (p.z < -350) p.z = 350;
+
+                const pt = project(p);
+                if (pt.depth > 0) {
+                    ctx.beginPath();
+                    if (p.type === 'swarm') {
+                        ctx.arc(pt.x, pt.y, p.size, 0, Math.PI * 2);
+                        ctx.fillStyle = '#4fc3f7';
+                        ctx.fill();
+                    } else {
+                        ctx.arc(pt.x, pt.y, p.size, 0, Math.PI * 2);
+                        ctx.fillStyle = p.color;
+                        ctx.fill();
+                    }
+                }
+            });
+
+            // Draw Flagella biomechanical tail
+            if (config.biomechanics) {
+                const tailCount = 3;
+                for (let t = 0; t < tailCount; t++) {
+                    const theta = (t * Math.PI * 2) / tailCount;
+                    const tailBase = { x: Math.cos(theta) * 15, y: Math.sin(theta) * 15, z: -L/2 - 25 };
+                    ctx.beginPath();
+                    let prevProj = project(tailBase);
+                    ctx.moveTo(prevProj.x, prevProj.y);
+                    
+                    const jointCount = 10;
+                    const jointLength = 12;
+                    for (let j = 1; j <= jointCount; j++) {
+                        const zJoint = tailBase.z - j * jointLength;
+                        const offset = activeState === 'remediating' ? 1.5 : 1.0;
+                        const xOffset = Math.sin(waveOffset + j * 0.8 + t * 2) * 8 * offset;
+                        const yOffset = Math.cos(waveOffset + j * 0.8 + t * 2) * 4 * offset;
+                        const jointProj = project({ x: tailBase.x + xOffset, y: tailBase.y + yOffset, z: zJoint });
+                        ctx.lineTo(jointProj.x, jointProj.y);
+                    }
+                    ctx.strokeStyle = activeState === 'apoptosis' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(79, 195, 247, 0.7)';
+                    ctx.lineWidth = config.lighting ? 4 : 2;
+                    ctx.stroke();
+                }
+            }
+
+            // Draw conjugation bridges/filaments
+            if (activeState === 'conjugation') {
+                ctx.lineWidth = 1.0;
+                particles.forEach(p => {
+                    if (p.type === 'swarm') {
+                        const ptSwarm = project(p);
+                        const bodyProj = project({ x: 0, y: 0, z: 0 });
+                        const dX = ptSwarm.x - bodyProj.x;
+                        const dY = ptSwarm.y - bodyProj.y;
+                        const dist = Math.sqrt(dX*dX + dY*dY);
+                        if (dist < 150) {
+                            ctx.beginPath();
+                            ctx.moveTo(bodyProj.x, bodyProj.y);
+                            ctx.lineTo(ptSwarm.x, ptSwarm.y);
+                            ctx.strokeStyle = 'rgba(245, 158, 11, ' + (0.8 - dist/180) + ')';
+                            ctx.stroke();
+                        }
+                    }
+                });
+            }
+
+            // Draw DNA Inside Helix
+            const coreLength = L - 15, dnaPoints = 25, rCore = 12;
+            for (let s = 0; s < 2; s++) {
+                ctx.beginPath();
+                const phase = s * Math.PI;
+                let first = true;
+                for (let i = 0; i < dnaPoints; i++) {
+                    const zPos = -coreLength/2 + (coreLength * i) / dnaPoints;
+                    const angle = (i * Math.PI * 1.5) / dnaPoints + waveOffset * 0.5 + phase;
+                    const pr = project({ x: rCore * Math.cos(angle), y: rCore * Math.sin(angle), z: zPos });
+                    if (first) { ctx.moveTo(pr.x, pr.y); first = false; }
+                    else ctx.lineTo(pr.x, pr.y);
+                }
+                ctx.strokeStyle = activeState === 'apoptosis' 
+                    ? '#EF4444' 
+                    : (activeState === 'remediating' 
+                        ? '#00E676' 
+                        : (activeState === 'conjugation' ? '#F59E0B' : '#4fc3f7'));
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+            }
+
+            // Draw Wireframe Structure
+            const ringSegments = rings + capSteps * 2;
+            for (let r = 0; r <= ringSegments; r++) {
+                ctx.beginPath();
+                const baseIdx = r * pointsPerRing;
+                for (let p = 0; p < pointsPerRing; p++) {
+                    const idx = baseIdx + p;
+                    const idxNext = baseIdx + ((p + 1) % pointsPerRing);
+                    if (idx < projected.length && idxNext < projected.length) {
+                        const pt1 = projected[idx].proj;
+                        const pt2 = projected[idxNext].proj;
+                        if (p === 0) ctx.moveTo(pt1.x, pt1.y);
+                        ctx.lineTo(pt2.x, pt2.y);
+                    }
+                }
+                if (config.lighting) {
+                    const zPos = -L/2 - R + (r * (L + 2*R)) / ringSegments;
+                    const lightVal = Math.max(0.2, (zPos + 100) / 200);
+                    ctx.strokeStyle = activeState === 'apoptosis' 
+                        ? 'rgba(239, 68, 68, ' + (0.1 + lightVal * 0.4) + ')'
+                        : 'rgba(176, 190, 197, ' + (0.1 + lightVal * 0.5) + ')';
+                } else {
+                    ctx.strokeStyle = activeState === 'apoptosis' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(176, 190, 197, 0.45)';
+                }
+                ctx.stroke();
+            }
+
+            // Draw spikes / sensors
+            const spikeCount = 8, spikeLen = 18;
+            for (let i = 0; i < spikeCount; i++) {
+                const angle = (i * Math.PI * 2) / spikeCount + waveOffset * 0.2;
+                const basePos = { x: R * Math.cos(angle), y: R * Math.sin(angle), z: (i % 2 === 0 ? 30 : -30) };
+                const tipPos = { x: (R + spikeLen) * Math.cos(angle), y: (R + spikeLen) * Math.sin(angle), z: basePos.z };
+                const pBase = project(basePos), pTip = project(tipPos);
+
+                ctx.beginPath();
+                ctx.moveTo(pBase.x, pBase.y);
+                ctx.lineTo(pTip.x, pTip.y);
+                ctx.strokeStyle = '#CFD8DC';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(pTip.x, pTip.y, 4, 0, Math.PI * 2);
+                ctx.fillStyle = activeState === 'apoptosis' 
+                    ? '#EF4444' 
+                    : (activeState === 'remediating' 
+                        ? '#00E676' 
+                        : (activeState === 'conjugation' ? '#F59E0B' : '#4fc3f7'));
+                ctx.fill();
+            }
+
+            // Draw foreground particles
+            particles.forEach(p => {
+                const pt = project(p);
+                if (pt.depth <= 0) {
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, p.size, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color;
+                    ctx.fill();
+                }
+            });
+
+            // Draw concentric target radar for active spill clicking
+            if (activeSpill && config.hud) {
+                const sx = activeSpill.x;
+                const sy = activeSpill.y;
+                const pulse = 1 + Math.sin(waveOffset * 3) * 0.15;
+                ctx.strokeStyle = 'rgba(255, 64, 129, 0.7)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(sx, sy, (activeSpill.size / 3) * pulse, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.strokeStyle = 'rgba(255, 64, 129, 0.3)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(sx, sy, (activeSpill.size / 3) * 1.5, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.font = '9px monospace';
+                ctx.fillStyle = '#FF4081';
+                ctx.fillText('SPILL_HOTSPOT_ACTIVE: ' + activeSpill.size.toFixed(0) + 'ppm', sx + 15, sy - 5);
+            }
+
+            // Tactical HUD details
+            if (config.hud) {
+                ctx.font = '10px monospace';
+                ctx.fillStyle = 'rgba(79, 195, 247, 0.85)';
+                ctx.fillText('YAW: ' + rotation.y.toFixed(2) + ' rad', 25, 40);
+                ctx.fillText('PITCH: ' + rotation.x.toFixed(2) + ' rad', 25, 55);
+                ctx.fillText('SYS_STATUS: ' + activeState.toUpperCase(), 25, 70);
+                ctx.fillText('ATP_ENERGY: ' + config.energy.toFixed(0) + '%', 25, 85);
+                
+                // Active enzymatic kinetics and warnings
+                const phFactor = Math.max(0, 1 - Math.abs(config.ph - 7.0) * 0.3);
+                const tempFactor = Math.max(0, 1 - Math.abs(config.temp - 25.0) * 0.04);
+                const kineticPerf = phFactor * tempFactor * 100;
+
+                ctx.fillStyle = kineticPerf < 40 ? '#FF4081' : 'rgba(79, 195, 247, 0.85)';
+                ctx.fillText('ENV_pH: ' + config.ph.toFixed(1), 25, 100);
+                ctx.fillText('ENV_TEMP: ' + config.temp.toFixed(1) + '°C', 25, 115);
+                ctx.fillText('ENZYME_KINETICS: ' + kineticPerf.toFixed(0) + '%', 25, 130);
+
+                if (kineticPerf < 40) {
+                    ctx.fillStyle = '#FF4081';
+                    ctx.fillText('⚠️ WARNING: SUBOPTIMAL ENZYMATIC PERFORMANCE', 25, 150);
+                }
+
+                // Overlay targeting circles
+                ctx.strokeStyle = 'rgba(79, 195, 247, 0.15)';
+                ctx.beginPath(); ctx.arc(cx, cy, 140, 0, Math.PI*2); ctx.stroke();
+                ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI*2); ctx.stroke();
+            }
+        }
+
+        // Loop ticker
+        function tick() {
+            if (!isDragging) {
+                rotation.x += 0.003;
+                rotation.y += 0.005;
+            }
+            draw();
+            requestAnimationFrame(tick);
+        }
+        tick();
+    </script>
 </body>
 </html>
