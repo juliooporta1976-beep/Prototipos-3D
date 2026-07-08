@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FloatingFab Nexus - Prototipo 3D Autónomo</title>
+  <style>
+    :root {
+      --bg-color: #0d0f12;
+      --card-bg: rgba(22, 26, 30, 0.85);
+      --border-color: rgba(79, 195, 247, 0.2);
+      --accent-cyan: #4FC3F7;
+      --accent-cyan-dim: rgba(79, 195, 247, 0.3);
+      --titanium: #7E8B96;
+      --graphite: #2E3338;
+      --text-color: #E2E8F0;
+      --text-muted: #94A3B8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      user-select: none;
+    }
+
+    /* Video background for AR mode */
+    #ar-video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 1;
+      display: none;
+      transform: scaleX(-1); /* mirror effect */
+    }
+
+    /* Primary 3D Stage */
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Interface Layer */
+    .hud-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 3;
+      pointer-events: none;
+      display: grid;
+      grid-template-columns: 320px 1fr 340px;
+      grid-template-rows: 80px 1fr 140px;
+      padding: 20px;
+      gap: 15px;
+    }
+
+    .interactive {
+      pointer-events: auto;
+    }
+
+    /* Header */
+    header {
+      grid-column: 1 / 4;
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      background: linear-gradient(180deg, rgba(13, 15, 18, 0.9) 0%, rgba(13, 15, 18, 0) 100%);
+      padding-bottom: 20px;
+      position: relative;
+    }
+
+    .creator-badge {
+      display: flex;
+      flex-direction: column;
+      border-left: 3px solid var(--accent-cyan);
+      padding-left: 15px;
+    }
+
+    .creator-badge h2 {
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+    }
+
+    .creator-badge h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: 0.05em;
+    }
+
+    .lang-selector {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .lang-btn {
+      background: rgba(22, 26, 30, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .lang-btn.active {
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+      background: var(--accent-cyan-dim);
+    }
+
+    /* Sidebar Left: Control Panel & Modes */
+    .sidebar-left {
+      grid-column: 1;
+      grid-row: 2 / 4;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 18px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .panel-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent-cyan);
+      border-bottom: 1px solid rgba(79, 195, 247, 0.15);
+      padding-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-title::after {
+      content: '●';
+      font-size: 8px;
+      color: var(--accent-cyan);
+      animation: blink 1.5s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 0.2; }
+      50% { opacity: 1; }
+    }
+
+    /* Mode Buttons */
+    .mode-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .mode-btn {
+      background: rgba(30, 37, 43, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      color: var(--text-color);
+      padding: 10px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .mode-btn:hover {
+      background: rgba(79, 195, 247, 0.08);
+      border-color: rgba(79, 195, 247, 0.3);
+    }
+
+    .mode-btn.active {
+      background: rgba(79, 195, 247, 0.15);
+      border-color: var(--accent-cyan);
+    }
+
+    .mode-name {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .mode-btn.active .mode-name {
+      color: var(--accent-cyan);
+    }
+
+    .mode-desc {
+      font-size: 10px;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
+
+    /* Actions Panel */
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .action-btn {
+      background: rgba(22, 26, 30, 0.7);
+      border: 1px solid var(--border-color);
+      color: #FFF;
+      padding: 8px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .action-btn:hover {
+      background: var(--accent-cyan);
+      color: #000;
+      border-color: var(--accent-cyan);
+    }
+
+    /* Sidebar Right: Tactical HUD Metrics */
+    .sidebar-right {
+      grid-column: 3;
+      grid-row: 2 / 4;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      background: rgba(30, 37, 43, 0.3);
+      padding: 6px 10px;
+      border-radius: 4px;
+      border-left: 2px solid var(--accent-cyan-dim);
+    }
+
+    .metric-label {
+      color: var(--text-muted);
+    }
+
+    .metric-value {
+      font-weight: 600;
+      font-family: monospace;
+      color: #FFF;
+    }
+
+    /* Mini-Chart Canvas inside Sidebar */
+    .mini-chart {
+      width: 100%;
+      height: 60px;
+      background: rgba(13, 15, 18, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      margin-top: 5px;
+    }
+
+    /* Blockchain Feed Panel */
+    .blockchain-feed {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow-y: auto;
+      max-height: 180px;
+      font-family: monospace;
+      font-size: 10px;
+      padding-right: 4px;
+    }
+
+    /* Custom Scrollbar for panel */
+    .blockchain-feed::-webkit-scrollbar {
+      width: 4px;
+    }
+    .blockchain-feed::-webkit-scrollbar-thumb {
+      background: var(--accent-cyan-dim);
+      border-radius: 2px;
+    }
+
+    .block-item {
+      background: rgba(13, 15, 18, 0.6);
+      border-left: 2px solid #4CAF50;
+      padding: 6px;
+      border-radius: 3px;
+    }
+
+    .block-item.warning {
+      border-left-color: #FF9800;
+    }
+
+    /* Bottom Status Bar */
+    .bottom-bar {
+      grid-column: 2;
+      grid-row: 3;
+      align-self: end;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 15px;
+      backdrop-filter: blur(10px);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+    }
+
+    .status-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4CAF50;
+      box-shadow: 0 0 8px #4CAF50;
+    }
+
+    .status-indicator.pulse {
+      animation: indicator-pulse 2s infinite;
+    }
+
+    @keyframes indicator-pulse {
+      0% { transform: scale(0.9); opacity: 0.6; }
+      50% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 12px #4CAF50; }
+      100% { transform: scale(0.9); opacity: 0.6; }
+    }
+
+    /* Camera Instruction Overlay for AR */
+    .ar-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(13, 15, 18, 0.9);
+      border: 1.5px solid var(--accent-cyan);
+      padding: 20px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+      z-index: 10;
+      display: none;
+      box-shadow: 0 0 30px rgba(79, 195, 247, 0.3);
+    }
+
+    .ar-overlay h3 {
+      font-size: 15px;
+      color: var(--accent-cyan);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .ar-overlay p {
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--text-color);
+      margin-bottom: 15px;
+    }
+
+    /* Camera view toggle button style */
+    .ar-toggle-btn {
+      background: linear-gradient(135deg, rgba(79,195,247,0.3) 0%, rgba(79,195,247,0.1) 100%);
+      border: 1px solid var(--accent-cyan);
+      color: #FFF;
+      font-weight: 600;
+      animation: glow 2s infinite;
+    }
+
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 5px rgba(79, 195, 247, 0.2); }
+      50% { box-shadow: 0 0 15px rgba(79, 195, 247, 0.5); }
+    }
+
+    .tip-text {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      grid-column: 2;
+      grid-row: 2;
+      align-self: start;
+      justify-self: center;
+      background: rgba(13, 15, 18, 0.6);
+      padding: 6px 15px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      margin-top: 10px;
+    }
+
+    /* Responsive */
+    @media (max-width: 960px) {
+      .hud-layer {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+        overflow-y: auto;
+        pointer-events: auto;
+      }
+      .interactive {
+        pointer-events: auto;
+      }
+      .sidebar-left, .sidebar-right, .bottom-bar {
+        grid-column: 1;
+        grid-row: auto;
+      }
+      header {
+        grid-column: 1;
+      }
+      .bottom-bar {
+        align-self: auto;
+      }
+      body {
+        overflow-y: auto;
+      }
+      .hud-layer {
+        height: auto;
+        padding-bottom: 100px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Real Camera Feed for AR -->
+  <video id="ar-video" autoplay playsinline muted></video>
+
+  <!-- 3D Viewport Container -->
+  <div id="canvas-container">
+    <canvas id="stage3d"></canvas>
+  </div>
+
+  <!-- Simulated AR Instructions -->
+  <div id="ar-overlay-ui" class="ar-overlay">
+    <h3 id="ar-inst-title">Instrucciones de Realidad Aumentada</h3>
+    <p id="ar-inst-body">Coloca el dispositivo frente a tu mesa de trabajo. El simulador proyectará el modelo 3D sobre el flujo de tu cámara, permitiéndote rotarlo y escalarlo.</p>
+    <button class="action-btn interactive" style="width: 100px; margin: 0 auto;" onclick="closeArInstructions()">OK</button>
+  </div>
+
+  <!-- HUD Interface Layer -->
+  <div class="hud-layer">
+    <!-- Header -->
+    <header class="interactive">
+      <div class="creator-badge">
+        <h2>FloatingFab Nexus • Prototipo 3D</h2>
+        <h1>Dr. Julio César Oporta Barrera</h1>
+      </div>
+      <div class="lang-selector">
+        <button class="lang-btn active" onclick="setLanguage('ES')">ES</button>
+        <button class="lang-btn" onclick="setLanguage('EN')">EN</button>
+        <button class="lang-btn" onclick="setLanguage('ZH')">中文</button>
+      </div>
+    </header>
+
+    <div class="tip-text" id="tip-controls">Arrastra para rotar • Rueda de mouse para zoom • Click en nodos para pulsar</div>
+
+    <!-- Left Sidebar: Modes & Basic Actions -->
+    <div class="sidebar-left interactive">
+      <div class="panel">
+        <div class="panel-title" id="title-modes">Modos Operativos Integrados</div>
+        <div class="mode-list">
+          <button class="mode-btn active" id="btn-mode-prod" onclick="setMode('PRODUCTION')">
+            <span class="mode-name" id="mode-prod-name">Producción Adaptativa</span>
+            <span class="mode-desc" id="mode-prod-desc">Cobots activos fabricando biopolímeros y biorreactor controlando el pH y turbidez.</span>
+          </button>
+          <button class="mode-btn" id="btn-mode-nav" onclick="setMode('AUTONAV')">
+            <span class="mode-name" id="mode-nav-name">Autonavegación GNN</span>
+            <span class="mode-desc" id="mode-nav-desc">Propulsores marinos de 360° guiados por Neuro-IA analizando datos satelitales globales.</span>
+          </button>
+          <button class="mode-btn" id="btn-mode-dock" onclick="setMode('DOCKING')">
+            <span class="mode-name" id="mode-dock-name">Acoplamiento DSD</span>
+            <span class="mode-desc" id="mode-dock-desc">Acoplamiento hexagonal perfecto usando el Algoritmo de Acoplamiento Dinámico.</span>
+          </button>
+          <button class="mode-btn" id="btn-mode-storm" onclick="setMode('STORM_SURVIVAL')">
+            <span class="mode-name" id="mode-storm-name">Supervivencia Climática</span>
+            <span class="mode-desc" id="mode-storm-desc">Sistemas replegados, anclaje magnético activado y propulsores contra olas.</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title" id="title-simulation">Interacción Directa</div>
+        <div class="action-grid">
+          <button class="action-btn" id="btn-add-block" onclick="triggerBlock()">Simular Bloque</button>
+          <button class="action-btn" id="btn-deploy-drone" onclick="deployDrone()">Desplegar Drone</button>
+          <button class="action-btn" id="btn-stabilize" onclick="stabilize()">Estabilizar Casco</button>
+          <button class="action-btn" id="btn-test-sensors" onclick="testSensors()">Test de Sensores</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Sidebar: Technical HUD Metrics & Charts -->
+    <div class="sidebar-right interactive">
+      <div class="panel">
+        <div class="panel-title" id="title-metrics">Métricas en Tiempo Real</div>
+        
+        <div class="metric-row">
+          <span class="metric-label" id="lbl-waves">Altura del Oleaje</span>
+          <span class="metric-value" id="val-waves">0.45 m</span>
+        </div>
+        <canvas class="mini-chart" id="chart-waves"></canvas>
+
+        <div class="metric-row">
+          <span class="metric-label" id="lbl-energy">Energía Híbrida</span>
+          <span class="metric-value" id="val-energy">98.2 kW</span>
+        </div>
+        
+        <div class="metric-row">
+          <span class="metric-label" id="lbl-ph">pH Biorreactor</span>
+          <span class="metric-value" id="val-ph">7.24</span>
+        </div>
+
+        <div class="metric-row">
+          <span class="metric-label" id="lbl-co2">CO₂ Reducido</span>
+          <span class="metric-value">42.5 kg/h</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title" id="title-blockchain">Registro Blockchain (NFT)</div>
+        <div class="blockchain-feed" id="block-feed">
+          <div class="block-item">
+            <strong>Block #3240</strong><br>
+            Hash: 0x9f32e...4a21<br>
+            Status: NFT Minted (Genesis)<br>
+            Emisiones: 0.12 kg CO₂/kWh
+          </div>
+          <div class="block-item">
+            <strong>Block #3241</strong><br>
+            Hash: 0x3d41f...89c0<br>
+            Status: Cobot Batch Verified
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Status Bar -->
+    <div class="bottom-bar interactive">
+      <div class="status-group">
+        <div class="status-indicator pulse" id="status-indicator"></div>
+        <span id="lbl-system-status">SISTEMA ONLINE (AUTÓNOMO)</span>
+      </div>
+      <button class="action-btn ar-toggle-btn" id="btn-ar" onclick="toggleAR()">ACTIVAR MODO AR (CÁMARA)</button>
+      <div class="status-group" style="font-family: monospace;">
+        <span>SYS-NODE: FF-NEXUS-001</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- DICTIONARY FOR LANGUAGES (ES, EN, ZH) ---
+    const dict = {
+      ES: {
+        title: "Modos Operativos Integrados",
+        simTitle: "Interacción Directa",
+        metricsTitle: "Métricas en Tiempo Real",
+        bcTitle: "Registro Blockchain (NFT)",
+        tip: "Arrastra para rotar • Rueda de mouse para zoom • Click en nodos para pulsar",
+        modeProd: "Producción Adaptativa",
+        modeProdDesc: "Cobots activos fabricando biopolímeros y biorreactor controlando el pH y turbidez.",
+        modeNav: "Autonavegación GNN",
+        modeNavDesc: "Propulsores marinos de 360° guiados por Neuro-IA analizando datos satelitales globales.",
+        modeDock: "Acoplamiento DSD",
+        modeDockDesc: "Acoplamiento hexagonal perfecto usando el Algoritmo de Acoplamiento Dinámico.",
+        modeStorm: "Supervivencia Climática",
+        modeStormDesc: "Sistemas replegados, anclaje magnético activado y propulsores contra olas.",
+        
+        lblWaves: "Altura del Oleaje",
+        lblEnergy: "Energía Híbrida",
+        lblPh: "pH Biorreactor",
+        lblCo2: "CO₂ Reducido",
+        
+        btnBlock: "Simular Bloque",
+        btnDrone: "Desplegar Drone",
+        btnStabilize: "Estabilizar Casco",
+        btnTest: "Test de Sensores",
+        
+        arOn: "ACTIVAR MODO AR (CÁMARA)",
+        arOff: "DESACTIVAR MODO AR",
+        sysOnline: "SISTEMA ONLINE (AUTÓNOMO)",
+        sysStorm: "ALERTA DE TORMENTA ACTIVA",
+        sysNav: "NAVEGACIÓN ACTIVA (GNN)",
+        sysDock: "ACOPLAMIENTO MILIMÉTRICO DSD",
+        
+        arTitle: "Realidad Aumentada (AR)",
+        arBody: "Coloca el dispositivo frente a tu mesa de trabajo. El simulador proyectará el modelo 3D sobre el flujo de tu cámara, permitiéndote rotarlo y escalarlo con toques o arrastre."
+      },
+      EN: {
+        title: "Integrated Operational Modes",
+        simTitle: "Direct Interaction",
+        metricsTitle: "Real-Time Metrics",
+        bcTitle: "Blockchain Ledger (NFT)",
+        tip: "Drag to rotate • Mouse wheel to zoom • Click nodes to send pulses",
+        modeProd: "Adaptive Production",
+        modeProdDesc: "Active cobots manufacturing biopolymers & bioreactor controlling pH and turbidity.",
+        modeNav: "GNN Autonavigation",
+        modeNavDesc: "360° marine thrusters guided by Neuro-AI analyzing global satellite demand.",
+        modeDock: "DSD Docking",
+        modeDockDesc: "Perfect hexagonal mating using the Dynamic Structural Docking Algorithm.",
+        modeStorm: "Storm Survival",
+        modeStormDesc: "Retracted systems, magnetic anchoring active and thrusters countering waves.",
+        
+        lblWaves: "Wave Height",
+        lblEnergy: "Hybrid Energy",
+        lblPh: "Bioreactor pH",
+        lblCo2: "CO₂ Reduced",
+        
+        btnBlock: "Simulate Block",
+        btnDrone: "Deploy Drone",
+        btnStabilize: "Stabilize Hull",
+        btnTest: "Test Sensors",
+        
+        arOn: "ACTIVATE AR MODE (CAMERA)",
+        arOff: "DEACTIVATE AR MODE",
+        sysOnline: "SYSTEM ONLINE (AUTONOMOUS)",
+        sysStorm: "STORM ALERT ACTIVE",
+        sysNav: "NAVIGATION ACTIVE (GNN)",
+        sysDock: "PRECISION DSD DOCKING",
+        
+        arTitle: "Augmented Reality (AR)",
+        arBody: "Place your device in front of your workbench. The simulator will project the 3D model over your live camera feed, letting you rotate and scale with touches or dragging."
+      },
+      ZH: {
+        title: "集成操作模式",
+        simTitle: "直接交互控制",
+        metricsTitle: "实时系统度量",
+        bcTitle: "区块链账本 (NFT)",
+        tip: "拖动旋转 • 鼠标滚轮缩放 • 单击节点发送电磁脉冲",
+        modeProd: "自适应生产",
+        modeProdDesc: "协作机器人制造生物聚合物，生物反应器监控pH和浊度。区块链登记。",
+        modeNav: "GNN自主导航",
+        modeNavDesc: "360°海洋推进器由神级神经AI引导，分析全球卫星需求。",
+        modeDock: "DSD动态对接",
+        modeDockDesc: "基于卡尔曼滤波的动态结构对接算法，实现完美六方拼接。",
+        modeStorm: "风暴生存模式",
+        modeStormDesc: "系统折叠收缩，电磁锚固激活，推进器全开抵消恶劣风浪。",
+        
+        lblWaves: "波浪高度",
+        lblEnergy: "混合能源",
+        lblPh: "生物反应器pH",
+        lblCo2: "二氧化碳减排",
+        
+        btnBlock: "模拟区块链",
+        btnDrone: "部署无人机",
+        btnStabilize: "校准稳定性",
+        btnTest: "测试传感器",
+        
+        arOn: "激活AR相机模式",
+        arOff: "关闭AR相机模式",
+        sysOnline: "系统正在线上运行 (自主)",
+        sysStorm: "恶劣风暴生存警戒激活",
+        sysNav: "神经自航网络引导中 (GNN)",
+        sysDock: "高精度六角自动对接中 (DSD)",
+        
+        arTitle: "增强现实模拟 (AR)",
+        arBody: "将设备放在工作台前。模拟器会在您的实时相机流上投影3D浮动工厂模型，可用手势缩放及旋转。"
+      }
+    };
+
+    let currentLang = 'ES';
+    let currentMode = 'PRODUCTION';
+    let isARActive = false;
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.innerText.includes(lang === 'ZH' ? '中文' : lang));
+      });
+      
+      const d = dict[lang];
+      document.getElementById('title-modes').innerText = d.title;
+      document.getElementById('title-simulation').innerText = d.simTitle;
+      document.getElementById('title-metrics').innerText = d.metricsTitle;
+      document.getElementById('title-blockchain').innerText = d.bcTitle;
+      document.getElementById('tip-controls').innerText = d.tip;
+      
+      // Mode text
+      document.getElementById('mode-prod-name').innerText = d.modeProd;
+      document.getElementById('mode-prod-desc').innerText = d.modeProdDesc;
+      document.getElementById('mode-nav-name').innerText = d.modeNav;
+      document.getElementById('mode-nav-desc').innerText = d.modeNavDesc;
+      document.getElementById('mode-dock-name').innerText = d.modeDock;
+      document.getElementById('mode-dock-desc').innerText = d.modeDockDesc;
+      document.getElementById('mode-storm-name').innerText = d.modeStorm;
+      document.getElementById('mode-storm-desc').innerText = d.modeStormDesc;
+      
+      // Labels
+      document.getElementById('lbl-waves').innerText = d.lblWaves;
+      document.getElementById('lbl-energy').innerText = d.lblEnergy;
+      document.getElementById('lbl-ph').innerText = d.lblPh;
+      document.getElementById('lbl-co2').innerText = d.lblCo2;
+      
+      // Action Buttons
+      document.getElementById('btn-add-block').innerText = d.btnBlock;
+      document.getElementById('btn-deploy-drone').innerText = d.btnDrone;
+      document.getElementById('btn-stabilize').innerText = d.btnStabilize;
+      document.getElementById('btn-test-sensors').innerText = d.btnTest;
+      
+      // AR instructions
+      document.getElementById('ar-inst-title').innerText = d.arTitle;
+      document.getElementById('ar-inst-body').innerText = d.arBody;
+
+      updateStatusText();
+    }
+
+    function updateStatusText() {
+      const d = dict[currentLang];
+      const indicator = document.getElementById('status-indicator');
+      const text = document.getElementById('lbl-system-status');
+      
+      document.getElementById('btn-ar').innerText = isARActive ? d.arOff : d.arOn;
+
+      if (currentMode === 'PRODUCTION') {
+        indicator.style.background = '#4CAF50';
+        indicator.style.boxShadow = '0 0 10px #4CAF50';
+        text.innerText = d.sysOnline;
+      } else if (currentMode === 'AUTONAV') {
+        indicator.style.background = '#4FC3F7';
+        indicator.style.boxShadow = '0 0 10px #4FC3F7';
+        text.innerText = d.sysNav;
+      } else if (currentMode === 'DOCKING') {
+        indicator.style.background = '#E040FB';
+        indicator.style.boxShadow = '0 0 10px #E040FB';
+        text.innerText = d.sysDock;
+      } else if (currentMode === 'STORM_SURVIVAL') {
+        indicator.style.background = '#FF5252';
+        indicator.style.boxShadow = '0 0 10px #FF5252';
+        text.innerText = d.sysStorm;
+      }
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+      if (mode === 'PRODUCTION') document.getElementById('btn-mode-prod').classList.add('active');
+      if (mode === 'AUTONAV') document.getElementById('btn-mode-nav').classList.add('active');
+      if (mode === 'DOCKING') document.getElementById('btn-mode-dock').classList.add('active');
+      if (mode === 'STORM_SURVIVAL') document.getElementById('btn-mode-storm').classList.add('active');
+      
+      updateStatusText();
+    }
+
+    // --- CANVAS 3D ENGINE ---
+    const canvas = document.getElementById('stage3d');
+    const ctx = canvas.getContext('2d');
+
+    let width = canvas.width = window.innerWidth;
+    let height = canvas.height = window.innerHeight;
+
+    window.addEventListener('resize', () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    });
+
+    // 3D Variables
+    let angleX = 0.5; // Pitch
+    let angleY = -0.6; // Yaw
+    let zoomScale = 1.0;
+    
+    // User interactions for rotating
+    let isDragging = false;
+    let startX = 0, startY = 0;
+
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      let dx = e.clientX - startX;
+      let dy = e.clientY - startY;
+      angleY += dx * 0.005;
+      angleX += dy * 0.005;
+      angleX = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, angleX)); // restrict pitch
+      startX = e.clientX;
+      startY = e.clientY;
+    });
+
+    window.addEventListener('mouseup', () => isDragging = false);
+
+    // Touch support for mobile
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+      }
+    });
+
+    window.addEventListener('touchmove', (e) => {
+      if (!isDragging || e.touches.length !== 1) return;
+      let dx = e.touches[0].clientX - startX;
+      let dy = e.touches[0].clientY - startY;
+      angleY += dx * 0.005;
+      angleX += dy * 0.005;
+      angleX = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, angleX));
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    });
+
+    window.addEventListener('touchend', () => isDragging = false);
+
+    // Mouse Wheel Zoom
+    window.addEventListener('wheel', (e) => {
+      zoomScale -= e.deltaY * 0.0008;
+      zoomScale = Math.max(0.4, Math.min(2.5, zoomScale));
+    });
+
+    // 3D Vector Math
+    function project(x, y, z) {
+      // Rotation Y
+      let cosY = Math.cos(angleY), sinY = Math.sin(angleY);
+      let x1 = x * cosY - z * sinY;
+      let z1 = x * sinY + z * cosY;
+
+      // Rotation X
+      let cosX = Math.cos(angleX), sinX = Math.sin(angleX);
+      let y2 = y * cosX - z1 * sinX;
+      let z2 = y * sinX + z1 * cosX;
+
+      // Perspective Projection
+      let d = 500; // distance
+      let scale = (d * zoomScale) / (d + z2);
+      
+      let screenX = width / 2 + x1 * scale;
+      let screenY = height / 2 + y2 * scale;
+
+      return { x: screenX, y: screenY, z: z2 };
+    }
+
+    // Helper to draw projected polygon
+    function drawPolygon(pts, fillStyle, strokeStyle, lineWidth = 1) {
+      if (pts.length < 3) return;
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i].x, pts[i].y);
+      }
+      ctx.closePath();
+      if (fillStyle) {
+        ctx.fillStyle = fillStyle;
+        ctx.fill();
+      }
+      if (strokeStyle) {
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+      }
+    }
+
+    // --- ENTITIES & SYSTEM SIMULATION STATE ---
+    let time = 0;
+    let waveHist = Array(100).fill(0.3);
+    let droneHeightOffset = 0;
+    let sensorPulseRadius = 0;
+    let activeWeldPoint = null;
+    let sparks = [];
+
+    // Nodos IA
+    let nodes = [
+      { name: "CDE Reactor", x: 0, y: -25, z: 0, pulse: 0, color: "#4FC3F7" },
+      { name: "KUKA Cobot", x: -60, y: -20, z: -30, pulse: 0, color: "#E040FB" },
+      { name: "GNN Prop-1", x: -100, y: 15, z: 80, pulse: 0, color: "#FF9800" },
+      { name: "DSD Magnet-2", x: 100, y: 15, z: -80, pulse: 0, color: "#9C27B0" },
+      { name: "Blockchain Sync", x: 60, y: -20, z: 40, pulse: 0, color: "#4CAF50" }
+    ];
+
+    // Trigger pulse on Node
+    canvas.addEventListener('click', (e) => {
+      // Check if clicked near projected node
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      nodes.forEach(node => {
+        let p = project(node.x, node.y, node.z);
+        let dist = Math.hypot(clickX - p.x, clickY - p.y);
+        if (dist < 18) {
+          node.pulse = 1.0;
+          triggerBlock("Manual telemetry synced. Node: " + node.name);
+        }
+      });
+    });
+
+    // Reactor bubbles for realistic animation
+    let reactorBubbles = [];
+    for (let i = 0; i < 8; i++) {
+      reactorBubbles.push({
+        y: -25 - Math.random() * 35,
+        r: 0.8 + Math.random() * 1.5,
+        offsetX: (Math.random() - 0.5) * 12,
+        offsetZ: (Math.random() - 0.5) * 12,
+        speed: 0.2 + Math.random() * 0.3,
+      });
+    }
+
+    // Deploy drone list
+    let drones = [
+      { x: -120, y: -100, z: -100, targetY: -100, rot: 0, scanAngle: 0 }
+    ];
+
+    function deployDrone() {
+      let r = 100 + Math.random() * 80;
+      let angle = Math.random() * Math.PI * 2;
+      drones.push({
+        x: Math.cos(angle) * r,
+        y: -150 - Math.random() * 50,
+        z: Math.sin(angle) * r,
+        targetY: -120 - Math.random() * 50,
+        rot: Math.random() * Math.PI,
+        scanAngle: 0
+      });
+      triggerBlock("Swarm drone spawned. System synced via Stigmergy.");
+    }
+
+    function triggerBlock(customText) {
+      const feed = document.getElementById('block-feed');
+      const bNum = 3242 + feed.children.length;
+      const hash = "0x" + Math.random().toString(16).slice(2, 10) + "..." + Math.random().toString(16).slice(2, 6);
+      
+      const div = document.createElement('div');
+      div.className = "block-item";
+      if (customText && customText.includes("warning")) div.classList.add('warning');
+
+      div.innerHTML = `
+        <strong>Block #${bNum}</strong><br>
+        Hash: ${hash}<br>
+        Event: ${customText || "Adaptive Production Verified"}<br>
+        Timestamp: ${new Date().toLocaleTimeString()}
+      `;
+      
+      feed.insertBefore(div, feed.firstChild);
+      if (feed.children.length > 10) feed.removeChild(feed.lastChild);
+    }
+
+    function deployPulse() {
+      sensorPulseRadius = 0.1;
+    }
+
+    function testSensors() {
+      deployPulse();
+      triggerBlock("Multibeam sonar sensor telemetry self-test: PASSED.");
+    }
+
+    function stabilize() {
+      zoomScale = 1.0;
+      angleX = 0.5;
+      angleY = -0.6;
+      triggerBlock("Stabilizing physical hull. Active counter-ballast active.");
+    }
+
+    // Toggle AR Camera
+    async function toggleAR() {
+      const video = document.getElementById('ar-video');
+      if (isARActive) {
+        // Stop Camera
+        const stream = video.srcObject;
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+        }
+        video.srcObject = null;
+        video.style.display = 'none';
+        isARActive = false;
+        document.body.style.background = 'var(--bg-color)';
+      } else {
+        // Start camera
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+          video.srcObject = stream;
+          video.style.display = 'block';
+          document.body.style.background = 'transparent';
+          isARActive = true;
+          document.getElementById('ar-overlay-ui').style.display = 'block';
+        } catch (err) {
+          alert("Error: No se pudo iniciar la cámara en modo local/archivo. " + err.message);
+        }
+      }
+      updateStatusText();
+    }
+
+    function closeArInstructions() {
+      document.getElementById('ar-overlay-ui').style.display = 'none';
+    }
+
+
+    // --- RENDERING LOOP ---
+    function render() {
+      time += 0.03;
+      ctx.clearRect(0, 0, width, height);
+
+      // Waves and Storm metrics simulation
+      let waveAmp = 0.4;
+      let waveFreq = 0.02;
+      let waveSpeed = 2;
+
+      if (currentMode === 'STORM_SURVIVAL') {
+        waveAmp = 1.8 + Math.sin(time) * 0.4;
+        waveFreq = 0.03;
+        waveSpeed = 4.5;
+        // simulated lightning
+        if (Math.random() > 0.985) {
+          ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+          ctx.fillRect(0, 0, width, height);
+        }
+      } else if (currentMode === 'AUTONAV') {
+        waveAmp = 0.9;
+        waveSpeed = 2.8;
+      }
+
+      // Update HUD values
+      let currentWaveH = (waveAmp * 0.7 + Math.sin(time * 2) * 0.05).toFixed(2);
+      document.getElementById('val-waves').innerText = currentWaveH + " m";
+      waveHist.push(parseFloat(currentWaveH));
+      if (waveHist.length > 100) waveHist.shift();
+
+      let currentPower = (110.4 + Math.sin(time) * 12 + (currentMode === 'STORM_SURVIVAL' ? -40 : 0)).toFixed(1);
+      document.getElementById('val-energy').innerText = currentPower + " kW";
+
+      let currentPh = (7.2 + Math.sin(time * 0.5) * 0.08).toFixed(2);
+      document.getElementById('val-ph').innerText = currentPh;
+
+      // Draw Wave mini chart
+      const chartCanvas = document.getElementById('chart-waves');
+      const cCtx = chartCanvas.getContext('2d');
+      cCtx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+      cCtx.strokeStyle = "#4FC3F7";
+      cCtx.lineWidth = 1.5;
+      cCtx.beginPath();
+      for (let i = 0; i < waveHist.length; i++) {
+        let x = (i / waveHist.length) * chartCanvas.width;
+        let y = chartCanvas.height - (waveHist[i] / 2.5) * chartCanvas.height - 2;
+        if (i === 0) cCtx.moveTo(x, y);
+        else cCtx.lineTo(x, y);
+      }
+      cCtx.stroke();
+
+      // Platform Floating motion calculations (heave & pitch)
+      let heave = Math.sin(time * waveSpeed) * waveAmp * 6;
+      let platformPitch = Math.cos(time * waveSpeed * 0.8) * waveAmp * 0.025;
+      let platformRoll = Math.sin(time * waveSpeed * 0.7) * waveAmp * 0.015;
+
+      // Project Matrix transformations helper
+      function localProject(lx, ly, lz) {
+        // Pitch roll yaw locally on platform
+        let cosP = Math.cos(platformPitch), sinP = Math.sin(platformPitch);
+        let cosR = Math.cos(platformRoll), sinR = Math.sin(platformRoll);
+        
+        // Pitch
+        let y1 = ly * cosP - lz * sinP;
+        let z1 = ly * sinP + lz * cosP;
+
+        // Roll
+        let x2 = lx * cosR - z1 * sinR;
+        let z2 = lx * sinR + z1 * cosR;
+
+        // apply heave and project
+        return project(x2, y1 + heave, z2);
+      }
+
+      // --- 1. DRAW GLOWING OCEAN SHADER ---
+      ctx.strokeStyle = "rgba(79, 195, 247, 0.06)";
+      ctx.lineWidth = 1;
+      let oSize = 250;
+      let oStep = 25;
+      for (let ox = -oSize; ox <= oSize; ox += oStep) {
+        ctx.beginPath();
+        for (let oz = -oSize; oz <= oSize; oz += 5) {
+          let waveY = Math.sin(time * waveSpeed + (ox + oz) * waveFreq) * waveAmp * 8;
+          let p = project(ox, waveY + 25, oz);
+          if (oz === -oSize) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+      }
+
+      // --- 2. DRAW PHANTOM HEX FOR DOCKING SIMULATION ---
+      if (currentMode === 'DOCKING') {
+        let docOffset = Math.max(0, 150 - time * 20 % 300);
+        let ptsD = [];
+        let hexRadius = 110;
+        ctx.strokeStyle = "rgba(224, 64, 251, 0.4)";
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < 6; i++) {
+          let a = i * Math.PI / 3;
+          let px = Math.cos(a) * hexRadius + docOffset;
+          let pz = Math.sin(a) * hexRadius + docOffset;
+          ptsD.push(project(px, 15 + heave, pz));
+        }
+        drawPolygon(ptsD, "rgba(224, 64, 251, 0.05)", "rgba(224, 64, 251, 0.6)", 1.5);
+        // connection vectors
+        let nodeHost = localProject(0, 0, 0);
+        let nodeGuest = project(docOffset, heave, docOffset);
+        ctx.beginPath();
+        ctx.moveTo(nodeHost.x, nodeHost.y);
+        ctx.lineTo(nodeGuest.x, nodeGuest.y);
+        ctx.strokeStyle = "rgba(224, 64, 251, 0.5)";
+        ctx.setLineDash([5, 5]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // --- 3. GEOMETRY: HEXAGONAL DECK HULL (TITANIUM STEEL FINISH) ---
+      let hexRadius = 110;
+      let deckY = -20;
+      let keelY = 20;
+
+      let deckPts = [];
+      let keelPts = [];
+
+      for (let i = 0; i < 6; i++) {
+        let a = i * Math.PI / 3;
+        let hx = Math.cos(a) * hexRadius;
+        let hz = Math.sin(a) * hexRadius;
+        
+        deckPts.push(localProject(hx, deckY, hz));
+        keelPts.push(localProject(hx, keelY, hz));
+      }
+
+      // Draw sides (Faces depth sorting simplified by orientation)
+      // Since it's symmetric, we draw the back faces with dark gradient, then keel bottom, then deck, then front sides
+      // Keeps paint order correct.
+      for (let i = 0; i < 6; i++) {
+        let next = (i + 1) % 6;
+        // Side face pts
+        let sidePts = [deckPts[i], deckPts[next], keelPts[next], keelPts[i]];
+        // flat lighting shading based on simple surface normal and light direction (0.5, -1, 0.5)
+        let midA = (i + 0.5) * Math.PI / 3;
+        let shade = Math.floor(45 + Math.cos(midA + angleY) * 20);
+        
+        drawPolygon(sidePts, `rgb(${shade},${shade + 5},${shade + 8})`, "rgba(79, 195, 247, 0.15)", 1);
+      }
+
+      // Keel Bottom Cover
+      drawPolygon(keelPts, "rgba(26, 31, 35, 0.9)", "rgba(79, 195, 247, 0.08)", 1);
+
+      // --- Thruster ion plumes (flickering glowing exhaust) ---
+      let tPlumeScale = currentMode === 'AUTONAV' ? 1.5 : (currentMode === 'STORM_SURVIVAL' ? 2.5 : 0.4);
+      tPlumeScale += Math.sin(time * 20) * 0.15; // flicker
+      let hexHullEdges = [
+        { x: Math.cos(0) * 110, z: Math.sin(0) * 110 },
+        { x: Math.cos(Math.PI/3) * 110, z: Math.sin(Math.PI/3) * 110 },
+        { x: Math.cos(2*Math.PI/3) * 110, z: Math.sin(2*Math.PI/3) * 110 },
+        { x: Math.cos(Math.PI) * 110, z: Math.sin(Math.PI) * 110 },
+        { x: Math.cos(4*Math.PI/3) * 110, z: Math.sin(4*Math.PI/3) * 110 },
+        { x: Math.cos(5*Math.PI/3) * 110, z: Math.sin(5*Math.PI/3) * 110 },
+      ];
+      hexHullEdges.forEach((edge) => {
+        let tBase = localProject(edge.x * 0.8, keelY, edge.z * 0.8);
+        let tTip = localProject(edge.x * 0.8, keelY + 14 * tPlumeScale, edge.z * 0.8);
+        
+        let grad = ctx.createLinearGradient(tBase.x, tBase.y, tTip.x, tTip.y);
+        grad.addColorStop(0, "rgba(79, 195, 247, 0.65)");
+        grad.addColorStop(1, "rgba(79, 195, 247, 0.0)");
+        
+        ctx.beginPath();
+        ctx.moveTo(tBase.x - 5, tBase.y);
+        ctx.lineTo(tBase.x + 5, tBase.y);
+        ctx.lineTo(tTip.x, tTip.y);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+      });
+
+      // Deck Top Cover (Titanio gris grafito satinado)
+      drawPolygon(deckPts, "rgba(35, 41, 46, 0.95)", "rgba(79, 195, 247, 0.3)", 1.5);
+
+      // --- Holographic HUD ring floating just above deck ---
+      let ringRadius = 135;
+      let ringPts = [];
+      for (let i = 0; i < 16; i++) {
+        let a = i * Math.PI / 8 - time * 0.12;
+        let rx = Math.cos(a) * ringRadius;
+        let rz = Math.sin(a) * ringRadius;
+        ringPts.push(localProject(rx, deckY - 1, rz));
+      }
+      ctx.beginPath();
+      ctx.moveTo(ringPts[0].x, ringPts[0].y);
+      for (let i = 1; i < ringPts.length; i++) {
+        ctx.lineTo(ringPts[i].x, ringPts[i].y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = "rgba(79, 195, 247, 0.28)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([8, 8]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // --- 4. DECK ELEMENTS: SOLAR PANELS (Glowing Grid) ---
+      let solPts = [];
+      for (let i = 0; i < 4; i++) {
+        let sa = (i + 0.5) * Math.PI / 2;
+        let sx = Math.cos(sa) * 35;
+        let sz = Math.sin(sa) * 35;
+        solPts.push(localProject(sx, deckY - 1, sz));
+      }
+      drawPolygon(solPts, "rgba(18, 55, 75, 0.8)", "rgba(79, 195, 247, 0.6)", 1);
+
+      // --- 5. DECK ELEMENTS: BIOPOLYMER BIOPROCESSOR TANK ---
+      let bioCenter = { x: 0, y: deckY, z: 0 };
+      let bioHeight = 45;
+      let bioRadius = 18;
+
+      let bTopPts = [];
+      let bBotPts = [];
+      for (let i = 0; i < 8; i++) {
+        let a = i * Math.PI / 4;
+        bBotPts.push(localProject(Math.cos(a) * bioRadius, deckY, Math.sin(a) * bioRadius));
+        bTopPts.push(localProject(Math.cos(a) * bioRadius, deckY - bioHeight, Math.sin(a) * bioRadius));
+      }
+
+      // Glass body gradient fill
+      let pBotCenter = localProject(0, deckY, 0);
+      let pTopCenter = localProject(0, deckY - bioHeight, 0);
+      
+      // Reactor contents
+      let reactFluidY = deckY - 5 - (Math.sin(time * 1.5) * 3 + bioHeight - 12);
+      let fluidTopPts = [];
+      for (let i = 0; i < 8; i++) {
+        let a = i * Math.PI / 4;
+        fluidTopPts.push(localProject(Math.cos(a) * bioRadius, reactFluidY, Math.sin(a) * bioRadius));
+      }
+      
+      drawPolygon(bBotPts, "rgba(13, 15, 18, 0.9)", "rgba(79, 195, 247, 0.3)");
+      drawPolygon(fluidTopPts, "rgba(79, 195, 247, 0.25)", "rgba(79, 195, 247, 0.4)");
+
+      // Render & update reactor bubbles floating upward
+      ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+      reactorBubbles.forEach(b => {
+        b.y -= b.speed;
+        if (b.y < deckY - bioHeight) {
+          b.y = deckY - 5;
+          b.offsetX = (Math.random() - 0.5) * 12;
+          b.offsetZ = (Math.random() - 0.5) * 12;
+        }
+        let bp = localProject(b.offsetX, b.y, b.offsetZ);
+        ctx.beginPath();
+        ctx.arc(bp.x, bp.y, b.r * zoomScale, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      
+      // Glass outlines
+      ctx.beginPath();
+      ctx.moveTo(bBotPts[0].x, bBotPts[0].y);
+      ctx.lineTo(bTopPts[0].x, bTopPts[0].y);
+      ctx.moveTo(bBotPts[4].x, bBotPts[4].y);
+      ctx.lineTo(bTopPts[4].x, bTopPts[4].y);
+      ctx.strokeStyle = "rgba(79, 195, 247, 0.5)";
+      ctx.stroke();
+
+      drawPolygon(bTopPts, "rgba(50, 60, 70, 0.8)", "rgba(79, 195, 247, 0.5)");
+
+      // Biorreactor top dome (clinical white)
+      let domePts = [];
+      for (let i = 0; i < 8; i++) {
+        let a = i * Math.PI / 4;
+        domePts.push(localProject(Math.cos(a) * (bioRadius + 1), deckY - bioHeight - 5, Math.sin(a) * (bioRadius + 1)));
+      }
+      drawPolygon(domePts, "#E2E8F0", "rgba(0,0,0,0.2)");
+
+
+      // --- 6. BIOMECHANICS: ROBOTIC COBOT ARM (KUKA style) ---
+      let robotBase = { x: -45, y: deckY, z: -45 };
+      let armJoint0 = localProject(robotBase.x, robotBase.y, robotBase.z);
+      
+      // robotic movement logic based on time
+      let rSpeed = currentMode === 'PRODUCTION' ? 2.5 : 1.0;
+      let robotSweep = Math.sin(time * rSpeed) * 0.4;
+      let rHeight = -18 + Math.cos(time * rSpeed * 1.5) * 8;
+
+      if (currentMode === 'STORM_SURVIVAL') {
+        // Safe folded posture
+        robotSweep = 0;
+        rHeight = 2;
+      }
+
+      let armJoint1 = localProject(robotBase.x, robotBase.y - 15, robotBase.z);
+      let armJoint2 = localProject(robotBase.x + Math.cos(robotSweep) * 30, robotBase.y - 35 + rHeight * 0.5, robotBase.z + Math.sin(robotSweep) * 30);
+      let armJoint3 = localProject(robotBase.x + Math.cos(robotSweep) * 45, robotBase.y - 32 + rHeight, robotBase.z + Math.sin(robotSweep) * 45);
+
+      // Segment drawing with titanium gray and glowing details
+      ctx.strokeStyle = "#4E555C"; // Dark gray steel
+      ctx.lineWidth = 10;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(armJoint0.x, armJoint0.y);
+      ctx.lineTo(armJoint1.x, armJoint1.y);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#7E8B96"; // light silver
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.moveTo(armJoint1.x, armJoint1.y);
+      ctx.lineTo(armJoint2.x, armJoint2.y);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#E2E8F0"; // Clinical white upper
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(armJoint2.x, armJoint2.y);
+      ctx.lineTo(armJoint3.x, armJoint3.y);
+      ctx.stroke();
+      ctx.lineCap = "butt";
+
+      // Glowing Cyan Toolhead
+      ctx.beginPath();
+      ctx.arc(armJoint3.x, armJoint3.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "#4FC3F7";
+      ctx.fill();
+
+      // Lasers and Welding sparks (Production Mode)
+      if (currentMode === 'PRODUCTION') {
+        let weldTarget = localProject(-15, deckY - 3, -15);
+        ctx.beginPath();
+        ctx.moveTo(armJoint3.x, armJoint3.y);
+        ctx.lineTo(weldTarget.x, weldTarget.y);
+        ctx.strokeStyle = "rgba(79, 195, 247, 0.75)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Spawn sparks
+        if (Math.random() > 0.4) {
+          sparks.push({
+            x: weldTarget.x,
+            y: weldTarget.y,
+            vx: (Math.random() - 0.5) * 4,
+            vy: -Math.random() * 5 - 2,
+            life: 1.0
+          });
+        }
+      }
+
+      // Render & update sparks
+      ctx.fillStyle = "#4FC3F7";
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        let s = sparks[i];
+        ctx.fillRect(s.x, s.y, 2, 2);
+        s.x += s.vx;
+        s.y += s.vy;
+        s.vy += 0.2; // gravity
+        s.life -= 0.05;
+        if (s.life <= 0) sparks.splice(i, 1);
+      }
+
+      // --- 7. HYBRID ENERGY: WIND TURBINES (Vertical Axis Eolian) ---
+      let turbineBase = { x: 50, y: deckY, z: 50 };
+      let tBaseP = localProject(turbineBase.x, turbineBase.y, turbineBase.z);
+      let tTopP = localProject(turbineBase.x, turbineBase.y - 45, turbineBase.z);
+
+      // Column
+      ctx.beginPath();
+      ctx.moveTo(tBaseP.x, tBaseP.y);
+      ctx.lineTo(tTopP.x, tTopP.y);
+      ctx.strokeStyle = "#7E8B96";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Rotating blades
+      let tSpeed = currentMode === 'STORM_SURVIVAL' ? 4.5 : 1.5;
+      let tAngle = time * tSpeed;
+      let bRadius = 15;
+      
+      ctx.strokeStyle = "rgba(79, 195, 247, 0.8)";
+      ctx.lineWidth = 1.8;
+      for (let b = 0; b < 3; b++) {
+        let ba = tAngle + b * (Math.PI * 2 / 3);
+        let bx = Math.cos(ba) * bRadius;
+        let bz = Math.sin(ba) * bRadius;
+        
+        let pB1 = localProject(turbineBase.x + bx, turbineBase.y - 10, turbineBase.z + bz);
+        let pB2 = localProject(turbineBase.x + bx, turbineBase.y - 40, turbineBase.z + bz);
+        
+        ctx.beginPath();
+        ctx.moveTo(tBaseP.x, tBaseP.y - 10);
+        ctx.lineTo(pB1.x, pB1.y);
+        ctx.lineTo(pB2.x, pB2.y);
+        ctx.lineTo(tTopP.x, tTopP.y + 5);
+        ctx.stroke();
+      }
+
+      // --- 8. SWARM DRONES ---
+      drones.forEach(drone => {
+        // Orbit motion
+        drone.rot += 0.02;
+        let dx = Math.cos(drone.rot) * 110;
+        let dz = Math.sin(drone.rot) * 110;
+        drone.x = dx;
+        drone.z = dz;
+
+        // Hover bobbing
+        drone.y += (drone.targetY - drone.y) * 0.1 + Math.sin(time * 3) * 0.5;
+
+        let dPos = project(drone.x, drone.y, drone.z);
+        
+        // Draw Drone Body (Stealth Diamond Shape)
+        let dPts = [
+          project(drone.x - 8, drone.y, drone.z),
+          project(drone.x, drone.y - 4, drone.z + 8),
+          project(drone.x + 8, drone.y, drone.z),
+          project(drone.x, drone.y + 4, drone.z - 8)
+        ];
+        drawPolygon(dPts, "#2E3338", "rgba(79, 195, 247, 0.8)", 1);
+
+        // Sweeping cyan scan beam cone
+        let targetScan = localProject(drone.x * 0.5, deckY, drone.z * 0.5);
+        ctx.beginPath();
+        ctx.moveTo(dPos.x, dPos.y);
+        ctx.lineTo(targetScan.x - 12, targetScan.y);
+        ctx.lineTo(targetScan.x + 12, targetScan.y);
+        ctx.closePath();
+        let grad = ctx.createLinearGradient(dPos.x, dPos.y, targetScan.x, targetScan.y);
+        grad.addColorStop(0, "rgba(79, 195, 247, 0.35)");
+        grad.addColorStop(1, "rgba(79, 195, 247, 0.0)");
+        ctx.fillStyle = grad;
+        ctx.fill();
+      });
+
+      // --- 9. NEURO-AI COGNITIVE GRAPH NODES ---
+      ctx.lineWidth = 1.2;
+      // draw node connections
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          let p1 = project(nodes[i].x, nodes[i].y, nodes[i].z);
+          let p2 = project(nodes[j].x, nodes[j].y, nodes[j].z);
+          ctx.strokeStyle = "rgba(79, 195, 247, 0.12)";
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+        }
+      }
+
+      // Draw node spheres
+      nodes.forEach(node => {
+        let p = project(node.x, node.y, node.z);
+        
+        // pulse propagation
+        if (node.pulse > 0) {
+          node.pulse -= 0.02;
+          ctx.strokeStyle = "rgba(79, 195, 247, " + node.pulse + ")";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 16 + (1.0 - node.pulse) * 30, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // main node dot
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = node.color;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(255,255,255,0.25)";
+        ctx.stroke();
+
+        // Name tag
+        ctx.fillStyle = "rgba(13, 15, 18, 0.85)";
+        ctx.fillRect(p.x - 35, p.y - 25, 70, 14);
+        ctx.strokeStyle = "rgba(79, 195, 247, 0.3)";
+        ctx.strokeRect(p.x - 35, p.y - 25, 70, 14);
+
+        ctx.fillStyle = "#FFF";
+        ctx.font = "8px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(node.name, p.x, p.y - 15);
+      });
+
+      // --- 10. MULTIBEAM SONAR PULSE ANIMATION (Test Sensors button) ---
+      if (sensorPulseRadius > 0) {
+        sensorPulseRadius += 0.02;
+        if (sensorPulseRadius > 1.0) sensorPulseRadius = 0;
+        else {
+          ctx.strokeStyle = "rgba(79, 195, 247, " + (1.0 - sensorPulseRadius) * 0.7 + ")";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          let baseP = localProject(0, 0, 0);
+          ctx.arc(baseP.x, baseP.y, sensorPulseRadius * 300, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    // --- INITIALIZE DEFAULT ES ---
+    setLanguage('ES');
+    setMode('PRODUCTION');
+    render();
+  </script>
+</body>
+</html>
