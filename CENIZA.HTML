@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SDEE Bioreactor 3D — Ceniza Platform v2.1</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@200;400;600;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root{--bg:#0D1017;--fg:#E8ECF1;--muted:#6B7280;--accent:#4FC3F7;--accent-dim:rgba(79,195,247,0.12);--card:rgba(22,26,32,0.92);--border:rgba(79,195,247,0.18);--warn:#F59E0B;--crit:#EF4444;--ok:#10B981}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'JetBrains Mono',monospace;background:var(--bg);color:var(--fg);overflow:hidden;height:100vh;user-select:none}
+.hp{background:var(--card);backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 28px rgba(0,0,0,0.5);transition:border-color .4s,box-shadow .4s}
+.hp.warn{border-color:rgba(245,158,11,0.45);box-shadow:0 0 24px rgba(245,158,11,0.08)}
+.hp.crit{border-color:rgba(239,68,68,0.55);box-shadow:0 0 32px rgba(239,68,68,0.12);animation:cpulse 1.4s ease-in-out infinite}
+@keyframes cpulse{0%,100%{box-shadow:0 0 32px rgba(239,68,68,0.12)}50%{box-shadow:0 0 52px rgba(239,68,68,0.25)}}
+.gl{font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);text-align:center;margin-top:1px;font-family:'Outfit',sans-serif;font-weight:600}
+.fb{font-size:8px;padding:4px 8px;border-radius:4px;border:none;cursor:pointer;transition:all .2s;letter-spacing:1.2px;text-transform:uppercase;font-weight:700;font-family:'Outfit',sans-serif;background:transparent;color:var(--muted);white-space:nowrap}
+.fb.on{background:var(--accent);color:#0D1017}
+.fb:not(.on):hover{color:var(--fg)}
+.mb{font-size:7px;padding:3px 7px;border-radius:3px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);color:var(--muted);cursor:pointer;transition:all .2s;letter-spacing:1.2px;text-transform:uppercase;font-family:'Outfit',sans-serif;white-space:nowrap}
+.mb.on{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+.ci{padding:6px 14px;font-size:9px;cursor:pointer;transition:all .12s;display:flex;align-items:center;gap:8px;color:var(--fg)}
+.ci:hover{background:var(--accent-dim);color:var(--accent)}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:#2D3238;border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;background:var(--accent);border-radius:50%;cursor:pointer;transition:transform .15s}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.3)}
+#system-log::-webkit-scrollbar{width:3px}
+#system-log::-webkit-scrollbar-track{background:transparent}
+#system-log::-webkit-scrollbar-thumb{background:var(--accent);border-radius:2px}
+#tooltip{max-width:260px;pointer-events:none;transition:opacity .12s}
+.lang-btn{padding:3px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--muted);cursor:pointer;font-size:9px;font-weight:700;font-family:'Outfit',sans-serif;transition:all .15s;letter-spacing:0.5px}
+.lang-btn.on{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+.lang-btn:hover:not(.on){color:var(--fg);border-color:rgba(255,255,255,0.25)}
+@media(prefers-reduced-motion:reduce){*{animation-duration:0s!important;transition-duration:0s!important}}
+@media(max-width:768px){.hide-m{display:none!important}.bottom-ctrl{flex-direction:column;gap:4px!important}}
+</style>
+</head>
+<body>
+
+<div id="app" class="relative w-full h-screen overflow-hidden" style="background:radial-gradient(ellipse at 50% 40%,#151B24 0%,#0D1017 70%)">
+  <video id="ar-video" class="hidden absolute inset-0 w-full h-full object-cover opacity-50 z-0" playsinline muted></video>
+  <canvas id="c3d" class="absolute inset-0 w-full h-full z-10 cursor-grab active:cursor-grabbing" tabindex="0" aria-label="3D Bioreactor Viewer"></canvas>
+
+  <!-- Barra superior -->
+  <header id="hud-top" class="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-2 pointer-events-none">
+    <div class="hp flex items-center gap-2 px-3 py-1.5 pointer-events-auto">
+      <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span></span>
+      <span style="font-size:9px;letter-spacing:2.5px" class="text-[#4FC3F7] font-bold uppercase">SDEE Engine v2.1</span>
+    </div>
+    <div id="alert-banner" class="hp px-3 py-1 text-center" style="font-size:9px;letter-spacing:1.5px">
+      <i class="fa-solid fa-circle-check mr-1" style="color:var(--ok)"></i>
+      <span id="alert-text" class="text-[#10B981] font-bold"></span>
+    </div>
+    <div class="flex items-center gap-2 pointer-events-auto">
+      <!-- Selector de idioma -->
+      <div class="hp flex gap-1 px-2 py-1" id="lang-switcher">
+        <button class="lang-btn on" data-lang="es">ES</button>
+        <button class="lang-btn" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="zh">中</button>
+      </div>
+      <div class="hp px-3 py-1.5 text-right hide-m" style="font-size:8px;color:var(--accent);opacity:.6">
+        DR. JULIO OPORTA BARRERA<br>CENIZA SDEE-1 BIOREACTOR
+      </div>
+    </div>
+  </header>
+
+  <!-- Gauges izquierdos -->
+  <nav id="hud-gauges" class="absolute left-3 top-14 z-30 flex flex-col gap-2 hide-m" aria-label="Telemetry Gauges">
+    <div class="hp p-1.5 flex flex-col items-center"><canvas id="g-temp" width="72" height="72"></canvas><div class="gl" data-gl="temp"></div></div>
+    <div class="hp p-1.5 flex flex-col items-center"><canvas id="g-ph" width="72" height="72"></canvas><div class="gl" data-gl="ph"></div></div>
+    <div class="hp p-1.5 flex flex-col items-center"><canvas id="g-pres" width="72" height="72"></canvas><div class="gl" data-gl="pres"></div></div>
+    <div class="hp p-1.5 flex flex-col items-center"><canvas id="g-o2" width="72" height="72"></canvas><div class="gl" data-gl="o2"></div></div>
+  </nav>
+
+  <!-- Osciloscopio -->
+  <aside id="hud-osc" class="absolute right-3 top-14 z-30 hide-m" aria-label="Signal Oscilloscope">
+    <div class="hp p-2">
+      <div style="font-size:7px;letter-spacing:2px;color:var(--accent);margin-bottom:4px;text-transform:uppercase;font-family:'Outfit',sans-serif;font-weight:600" data-t="osc_title"></div>
+      <canvas id="c-osc" width="210" height="80"></canvas>
+    </div>
+  </aside>
+
+  <!-- Signature Score -->
+  <aside id="hud-score" class="absolute right-3 z-30 hide-m" style="top:130px" aria-label="Signature Score">
+    <div class="hp p-2 flex flex-col items-center">
+      <canvas id="c-score" width="90" height="90"></canvas>
+      <div id="score-val" style="font-size:16px;font-weight:900;color:var(--accent);font-family:'Outfit',sans-serif;margin-top:-52px;position:relative;z-index:1">0.0</div>
+      <div class="gl" style="margin-top:30px" data-t="score_title"></div>
+    </div>
+  </aside>
+
+  <!-- Radar + Log -->
+  <aside id="hud-bottom-r" class="absolute bottom-3 right-3 z-30 flex flex-col gap-2 items-end" aria-label="Radar and Log">
+    <div class="hp p-1.5 hide-m"><canvas id="c-radar" width="110" height="110"></canvas></div>
+    <div class="hp p-2 w-52 max-h-28 overflow-y-auto" id="system-log" style="font-size:8px;line-height:1.6"></div>
+  </aside>
+
+  <!-- Controles inferiores -->
+  <nav id="hud-bottom-l" class="absolute bottom-3 left-3 z-30 flex flex-col gap-2 bottom-ctrl" aria-label="Simulation Controls" style="max-width:360px">
+    <div class="hp flex p-0.5 gap-0.5 flex-wrap">
+      <button class="fb on" data-f="structural" data-tf="filter_structural"></button>
+      <button class="fb" data-f="fluid" data-tf="filter_fluid"></button>
+      <button class="fb" data-f="bio" data-tf="filter_bio"></button>
+      <button class="fb" data-f="thermal" data-tf="filter_thermal"></button>
+      <button class="fb" data-f="emfield" data-tf="filter_emfield"></button>
+    </div>
+    <div class="hp flex p-1.5 gap-1.5 flex-wrap items-center">
+      <span style="font-size:7px;color:var(--muted);letter-spacing:1px" data-t="mod_prefix"></span>
+      <button class="mb on" data-m="thermal"><i class="fa-solid fa-temperature-half mr-1"></i><span data-tm="mod_thermal"></span></button>
+      <button class="mb on" data-m="acoustic"><i class="fa-solid fa-wave-square mr-1"></i><span data-tm="mod_acoustic"></span></button>
+      <button class="mb" data-m="emfield"><i class="fa-solid fa-bolt mr-1"></i><span data-tm="mod_emfield"></span></button>
+      <button class="mb" data-m="concentration"><i class="fa-solid fa-droplet mr-1"></i><span data-tm="mod_concentration"></span></button>
+    </div>
+    <div class="hp p-2.5" id="batch-panel">
+      <button id="btn-batch" class="w-full bg-[#4FC3F7] hover:bg-cyan-400 active:scale-95 text-[#0D1017] font-black tracking-wider uppercase py-2 px-3 rounded flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md" style="font-size:10px;font-family:'Outfit',sans-serif;letter-spacing:1.5px">
+        <span class="w-2 h-2 rounded-full bg-[#0D1017] animate-pulse"></span>
+        <span data-t="batch_start"></span>
+      </button>
+      <div id="batch-progress" class="hidden">
+        <div class="flex justify-between items-center gap-3" style="font-size:9px">
+          <span id="batch-label" class="font-bold text-cyan-400 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span><span id="batch-label-text"></span></span>
+          <span id="batch-pct" class="text-cyan-400 font-black">0%</span>
+        </div>
+        <div class="w-full h-1 bg-gray-800 rounded overflow-hidden mt-1.5"><div id="batch-bar" class="h-full bg-cyan-500 transition-all duration-300" style="width:0%"></div></div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Zoom rápido -->
+  <div class="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex gap-1.5">
+    <button id="z-in" class="hp w-7 h-7 flex items-center justify-center text-white cursor-pointer hover:text-[#4FC3F7] hover:border-[#4FC3F7] transition-all" aria-label="Zoom In"><i class="fa-solid fa-plus" style="font-size:9px"></i></button>
+    <button id="z-out" class="hp w-7 h-7 flex items-center justify-center text-white cursor-pointer hover:text-[#4FC3F7] hover:border-[#4FC3F7] transition-all" aria-label="Zoom Out"><i class="fa-solid fa-minus" style="font-size:9px"></i></button>
+    <button id="z-rst" class="hp w-7 h-7 flex items-center justify-center text-white cursor-pointer hover:text-[#4FC3F7] hover:border-[#4FC3F7] transition-all" aria-label="Reset Camera" title="R"><i class="fa-solid fa-rotate-left" style="font-size:9px"></i></button>
+    <button id="z-pause" class="hp w-7 h-7 flex items-center justify-center text-white cursor-pointer hover:text-[#4FC3F7] hover:border-[#4FC3F7] transition-all" aria-label="Pause" title="Space"><i class="fa-solid fa-pause" style="font-size:9px" id="pause-icon"></i></button>
+    <button id="z-params" class="hp w-7 h-7 flex items-center justify-center text-white cursor-pointer hover:text-[#4FC3F7] hover:border-[#4FC3F7] transition-all" aria-label="Parameters" title="P"><i class="fa-solid fa-sliders" style="font-size:9px"></i></button>
+  </div>
+
+  <!-- Panel parámetros -->
+  <div id="param-panel" class="hidden absolute z-40 right-14 top-1/2 -translate-y-1/2 hp p-3 w-56" style="font-size:9px">
+    <div class="flex justify-between items-center mb-2">
+      <span style="font-size:8px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;font-family:'Outfit',sans-serif;font-weight:600" data-t="params_title"></span>
+      <button id="close-params" class="text-gray-500 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="sliders-container" class="flex flex-col gap-2.5"></div>
+  </div>
+
+  <div id="tooltip" class="hidden absolute z-50 hp p-2.5" style="font-size:8px;line-height:1.7"></div>
+  <div id="ctx-menu" class="hidden absolute z-50 hp py-1" style="min-width:170px"></div>
+
+  <div id="pause-overlay" class="hidden absolute inset-0 flex items-center justify-center pointer-events-none" style="background:rgba(0,0,0,0.4);z-index:25">
+    <div style="font-size:28px;letter-spacing:8px;color:rgba(255,255,255,0.3);font-family:'Outfit',sans-serif;font-weight:900" data-t="pause_text"></div>
+  </div>
+
+  <!-- Ayuda teclado -->
+  <div id="help-overlay" class="hidden absolute inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.7)">
+    <div class="hp p-5 w-96" style="font-size:9px;line-height:2">
+      <div style="font-size:11px;letter-spacing:2px;color:var(--accent);font-family:'Outfit',sans-serif;font-weight:800;margin-bottom:8px" data-t="help_title"></div>
+      <div id="help-grid" class="grid grid-cols-2 gap-x-4 gap-y-0.5"></div>
+      <div class="text-center mt-3 text-gray-500" data-t="help_close"></div>
+    </div>
+  </div>
+
+  <!-- Info simulación -->
+  <div id="sim-info" class="absolute top-14 left-1/2 -translate-x-1/2 z-30 hp px-3 py-1 text-center hide-m" style="font-size:8px;color:var(--muted);letter-spacing:1px">
+    <span id="sim-time">T+00:00:00</span> &nbsp;|&nbsp; <span id="sim-fps">60 FPS</span> &nbsp;|&nbsp; <span id="sim-particles"></span>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   SISTEMA DE INTERNACIONALIZACIÓN COMPLETO
+   ============================================================ */
+const LOCALES = {
+  es: {
+    filter_structural: 'Estructural', filter_fluid: 'Fluido', filter_bio: 'Biologico',
+    filter_thermal: 'Termico', filter_emfield: 'Campo EM',
+    mod_prefix: 'MOD:', mod_thermal: 'Term', mod_acoustic: 'Acust',
+    mod_emfield: 'EM', mod_concentration: 'Conc',
+    batch_start: 'Iniciar Lote SDEE',
+    batch_stimulating: 'ESTIMULANDO EXOSOMAS', batch_harvesting: 'COSECHANDO LOTE',
+    batch_purifying: 'PURIFICACION EN CURSO', batch_success: 'LOTE COMPLETADO EXITOSAMENTE',
+    alert_nominal: 'SISTEMA NOMINAL', alert_warning: 'ALERTA - PARAMETROS FUERA DE RANGO',
+    alert_critical: 'CRITICO - INTERVENCION REQUERIDA', alert_emergency: 'EMERGENCIA - PARADA INMEDIATA',
+    gauge_temp: 'Temp', gauge_ph: 'pH', gauge_pres: 'Pres', gauge_o2: 'O2 Diss',
+    osc_title: 'Senal Estimulo', score_title: 'Ceniza Score',
+    params_title: 'Parametros', params_close: '',
+    param_temperature: 'Temperatura', param_ph: 'pH', param_voltage: 'Voltaje',
+    param_frequency: 'Frecuencia', param_shear: 'Esfuerzo Cortante',
+    param_perfusion: 'Perfusion', param_pressure: 'Presion', param_particles: 'Particulas',
+    unit_temp: '°C', unit_ph: '', unit_voltage: 'V', unit_frequency: 'kHz',
+    unit_shear: 'Pa', unit_perfusion: 'L/min', unit_pressure: 'atm', unit_particles: '',
+    pause_text: 'PAUSA',
+    help_title: 'ATAJOS DE TECLADO', help_close: 'Presiona ? o Esc para cerrar',
+    help_space: 'Pausar / Reanudar', help_r: 'Resetear camara',
+    help_15: 'Cambiar filtro visual', help_taec: 'Toggle modulos sim.',
+    help_p: 'Panel de parametros', help_pm: 'Zoom',
+    help_arrows: 'Rotar camara', help_esc: 'Deseleccionar / Cerrar',
+    help_question: 'Esta ayuda', help_dblclick: 'Focalizar nodo',
+    help_rightclick: 'Menu contextual',
+    ctx_focus: 'Focalizar', ctx_diagnose: 'Diagnosticar',
+    ctx_isolate: 'Aislar nodo', ctx_metrics: 'Ver metricas',
+    tooltip_status: 'Estado:',
+    sim_particles: '{n} particulas',
+    log_batch_started: 'Lote SDEE iniciado — Fase de estimulacion',
+    log_harvest_start: 'Fase de cosecha iniciada',
+    log_purifying: 'Purificacion TFF en curso',
+    log_batch_done: 'Lote completado — Ceniza Score: {score}',
+    log_alert_change: 'Nivel de alerta: {level}',
+    log_node_selected: 'Nodo seleccionado: {name}',
+    log_focusing: 'Focalizando: {name}',
+    log_diagnosing: 'Iniciando diagnostico en {name}...',
+    log_diagnose_ok: 'Diagnostico completado: Sistemas operativos',
+    log_isolating: 'Modo aislamiento: {name}',
+    log_metrics: 'Metricas {name}: {value} | Desgaste: {wear}%',
+    log_filter: 'Filtro visual: {filter}',
+    log_module_on: 'Modulo {mod}: ACTIVADO',
+    log_module_off: 'Modulo {mod}: DESACTIVADO',
+    log_camera_reset: 'Camara reseteada',
+    log_paused: 'Simulacion pausada', log_resumed: 'Simulacion reanudada',
+    log_lang_change: 'Idioma cambiado a: {lang}',
+    log_init_1: 'SDEE Bioreactor v2.1 inicializado',
+    log_init_2: 'Modulos cargados: Termico, Acustico',
+    log_init_3: 'Presiona ? para ver atajos de teclado',
+    canvas_alert: 'ALERTA: {level} | CONTAM: {contam}% | DESGASTE MAX: {wear}%',
+    lang_name: 'Espanol'
+  },
+  en: {
+    filter_structural: 'Structural', filter_fluid: 'Fluid', filter_bio: 'Biological',
+    filter_thermal: 'Thermal', filter_emfield: 'EM Field',
+    mod_prefix: 'MOD:', mod_thermal: 'Therm', mod_acoustic: 'Acoust',
+    mod_emfield: 'EM', mod_concentration: 'Conc',
+    batch_start: 'Start SDEE Batch',
+    batch_stimulating: 'STIMULATING EXOSOMES', batch_harvesting: 'HARVESTING BATCH',
+    batch_purifying: 'PURIFICATION IN PROGRESS', batch_success: 'BATCH COMPLETED SUCCESSFULLY',
+    alert_nominal: 'SYSTEM NOMINAL', alert_warning: 'WARNING - PARAMETERS OUT OF RANGE',
+    alert_critical: 'CRITICAL - INTERVENTION REQUIRED', alert_emergency: 'EMERGENCY - IMMEDIATE STOP',
+    gauge_temp: 'Temp', gauge_ph: 'pH', gauge_pres: 'Pres', gauge_o2: 'O2 Diss',
+    osc_title: 'Stimulus Signal', score_title: 'Ceniza Score',
+    params_title: 'Parameters', params_close: '',
+    param_temperature: 'Temperature', param_ph: 'pH', param_voltage: 'Voltage',
+    param_frequency: 'Frequency', param_shear: 'Shear Stress',
+    param_perfusion: 'Perfusion', param_pressure: 'Pressure', param_particles: 'Particles',
+    unit_temp: '°C', unit_ph: '', unit_voltage: 'V', unit_frequency: 'kHz',
+    unit_shear: 'Pa', unit_perfusion: 'L/min', unit_pressure: 'atm', unit_particles: '',
+    pause_text: 'PAUSED',
+    help_title: 'KEYBOARD SHORTCUTS', help_close: 'Press ? or Esc to close',
+    help_space: 'Pause / Resume', help_r: 'Reset camera',
+    help_15: 'Change visual filter', help_taec: 'Toggle sim. modules',
+    help_p: 'Parameters panel', help_pm: 'Zoom',
+    help_arrows: 'Rotate camera', help_esc: 'Deselect / Close',
+    help_question: 'This help', help_dblclick: 'Focus node',
+    help_rightclick: 'Context menu',
+    ctx_focus: 'Focus', ctx_diagnose: 'Diagnose',
+    ctx_isolate: 'Isolate node', ctx_metrics: 'View metrics',
+    tooltip_status: 'Status:',
+    sim_particles: '{n} particles',
+    log_batch_started: 'SDEE batch started — Stimulation phase',
+    log_harvest_start: 'Harvest phase initiated',
+    log_purifying: 'TFF purification in progress',
+    log_batch_done: 'Batch completed — Ceniza Score: {score}',
+    log_alert_change: 'Alert level: {level}',
+    log_node_selected: 'Node selected: {name}',
+    log_focusing: 'Focusing: {name}',
+    log_diagnosing: 'Starting diagnosis on {name}...',
+    log_diagnose_ok: 'Diagnosis complete: Systems operational',
+    log_isolating: 'Isolation mode: {name}',
+    log_metrics: 'Metrics {name}: {value} | Wear: {wear}%',
+    log_filter: 'Visual filter: {filter}',
+    log_module_on: 'Module {mod}: ENABLED',
+    log_module_off: 'Module {mod}: DISABLED',
+    log_camera_reset: 'Camera reset',
+    log_paused: 'Simulation paused', log_resumed: 'Simulation resumed',
+    log_lang_change: 'Language changed to: {lang}',
+    log_init_1: 'SDEE Bioreactor v2.1 initialized',
+    log_init_2: 'Modules loaded: Thermal, Acoustic',
+    log_init_3: 'Press ? to view keyboard shortcuts',
+    canvas_alert: 'ALERT: {level} | CONTAM: {contam}% | MAX WEAR: {wear}%',
+    lang_name: 'English'
+  },
+  zh: {
+    filter_structural: '结构视图', filter_fluid: '流体视图', filter_bio: '生物显微',
+    filter_thermal: '热成像', filter_emfield: '电磁场',
+    mod_prefix: '模块:', mod_thermal: '热', mod_acoustic: '声',
+    mod_emfield: '电磁', mod_concentration: '浓度',
+    batch_start: '启动 SDEE 批次',
+    batch_stimulating: '正在刺激外泌体', batch_harvesting: '正在收获外泌体',
+    batch_purifying: '声学超滤纯化中', batch_success: '批次高效纯化成功',
+    alert_nominal: '系统正常运行', alert_warning: '警告 - 参数超出范围',
+    alert_critical: '危急 - 需要人工干预', alert_emergency: '紧急 - 立即停机',
+    gauge_temp: '温度', gauge_ph: 'pH', gauge_pres: '压力', gauge_o2: '溶解氧',
+    osc_title: '刺激信号', score_title: '特征评分',
+    params_title: '参数', params_close: '',
+    param_temperature: '温度', param_ph: 'pH', param_voltage: '电压',
+    param_frequency: '频率', param_shear: '剪切应力',
+    param_perfusion: '灌流', param_pressure: '压力', param_particles: '粒子数',
+    unit_temp: '°C', unit_ph: '', unit_voltage: 'V', unit_frequency: 'kHz',
+    unit_shear: 'Pa', unit_perfusion: 'L/min', unit_pressure: 'atm', unit_particles: '',
+    pause_text: '已暂停',
+    help_title: '键盘快捷键', help_close: '按 ? 或 Esc 关闭',
+    help_space: '暂停 / 继续', help_r: '重置摄像头',
+    help_15: '切换视觉滤镜', help_taec: '开关模拟模块',
+    help_p: '参数面板', help_pm: '缩放',
+    help_arrows: '旋转摄像头', help_esc: '取消选择 / 关闭',
+    help_question: '此帮助', help_dblclick: '聚焦节点',
+    help_rightclick: '右键菜单',
+    ctx_focus: '聚焦', ctx_diagnose: '诊断',
+    ctx_isolate: '隔离节点', ctx_metrics: '查看指标',
+    tooltip_status: '状态：',
+    sim_particles: '{n} 粒子',
+    log_batch_started: 'SDEE批次已启动 — 刺激阶段',
+    log_harvest_start: '收获阶段已启动',
+    log_purifying: 'TFF纯化进行中',
+    log_batch_done: '批次完成 — 特征评分: {score}',
+    log_alert_change: '警报级别: {level}',
+    log_node_selected: '已选择节点: {name}',
+    log_focusing: '聚焦中: {name}',
+    log_diagnosing: '正在诊断 {name}...',
+    log_diagnose_ok: '诊断完成: 系统运行正常',
+    log_isolating: '隔离模式: {name}',
+    log_metrics: '指标 {name}: {value} | 磨损: {wear}%',
+    log_filter: '视觉滤镜: {filter}',
+    log_module_on: '模块 {mod}: 已启用',
+    log_module_off: '模块 {mod}: 已禁用',
+    log_camera_reset: '摄像头已重置',
+    log_paused: '模拟已暂停', log_resumed: '模拟已恢复',
+    log_lang_change: '语言已切换为: {lang}',
+    log_init_1: 'SDEE生物反应器 v2.1 已初始化',
+    log_init_2: '已加载模块: 热成像, 声学',
+    log_init_3: '按 ? 查看键盘快捷键',
+    canvas_alert: '警报: {level} | 污染: {contam}% | 最大磨损: {wear}%',
+    lang_name: '中文'
+  }
+};
+
+/* Función de traducción con interpolación */
+function t(key) { return (LOCALES[S.lang] && LOCALES[S.lang][key]) || key; }
+function tf(key, vars) {
+  let s = t(key);
+  if (vars) Object.keys(vars).forEach(k => { s = s.replace(`{${k}}`, vars[k]); });
+  return s;
+}
+
+/* ============================================================
+   ESTADO GLOBAL
+   ============================================================ */
+const S = {
+  yaw:0.5, pitch:-0.3, zoom:1.0, dragging:false, dragX:0, dragY:0,
+  localRot:0, lastInteraction:0,
+  shearStress:45, voltage:30, frequency:40, temperature:37,
+  particleCount:200, ph:7.2, perfusion:2.5, pressure:1.02, dissolvedOxygen:95,
+  visualFilter:'structural',
+  modules:{thermal:true, acoustic:true, emfield:false, concentration:false},
+  batchPhase:'STANDBY', batchProgress:0,
+  alertLevel:'nominal',
+  wear:{electrode:12, transducer:8, membrane:5, pump:15},
+  contaminationRisk:0.02, signatureScore:0,
+  simTime:0, paused:false,
+  selectedNodeId:null, hoveredNodeId:null, mouseX:0, mouseY:0,
+  ctxMenu:{visible:false,x:0,y:0,nodeId:null},
+  oscData:new Float32Array(210), log:[],
+  lang:'es', isArMode:false, cameraStream:null,
+  fps:60, frameCount:0, fpsTime:0,
+  focusTarget:null, focusProgress:0
+};
+
+/* ============================================================
+   NODOS SDEE (trilingües)
+   ============================================================ */
+const NODES = [
+  {id:"n1",name:{es:"1. Recepcion y Donantes",en:"1. Donor & Collection",zh:"1. 供体与采集"},desc:{es:"Cribado de donantes, consentimiento y logistica UID.",en:"Donor screening, consent and UID logistics.",zh:"供体筛选与UID物流系统。"},status:"active",value:"UID-9832A",x:-120,y:100,z:-80},
+  {id:"n2",name:{es:"2. Preparacion Preanalitica",en:"2. Pre-Analytical Prep",zh:"2. 临床前准备"},desc:{es:"Acondicionamiento termico y separacion celular controlada.",en:"Thermal conditioning and controlled cell isolation.",zh:"控温预处理与受控细胞分离。"},status:"active",value:"4C - STABLE",x:-60,y:100,z:80},
+  {id:"n3",name:{es:"3. Fabrica Celular (Pilot)",en:"3. Cell Factory (Pilot)",zh:"3. 细胞工厂"},desc:{es:"Lineas celulares mesenquimales certificadas.",en:"Certified clinical mesenchymal stem cell lines.",zh:"认证间充质干细胞系。"},status:"active",value:"95% Confluency",x:-60,y:30,z:-80},
+  {id:"n4",name:{es:"4. Modulo Estimulo",en:"4. Stimulus Module",zh:"4. 物理刺激模块"},desc:{es:"Estimulacion mediante campos electricos y ultrasonido DoE.",en:"Exosome activation using electric fields and DoE ultrasound.",zh:"电场与DoE超声外泌体活化。"},status:"active",value:"HYBRID MODE",x:60,y:30,z:-80},
+  {id:"n5",name:{es:"5. Nucleo Analitico",en:"5. Analytical Core",zh:"5. 分析检测核心"},desc:{es:"Analisis NTA y secuenciacion digital de microRNA.",en:"NTA and digital microRNA sequencing.",zh:"NTA分析与微RNA测序。"},status:"active",value:"CD9/CD63/CD81",x:120,y:-30,z:80},
+  {id:"n6",name:{es:"6. QA de Firma",en:"6. Signature QA Hub",zh:"6. 特征质量认证"},desc:{es:"Calculo en tiempo real del Ceniza Signature Score.",en:"Real-time Ceniza Signature Score calculation.",zh:"特征分子评分实时计算。"},status:"active",value:"PASS (Score: 94.2)",x:120,y:-100,z:-60},
+  {id:"n7",name:{es:"7. Manufactura Hub",en:"7. GMP Production Hub",zh:"7. GMP生产中心"},desc:{es:"Purificacion modular por filtracion TFF.",en:"Modular TFF purification.",zh:"TFF模块化纯化。"},status:"active",value:"CLASS-100 GMP",x:-40,y:-120,z:120},
+  {id:"n8",name:{es:"8. Distribucion Clinica",en:"8. Clinical Delivery",zh:"8. 临床配送"},desc:{es:"Cadena de frio -80C y registro RWE.",en:"-80C cold chain and RWE registry.",zh:"-80C冷链与RWE登记。"},status:"active",value:"-80C TRACKED",x:-120,y:-120,z:-100}
+];
+
+/* ============================================================
+   GEOMETRÍA 3D
+   ============================================================ */
+const VERTS=[],FACES=[],HELIX=[];
+for(let i=0;i<8;i++){const a=(i*Math.PI*2)/8;VERTS.push({x:Math.cos(a)*110,y:-120,z:Math.sin(a)*110})}
+for(let i=0;i<8;i++){const a=(i*Math.PI*2)/8;VERTS.push({x:Math.cos(a)*110,y:120,z:Math.sin(a)*110})}
+for(let i=0;i<8;i++){const n=(i+1)%8;FACES.push({indices:[i,n,n+8,i+8],idx:i})}
+for(let i=0;i<36;i++){const a=(i/10)*Math.PI*2,y=-100+(i/36)*200,r=40;HELIX.push({x:Math.cos(a)*r,y,z:Math.sin(a)*r});HELIX.push({x:Math.cos(a+Math.PI)*r,y,z:Math.sin(a+Math.PI)*r})}
+
+/* ============================================================
+   PARTÍCULAS
+   ============================================================ */
+let particles=[];
+function initParticles(){
+  particles=[];
+  const count=Math.min(250,S.particleCount);
+  for(let i=0;i<count;i++){const a=Math.random()*Math.PI*2,rad=30+Math.random()*60;
+  particles.push({x:Math.cos(a)*rad,y:-120+Math.random()*240,z:Math.sin(a)*rad,vx:(Math.random()-0.5)*1.5,vy:(Math.random()-0.5)*0.8,vz:(Math.random()-0.5)*1.5,size:1.5+Math.random()*4,baseColor:Math.random()>0.4?[79,195,247]:[255,255,255]})}
+}
+initParticles();
+
+/* ============================================================
+   REFERENCIAS DOM
+   ============================================================ */
+const $=id=>document.getElementById(id);
+const canvas=$('c3d'),ctx=canvas.getContext('2d');
+const oscCanvas=$('c-osc'),oscCtx=oscCanvas.getContext('2d');
+const radarCanvas=$('c-radar'),radarCtx=radarCanvas.getContext('2d');
+const gaugeCanvases={temp:$('g-temp'),ph:$('g-ph'),pres:$('g-pres'),o2:$('g-o2')};
+const scoreCanvas=$('c-score'),scoreCtx=scoreCanvas.getContext('2d');
+
+/* ============================================================
+   UTILIDADES
+   ============================================================ */
+function lerpColor(c1,c2,t){t=Math.max(0,Math.min(1,t));return[c1[0]+(c2[0]-c1[0])*t,c1[1]+(c2[1]-c1[1])*t,c1[2]+(c2[2]-c1[2])*t]}
+function rgbStr(c,a){return a!==undefined?`rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${a})`:`rgb(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])})`}
+function thermalColor(temp){
+  if(temp<25)return lerpColor([21,101,192],[16,185,129],(temp-20)/5);
+  if(temp<38)return lerpColor([16,185,129],[245,158,11],(temp-25)/13);
+  if(temp<42)return lerpColor([245,158,11],[239,68,68],(temp-38)/4);
+  return lerpColor([239,68,68],[255,50,50],Math.min(1,(temp-42)/5));
+}
+let _w,_h,_scale,_cosY,_sinY,_cosP,_sinP;
+function updateProjectionCache(){
+  _w=canvas.width;_h=canvas.height;_scale=Math.min(_w,_h)/380*S.zoom;
+  const ty=S.yaw+S.localRot;_cosY=Math.cos(ty);_sinY=Math.sin(ty);_cosP=Math.cos(S.pitch);_sinP=Math.sin(S.pitch);
+}
+function project(pt){
+  let x=pt.x*_cosY-pt.z*_sinY,z=pt.x*_sinY+pt.z*_cosP,y=pt.y*_cosP-z*_sinP;
+  z=pt.y*_sinP+z*_cosP;const d=400,p=d/Math.max(10,d+z);
+  return{x:_w/2+x*_scale*p,y:_h/2-y*_scale*p,z};
+}
+function formatTime(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=Math.floor(s%60);return`T+${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`}
+
+/* ============================================================
+   APLICAR IDIOMA A TODA LA INTERFAZ
+   ============================================================ */
+function applyLanguage(){
+  const L=LOCALES[S.lang];
+  // Filtros visuales
+  document.querySelectorAll('[data-tf]').forEach(el=>{el.textContent=L[el.dataset.tf]||el.dataset.tf});
+  // Módulos
+  document.querySelectorAll('[data-tm]').forEach(el=>{el.textContent=L[el.dataset.tm]||el.dataset.tm});
+  // Prefijo MOD
+  document.querySelector('[data-t="mod_prefix"]').textContent=L.mod_prefix;
+  // Textos directos
+  document.querySelectorAll('[data-t]').forEach(el=>{
+    if(el.dataset.tf||el.dataset.tm||el.dataset.gl) return;
+    el.textContent=L[el.dataset.t]||el.dataset.t;
+  });
+  // Gauge labels
+  document.querySelectorAll('[data-gl]').forEach(el=>{
+    const map={temp:'gauge_temp',ph:'gauge_ph',pres:'gauge_pres',o2:'gauge_o2'};
+    el.textContent=L[map[el.dataset.gl]]||el.dataset.gl;
+  });
+  // Botón de lote
+  if(S.batchPhase==='STANDBY'){
+    $('btn-batch').classList.remove('hidden');
+    $('batch-progress').classList.add('hidden');
+  } else {
+    updateBatchLabel();
+  }
+  // Slider labels
+  document.querySelectorAll('.param-label').forEach(el=>{el.textContent=L[el.dataset.pl]||el.dataset.pl});
+  document.querySelectorAll('.param-unit').forEach(el=>{el.textContent=L[el.dataset.pu]||el.dataset.pu});
+  // Info partículas
+  $('sim-particles').textContent=tf('sim_particles',{n:particles.length});
+  // Ayuda
+  buildHelpGrid();
+  // Pausa
+  $('pause-text')&&($('pause-text').textContent=L.pause_text);
+  // Alerta actual
+  onAlertChange(S.alertLevel,true);
+  // Selector de idioma
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('on',b.dataset.lang===S.lang));
+}
+function buildHelpGrid(){
+  const grid=$('help-grid');if(!grid)return;
+  const pairs=[['help_space','help_r'],['help_15','help_taec'],['help_p','help_pm'],['help_arrows','help_esc'],['help_question','help_dblclick'],['help_rightclick','']];
+  grid.innerHTML=pairs.map(([k1,k2])=>`<span class="text-gray-500">${t(k1==='help_space'?'help_space':k1)}</span><span>${k2?t(k2):''}</span>`).join('');
+}
+
+/* ============================================================
+   LOG DEL SISTEMA
+   ============================================================ */
+function addLog(msg,level){S.log.unshift({t:formatTime(S.simTime),msg,level});if(S.log.length>50)S.log.pop();renderLog()}
+function renderLog(){
+  $('system-log').innerHTML=S.log.slice(0,20).map(l=>{
+    const c=l.level==='warn'?'color:var(--warn)':l.level==='crit'?'color:var(--crit)':l.level==='ok'?'color:var(--ok)':'color:var(--muted)';
+    return`<div><span style="color:rgba(255,255,255,0.2)">${l.t}</span> <span style="${c}">${l.msg}</span></div>`;
+  }).join('');
+}
+
+/* ============================================================
+   ALERTAS
+   ============================================================ */
+function updateAlertLevel(){
+  let level='nominal';
+  if(S.temperature>42||S.ph<6.5||S.ph>8.0||S.contaminationRisk>0.15||Object.values(S.wear).some(w=>w>80))level='warning';
+  if(S.temperature>45||S.ph<6.0||S.ph>8.5||S.contaminationRisk>0.3||S.pressure>2.0||Object.values(S.wear).some(w=>w>90))level='critical';
+  if(S.contaminationRisk>0.5||S.temperature>48)level='emergency';
+  if(level!==S.alertLevel){S.alertLevel=level;onAlertChange(level)}
+}
+function onAlertChange(level,silent){
+  const banner=$('alert-banner'),text=$('alert-text');
+  banner.className='hp px-3 py-1 text-center '+(level==='critical'?'crit':level==='warning'?'warn':'');
+  document.querySelectorAll('.hp').forEach(el=>{
+    if(level==='critical'&&el.id!=='alert-banner')el.classList.add('crit');
+    else if(level==='warning'&&el.id!=='alert-banner')el.classList.add('warn');
+    else{el.classList.remove('crit');el.classList.remove('warn')}
+  });
+  const icons={nominal:'fa-circle-check',warning:'fa-triangle-exclamation',critical:'fa-circle-exclamation',emergency:'fa-skull-crossbones'};
+  const colors={nominal:'var(--ok)',warning:'var(--warn)',critical:'var(--crit)',emergency:'var(--crit)'};
+  const labelKey={nominal:'alert_nominal',warning:'alert_warning',critical:'alert_critical',emergency:'alert_emergency'};
+  banner.querySelector('i').className=`fa-solid ${icons[level]} mr-1`;
+  banner.querySelector('i').style.color=colors[level];
+  text.style.color=colors[level];
+  text.textContent=t(labelKey[level]);
+  if(!silent)addLog(tf('log_alert_change',{level:t(labelKey[level])}),level==='nominal'?'ok':level==='warning'?'warn':'crit');
+}
+
+/* ============================================================
+   DEGRADACIÓN Y CONTAMINACIÓN
+   ============================================================ */
+function updateWearAndContamination(dt){
+  const rate=S.batchPhase==='STIMULATING'?0.008:0.001;
+  S.wear.electrode=Math.min(100,S.wear.electrode+rate*dt*(S.voltage/30));
+  S.wear.transducer=Math.min(100,S.wear.transducer+rate*dt*(S.frequency/40));
+  S.wear.membrane=Math.min(100,S.wear.membrane+rate*dt*0.5);
+  S.wear.pump=Math.min(100,S.wear.pump+rate*dt*(S.perfusion/2.5));
+  S.contaminationRisk+=(Math.random()-0.48)*0.002*dt;
+  S.contaminationRisk=Math.max(0,Math.min(1,S.contaminationRisk+S.wear.membrane*0.00005*dt));
+}
+
+/* ============================================================
+   CICLO DE LOTE
+   ============================================================ */
+function updateBatchLabel(){
+  const map={STIMULATING:'batch_stimulating',HARVESTING:'batch_harvesting',PURIFYING:'batch_purifying',SUCCESS:'batch_success'};
+  const key=map[S.batchPhase];if(!key)return;
+  $('batch-label-text').textContent=t(key);
+}
+function startBatch(){
+  S.batchPhase='STIMULATING';S.batchProgress=0;
+  $('btn-batch').classList.add('hidden');$('batch-progress').classList.remove('hidden');
+  updateBatchLabel();addLog(t('log_batch_started'),'ok');
+}
+function updateBatch(dt){
+  if(S.batchPhase==='STANDBY'||S.batchPhase==='SUCCESS')return;
+  const speeds={STIMULATING:4,HARVESTING:5,PURIFYING:3};
+  S.batchProgress=Math.min(100,S.batchProgress+(speeds[S.batchPhase]||3)*dt);
+  $('batch-pct').textContent=Math.floor(S.batchProgress)+'%';
+  $('batch-bar').style.width=S.batchProgress+'%';
+  $('batch-bar').style.background=S.batchPhase==='STIMULATING'?'#4FC3F7':S.batchPhase==='HARVESTING'?'#F59E0B':'#10B981';
+  if(S.batchProgress>=100){
+    if(S.batchPhase==='STIMULATING'){S.batchPhase='HARVESTING';S.batchProgress=0;updateBatchLabel();addLog(t('log_harvest_start'),'ok')}
+    else if(S.batchPhase==='HARVESTING'){S.batchPhase='PURIFYING';S.batchProgress=0;updateBatchLabel();addLog(t('log_purifying'),'ok')}
+    else if(S.batchPhase==='PURIFYING'){
+      S.batchPhase='SUCCESS';S.batchProgress=100;S.signatureScore=88+Math.random()*12;
+      updateBatchLabel();$('batch-bar').style.background='#10B981';
+      addLog(tf('log_batch_done',{score:S.signatureScore.toFixed(1)}),'ok');
+      setTimeout(()=>{S.batchPhase='STANDBY';S.batchProgress=0;$('btn-batch').classList.remove('hidden');$('batch-progress').classList.add('hidden')},4000);
+    }
+  }
+}
+
+/* ============================================================
+   OSCILOSCOPIO
+   ============================================================ */
+function updateOscilloscope(){
+  for(let i=0;i<S.oscData.length-1;i++)S.oscData[i]=S.oscData[i+1];
+  const t2=S.simTime*10;
+  if(S.batchPhase==='STIMULATING')S.oscData[S.oscData.length-1]=Math.sin(t2*S.frequency*0.1)*(S.voltage/50)+(Math.random()-0.5)*0.1;
+  else if(S.batchPhase==='HARVESTING')S.oscData[S.oscData.length-1]=Math.sin(t2*2)*0.3+(Math.random()-0.5)*0.05;
+  else if(S.batchPhase==='PURIFYING')S.oscData[S.oscData.length-1]=Math.sin(t2*0.8)*0.15+(Math.random()-0.5)*0.02;
+  else S.oscData[S.oscData.length-1]=(Math.random()-0.5)*0.03;
+}
+function renderOscilloscope(){
+  const w=oscCanvas.width,h=oscCanvas.height;
+  oscCtx.fillStyle='#0A0E14';oscCtx.fillRect(0,0,w,h);
+  oscCtx.strokeStyle='rgba(79,195,247,0.08)';oscCtx.lineWidth=0.5;
+  for(let x=0;x<w;x+=30){oscCtx.beginPath();oscCtx.moveTo(x,0);oscCtx.lineTo(x,h);oscCtx.stroke()}
+  for(let y=0;y<h;y+=20){oscCtx.beginPath();oscCtx.moveTo(0,y);oscCtx.lineTo(w,y);oscCtx.stroke()}
+  oscCtx.strokeStyle='rgba(79,195,247,0.15)';oscCtx.beginPath();oscCtx.moveTo(0,h/2);oscCtx.lineTo(w,h/2);oscCtx.stroke();
+  oscCtx.strokeStyle='#4FC3F7';oscCtx.lineWidth=1.5;oscCtx.shadowBlur=6;oscCtx.shadowColor='#4FC3F7';
+  oscCtx.beginPath();
+  for(let i=0;i<S.oscData.length;i++){const x=(i/S.oscData.length)*w,y=h/2-S.oscData[i]*(h/2)*0.85;i===0?oscCtx.moveTo(x,y):oscCtx.lineTo(x,y)}
+  oscCtx.stroke();oscCtx.shadowBlur=0;
+}
+
+/* ============================================================
+   GAUGES
+   ============================================================ */
+function renderGauge(cvs,value,min,max,unit,thresholds){
+  const c=cvs.getContext('2d'),w=cvs.width,h=cvs.height,cx=w/2,cy=h/2,r=Math.max(1,w/2-8);
+  c.clearRect(0,0,w,h);
+  const startA=Math.PI*0.75,endA=Math.PI*2.25,range=endA-startA;
+  const pct=Math.max(0,Math.min(1,(value-min)/(max-min)));
+  let color='#10B981';
+  if(thresholds){if(value>thresholds[1])color='#EF4444';else if(value>thresholds[0])color='#F59E0B'}
+  c.beginPath();c.arc(cx,cy,r,startA,endA);c.strokeStyle='rgba(255,255,255,0.06)';c.lineWidth=4;c.lineCap='round';c.stroke();
+  c.beginPath();c.arc(cx,cy,r,startA,startA+range*pct);c.strokeStyle=color;c.lineWidth=4;c.lineCap='round';c.shadowBlur=8;c.shadowColor=color;c.stroke();c.shadowBlur=0;
+  c.fillStyle='#FFFFFF';c.font='bold 12px "Outfit",sans-serif';c.textAlign='center';c.textBaseline='middle';
+  c.fillText(typeof value==='number'?(value<10?value.toFixed(1):Math.round(value).toString()):value,cx,cy-2);
+  c.fillStyle='rgba(255,255,255,0.3)';c.font='7px "JetBrains Mono",monospace';c.fillText(unit,cx,cy+12);
+}
+
+/* ============================================================
+   RADAR
+   ============================================================ */
+function renderRadar(){
+  const w=radarCanvas.width,h=radarCanvas.height,cx=w/2,cy=h/2,r=Math.max(1,w/2-6);
+  radarCtx.fillStyle='#0A0E14';radarCtx.fillRect(0,0,w,h);
+  for(let i=1;i<=3;i++){radarCtx.beginPath();radarCtx.arc(cx,cy,(r/3)*i,0,Math.PI*2);radarCtx.strokeStyle='rgba(79,195,247,0.1)';radarCtx.lineWidth=0.5;radarCtx.stroke()}
+  const sa=S.localRot*3;radarCtx.beginPath();radarCtx.moveTo(cx,cy);radarCtx.lineTo(cx+Math.cos(sa)*r,cy+Math.sin(sa)*r);radarCtx.strokeStyle='rgba(79,195,247,0.4)';radarCtx.lineWidth=1;radarCtx.stroke();
+  radarCtx.beginPath();radarCtx.moveTo(cx,cy);radarCtx.arc(cx,cy,r,sa-0.5,sa,false);radarCtx.closePath();radarCtx.fillStyle='rgba(79,195,247,0.06)';radarCtx.fill();
+  particles.forEach(p=>{const px=cx+(p.x/100)*r,py=cy+(p.z/100)*r,spd=Math.sqrt(p.vx*p.vx+p.vz*p.vz),alpha=Math.min(1,spd/2);radarCtx.fillStyle=`rgba(79,195,247,${alpha*0.7})`;radarCtx.fillRect(px-0.5,py-0.5,1,1)});
+}
+
+/* ============================================================
+   SIGNATURE SCORE
+   ============================================================ */
+function renderScore(){
+  const w=scoreCanvas.width,h=scoreCanvas.height,cx=w/2,cy=h/2,r=Math.max(1,w/2-6);
+  scoreCtx.clearRect(0,0,w,h);
+  const pct=Math.max(0,Math.min(1,S.signatureScore/100));
+  scoreCtx.beginPath();scoreCtx.arc(cx,cy,r,0,Math.PI*2);scoreCtx.strokeStyle='rgba(255,255,255,0.05)';scoreCtx.lineWidth=5;scoreCtx.stroke();
+  const color=S.signatureScore>80?'#10B981':S.signatureScore>60?'#F59E0B':'#EF4444';
+  scoreCtx.beginPath();scoreCtx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+Math.PI*2*pct);scoreCtx.strokeStyle=color;scoreCtx.lineWidth=5;scoreCtx.lineCap='round';scoreCtx.shadowBlur=12;scoreCtx.shadowColor=color;scoreCtx.stroke();scoreCtx.shadowBlur=0;
+  $('score-val').textContent=S.signatureScore.toFixed(1);$('score-val').style.color=color;
+}
+
+/* ============================================================
+   RENDERIZADO PRINCIPAL 3D
+   ============================================================ */
+function renderMain(){
+  updateProjectionCache();ctx.clearRect(0,0,_w,_h);
+  const wobble=(S.shearStress/100)*4;
+  ctx.strokeStyle='rgba(79,195,247,0.03)';ctx.lineWidth=1;
+  for(let x=0;x<_w;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,_h);ctx.stroke()}
+  for(let y=0;y<_h;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(_w,y);ctx.stroke()}
+  ctx.strokeStyle='rgba(79,195,247,0.06)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(_w/2,_h/2+100*_scale*_cosP,130*_scale,0,Math.PI*2);ctx.stroke();
+
+  const pV=VERTS.map(v=>project(v));
+
+  // Ondas acústicas
+  if(S.modules.acoustic&&(S.frequency>5||S.batchPhase==='STIMULATING')){
+    ctx.save();
+    [{x:0,y:-110,z:50},{x:0,y:110,z:-50}].forEach((tp,ti)=>{
+      const pt=project(tp),wc=Math.floor(S.frequency/8)+3;
+      for(let w=0;w<wc;w++){
+        const phase=((S.localRot*S.frequency*0.5+w*0.8+ti*Math.PI)%(Math.PI*2));
+        const rad=(phase/(Math.PI*2))*120*_scale,alpha=Math.max(0,0.3-(phase/(Math.PI*2))*0.3);
+        if(rad>2){ctx.beginPath();ctx.arc(pt.x,pt.y,Math.max(1,rad),0,Math.PI*2);ctx.strokeStyle=`rgba(79,195,247,${alpha})`;ctx.lineWidth=1.5;ctx.stroke()}
+      }
+    });ctx.restore();
+  }
+
+  // Campo EM
+  if(S.modules.emfield&&(S.voltage>15||S.batchPhase==='STIMULATING')){
+    ctx.save();ctx.shadowBlur=10;ctx.shadowColor='rgba(168,85,247,0.6)';
+    const intensity=Math.min(1,S.voltage/60);
+    for(let i=0;i<6;i++){
+      const angle=(i/6)*Math.PI*2+S.localRot*2;
+      const pB=project({x:Math.cos(angle)*50,y:-100,z:Math.sin(angle)*50});
+      const pT=project({x:Math.cos(angle+0.4)*50,y:100,z:Math.sin(angle+0.4)*50});
+      ctx.beginPath();ctx.moveTo(pB.x,pB.y);ctx.quadraticCurveTo((pB.x+pT.x)/2+Math.sin(S.localRot*10+i)*20*intensity,(pB.y+pT.y)/2,pT.x,pT.y);
+      ctx.strokeStyle=`rgba(168,85,247,${0.15+intensity*0.35})`;ctx.lineWidth=1+intensity;ctx.stroke();
+    }ctx.restore();
+  }
+
+  // Caras
+  const sortedFaces=FACES.map((f,idx)=>({f,avgZ:f.indices.reduce((s,i)=>s+pV[i].z,0)/f.indices.length,idx})).sort((a,b)=>b.avgZ-a.avgZ);
+  sortedFaces.forEach(({f})=>{
+    const p0=VERTS[f.indices[0]],p1=VERTS[f.indices[1]],p2=VERTS[f.indices[2]];
+    const ux=p1.x-p0.x,uy=p1.y-p0.y,uz=p1.z-p0.z,vx2=p2.x-p0.x,vy2=p2.y-p0.y,vz2=p2.z-p0.z;
+    const nx=uy*vz2-uz*vy2,ny=uz*vx2-ux*vz2,nz=ux*vy2-uy*vx2,len=Math.sqrt(nx*nx+ny*ny+nz*nz);
+    let lf=0.5;if(len>0)lf+=Math.max(0,(nx/len)*0.45+(ny/len)*0.77+(nz/len)*0.45)*0.45;
+    ctx.beginPath();const ps=pV[f.indices[0]];ctx.moveTo(ps.x,ps.y);
+    for(let j=1;j<f.indices.length;j++){const p=pV[f.indices[j]];ctx.lineTo(p.x,p.y)}
+    ctx.closePath();
+    let alpha=1;
+    if(S.visualFilter==='fluid')alpha=0.15;else if(S.visualFilter==='bio')alpha=0.04;else if(S.visualFilter==='thermal'||S.visualFilter==='emfield')alpha=0.25;
+    if((S.modules.thermal||S.visualFilter==='thermal')&&alpha>0.05){
+      const faceY=(p0.y+p1.y)/2,tempV=S.temperature+(faceY/120)*3+(Math.sin(S.localRot+f.idx)*0.5),tc=thermalColor(tempV);
+      ctx.fillStyle=rgbStr(tc,alpha*0.8);ctx.fill();ctx.strokeStyle=rgbStr(tc,0.4);ctx.lineWidth=1;ctx.stroke();
+    }else if(S.visualFilter==='emfield'&&S.modules.emfield){
+      const intensity=Math.min(1,S.voltage/60);ctx.fillStyle=`rgba(168,85,247,${alpha*intensity*0.3})`;ctx.fill();ctx.strokeStyle=`rgba(168,85,247,${0.2+intensity*0.3})`;ctx.lineWidth=1;ctx.stroke();
+    }else{
+      const r=Math.round(44*lf),g=Math.round(49*lf),b=Math.round(54*lf);ctx.fillStyle=`rgba(${r},${g},${b},${alpha})`;ctx.fill();ctx.strokeStyle=`rgba(255,255,255,${alpha>0.5?0.05:0.02})`;ctx.lineWidth=1;ctx.stroke();
+    }
+  });
+
+  // Flujos perfusión
+  if(S.visualFilter==='fluid'){ctx.save();ctx.strokeStyle='rgba(79,195,247,0.4)';ctx.lineWidth=1.2;
+    for(let j=0;j<6;j++){const fa=(j*Math.PI*2/6)+S.localRot*1.5,fx=Math.cos(fa)*75,fz=Math.sin(fa)*75,speed=1+S.perfusion*1.8,fy=(((S.localRot*120*speed)+j*60)%240)-120;const fp=project({x:fx,y:fy,z:fz});ctx.beginPath();ctx.moveTo(fp.x,fp.y+12);ctx.lineTo(fp.x,fp.y-12);ctx.lineTo(fp.x-3,fp.y-7);ctx.moveTo(fp.x,fp.y-12);ctx.lineTo(fp.x+3,fp.y-7);ctx.stroke()}ctx.restore();
+  }
+
+  // Rayos estímulo
+  if(S.frequency>2||S.voltage>25||S.batchPhase==='STIMULATING'){
+    ctx.save();ctx.shadowBlur=15;ctx.shadowColor='#4FC3F7';ctx.strokeStyle='rgba(79,195,247,0.4)';ctx.lineWidth=2+Math.sin(S.localRot*20)*1.5;
+    for(let i=0;i<4;i++){const a=S.localRot*4+(i*Math.PI/2);const pB=project({x:Math.cos(a)*45,y:-110,z:Math.sin(a)*45});const pT=project({x:Math.cos(a+0.3)*45,y:100,z:Math.sin(a+0.3)*45});ctx.beginPath();ctx.moveTo(pB.x,pB.y);ctx.lineTo((pB.x+pT.x)/2+(Math.random()-0.5)*15,(pB.y+pT.y)/2+(Math.random()-0.5)*15);ctx.lineTo(pT.x,pT.y);ctx.stroke()}ctx.restore();
+  }
+
+  // Hélice molecular
+  ctx.save();ctx.lineWidth=2.5;
+  for(let i=0;i<HELIX.length;i+=2){const p1=project(HELIX[i]),p2=project(HELIX[i+1]);ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();ctx.shadowBlur=8;ctx.shadowColor='#4FC3F7';ctx.fillStyle='#4FC3F7';ctx.beginPath();ctx.arc(p1.x,p1.y,4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#FFFFFF';ctx.beginPath();ctx.arc(p2.x,p2.y,3.5,0,Math.PI*2);ctx.fill()}
+  ctx.restore();
+
+  // Vesículas exosomas
+  ctx.save();
+  for(let i=0;i<5;i++){
+    const oa=S.localRot*2+(i*Math.PI*2/5),fy=Math.sin(S.localRot*3+i)*20;
+    const vp=project({x:Math.cos(oa)*55,y:-40+fy,z:Math.sin(oa)*55});
+    const df=400/Math.max(10,400+vp.z);let br=(16+i*4)*_scale*df;
+    if(S.visualFilter==='bio')br=(35+i*8)*_scale*df;br=Math.max(1,br);
+    ctx.shadowBlur=12;let strokeColor,fillColor;
+    if(S.batchPhase==='HARVESTING'){ctx.shadowColor='rgba(245,158,11,0.8)';strokeColor='#F59E0B';fillColor='rgba(245,158,11,0.22)'}
+    else if(S.batchPhase==='PURIFYING'||S.batchPhase==='SUCCESS'){ctx.shadowColor='rgba(16,185,129,0.8)';strokeColor='#10B981';fillColor='rgba(16,185,129,0.22)'}
+    else{ctx.shadowColor='rgba(79,195,247,0.7)';strokeColor='#4FC3F7';fillColor='rgba(79,195,247,0.18)'}
+    ctx.strokeStyle=strokeColor;ctx.fillStyle=fillColor;ctx.lineWidth=1.8;ctx.beginPath();
+    for(let s=0;s<16;s++){const sa=(s/16)*Math.PI*2,stretch=1+Math.sin(sa*4+S.localRot*15)*(wobble/100),rad=Math.max(1,br*stretch),px=vp.x+Math.cos(sa)*rad,py=vp.y+Math.sin(sa)*rad;s===0?ctx.moveTo(px,py):ctx.lineTo(px,py)}
+    ctx.closePath();ctx.fill();ctx.stroke();
+    if(S.visualFilter==='bio'){ctx.shadowBlur=4;ctx.lineWidth=1;const cdL=['CD9','CD63','CD81'],cdC=['#4FC3F7','#10B981','#F59E0B'];
+      for(let rec=0;rec<6;rec++){const ra=rec*Math.PI*2/6+S.localRot*0.4,stretch=1+Math.sin(ra*4+S.localRot*15)*(wobble/100),rad=Math.max(1,br*stretch),ix=vp.x+Math.cos(ra)*rad,iy=vp.y+Math.sin(ra)*rad,ox=vp.x+Math.cos(ra)*(rad+8*_scale),oy=vp.y+Math.sin(ra)*(rad+8*_scale);ctx.strokeStyle=strokeColor;ctx.beginPath();ctx.moveTo(ix,iy);ctx.lineTo(ox,oy);ctx.stroke();ctx.fillStyle=cdC[rec%3];ctx.beginPath();ctx.arc(ox,oy,Math.max(0.5,3*_scale),0,Math.PI*2);ctx.fill();if(rec%2===0&&br>25){ctx.fillStyle='rgba(255,255,255,0.6)';ctx.font='8px monospace';ctx.fillText(cdL[rec%3],ox+4,oy+2)}}}
+    ctx.shadowBlur=0;ctx.fillStyle='rgba(255,255,255,0.7)';
+    for(let j=0;j<3;j++){ctx.beginPath();ctx.arc(vp.x+Math.cos(S.localRot*5+j*2.1)*br*0.35,vp.y+Math.sin(S.localRot*5+j*2.1)*br*0.35,2.2,0,Math.PI*2);ctx.fill()}
+  }ctx.restore();
+
+  // Partículas enjambre
+  ctx.save();
+  particles.forEach(p=>{
+    const dist=Math.sqrt(p.x*p.x+p.z*p.z);
+    if(dist>10){p.vx-=(p.x/dist)*0.05*(1+S.shearStress/150);p.vz-=(p.z/dist)*0.05*(1+S.shearStress/150)}
+    p.vx+=(-p.z/(dist||1))*0.15*(1+S.frequency/120);p.vz+=(p.x/(dist||1))*0.15*(1+S.frequency/120);
+    p.vx*=0.94;p.vy*=0.94;p.vz*=0.94;p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;
+    const nd=Math.sqrt(p.x*p.x+p.z*p.z);
+    if(nd>95){const nx=p.x/(nd||1),nz=p.z/(nd||1),dot=p.vx*nx+p.vz*nz;if(dot>0){p.vx-=2*dot*nx;p.vz-=2*dot*nz}p.x=nx*95;p.z=nz*95}
+    if(p.y<-130){p.y=-130;p.vy=-p.vy}if(p.y>110){p.y=110;p.vy=-p.vy}
+    const pp=project(p),rf=400/Math.max(10,400+pp.z),dr=Math.max(0.1,p.size*rf);
+    let color;if(S.modules.concentration){const density=1-(nd/95);color=`rgba(79,195,247,${0.3+density*0.7})`}else color=rgbStr(p.baseColor);
+    ctx.fillStyle=color;ctx.beginPath();ctx.arc(isNaN(pp.x)?_w/2:pp.x,isNaN(pp.y)?_h/2:pp.y,dr,0,Math.PI*2);ctx.fill();
+  });ctx.restore();
+
+  // Nodos SDEE
+  ctx.save();
+  NODES.forEach(node=>{
+    const pn=project({x:node.x,y:node.y,z:node.z});
+    const isSel=S.selectedNodeId===node.id,isHov=S.hoveredNodeId===node.id,nr=isSel?12:isHov?10:8;
+    ctx.shadowBlur=isSel?18:isHov?12:8;ctx.shadowColor=isSel?'#FFFFFF':'#4FC3F7';
+    const pulse=1+Math.sin(S.localRot*12+node.x)*0.15;
+    ctx.strokeStyle=isSel?'#FFFFFF':isHov?'#A5F3FC':'#4FC3F7';ctx.lineWidth=isSel?2.5:1.5;
+    ctx.beginPath();ctx.arc(pn.x,pn.y,Math.max(1,nr*pulse),0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle=isSel?'#FFFFFF':'rgba(79,195,247,0.9)';ctx.beginPath();ctx.arc(pn.x,pn.y,Math.max(1,nr-3),0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;ctx.fillStyle=isSel?'#FFFFFF':'rgba(255,255,255,0.8)';ctx.font='bold 10px "Outfit",sans-serif';
+    ctx.fillText(node.name[S.lang],pn.x+14,pn.y+4);
+    ctx.strokeStyle='rgba(79,195,247,0.1)';ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(_w/2,_h/2);ctx.lineTo(pn.x,pn.y);ctx.stroke();
+  });ctx.restore();
+
+  // Telemetría canvas
+  ctx.fillStyle='rgba(79,195,247,0.4)';ctx.font='9px "JetBrains Mono",monospace';
+  ctx.fillText(`YAW: ${S.yaw.toFixed(2)}  PITCH: ${S.pitch.toFixed(2)}  ZOOM: ${S.zoom.toFixed(2)}`,12,_h-10);
+  if(S.alertLevel!=='nominal'){
+    ctx.fillStyle=S.alertLevel==='critical'?'rgba(239,68,68,0.5)':'rgba(245,158,11,0.5)';
+    ctx.fillText(tf('canvas_alert',{level:S.alertLevel.toUpperCase(),contam:(S.contaminationRisk*100).toFixed(1),wear:Math.round(Math.max(...Object.values(S.wear)))}),12,_h-26);
+  }
+}
+
+/* ============================================================
+   INTERACCIONES
+   ============================================================ */
+canvas.addEventListener('mousedown',e=>{if(e.button===0){S.dragging=true;S.dragX=e.clientX;S.dragY=e.clientY;S.lastInteraction=performance.now()}});
+canvas.addEventListener('mousemove',e=>{
+  const rect=canvas.getBoundingClientRect();S.mouseX=e.clientX;S.mouseY=e.clientY;
+  if(S.dragging){const dx=e.clientX-S.dragX,dy=e.clientY-S.dragY;S.yaw+=dx*0.007;S.pitch=Math.max(-Math.PI/2,Math.min(Math.PI/2,S.pitch-dy*0.007));S.dragX=e.clientX;S.dragY=e.clientY;S.lastInteraction=performance.now()}
+  updateProjectionCache();let found=null,minD=30;
+  NODES.forEach(n=>{const pn=project({x:n.x,y:n.y,z:n.z});const dx=(e.clientX-rect.left)*devicePixelRatio-pn.x,dy=(e.clientY-rect.top)*devicePixelRatio-pn.y,d=Math.sqrt(dx*dx+dy*dy);if(d<minD){minD=d;found=n.id}});
+  S.hoveredNodeId=found;canvas.style.cursor=found?'pointer':S.dragging?'grabbing':'grab';
+  const tip=$('tooltip');
+  if(found){const node=NODES.find(n=>n.id===found);tip.classList.remove('hidden');tip.style.left=(e.clientX+16)+'px';tip.style.top=(e.clientY-10)+'px';tip.innerHTML=`<div style="color:var(--accent);font-weight:700;font-size:10px;margin-bottom:2px">${node.name[S.lang]}</div><div style="color:var(--muted)">${node.desc[S.lang]}</div><div style="color:var(--fg);margin-top:4px"><span style="color:var(--muted)">${t('tooltip_status')}</span> ${node.value}</div>`}
+  else tip.classList.add('hidden');
+});
+canvas.addEventListener('mouseup',()=>S.dragging=false);
+canvas.addEventListener('mouseleave',()=>{S.dragging=false;S.hoveredNodeId=null;$('tooltip').classList.add('hidden')});
+canvas.addEventListener('click',()=>{if(S.hoveredNodeId){S.selectedNodeId=S.hoveredNodeId;addLog(tf('log_node_selected',{name:NODES.find(n=>n.id===S.selectedNodeId).name[S.lang]}),'ok')}else S.selectedNodeId=null});
+canvas.addEventListener('dblclick',()=>{if(S.hoveredNodeId){const node=NODES.find(n=>n.id===S.hoveredNodeId);S.focusTarget={x:node.x,y:node.y,z:node.z};S.focusProgress=0;S.selectedNodeId=node.id;addLog(tf('log_focusing',{name:node.name[S.lang]}),'ok')}});
+canvas.addEventListener('contextmenu',e=>{
+  e.preventDefault();const menu=$('ctx-menu');
+  if(S.hoveredNodeId){
+    S.ctxMenu={visible:true,x:e.clientX,y:e.clientY,nodeId:S.hoveredNodeId};
+    const node=NODES.find(n=>n.id===S.hoveredNodeId);
+    menu.innerHTML=`
+      <div class="ci" data-action="focus"><i class="fa-solid fa-crosshairs" style="width:14px;color:var(--accent)"></i>${t('ctx_focus')}</div>
+      <div class="ci" data-action="diagnose"><i class="fa-solid fa-stethoscope" style="width:14px;color:var(--ok)"></i>${t('ctx_diagnose')}</div>
+      <div class="ci" data-action="isolate"><i class="fa-solid fa-eye" style="width:14px;color:var(--warn)"></i>${t('ctx_isolate')}</div>
+      <div class="ci" data-action="metrics"><i class="fa-solid fa-chart-line" style="width:14px;color:var(--accent)"></i>${t('ctx_metrics')}</div>`;
+    menu.style.left=e.clientX+'px';menu.style.top=e.clientY+'px';menu.classList.remove('hidden');
+    menu.querySelectorAll('.ci').forEach(item=>{
+      item.addEventListener('click',()=>{
+        const a=item.dataset.action;
+        if(a==='focus'){S.focusTarget={x:node.x,y:node.y,z:node.z};S.focusProgress=0;addLog(tf('log_focusing',{name:node.name[S.lang]}),'ok')}
+        else if(a==='diagnose'){addLog(tf('log_diagnosing',{name:node.name[S.lang]}),'ok');setTimeout(()=>addLog(t('log_diagnose_ok'),'ok'),2000)}
+        else if(a==='isolate'){S.selectedNodeId=node.id;addLog(tf('log_isolating',{name:node.name[S.lang]}),'warn')}
+        else if(a==='metrics'){addLog(tf('log_metrics',{name:node.name[S.lang],value:node.value,wear:Math.round(S.wear.electrode)}),'ok')}
+        menu.classList.add('hidden');S.ctxMenu.visible=false;
+      });
+    });
+  }else{menu.classList.add('hidden');S.ctxMenu.visible=false}
+});
+
+// Touch
+let lastTouchDist=0;
+canvas.addEventListener('touchstart',e=>{if(e.touches.length===1){S.dragging=true;S.dragX=e.touches[0].clientX;S.dragY=e.touches[0].clientY;S.lastInteraction=performance.now()}if(e.touches.length===2)lastTouchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY)},{passive:true});
+canvas.addEventListener('touchmove',e=>{if(e.touches.length===1&&S.dragging){const dx=e.touches[0].clientX-S.dragX,dy=e.touches[0].clientY-S.dragY;S.yaw+=dx*0.007;S.pitch=Math.max(-Math.PI/2,Math.min(Math.PI/2,S.pitch-dy*0.007));S.dragX=e.touches[0].clientX;S.dragY=e.touches[0].clientY;S.lastInteraction=performance.now()}if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(lastTouchDist>0)S.zoom=Math.max(0.4,Math.min(2.5,S.zoom*(d/lastTouchDist)));lastTouchDist=d}},{passive:true});
+canvas.addEventListener('touchend',()=>{S.dragging=false;lastTouchDist=0});
+canvas.addEventListener('wheel',e=>{e.preventDefault();S.zoom=Math.max(0.4,Math.min(2.5,S.zoom-e.deltaY*0.001))},{passive:false});
+
+// Teclado
+document.addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();
+  if(k===' '){e.preventDefault();S.paused=!S.paused;$('pause-overlay').classList.toggle('hidden',!S.paused);$('pause-icon').className=S.paused?'fa-solid fa-play':'fa-solid fa-pause';addLog(S.paused?t('log_paused'):t('log_resumed'),'ok')}
+  if(k==='r'){S.yaw=0.5;S.pitch=-0.3;S.zoom=1.0;S.focusTarget=null;addLog(t('log_camera_reset'),'ok')}
+  if(k==='1')setFilter('structural');if(k==='2')setFilter('fluid');if(k==='3')setFilter('bio');if(k==='4')setFilter('thermal');if(k==='5')setFilter('emfield');
+  if(k==='t')toggleModule('thermal');if(k==='a')toggleModule('acoustic');if(k==='e')toggleModule('emfield');if(k==='c')toggleModule('concentration');
+  if(k==='p')$('param-panel').classList.toggle('hidden');
+  if(k==='+'||k==='=')S.zoom=Math.min(2.5,S.zoom+0.1);
+  if(k==='-')S.zoom=Math.max(0.4,S.zoom-0.1);
+  if(k==='arrowleft'){S.yaw-=0.1;S.lastInteraction=performance.now()}
+  if(k==='arrowright'){S.yaw+=0.1;S.lastInteraction=performance.now()}
+  if(k==='arrowup'){S.pitch=Math.min(Math.PI/2,S.pitch+0.1);S.lastInteraction=performance.now()}
+  if(k==='arrowdown'){S.pitch=Math.max(-Math.PI/2,S.pitch-0.1);S.lastInteraction=performance.now()}
+  if(k==='escape'){S.selectedNodeId=null;$('ctx-menu').classList.add('hidden');$('help-overlay').classList.add('hidden');$('param-panel').classList.add('hidden')}
+  if(k==='?')$('help-overlay').classList.toggle('hidden');
+});
+
+/* ============================================================
+   FILTROS Y MÓDULOS
+   ============================================================ */
+function setFilter(f){
+  S.visualFilter=f;document.querySelectorAll('[data-f]').forEach(b=>b.classList.toggle('on',b.dataset.f===f));
+  addLog(tf('log_filter',{filter:t('filter_'+f)}),'ok');
+}
+function toggleModule(m){
+  S.modules[m]=!S.modules[m];document.querySelectorAll('[data-m]').forEach(b=>b.classList.toggle('on',S.modules[b.dataset.m]));
+  addLog(tf(S.modules[m]?'log_module_on':'log_module_off',{mod:t('mod_'+m)}),'ok');
+}
+document.querySelectorAll('[data-f]').forEach(b=>b.addEventListener('click',()=>setFilter(b.dataset.f)));
+document.querySelectorAll('[data-m]').forEach(b=>b.addEventListener('click',()=>toggleModule(b.dataset.m)));
+
+/* ============================================================
+   SELECTOR DE IDIOMA
+   ============================================================ */
+document.querySelectorAll('.lang-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const newLang=btn.dataset.lang;if(newLang===S.lang)return;
+    S.lang=newLang;applyLanguage();
+    addLog(tf('log_lang_change',{lang:LOCALES[newLang].lang_name}),'ok');
+  });
+});
+
+/* ============================================================
+   BOTONES DE CONTROL
+   ============================================================ */
+ $('z-in').addEventListener('click',()=>S.zoom=Math.min(2.5,S.zoom+0.15));
+ $('z-out').addEventListener('click',()=>S.zoom=Math.max(0.4,S.zoom-0.15));
+ $('z-rst').addEventListener('click',()=>{S.yaw=0.5;S.pitch=-0.3;S.zoom=1.0;S.focusTarget=null});
+ $('z-pause').addEventListener('click',()=>{S.paused=!S.paused;$('pause-overlay').classList.toggle('hidden',!S.paused);$('pause-icon').className=S.paused?'fa-solid fa-play':'fa-solid fa-pause'});
+ $('z-params').addEventListener('click',()=>$('param-panel').classList.toggle('hidden'));
+ $('close-params').addEventListener('click',()=>$('param-panel').classList.add('hidden'));
+ $('btn-batch').addEventListener('click',startBatch);
+document.addEventListener('click',e=>{if(!e.target.closest('#ctx-menu'))$('ctx-menu').classList.add('hidden')});
+
+/* ============================================================
+   SLIDERS DE PARÁMETROS
+   ============================================================ */
+const PARAMS=[
+  {key:'temperature',label:'param_temperature',unit:'unit_temp',min:20,max:50,step:0.1},
+  {key:'ph',label:'param_ph',unit:'unit_ph',min:5.5,max:9,step:0.1},
+  {key:'voltage',label:'param_voltage',unit:'unit_voltage',min:0,max:80,step:1},
+  {key:'frequency',label:'param_frequency',unit:'unit_frequency',min:0,max:120,step:1},
+  {key:'shearStress',label:'param_shear',unit:'unit_shear',min:0,max:100,step:1},
+  {key:'perfusion',label:'param_perfusion',unit:'unit_perfusion',min:0,max:6,step:0.1},
+  {key:'pressure',label:'param_pressure',unit:'unit_pressure',min:0.5,max:3,step:0.01},
+  {key:'particleCount',label:'param_particles',unit:'unit_particles',min:20,max:250,step:10}
+];
+function buildSliders(){
+  const c=$('sliders-container');
+  c.innerHTML=PARAMS.map(p=>`<div><div class="flex justify-between" style="font-size:8px;margin-bottom:2px"><span class="param-label" data-pl="${p.label}">${t(p.label)}</span><span class="param-unit" data-pu="${p.unit}" style="color:var(--accent)">${S[p.key]}${t(p.unit)}</span></div><input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${S[p.key]}" data-key="${p.key}" data-pu="${p.unit}"></div>`).join('');
+  c.querySelectorAll('input[type=range]').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      const key=inp.dataset.key,unitKey=inp.dataset.pu;const val=parseFloat(inp.value);S[key]=val;
+      inp.previousElementSibling.querySelector('.param-unit').textContent=val+t(unitKey);
+      if(key==='particleCount')initParticles();
+    });
+  });
+}
+buildSliders();
+
+/* ============================================================
+   REDIMENSIONAMIENTO
+   ============================================================ */
+function handleResize(){const dpr=window.devicePixelRatio||1;canvas.width=window.innerWidth*dpr;canvas.height=window.innerHeight*dpr}
+handleResize();window.addEventListener('resize',handleResize);
+
+/* ============================================================
+   FOCO ANIMADO
+   ============================================================ */
+function updateFocus(dt){
+  if(!S.focusTarget)return;S.focusProgress=Math.min(1,S.focusProgress+dt*2);
+  const ease=S.focusProgress<0.5?2*S.focusProgress*S.focusProgress:1-Math.pow(-2*S.focusProgress+2,2)/2;
+  const dx=S.focusTarget.x,dy=S.focusTarget.y,dz=S.focusTarget.z;
+  const targetYaw=Math.atan2(dx,dz),dist=Math.sqrt(dx*dx+dz*dz),targetPitch=-Math.atan2(dy,dist);
+  S.yaw=S.yaw+(targetYaw-S.yaw)*ease*0.05;S.pitch=S.pitch+(targetPitch-S.pitch)*ease*0.05;
+  if(S.focusProgress>=1)S.focusTarget=null;
+}
+
+/* ============================================================
+   BUCLE PRINCIPAL
+   ============================================================ */
+let lastTime=performance.now();
+function mainLoop(now){
+  const rawDt=(now-lastTime)/1000;lastTime=now;const dt=S.paused?0:Math.min(rawDt,0.1);
+  S.frameCount++;if(now-S.fpsTime>1000){S.fps=S.frameCount;S.frameCount=0;S.fpsTime=now}
+  if(!S.paused){
+    S.simTime+=dt;S.localRot+=0.004;
+    if(performance.now()-S.lastInteraction>5000)S.yaw+=0.001;
+    updateBatch(dt);updateWearAndContamination(dt);updateAlertLevel();updateFocus(dt);updateOscilloscope();
+    if(S.batchPhase!=='STANDBY')S.signatureScore=Math.min(100,S.signatureScore+dt*1.5);
+  }
+  renderMain();renderOscilloscope();renderRadar();renderScore();
+  renderGauge(gaugeCanvases.temp,S.temperature,20,50,t('unit_temp'),[40,44]);
+  renderGauge(gaugeCanvases.ph,S.ph,5.5,9,t('unit_ph'),[7.8,8.2]);
+  renderGauge(gaugeCanvases.pres,S.pressure,0.5,3,t('unit_pressure'),[1.6,2.0]);
+  renderGauge(gaugeCanvases.o2,S.dissolvedOxygen,0,100,'%',[70,40]);
+  $('sim-time').textContent=formatTime(S.simTime);$('sim-fps').textContent=S.fps+' FPS';
+  $('sim-particles').textContent=tf('sim_particles',{n:particles.length});
+  requestAnimationFrame(mainLoop);
+}
+
+/* ============================================================
+   INICIALIZACIÓN
+   ============================================================ */
+applyLanguage();
+addLog(t('log_init_1'),'ok');
+addLog(t('log_init_2'),'ok');
+addLog(t('log_init_3'),'ok');
+requestAnimationFrame(mainLoop);
+</script>
+</body>
+</html>
