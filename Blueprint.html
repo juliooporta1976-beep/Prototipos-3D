@@ -1,0 +1,1872 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>El Blueprint AURA - 3D Simulator v2</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+    :root {
+      --titanium-dark: #121416;
+      --titanium-bg: #1A1D20;
+      --titanium-panel: rgba(26, 29, 32, 0.88);
+      --titanium-border: rgba(79, 195, 247, 0.22);
+      --cyan-glow: #4FC3F7;
+      --cyan-dim: rgba(79, 195, 247, 0.4);
+      --silver-soft: #CFD8DC;
+      --clinical-white: #ECEFF1;
+      --anthracite: #0F1112;
+      --red-alert: #FF5252;
+      --red-dim: rgba(255, 82, 82, 0.3);
+      --quantum-purple: #B388FF;
+      --warning-amber: #FFB300;
+      --heal-green: #00E676;
+      --fork-orange: #FF6E40;
+      --crisis-magenta: #F50057;
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+    body {
+      background-color: var(--titanium-dark);
+      color: var(--clinical-white);
+      font-family: var(--font-sans);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    .grid-overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background-image:
+        radial-gradient(circle at 50% 50%, transparent 35%, rgba(15,17,18,0.85) 90%),
+        linear-gradient(rgba(79,195,247,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(79,195,247,0.025) 1px, transparent 1px);
+      background-size: 100% 100%, 40px 40px, 40px 40px;
+      pointer-events: none; z-index: 1;
+    }
+
+    .scanline {
+      position: absolute; top: 0; left: 0; width: 100%; height: 4px;
+      background: linear-gradient(to bottom, rgba(79,195,247,0.12), transparent);
+      animation: scan 6s linear infinite;
+      pointer-events: none; z-index: 5;
+    }
+    @keyframes scan { 0% { top: -10px; } 100% { top: 100%; } }
+
+    .vignette {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.6) 100%);
+      pointer-events: none; z-index: 4;
+    }
+
+    #camera-feed {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      object-fit: cover; transform: scaleX(-1);
+      opacity: 0; transition: opacity 1s cubic-bezier(0.16,1,0.3,1); z-index: 0;
+    }
+    #camera-feed.active { opacity: 0.4; }
+
+    .viewport {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2;
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: 20px; pointer-events: none;
+    }
+    .interactive-element { pointer-events: auto; }
+
+    #canvas3d {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 1; cursor: grab;
+    }
+    #canvas3d:active { cursor: grabbing; }
+
+    /* === NOTIFICACIONES TOAST === */
+    .toast-container {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 1000; display: flex; flex-direction: column; gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      background: var(--titanium-panel); border: 1px solid var(--titanium-border);
+      border-radius: 6px; padding: 10px 20px;
+      font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+      color: var(--clinical-white); backdrop-filter: blur(16px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      animation: toastIn 0.4s cubic-bezier(0.16,1,0.3,1) forwards;
+      white-space: nowrap; pointer-events: auto;
+    }
+    .toast.danger { border-color: var(--red-alert); color: var(--red-alert); }
+    .toast.success { border-color: var(--heal-green); color: var(--heal-green); }
+    .toast.warning { border-color: var(--warning-amber); color: var(--warning-amber); }
+    .toast.quantum { border-color: var(--quantum-purple); color: var(--quantum-purple); }
+    .toast.fade-out { animation: toastOut 0.4s ease forwards; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
+
+    /* === HEADER === */
+    header {
+      display: grid; grid-template-columns: 310px 1fr 320px;
+      gap: 16px; align-items: flex-start; width: 100%; z-index: 10;
+    }
+
+    .brand-container {
+      background: var(--titanium-panel); border: 1px solid var(--titanium-border);
+      border-left: 4px solid var(--cyan-glow); border-radius: 4px;
+      padding: 12px 20px; box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+      backdrop-filter: blur(10px); text-align: center; margin: 0 auto;
+      width: 100%; max-width: 440px;
+    }
+    .brand-author { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--cyan-glow); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 3px; }
+    .brand-title { font-size: 19px; font-weight: 700; color: var(--clinical-white); letter-spacing: -0.5px; }
+    .brand-subtitle { font-size: 10px; color: var(--silver-soft); margin-top: 2px; }
+
+    .controls-top-right { display: flex; flex-direction: column; gap: 12px; align-items: flex-end; width: 100%; }
+
+    .glass-card {
+      background: var(--titanium-panel); border: 1px solid var(--titanium-border);
+      border-radius: 6px; padding: 10px 14px; backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .btn-group { display: flex; gap: 5px; }
+    .btn {
+      background: rgba(40,45,50,0.6); border: 1px solid rgba(255,255,255,0.1);
+      color: var(--silver-soft); padding: 5px 10px; font-family: var(--font-mono);
+      font-size: 10px; font-weight: 600; border-radius: 4px; cursor: pointer;
+      transition: all 0.25s ease;
+    }
+    .btn:hover { border-color: var(--cyan-glow); color: var(--cyan-glow); box-shadow: 0 0 10px rgba(79,195,247,0.2); }
+    .btn.active { background: rgba(79,195,247,0.15); border-color: var(--cyan-glow); color: var(--cyan-glow); text-shadow: 0 0 8px var(--cyan-glow); }
+
+    /* === DASHBOARD GRID === */
+    .dashboard-grid {
+      display: grid; grid-template-columns: 300px 1fr 310px;
+      width: 100%; height: 100%; margin-top: 12px; margin-bottom: 12px;
+      gap: 16px; pointer-events: none; flex-grow: 1;
+    }
+    .sidebar { display: flex; flex-direction: column; gap: 12px; height: 100%; pointer-events: auto; overflow-y: auto; max-height: calc(100vh - 160px); padding-right: 3px; }
+    .sidebar::-webkit-scrollbar { width: 3px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(79,195,247,0.2); border-radius: 2px; }
+
+    /* === HUD PANEL BASE === */
+    .hud-panel {
+      background: var(--titanium-panel); border: 1px solid var(--titanium-border);
+      border-radius: 6px; padding: 14px; display: flex; flex-direction: column;
+      backdrop-filter: blur(10px); box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+      position: relative; overflow: hidden; flex-shrink: 0;
+    }
+    .hud-panel::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, var(--cyan-glow), transparent); }
+    .hud-panel.danger::before { background: linear-gradient(90deg, var(--red-alert), transparent); }
+    .hud-panel.quantum::before { background: linear-gradient(90deg, var(--quantum-purple), transparent); }
+    .hud-panel.success::before { background: linear-gradient(90deg, var(--heal-green), transparent); }
+    .hud-panel.warning::before { background: linear-gradient(90deg, var(--warning-amber), transparent); }
+
+    .hud-panel-title {
+      font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+      color: var(--cyan-glow); letter-spacing: 0.8px; text-transform: uppercase;
+      margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+    }
+    .hud-panel-title.danger { color: var(--red-alert); }
+    .hud-panel-title.quantum { color: var(--quantum-purple); }
+    .hud-panel-title.success { color: var(--heal-green); }
+
+    .telemetry-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12px; }
+    .telemetry-label { color: var(--silver-soft); font-size: 11px; }
+    .telemetry-val { font-family: var(--font-mono); font-weight: 700; color: var(--clinical-white); font-size: 12px; }
+    .telemetry-val.highlight { color: var(--cyan-glow); }
+    .telemetry-val.critical { color: var(--red-alert); animation: pulse-red 1.5s infinite; }
+    @keyframes pulse-red { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    /* === GAUGE === */
+    .gauge-container { display: flex; justify-content: center; align-items: center; padding: 12px 0; position: relative; }
+    .gauge-svg { width: 120px; height: 120px; transform: rotate(-90deg); }
+    .gauge-bg { fill: none; stroke: rgba(255,255,255,0.04); stroke-width: 8; }
+    .gauge-fill { fill: none; stroke: var(--cyan-glow); stroke-width: 8; stroke-dasharray: 314; stroke-dashoffset: 3.14; transition: stroke-dashoffset 0.8s ease, stroke 0.8s ease; }
+    .gauge-text-box { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .gauge-score { font-family: var(--font-mono); font-size: 28px; font-weight: 700; color: var(--clinical-white); }
+    .gauge-label { font-size: 9px; color: var(--silver-soft); text-transform: uppercase; letter-spacing: 1px; }
+
+    /* === MODE BUTTONS === */
+    .mode-select-box { display: grid; grid-template-columns: 1fr; gap: 6px; max-height: 240px; overflow-y: auto; padding-right: 3px; }
+    .mode-select-box::-webkit-scrollbar { width: 2px; }
+    .mode-select-box::-webkit-scrollbar-thumb { background: rgba(79,195,247,0.2); border-radius: 2px; }
+    .mode-btn {
+      background: rgba(30,35,40,0.5); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 4px; padding: 8px 10px; display: flex; flex-direction: column;
+      align-items: flex-start; cursor: pointer; transition: all 0.2s ease; text-align: left;
+    }
+    .mode-btn:hover { background: rgba(79,195,247,0.05); border-color: var(--cyan-dim); }
+    .mode-btn.active { background: rgba(79,195,247,0.09); border-color: var(--cyan-glow); }
+    .mode-btn.active.danger { background: rgba(255,82,82,0.09); border-color: var(--red-alert); }
+    .mode-btn.active.quantum-active { background: rgba(179,136,255,0.09); border-color: var(--quantum-purple); }
+    .mode-btn.active.warning-active { background: rgba(255,179,0,0.09); border-color: var(--warning-amber); }
+    .mode-btn.active.success-active { background: rgba(0,230,118,0.09); border-color: var(--heal-green); }
+    .mode-btn-title { font-size: 11px; font-weight: 700; color: var(--clinical-white); margin-bottom: 1px; }
+    .mode-btn.active .mode-btn-title { color: var(--cyan-glow); }
+    .mode-btn.active.danger .mode-btn-title { color: var(--red-alert); }
+    .mode-btn.active.quantum-active .mode-btn-title { color: var(--quantum-purple); }
+    .mode-btn.active.warning-active .mode-btn-title { color: var(--warning-amber); }
+    .mode-btn.active.success-active .mode-btn-title { color: var(--heal-green); }
+    .mode-btn-desc { font-size: 9px; color: var(--silver-soft); line-height: 1.3; }
+    .mode-btn-key { font-family: var(--font-mono); font-size: 8px; color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); padding: 1px 5px; border-radius: 2px; margin-left: auto; flex-shrink: 0; align-self: flex-start; }
+
+    /* === LOG FEED === */
+    .log-feed {
+      font-family: var(--font-mono); font-size: 9px; color: var(--silver-soft);
+      height: 100px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px;
+      border: 1px solid rgba(255,255,255,0.04); background: rgba(10,12,14,0.8);
+      border-radius: 4px; padding: 6px;
+    }
+    .log-feed::-webkit-scrollbar { width: 2px; }
+    .log-feed::-webkit-scrollbar-thumb { background: rgba(79,195,247,0.15); border-radius: 2px; }
+    .log-line { display: flex; gap: 5px; line-height: 1.4; }
+    .log-time { color: var(--cyan-glow); flex-shrink: 0; }
+    .log-time.danger { color: var(--red-alert); }
+    .log-time.quantum { color: var(--quantum-purple); }
+
+    /* === NODE DETAIL === */
+    .node-pill { display: inline-block; padding: 2px 6px; border-radius: 3px; background: rgba(79,195,247,0.15); color: var(--cyan-glow); font-family: var(--font-mono); font-size: 9px; margin-bottom: 5px; text-transform: uppercase; }
+    .node-pill.critical { background: rgba(255,82,82,0.15); color: var(--red-alert); }
+
+    /* === LED INDICATORS === */
+    .features-list { display: flex; flex-direction: column; gap: 6px; }
+    .feature-item { display: flex; align-items: center; gap: 8px; font-size: 10px; font-family: var(--font-mono); }
+    .led-indicator { width: 7px; height: 7px; border-radius: 50%; background-color: var(--cyan-glow); box-shadow: 0 0 8px var(--cyan-glow); transition: all 0.3s ease; }
+    .led-indicator.off { background-color: rgba(255,255,255,0.12); box-shadow: none; }
+    .led-indicator.alert { background-color: var(--red-alert); box-shadow: 0 0 8px var(--red-alert); }
+    .led-indicator.quantum-led { background-color: var(--quantum-purple); box-shadow: 0 0 8px var(--quantum-purple); }
+    .led-indicator.warning-led { background-color: var(--warning-amber); box-shadow: 0 0 8px var(--warning-amber); }
+    .led-indicator.heal-led { background-color: var(--heal-green); box-shadow: 0 0 8px var(--heal-green); }
+
+    /* === PROGRESS BARS === */
+    .progress-row { margin-bottom: 6px; }
+    .progress-header { display: flex; justify-content: space-between; font-size: 9px; font-family: var(--font-mono); margin-bottom: 3px; }
+    .progress-track { width: 100%; background-color: rgba(255,255,255,0.04); height: 3px; border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; transition: width 0.6s ease, background 0.6s ease; border-radius: 2px; }
+
+    /* === RADAR CANVAS === */
+    .radar-container { display: flex; justify-content: center; padding: 8px 0; }
+    #radar-canvas { border-radius: 50%; }
+
+    /* === DAG MINI-MAP === */
+    .dag-container { display: flex; justify-content: center; padding: 4px 0; }
+    #dag-canvas { border-radius: 4px; }
+
+    /* === CRYPTO PIPELINE === */
+    .pipeline-layer {
+      display: flex; align-items: center; gap: 8px; padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 10px;
+    }
+    .pipeline-layer:last-child { border-bottom: none; }
+    .pipeline-num {
+      font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+      width: 18px; height: 18px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      background: rgba(79,195,247,0.15); color: var(--cyan-glow);
+      transition: all 0.4s ease;
+    }
+    .pipeline-name { flex: 1; font-family: var(--font-mono); font-size: 9px; color: var(--silver-soft); }
+    .pipeline-status { font-family: var(--font-mono); font-size: 9px; font-weight: 700; transition: color 0.4s ease; }
+    .pipeline-bar { width: 40px; height: 3px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; }
+    .pipeline-bar-fill { height: 100%; transition: width 0.6s ease, background 0.6s ease; border-radius: 2px; }
+
+    /* === SLIDERS === */
+    .slider-group { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .slider-row { display: flex; align-items: center; gap: 8px; }
+    .slider-label { font-family: var(--font-mono); font-size: 9px; color: var(--silver-soft); width: 100px; flex-shrink: 0; }
+    .slider-val { font-family: var(--font-mono); font-size: 9px; font-weight: 700; color: var(--cyan-glow); width: 36px; text-align: right; flex-shrink: 0; }
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none; flex: 1; height: 3px;
+      background: rgba(255,255,255,0.08); border-radius: 2px; outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+      background: var(--cyan-glow); cursor: pointer; box-shadow: 0 0 8px rgba(79,195,247,0.4);
+      transition: transform 0.2s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+    /* === TIMELINE BAR === */
+    .timeline-bar {
+      display: flex; align-items: center; gap: 10px; padding: 8px 16px;
+      background: var(--titanium-panel); border: 1px solid var(--titanium-border);
+      border-radius: 6px; backdrop-filter: blur(10px); pointer-events: auto;
+    }
+    .timeline-btn {
+      background: rgba(40,45,50,0.6); border: 1px solid rgba(255,255,255,0.1);
+      color: var(--silver-soft); width: 28px; height: 28px; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      transition: all 0.2s ease; font-size: 14px;
+    }
+    .timeline-btn:hover { border-color: var(--cyan-glow); color: var(--cyan-glow); }
+    .timeline-btn.active { background: rgba(79,195,247,0.15); border-color: var(--cyan-glow); color: var(--cyan-glow); }
+    .timeline-track { flex: 1; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; position: relative; cursor: pointer; }
+    .timeline-fill { height: 100%; background: var(--cyan-glow); border-radius: 2px; width: 0%; transition: width 0.1s linear; }
+    .timeline-label { font-family: var(--font-mono); font-size: 9px; color: var(--silver-soft); white-space: nowrap; }
+
+    /* === FOOTER === */
+    footer { display: flex; justify-content: space-between; align-items: center; width: 100%; z-index: 10; gap: 16px; }
+    .ar-btn {
+      background: linear-gradient(135deg, rgba(79,195,247,0.2), rgba(0,150,136,0.2));
+      border: 1px solid var(--cyan-glow); color: var(--clinical-white);
+      padding: 8px 16px; border-radius: 6px; font-family: var(--font-mono);
+      font-weight: 700; font-size: 11px; letter-spacing: 1px; cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+      transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+      box-shadow: 0 4px 15px rgba(79,195,247,0.15);
+    }
+    .ar-btn:hover { box-shadow: 0 0 20px rgba(79,195,247,0.4); transform: translateY(-1px); }
+    .ar-btn.active { background: var(--red-alert); border-color: var(--red-alert); box-shadow: 0 0 20px rgba(255,82,82,0.3); }
+    .instruction-tooltip { font-size: 10px; color: var(--silver-soft); font-family: var(--font-mono); background: rgba(0,0,0,0.4); padding: 5px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); }
+
+    /* === ZK MODULE === */
+    .zk-proof-visual {
+      display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px;
+      height: 32px; margin: 8px 0;
+    }
+    .zk-cell {
+      background: rgba(79,195,247,0.1); border: 1px solid rgba(79,195,247,0.15);
+      border-radius: 2px; transition: all 0.3s ease;
+    }
+    .zk-cell.active { background: rgba(79,195,247,0.4); border-color: var(--cyan-glow); box-shadow: 0 0 4px rgba(79,195,247,0.3); }
+    .zk-cell.proved { background: rgba(0,230,118,0.3); border-color: var(--heal-green); }
+    .zk-cell.failed { background: rgba(255,82,82,0.3); border-color: var(--red-alert); }
+
+    /* === ANIMACIONES ESPECIALES === */
+    @keyframes glitch { 0%,100% { transform: translate(0); } 20% { transform: translate(-2px, 1px); } 40% { transform: translate(2px, -1px); } 60% { transform: translate(-1px, -2px); } 80% { transform: translate(1px, 2px); } }
+    .glitch-active { animation: glitch 0.3s ease infinite; }
+
+    @keyframes quantum-pulse { 0%,100% { box-shadow: 0 0 10px rgba(179,136,255,0.2); } 50% { box-shadow: 0 0 25px rgba(179,136,255,0.5); } }
+    .quantum-glow { animation: quantum-pulse 2s ease infinite; }
+
+    @keyframes cascade-shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+    .cascade-shake { animation: cascade-shake 0.15s ease infinite; }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .dashboard-grid { grid-template-columns: 260px 1fr 280px; }
+      header { grid-template-columns: 270px 1fr 280px; }
+    }
+    @media (max-width: 1024px) {
+      .dashboard-grid { grid-template-columns: 240px 1fr; }
+      .right-sidebar { grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      header { grid-template-columns: 240px 1fr; }
+      .controls-top-right { grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    }
+    @media (max-width: 768px) {
+      body { overflow-y: auto; height: auto; }
+      .viewport { position: relative; padding: 10px; height: auto; min-height: 100vh; }
+      .dashboard-grid { grid-template-columns: 1fr; height: auto; }
+      .right-sidebar { grid-column: span 1; grid-template-columns: 1fr; }
+      header { grid-template-columns: 1fr; }
+      .controls-top-right { grid-column: span 1; }
+      #canvas3d { position: relative; height: 350px; margin: 10px 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .scanline, .glitch-active, .cascade-shake, .quantum-glow { animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <video id="camera-feed" autoplay playsinline muted></video>
+  <canvas id="canvas3d"></canvas>
+  <div class="grid-overlay"></div>
+  <div class="scanline" id="scanline-el"></div>
+  <div class="vignette"></div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <div class="viewport">
+
+    <!-- ============ HEADER ============ -->
+    <header class="interactive-element">
+      <!-- Columna izquierda: Gauge + Modos -->
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <!-- Gauge de Integridad -->
+        <div class="hud-panel" id="pnl-integrity">
+          <div class="hud-panel-title" id="lbl-integrity-title">Puntaje de Integridad AURA</div>
+          <div class="gauge-container">
+            <svg class="gauge-svg"><circle class="gauge-bg" cx="60" cy="60" r="50"></circle><circle class="gauge-fill" id="gauge-ring" cx="60" cy="60" r="50"></circle></svg>
+            <div class="gauge-text-box">
+              <div class="gauge-score" id="gauge-val">99</div>
+              <div class="gauge-label" id="lbl-gauge-label">SCORE</div>
+            </div>
+          </div>
+          <div class="telemetry-row">
+            <span class="telemetry-label" id="lbl-sys-status">Estado del Sistema</span>
+            <span class="telemetry-val highlight" id="val-sys-status">OPERACIONAL</span>
+          </div>
+          <div class="telemetry-row" style="border:none;">
+            <span class="telemetry-label" id="lbl-threat-level">Nivel de Amenaza</span>
+            <span class="telemetry-val" id="val-threat-level" style="color:var(--silver-soft);">NULO</span>
+          </div>
+        </div>
+
+        <!-- Modos de Simulación (expandido con 11 modos) -->
+        <div class="hud-panel">
+          <div class="hud-panel-title" id="lbl-modes-title">Modos de Simulacion</div>
+          <div class="mode-select-box">
+            <button class="mode-btn active" data-mode="NORMAL" onclick="setMode('NORMAL')">
+              <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                <span class="mode-btn-title" id="lbl-mode-normal">Normal (Estable)</span>
+                <span class="mode-btn-key">1</span>
+              </div>
+              <span class="mode-btn-desc" id="lbl-desc-normal">Alineacion optima de enclaves y firmas</span>
+            </button>
+            <button class="mode-btn" data-mode="SYBIL" onclick="setMode('SYBIL')">
+              <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                <span class="mode-btn-title" id="lbl-mode-sybil">Ataque Sybil (10%)</span>
+                <span class="mode-btn-key">2</span>
+              </div>
+              <span class="mode-btn-desc" id="lbl-desc-sybil">Infiltracion de nodos maliciosos</span>
+            </button>
+            <button class="mode-btn" data-mode="MANIPULATION" onclick="setMode('MANIPULATION')">
+              <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                <span class="mode-btn-title" id="lbl-mode-manipulation">Manipulacion Sutil (0.1%)</span>
+                <span class="mode-btn-key">3</span>
+              </div>
+              <span class="mode-btn-desc" id="lbl-desc-manipulation">Modificacion oculta de bits en transito</span>
+            </button>
+            <button class="mode-btn" data-mode="VERIFICATION" onclick="setMode('VERIFICATION')">
+              <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                <span class="mode-btn-title" id="lbl-mode-verification">Verificacion Activa (PoP)</span>
+                <span class="mode-btn-key">4</span>
+              </div>
+              <span class="mode-btn-desc" id="lbl-desc-verification">Comites de consenso dinamicos</span>
+            </button>
+            <button class="mode-btn" data-mode="QUANTUM_HEAL" onclick="setMode('QUANTUM_HEAL')">
+              <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                <span class="mode-btn-title" id="lbl-mode-quantum-heal">Autocuracion Cuantica</span>
+                <span class="mode-btn-key">5</span>
+              </div>
+              <span class="mode-btn-desc" id="lbl-desc-quantum-heal">Sanacion holografica de enclaves</span>
+            </button>
+            <button class="mode-btn" data-mode="STRESS_TEST" onclick="setMode('STRESS_TEST')">
+              <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                <span class="mode-btn-title" id="lbl-mode-stress-test">Carga de Estres Extremo</span>
+                <span class="mode-btn-key">6</span>
+              </div>
+              <span class="mode-btn-desc" id="lbl-desc-stress-test">2500+ atestaciones concurrentes/seg</span>
+            </button>
+            <!-- === NUEVOS MODULOS DE SIMULACION === -->
+            <button class="mode-btn" data-mode="QUANTUM_RESIST" onclick="setMode('QUANTUM_RESIST')">
+              <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                <span class="mode-btn-title" id="lbl-mode-quantum-resist">Resistencia Post-Cuantica</span>
+                <span class="mode-btn-key">7</span>
+              </div>
+              <span class="mode-btn-desc" id="lbl-desc-quantum-resist">Activacion de criptografia lattice-based</span>
+            </button>
+            <button class="mode-btn" data-mode="FORK_DETECTED" onclick="setMode('FORK_DETECTED')">
+              <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                <span class="mode-btn-title" id="lbl-mode-fork">Bifurcacion DAG Detectada</span>
+                <span class="mode-btn-key">8</span>
+              </div>
+              <span class="mode-btn-desc" id="lbl-desc-fork">Conflicto de troncalidad en el grafo</span>
+            </button>
+            <button class="mode-btn" data-mode="GOVERNANCE_CRISIS" onclick="setMode('GOVERNANCE_CRISIS')">
+              <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                <span class="mode-btn-title" id="lbl-mode-governance">Crisis de Gobernanza DAO</span>
+                <span class="mode-btn-key">9</span>
+              </div>
+              <span class="mode-btn-desc" id="lbl-desc-governance">Deadlock en votacion liquida</span>
+            </button>
+            <button class="mode-btn" data-mode="CASCADING_FAIL" onclick="setMode('CASCADING_FAIL')">
+              <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                <span class="mode-btn-title" id="lbl-mode-cascade">Fallo en Cascada Multi-Capa</span>
+                <span class="mode-btn-key">0</span>
+              </div>
+              <span class="mode-btn-desc" id="lbl-desc-cascade">Colapso propagado entre las 7 capas</span>
+            </button>
+            <button class="mode-btn" data-mode="RECOVERY" onclick="setMode('RECOVERY')">
+              <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                <span class="mode-btn-title" id="lbl-mode-recovery">Modo Recuperacion Auto</span>
+                <span class="mode-btn-key">R</span>
+              </div>
+              <span class="mode-btn-desc" id="lbl-desc-recovery">Reconstruccion total del sistema AURA</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Centro: Marca -->
+      <div class="brand-container">
+        <div class="brand-author" id="lbl-author">Dr. Julio Cesar Oporta Barrera</div>
+        <div class="brand-title" id="lbl-title">El Blueprint AURA</div>
+        <div class="brand-subtitle" id="lbl-subtitle">Capa de Verdad y Procedencia Criptografica de Datos</div>
+        <div style="margin-top:6px;font-family:var(--font-mono);font-size:8px;color:rgba(79,195,247,0.5);letter-spacing:2px;">v2.0 — SIMULADOR EXPANDIDO</div>
+      </div>
+
+      <!-- Columna derecha: Telemetria + Inspector -->
+      <div class="controls-top-right">
+        <div class="glass-card">
+          <div class="btn-group">
+            <button class="btn active" onclick="setLang('es')">ESP</button>
+            <button class="btn" onclick="setLang('en')">ENG</button>
+            <button class="btn" onclick="setLang('zh')">中文</button>
+          </div>
+        </div>
+
+        <!-- Telemetria del Simulador -->
+        <div class="hud-panel" style="width:100%;text-align:left;">
+          <div class="hud-panel-title" id="lbl-telemetry-title">SIMULADOR INTERACTIVO 3D</div>
+          <div class="telemetry-row"><span class="telemetry-label" id="lbl-lbl-nodes">Nodos Activos</span><span class="telemetry-val" id="val-nodes">36</span></div>
+          <div class="telemetry-row"><span class="telemetry-label" id="lbl-lbl-txrate">Tasa de Acunacion</span><span class="telemetry-val" id="val-txrate">142 tx/s</span></div>
+          <div class="telemetry-row"><span class="telemetry-label" id="lbl-lbl-energy">Flujo de Energia Hibrida</span><span class="telemetry-val highlight" id="val-energy">94.8%</span></div>
+          <div class="telemetry-row" style="border:none;"><span class="telemetry-label" id="lbl-lbl-latency">Latencia de Consenso</span><span class="telemetry-val" id="val-latency">12 ms</span></div>
+          <div style="margin-top:10px;" class="features-list">
+            <div class="feature-item"><div class="led-indicator" id="led-biomech"></div><span id="lbl-feat-biomech">Biomecanica</span></div>
+            <div class="feature-item"><div class="led-indicator" id="led-physics"></div><span id="lbl-feat-physics">Fisica Modular</span></div>
+            <div class="feature-item"><div class="led-indicator" id="led-swarm"></div><span id="lbl-feat-swarm">IA de Enjambre</span></div>
+            <div class="feature-item"><div class="led-indicator" id="led-shader"></div><span id="lbl-feat-shader">Shaders Avanzados</span></div>
+            <div class="feature-item"><div class="led-indicator" id="led-zk"></div><span id="lbl-feat-zk">ZK-SNARKs</span></div>
+            <div class="feature-item"><div class="led-indicator" id="led-lattice"></div><span id="lbl-feat-lattice">Lattice Crypto</span></div>
+          </div>
+        </div>
+
+        <!-- Inspector de Nodo -->
+        <div class="hud-panel interactive-element" id="node-inspector" style="width:100%;text-align:left;">
+          <div class="hud-panel-title">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="color:var(--cyan-glow)"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+            <span id="lbl-inspect-title">Detalles del Nodo</span>
+          </div>
+          <div class="node-pill" id="node-badge">CAPA 1: TRUST ROOT</div>
+          <h4 id="node-name" style="margin-bottom:4px;font-family:var(--font-mono);font-size:12px;color:var(--clinical-white);">ROOT_HARDWARE_01</h4>
+          <p style="font-size:11px;color:var(--silver-soft);line-height:1.4;" id="node-desc">Cofre criptografico inmutable basado en hardware seguro.</p>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.05);display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;gap:6px;">
+              <button class="btn" style="flex:1;padding:4px;font-size:9px;" onclick="triggerNodeAction('seal')" id="btn-pulse-lbl">Pulsar Sello</button>
+              <button class="btn" style="flex:1;padding:4px;font-size:9px;" onclick="triggerNodeAction('zk')" id="btn-zk-lbl">Prueba ZK</button>
+            </div>
+            <button class="btn" style="width:100%;padding:4px;font-size:9px;border-color:rgba(255,82,82,0.3);color:#FF5252;" onclick="triggerNodeAction('isolate')" id="btn-isolate-lbl">Aislar Nodo</button>
+            <button class="btn" style="width:100%;padding:4px;font-size:9px;border-color:rgba(179,136,255,0.3);color:#B388FF;" onclick="triggerNodeAction('entangle')" id="btn-entangle-lbl">Entrelazar Cuantico</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ============ DASHBOARD PRINCIPAL ============ -->
+    <div class="dashboard-grid">
+
+      <!-- === SIDEBAR IZQUIERDO === -->
+      <div class="sidebar">
+
+        <!-- Entropia y Enclaves TEE -->
+        <div class="hud-panel">
+          <div class="hud-panel-title" id="lbl-entropy-title">Entropia y Enclaves TEE</div>
+          <div class="progress-row">
+            <div class="progress-header"><span>TEE ENTROPY</span><span id="val-entropy-level">99.2%</span></div>
+            <div class="progress-track"><div class="progress-fill" id="bar-entropy" style="background:linear-gradient(90deg,#4FC3F7,#00E676);width:99.2%;"></div></div>
+          </div>
+          <div class="telemetry-row" style="padding:4px 0;font-size:10px;"><span class="telemetry-label" style="font-size:9px;">TEE CORE TEMP</span><span class="telemetry-val" style="font-size:10px;">41.8 C</span></div>
+          <div class="telemetry-row" style="padding:4px 0;font-size:10px;border:none;"><span class="telemetry-label" style="font-size:9px;">SGX LATENCY</span><span class="telemetry-val highlight" style="font-size:10px;">12 ms</span></div>
+        </div>
+
+        <!-- === NUEVO HUD: Mapa Topologico DAG === -->
+        <div class="hud-panel">
+          <div class="hud-panel-title" id="lbl-dag-title">Topologia DAG en Tiempo Real</div>
+          <div class="dag-container"><canvas id="dag-canvas" width="260" height="160"></canvas></div>
+          <div style="display:flex;gap:10px;margin-top:6px;justify-content:center;">
+            <div style="display:flex;align-items:center;gap:3px;font-size:8px;font-family:var(--font-mono);color:var(--silver-soft);"><div style="width:6px;height:6px;border-radius:50%;background:var(--cyan-glow);"></div>Activo</div>
+            <div style="display:flex;align-items:center;gap:3px;font-size:8px;font-family:var(--font-mono);color:var(--silver-soft);"><div style="width:6px;height:6px;border-radius:50%;background:var(--red-alert);"></div>Comprometido</div>
+            <div style="display:flex;align-items:center;gap:3px;font-size:8px;font-family:var(--font-mono);color:var(--silver-soft);"><div style="width:6px;height:6px;border-radius:50%;background:var(--quantum-purple);"></div>Cuantico</div>
+            <div style="display:flex;align-items:center;gap:3px;font-size:8px;font-family:var(--font-mono);color:var(--silver-soft);"><div style="width:6px;height:6px;border-radius:50%;background:var(--heal-green);"></div>Recuperado</div>
+          </div>
+        </div>
+
+        <!-- === NUEVO HUD: Pipeline Criptografico de 7 Capas === -->
+        <div class="hud-panel">
+          <div class="hud-panel-title" id="lbl-pipeline-title">Pipeline Criptografico (7 Capas)</div>
+          <div class="pipeline-layer"><div class="pipeline-num" id="pip-num-1">1</div><div class="pipeline-name">Hardware Trust Root</div><div class="pipeline-bar"><div class="pipeline-bar-fill" id="pip-bar-1" style="width:99%;background:var(--cyan-glow);"></div></div><div class="pipeline-status" id="pip-status-1" style="color:var(--heal-green);">OK</div></div>
+          <div class="pipeline-layer"><div class="pipeline-num" id="pip-num-2">2</div><div class="pipeline-name">DAG Procedencia</div><div class="pipeline-bar"><div class="pipeline-bar-fill" id="pip-bar-2" style="width:98%;background:var(--cyan-glow);"></div></div><div class="pipeline-status" id="pip-status-2" style="color:var(--heal-green);">OK</div></div>
+          <div class="pipeline-layer"><div class="pipeline-num" id="pip-num-3">3</div><div class="pipeline-name">Consenso PoP</div><div class="pipeline-bar"><div class="pipeline-bar-fill" id="pip-bar-3" style="width:97%;background:var(--cyan-glow);"></div></div><div class="pipeline-status" id="pip-status-3" style="color:var(--heal-green);">OK</div></div>
+          <div class="pipeline-layer"><div class="pipeline-num" id="pip-num-4">4</div><div class="pipeline-name">Oracle Semantico</div><div class="pipeline-bar"><div class="pipeline-bar-fill" id="pip-bar-4" style="width:96%;background:var(--cyan-glow);"></div></div><div class="pipeline-status" id="pip-status-4" style="color:var(--heal-green);">OK</div></div>
+          <div class="pipeline-layer"><div class="pipeline-num" id="pip-num-5">5</div><div class="pipeline-name">Liquid DAO</div><div class="pipeline-bar"><div class="pipeline-bar-fill" id="pip-bar-5" style="width:95%;background:var(--cyan-glow);"></div></div><div class="pipeline-status" id="pip-status-5" style="color:var(--heal-green);">OK</div></div>
+          <div class="pipeline-layer"><div class="pipeline-num" id="pip-num-6">6</div><div class="pipeline-name">AURA OS / SDK</div><div class="pipeline-bar"><div class="pipeline-bar-fill" id="pip-bar-6" style="width:94%;background:var(--cyan-glow);"></div></div><div class="pipeline-status" id="pip-status-6" style="color:var(--heal-green);">OK</div></div>
+          <div class="pipeline-layer"><div class="pipeline-num" id="pip-num-7">7</div><div class="pipeline-name">Ecosistema Federado</div><div class="pipeline-bar"><div class="pipeline-bar-fill" id="pip-bar-7" style="width:93%;background:var(--cyan-glow);"></div></div><div class="pipeline-status" id="pip-status-7" style="color:var(--heal-green);">OK</div></div>
+        </div>
+
+        <!-- === NUEVO HUD: Parametros de Simulacion === -->
+        <div class="hud-panel">
+          <div class="hud-panel-title" id="lbl-params-title">Parametros de Simulacion</div>
+          <div class="slider-group">
+            <div class="slider-row">
+              <span class="slider-label" id="lbl-param-nodes">Nodos Red</span>
+              <input type="range" id="slider-nodes" min="10" max="80" value="36" oninput="updateParam('nodes',this.value)">
+              <span class="slider-val" id="val-param-nodes">36</span>
+            </div>
+            <div class="slider-row">
+              <span class="slider-label" id="lbl-param-attack">Intensidad Ataque</span>
+              <input type="range" id="slider-attack" min="0" max="100" value="0" oninput="updateParam('attack',this.value)">
+              <span class="slider-val" id="val-param-attack">0%</span>
+            </div>
+            <div class="slider-row">
+              <span class="slider-label" id="lbl-param-recovery">Vel. Recuperacion</span>
+              <input type="range" id="slider-recovery" min="1" max="100" value="50" oninput="updateParam('recovery',this.value)">
+              <span class="slider-val" id="val-param-recovery">50</span>
+            </div>
+            <div class="slider-row">
+              <span class="slider-label" id="lbl-param-throughput">Throughput</span>
+              <input type="range" id="slider-throughput" min="50" max="5000" value="500" step="50" oninput="updateParam('throughput',this.value)">
+              <span class="slider-val" id="val-param-throughput">500</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- === CENTRO: Espacio para 3D === -->
+      <div style="flex-grow:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:16px;gap:12px;pointer-events:none;">
+        <div class="instruction-tooltip interactive-element" id="lbl-canvas-tooltip">Arrastra para rotar • Rueda para zoom • Click en nodos para inspeccionar • Teclas 1-0 para modos</div>
+      </div>
+
+      <!-- === SIDEBAR DERECHO === -->
+      <div class="sidebar right-sidebar">
+
+        <!-- Consenso y Reputacion -->
+        <div class="hud-panel">
+          <div class="hud-panel-title" id="lbl-consensus-title">Consenso y Reputacion DAO</div>
+          <div class="progress-row">
+            <div class="progress-header"><span>DAG CONSENSUS</span><span id="val-consensus">98.5%</span></div>
+            <div class="progress-track"><div class="progress-fill" id="bar-consensus" style="background:linear-gradient(90deg,#4FC3F7,#00E676);width:98.5%;"></div></div>
+          </div>
+          <div class="progress-row">
+            <div class="progress-header"><span>REPUTATION SCORE</span><span id="val-reputation">96.7%</span></div>
+            <div class="progress-track"><div class="progress-fill" id="bar-reputation" style="background:linear-gradient(90deg,#4FC3F7,#009688);width:96.7%;"></div></div>
+          </div>
+          <div class="telemetry-row" style="padding:4px 0;font-size:10px;border:none;"><span class="telemetry-label" style="font-size:9px;">STAKING POWER</span><span class="telemetry-val" style="font-size:10px;" id="val-staking">142.8 kAURA</span></div>
+        </div>
+
+        <!-- === NUEVO HUD: Radar de Amenazas === -->
+        <div class="hud-panel">
+          <div class="hud-panel-title" id="lbl-radar-title">Radar de Amenazas</div>
+          <div class="radar-container"><canvas id="radar-canvas" width="240" height="240"></canvas></div>
+        </div>
+
+        <!-- === NUEVO HUD: Modulo ZK-SNARK === -->
+        <div class="hud-panel" id="zk-module-panel">
+          <div class="hud-panel-title quantum" id="lbl-zk-title">Generador ZK-SNARK</div>
+          <div class="zk-proof-visual" id="zk-grid"></div>
+          <div class="telemetry-row" style="padding:4px 0;font-size:10px;"><span class="telemetry-label" style="font-size:9px;">PRUEBAS GENERADAS</span><span class="telemetry-val" id="val-zk-proofs" style="color:var(--quantum-purple);font-size:10px;">0</span></div>
+          <div class="telemetry-row" style="padding:4px 0;font-size:10px;border:none;"><span class="telemetry-label" style="font-size:9px;">VERIFICACION</span><span class="telemetry-val" id="val-zk-verify" style="color:var(--heal-green);font-size:10px;">100%</span></div>
+          <button class="btn" style="width:100%;margin-top:6px;padding:5px;font-size:9px;border-color:rgba(179,136,255,0.3);color:var(--quantum-purple);" onclick="generateZKProof()" id="btn-gen-zk">Generar Prueba ZK</button>
+        </div>
+
+        <!-- Registro de Eventos -->
+        <div class="hud-panel">
+          <div class="hud-panel-title" id="lbl-logger-title">REGISTRO DE EVENTOS IA</div>
+          <div class="log-feed" id="log-container"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ FOOTER: Timeline + Controles ============ -->
+    <footer class="interactive-element">
+      <button class="ar-btn" id="btn-ar" onclick="toggleAR()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+        <span id="lbl-ar-btn">Iniciar Realidad Aumentada (AR)</span>
+      </button>
+
+      <!-- Timeline de simulacion -->
+      <div class="timeline-bar" style="flex:1;max-width:500px;">
+        <button class="timeline-btn" id="btn-tl-play" onclick="toggleTimeline()" aria-label="Reproducir/Pausar">&#9654;</button>
+        <button class="timeline-btn" onclick="resetTimeline()" aria-label="Reiniciar">&#8634;</button>
+        <div class="timeline-track" id="timeline-track" onclick="seekTimeline(event)">
+          <div class="timeline-fill" id="timeline-fill"></div>
+        </div>
+        <span class="timeline-label" id="timeline-time">00:00 / 05:00</span>
+        <select class="btn" style="padding:3px 6px;font-size:9px;" id="timeline-speed" onchange="setTimelineSpeed(this.value)">
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1x</option>
+          <option value="2">2x</option>
+          <option value="4">4x</option>
+        </select>
+      </div>
+
+      <div class="instruction-tooltip" style="text-align:right;" id="lbl-footer-copyright">
+        2026 AURA Blueprint • Dr. Julio Cesar Oporta Barrera
+      </div>
+    </footer>
+  </div>
+
+  <!-- ============ THREE.JS 3D SCENE ============ -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // Exponer al ambito global para interaccion con HUD
+    window.THREE = THREE;
+
+    const canvas = document.getElementById('canvas3d');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x0F1112, 0.012);
+
+    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(0, 8, 22);
+
+    const controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.minDistance = 8;
+    controls.maxDistance = 50;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.4;
+
+    // Iluminacion cinematografica
+    const ambientLight = new THREE.AmbientLight(0x1A1D20, 0.8);
+    scene.add(ambientLight);
+    const keyLight = new THREE.DirectionalLight(0x4FC3F7, 1.2);
+    keyLight.position.set(10, 15, 10);
+    scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0x009688, 0.4);
+    fillLight.position.set(-10, 5, -10);
+    scene.add(fillLight);
+    const rimLight = new THREE.PointLight(0xB388FF, 0.6, 40);
+    rimLight.position.set(0, -10, 0);
+    scene.add(rimLight);
+
+    // Colores por capa
+    const layerColors = [
+      0x4FC3F7, // Capa 1: Cyan
+      0x00BCD4, // Capa 2: Teal
+      0x009688, // Capa 3: Verde azulado
+      0x00E676, // Capa 4: Verde
+      0xFFB300, // Capa 5: Amber
+      0xB388FF, // Capa 6: Purpura
+      0xFF6E40  // Capa 7: Naranja
+    ];
+
+    // Datos de nodos por capa
+    const layerNodeCounts = [1, 4, 6, 8, 8, 6, 4];
+    const layerRadii = [0, 3.5, 6, 8.5, 11, 13.5, 16];
+    const layerYOffsets = [0, 0.5, 0.3, -0.2, -0.5, 0.1, 0.4];
+
+    // Crear textura de glow con canvas
+    function createGlowTexture(color) {
+      const size = 64;
+      const c = document.createElement('canvas');
+      c.width = size; c.height = size;
+      const ctx = c.getContext('2d');
+      const grad = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+      grad.addColorStop(0, color);
+      grad.addColorStop(0.3, color);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, size, size);
+      return new THREE.CanvasTexture(c);
+    }
+
+    const glowTextures = {};
+    glowTextures.cyan = createGlowTexture('rgba(79,195,247,0.6)');
+    glowTextures.red = createGlowTexture('rgba(255,82,82,0.6)');
+    glowTextures.green = createGlowTexture('rgba(0,230,118,0.6)');
+    glowTextures.purple = createGlowTexture('rgba(179,136,255,0.6)');
+    glowTextures.amber = createGlowTexture('rgba(255,179,0,0.6)');
+    glowTextures.orange = createGlowTexture('rgba(255,110,64,0.6)');
+
+    // Arreglos para nodos y aristas
+    const nodeMeshes = [];
+    const nodeGlows = [];
+    const nodeData = [];
+    const edgeLines = [];
+    const edgeData = [];
+
+    // Grupo principal para efectos de modo
+    const nodeGroup = new THREE.Group();
+    scene.add(nodeGroup);
+
+    // Crear nodos
+    let nodeId = 0;
+    for (let layer = 0; layer < 7; layer++) {
+      const count = layerNodeCounts[layer];
+      const radius = layerRadii[layer];
+      const yOff = layerYOffsets[layer];
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2 + (layer * 0.3);
+        const r = Math.max(0.1, radius + (Math.random() - 0.5) * 1.5);
+        const x = Math.cos(angle) * r;
+        const z = Math.sin(angle) * r;
+        const y = yOff + (Math.random() - 0.5) * 1.5;
+
+        // Esfera del nodo
+        const size = layer === 0 ? 0.5 : (0.2 + Math.random() * 0.2);
+        const geo = new THREE.SphereGeometry(Math.max(0.05, size), 16, 12);
+        const mat = new THREE.MeshStandardMaterial({
+          color: layerColors[layer],
+          emissive: layerColors[layer],
+          emissiveIntensity: 0.5,
+          roughness: 0.3,
+          metalness: 0.7
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(x, y, z);
+        mesh.userData = { nodeId, layer, originalColor: layerColors[layer], originalEmissive: 0.5 };
+        nodeGroup.add(mesh);
+        nodeMeshes.push(mesh);
+
+        // Sprite de glow
+        const spriteMat = new THREE.SpriteMaterial({ map: glowTextures.cyan, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending });
+        const sprite = new THREE.Sprite(spriteMat);
+        sprite.scale.set(size * 4, size * 4, 1);
+        sprite.position.copy(mesh.position);
+        nodeGroup.add(sprite);
+        nodeGlows.push(sprite);
+
+        // Metadata del nodo
+        const names = ['ROOT_HARDWARE','DAG_NODE','POP_VALIDATOR','ORACLE_ANALYST','DAO_VOTER','SDK_CLIENT','FED_APP'];
+        const descs = [
+          'Cofre criptografico inmutable basado en hardware seguro.',
+          'Nodo de registro distribuido en el grafo de procedencia.',
+          'Validador de consenso Proof-of-Provenance.',
+          'Motor de analisis semantico e integracion Oracle.',
+          'Participante de votacion liquida en la DAO.',
+          'Cliente AURA OS ejecutando atestaciones ZK.',
+          'Aplicacion federada certificada AURA Native.'
+        ];
+        nodeData.push({
+          id: nodeId, layer, x, y, z, size,
+          name: `${names[layer]}_${String(i).padStart(2,'0')}`,
+          desc: descs[layer],
+          compromised: false,
+          quantum: false,
+          recovered: false
+        });
+        nodeId++;
+      }
+    }
+
+    // Crear aristas (conexiones DAG)
+    for (let layer = 0; layer < 6; layer++) {
+      const currentLayerStart = layerNodeCounts.slice(0, layer).reduce((a,b) => a+b, 0);
+      const nextLayerStart = layerNodeCounts.slice(0, layer+1).reduce((a,b) => a+b, 0);
+      const currentCount = layerNodeCounts[layer];
+      const nextCount = layerNodeCounts[layer + 1];
+
+      for (let i = 0; i < currentCount; i++) {
+        // Cada nodo se conecta a 1-3 nodos de la siguiente capa
+        const connections = layer === 0 ? nextCount : Math.min(nextCount, 1 + Math.floor(Math.random() * 2));
+        for (let c = 0; c < connections; c++) {
+          const targetIdx = (i + c) % nextCount;
+          const fromNode = nodeMeshes[currentLayerStart + i];
+          const toNode = nodeMeshes[nextLayerStart + targetIdx];
+          const points = [fromNode.position.clone(), toNode.position.clone()];
+          const geo = new THREE.BufferGeometry().setFromPoints(points);
+          const mat = new THREE.LineBasicMaterial({ color: layerColors[layer], transparent: true, opacity: 0.2 });
+          const line = new THREE.Line(geo, mat);
+          nodeGroup.add(line);
+          edgeLines.push(line);
+          edgeData.push({ from: currentLayerStart + i, to: nextLayerStart + targetIdx, layer });
+        }
+      }
+    }
+
+    // Particulas ambientales (campo de estrellas)
+    const starCount = 800;
+    const starGeo = new THREE.BufferGeometry();
+    const starPositions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount * 3; i++) {
+      starPositions[i] = (Math.random() - 0.5) * 80;
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    const starMat = new THREE.PointsMaterial({ color: 0x4FC3F7, size: 0.08, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending });
+    const stars = new THREE.Points(starGeo, starMat);
+    scene.add(stars);
+
+    // Particulas de flujo de datos a lo largo de aristas
+    const flowParticleCount = 120;
+    const flowGeo = new THREE.BufferGeometry();
+    const flowPositions = new Float32Array(flowParticleCount * 3);
+    const flowColors = new Float32Array(flowParticleCount * 3);
+    const flowSpeeds = [];
+    const flowEdgeIndices = [];
+
+    for (let i = 0; i < flowParticleCount; i++) {
+      const edgeIdx = Math.floor(Math.random() * edgeLines.length);
+      flowEdgeIndices.push(edgeIdx);
+      flowSpeeds.push(0.2 + Math.random() * 0.8);
+      // Posicion inicial aleatoria a lo largo de la arista
+      const t = Math.random();
+      const from = nodeMeshes[edgeData[edgeIdx].from].position;
+      const to = nodeMeshes[edgeData[edgeIdx].to].position;
+      flowPositions[i*3] = from.x + (to.x - from.x) * t;
+      flowPositions[i*3+1] = from.y + (to.y - from.y) * t;
+      flowPositions[i*3+2] = from.z + (to.z - from.z) * t;
+      // Color basado en la capa
+      const c = new THREE.Color(layerColors[edgeData[edgeIdx].layer]);
+      flowColors[i*3] = c.r; flowColors[i*3+1] = c.g; flowColors[i*3+2] = c.b;
+    }
+    flowGeo.setAttribute('position', new THREE.BufferAttribute(flowPositions, 3));
+    flowGeo.setAttribute('color', new THREE.BufferAttribute(flowColors, 3));
+    const flowMat = new THREE.PointsMaterial({ size: 0.12, transparent: true, opacity: 0.7, vertexColors: true, blending: THREE.AdditiveBlending });
+    const flowParticles = new THREE.Points(flowGeo, flowMat);
+    nodeGroup.add(flowParticles);
+
+    // Variables de estado para la escena 3D
+    let sceneMode = 'NORMAL';
+    let flowSpeed = 1.0;
+    let time3d = 0;
+
+    // Raycaster para seleccion de nodos
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let hoveredNode = null;
+
+    canvas.addEventListener('mousemove', (e) => {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    });
+
+    canvas.addEventListener('click', (e) => {
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(nodeMeshes);
+      if (intersects.length > 0) {
+        const nd = intersects[0].object;
+        window.selectNode3D(nd.userData.nodeId);
+      }
+    });
+
+    // Funcion global para actualizar la escena segun el modo
+    window.update3DScene = function(mode) {
+      sceneMode = mode;
+      const isDanger = ['SYBIL','MANIPULATION','FORK_DETECTED','GOVERNANCE_CRISIS','CASCADING_FAIL'].includes(mode);
+      const isHeal = ['QUANTUM_HEAL','RECOVERY'].includes(mode);
+      const isQuantum = ['QUANTUM_RESIST'].includes(mode);
+      const isStress = ['STRESS_TEST'].includes(mode);
+
+      // Ajustar velocidad de flujo
+      if (isStress) flowSpeed = 4.0;
+      else if (isDanger) flowSpeed = 0.3;
+      else if (isHeal) flowSpeed = 1.5;
+      else if (isQuantum) flowSpeed = 0.8;
+      else flowSpeed = 1.0;
+
+      // Ajustar velocidad de auto-rotacion
+      if (isStress) controls.autoRotateSpeed = 2.0;
+      else if (isDanger) controls.autoRotateSpeed = 0.1;
+      else if (isQuantum) controls.autoRotateSpeed = 0.6;
+      else controls.autoRotateSpeed = 0.4;
+
+      // Colores de nodos segun modo
+      nodeMeshes.forEach((mesh, i) => {
+        const nd = nodeData[i];
+        const mat = mesh.material;
+        const glow = nodeGlows[i];
+
+        if (mode === 'MANIPULATION' || mode === 'CASCADING_FAIL') {
+          // Casi todos comprometidos
+          const compromised = Math.random() > 0.15;
+          nd.compromised = compromised;
+          mat.color.setHex(compromised ? 0xFF5252 : nd.originalColor);
+          mat.emissive.setHex(compromised ? 0xFF5252 : nd.originalColor);
+          mat.emissiveIntensity = compromised ? 0.8 : 0.3;
+          glow.material.map = compromised ? glowTextures.red : glowTextures.cyan;
+          glow.material.opacity = compromised ? 0.6 : 0.2;
+        } else if (mode === 'SYBIL') {
+          const isSybil = Math.random() < 0.1;
+          nd.compromised = isSybil;
+          mat.color.setHex(isSybil ? 0xFF5252 : nd.originalColor);
+          mat.emissive.setHex(isSybil ? 0xFF5252 : nd.originalColor);
+          mat.emissiveIntensity = isSybil ? 0.9 : 0.4;
+          glow.material.map = isSybil ? glowTextures.red : glowTextures.cyan;
+          glow.material.opacity = isSybil ? 0.7 : 0.3;
+        } else if (mode === 'FORK_DETECTED') {
+          const forkSide = i % 3 === 0;
+          mat.color.setHex(forkSide ? 0xFF6E40 : nd.originalColor);
+          mat.emissive.setHex(forkSide ? 0xFF6E40 : nd.originalColor);
+          mat.emissiveIntensity = forkSide ? 0.7 : 0.3;
+          glow.material.map = forkSide ? glowTextures.orange : glowTextures.cyan;
+          glow.material.opacity = forkSide ? 0.5 : 0.2;
+        } else if (mode === 'GOVERNANCE_CRISIS') {
+          const deadlocked = nd.layer === 4 || Math.random() < 0.3;
+          mat.color.setHex(deadlocked ? 0xFFB300 : nd.originalColor);
+          mat.emissive.setHex(deadlocked ? 0xFFB300 : nd.originalColor);
+          mat.emissiveIntensity = deadlocked ? 0.6 : 0.3;
+          glow.material.map = deadlocked ? glowTextures.amber : glowTextures.cyan;
+          glow.material.opacity = deadlocked ? 0.5 : 0.2;
+        } else if (mode === 'QUANTUM_RESIST') {
+          nd.quantum = true;
+          mat.color.setHex(0xB388FF);
+          mat.emissive.setHex(0xB388FF);
+          mat.emissiveIntensity = 0.6;
+          glow.material.map = glowTextures.purple;
+          glow.material.opacity = 0.5;
+        } else if (mode === 'QUANTUM_HEAL' || mode === 'RECOVERY') {
+          nd.recovered = true;
+          nd.compromised = false;
+          mat.color.setHex(0x00E676);
+          mat.emissive.setHex(0x00E676);
+          mat.emissiveIntensity = 0.6;
+          glow.material.map = glowTextures.green;
+          glow.material.opacity = 0.5;
+        } else {
+          // NORMAL o VERIFICATION
+          nd.compromised = false;
+          nd.quantum = false;
+          nd.recovered = false;
+          mat.color.setHex(nd.originalColor);
+          mat.emissive.setHex(nd.originalColor);
+          mat.emissiveIntensity = 0.5;
+          glow.material.map = glowTextures.cyan;
+          glow.material.opacity = 0.4;
+        }
+        glow.material.needsUpdate = true;
+      });
+
+      // Colores de aristas
+      edgeLines.forEach((line, i) => {
+        const ed = edgeData[i];
+        if (isDanger) {
+          line.material.color.setHex(0xFF5252);
+          line.material.opacity = 0.3;
+        } else if (isHeal) {
+          line.material.color.setHex(0x00E676);
+          line.material.opacity = 0.4;
+        } else if (isQuantum) {
+          line.material.color.setHex(0xB388FF);
+          line.material.opacity = 0.35;
+        } else {
+          line.material.color.setHex(layerColors[ed.layer]);
+          line.material.opacity = 0.2;
+        }
+      });
+
+      // Color de particulas de fondo
+      if (isDanger) starMat.color.setHex(0xFF5252);
+      else if (isHeal) starMat.color.setHex(0x00E676);
+      else if (isQuantum) starMat.color.setHex(0xB388FF);
+      else starMat.color.setHex(0x4FC3F7);
+
+      // Color de luz clave
+      if (isDanger) { keyLight.color.setHex(0xFF5252); }
+      else if (isHeal) { keyLight.color.setHex(0x00E676); }
+      else if (isQuantum) { keyLight.color.setHex(0xB388FF); }
+      else { keyLight.color.setHex(0x4FC3F7); }
+    };
+
+    // Resaltar nodo seleccionado
+    window.highlightNode3D = function(nodeId) {
+      nodeMeshes.forEach((m, i) => {
+        if (i === nodeId) {
+          m.scale.set(1.8, 1.8, 1.8);
+          nodeGlows[i].scale.set(nodeData[i].size * 7, nodeData[i].size * 7, 1);
+        } else {
+          m.scale.set(1, 1, 1);
+          nodeGlows[i].scale.set(nodeData[i].size * 4, nodeData[i].size * 4, 1);
+        }
+      });
+    };
+
+    // Loop de animacion
+    function animate() {
+      requestAnimationFrame(animate);
+      time3d += 0.016;
+      controls.update();
+
+      // Animar nodos (flotacion suave)
+      nodeMeshes.forEach((mesh, i) => {
+        const nd = nodeData[i];
+        mesh.position.y = nd.y + Math.sin(time3d * 0.8 + i * 0.5) * 0.15;
+        nodeGlows[i].position.y = mesh.position.y;
+
+        // Efecto especial para nodos comprometidos: parpadeo
+        if (nd.compromised) {
+          mesh.material.emissiveIntensity = 0.5 + Math.sin(time3d * 4 + i) * 0.4;
+        }
+        // Efecto cuantico: rotacion de glow
+        if (nd.quantum) {
+          nodeGlows[i].material.rotation = time3d * 2;
+        }
+      });
+
+      // Animar particulas de flujo
+      const positions = flowGeo.attributes.position.array;
+      for (let i = 0; i < flowParticleCount; i++) {
+        const edgeIdx = flowEdgeIndices[i];
+        const ed = edgeData[edgeIdx];
+        const from = nodeMeshes[ed.from].position;
+        const to = nodeMeshes[ed.to].position;
+        let t = (time3d * flowSpeeds[i] * flowSpeed * 0.3) % 1;
+        if (t < 0) t += 1;
+        positions[i*3] = from.x + (to.x - from.x) * t;
+        positions[i*3+1] = from.y + (to.y - from.y) * t;
+        positions[i*3+2] = from.z + (to.z - from.z) * t;
+      }
+      flowGeo.attributes.position.needsUpdate = true;
+
+      // Rotar estrellas lentamente
+      stars.rotation.y = time3d * 0.02;
+
+      // Hover detection
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(nodeMeshes);
+      if (intersects.length > 0) {
+        const nid = intersects[0].object.userData.nodeId;
+        if (hoveredNode !== nid) {
+          if (hoveredNode !== null && hoveredNode !== window.selectedNodeId) {
+            nodeMeshes[hoveredNode].scale.set(1,1,1);
+          }
+          hoveredNode = nid;
+          if (nid !== window.selectedNodeId) {
+            intersects[0].object.scale.set(1.4, 1.4, 1.4);
+          }
+          canvas.style.cursor = 'pointer';
+        }
+      } else {
+        if (hoveredNode !== null && hoveredNode !== window.selectedNodeId) {
+          nodeMeshes[hoveredNode].scale.set(1,1,1);
+        }
+        hoveredNode = null;
+        canvas.style.cursor = 'grab';
+      }
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Inicializar estado
+    window.update3DScene('NORMAL');
+  </script>
+
+  <!-- ============ LOGICA PRINCIPAL DEL HUD ============ -->
+  <script>
+    // === ESTADO GLOBAL ===
+    let currentLang = 'es';
+    let currentMode = 'NORMAL';
+    let isARActive = false;
+    let timelinePlaying = false;
+    let timelineProgress = 0;
+    let timelineSpeed = 1;
+    let zkProofCount = 0;
+    let selectedNodeId = 0;
+    window.selectedNodeId = 0;
+
+    // Parametros de simulacion
+    const simParams = { nodes: 36, attack: 0, recovery: 50, throughput: 500 };
+
+    // === TRADUCCIONES ===
+    const T = {
+      es: {
+        integrityTitle: 'Puntaje de Integridad AURA', sysStatus: 'Estado del Sistema', threatLevel: 'Nivel de Amenaza',
+        modesTitle: 'Modos de Simulacion',
+        mNormal: 'Normal (Estable)', dNormal: 'Alineacion optima de enclaves y firmas',
+        mSybil: 'Ataque Sybil (10%)', dSybil: 'Infiltracion de nodos maliciosos detectada',
+        mManip: 'Manipulacion Sutil (0.1%)', dManip: 'Modificacion oculta de bits en transito',
+        mVerif: 'Verificacion Activa (PoP)', dVerif: 'Comites de consenso dinamicos',
+        mHeal: 'Autocuracion Cuantica', dHeal: 'Sanacion holografica de enclaves caidos',
+        mStress: 'Carga de Estres Extremo', dStress: '2500+ atestaciones concurrentes/seg',
+        mQuantumResist: 'Resistencia Post-Cuantica', dQuantumResist: 'Activacion de criptografia lattice-based',
+        mFork: 'Bifurcacion DAG Detectada', dFork: 'Conflicto de troncalidad en el grafo',
+        mGovernance: 'Crisis de Gobernanza DAO', dGovernance: 'Deadlock en votacion liquida',
+        mCascade: 'Fallo en Cascada Multi-Capa', dCascade: 'Colapso propagado entre las 7 capas',
+        mRecovery: 'Modo Recuperacion Auto', dRecovery: 'Reconstruccion total del sistema AURA',
+        telemetryTitle: 'SIMULADOR INTERACTIVO 3D', nodes: 'Nodos Activos', txRate: 'Tasa de Acunacion',
+        energy: 'Flujo de Energia Hibrida', latency: 'Latencia de Consenso',
+        entropyTitle: 'Entropia y Enclaves TEE', consensusTitle: 'Consenso y Reputacion DAO',
+        radarTitle: 'Radar de Amenazas', zkTitle: 'Generador ZK-SNARK',
+        dagTitle: 'Topologia DAG en Tiempo Real', pipelineTitle: 'Pipeline Criptografico (7 Capas)',
+        paramsTitle: 'Parametros de Simulacion', loggerTitle: 'REGISTRO DE EVENTOS IA',
+        inspectTitle: 'Detalles del Nodo',
+        paramNodes: 'Nodos Red', paramAttack: 'Intensidad Ataque', paramRecovery: 'Vel. Recuperacion', paramThroughput: 'Throughput',
+        btnPulse: 'Pulsar Sello', btnZK: 'Prueba ZK', btnIsolate: 'Aislar Nodo', btnEntangle: 'Entrelazar Cuantico',
+        btnGenZK: 'Generar Prueba ZK',
+        tooltip: 'Arrastra para rotar • Rueda para zoom • Click en nodos para inspeccionar • Teclas 1-0 para modos',
+        arBtn: 'Iniciar Realidad Aumentada (AR)', arDisable: 'Desactivar AR',
+        biomech: 'Biomecanica', physics: 'Fisica Modular', swarm: 'IA de Enjambre', shader: 'Shaders Avanzados', zk: 'ZK-SNARKs', lattice: 'Lattice Crypto',
+        logNormal: 'Sincronizando bloques genesis... Firmas validadas en TEE.',
+        logSybil: 'ALERTA: Nodos maliciosos detectados. Penalizacion de Stake activada.',
+        logManip: 'ERROR DE HASH: Bloque comprometido en Capa 2. Contramedida ZK activada.',
+        logVerif: 'Comite PoP de 150 validadores convocado. Reputacion recalculada.',
+        logHeal: 'SANACION CUANTICA: Entrelazamiento inyectado. Integridad 100%.',
+        logStress: 'ESTRES ACTIVO: 2,500 tx/s. Enjambre auto-organizando flujo.',
+        logQuantumResist: 'POST-QUANTUM: Cifrados lattice activados en todas las capas.',
+        logFork: 'BIFURCACION: Conflicto de troncalidad detectado. Arbitraje en curso.',
+        logGovernance: 'CRISIS DAO: Deadlock en propuesta AIP-042. Delegacion forzada.',
+        logCascade: 'CASCADA: Fallo propagado Capa 1→7. Protocolo de emergencia activo.',
+        logRecovery: 'RECUPERACION: Reconstruyendo enclaves TEE. Restaurando DAG.',
+        stable: 'ESTABLE', activeDef: 'DEFENSA ACTIVA', compromised: 'COMPROMETIDO', popConsensus: 'CONSENSO POP',
+        selfHeal: 'AUTOCURACION', stressActive: 'ESTRES ACTIVO', postQuantum: 'POST-QUANTUM',
+        forkAlert: 'BIFURCACION', daoCrisis: 'CRISIS DAO', cascade: 'CASCADA', recovering: 'RECUPERANDO',
+        none: 'NULO', low: 'BAJO', medium: 'MEDIO', high: 'ALTO', critical: 'CRITICO', extreme: 'EXTREMO'
+      },
+      en: {
+        integrityTitle: 'AURA Integrity Score', sysStatus: 'System Status', threatLevel: 'Threat Level',
+        modesTitle: 'Simulation Modes',
+        mNormal: 'Normal (Stable)', dNormal: 'Optimal enclave alignment and signatures',
+        mSybil: 'Sybil Attack (10%)', dSybil: 'Malicious node infiltration detected',
+        mManip: 'Subtle Manipulation (0.1%)', dManip: 'Hidden bit modification in transit',
+        mVerif: 'Active Verification (PoP)', dVerif: 'Dynamic consensus committees',
+        mHeal: 'Quantum Self-Healing', dHeal: 'Holographic healing of fallen enclaves',
+        mStress: 'Extreme Stress Load', dStress: '2500+ concurrent attestations/sec',
+        mQuantumResist: 'Post-Quantum Resistance', dQuantumResist: 'Lattice-based cryptography activated',
+        mFork: 'DAG Fork Detected', dFork: 'Trunkality conflict in the graph',
+        mGovernance: 'DAO Governance Crisis', dGovernance: 'Deadlock in liquid voting',
+        mCascade: 'Multi-Layer Cascading Failure', dCascade: 'Collapse propagated across 7 layers',
+        mRecovery: 'Auto Recovery Mode', dRecovery: 'Full AURA system reconstruction',
+        telemetryTitle: '3D INTERACTIVE SIMULATOR', nodes: 'Active Nodes', txRate: 'Minting Rate',
+        energy: 'Hybrid Energy Flow', latency: 'Consensus Latency',
+        entropyTitle: 'Entropy & TEE Enclaves', consensusTitle: 'Consensus & DAO Reputation',
+        radarTitle: 'Threat Radar', zkTitle: 'ZK-SNARK Generator',
+        dagTitle: 'Real-Time DAG Topology', pipelineTitle: 'Crypto Pipeline (7 Layers)',
+        paramsTitle: 'Simulation Parameters', loggerTitle: 'AI EVENT LOG',
+        inspectTitle: 'Node Details',
+        paramNodes: 'Network Nodes', paramAttack: 'Attack Intensity', paramRecovery: 'Recovery Speed', paramThroughput: 'Throughput',
+        btnPulse: 'Inject Signature', btnZK: 'ZK Proof', btnIsolate: 'Isolate Node', btnEntangle: 'Quantum Entangle',
+        btnGenZK: 'Generate ZK Proof',
+        tooltip: 'Drag to rotate • Scroll to zoom • Click nodes to inspect • Keys 1-0 for modes',
+        arBtn: 'Start Augmented Reality (AR)', arDisable: 'Disable AR',
+        biomech: 'Biomechanics', physics: 'Modular Physics', swarm: 'Swarm AI', shader: 'Advanced Shaders', zk: 'ZK-SNARKs', lattice: 'Lattice Crypto',
+        logNormal: 'Syncing genesis blocks... TEE signatures validated.',
+        logSybil: 'ALERT: Malicious nodes detected. Stake slashing activated.',
+        logManip: 'HASH ERROR: Block compromised at Layer 2. ZK countermeasure activated.',
+        logVerif: 'PoP committee of 150 validators summoned. Reputation recalculated.',
+        logHeal: 'QUANTUM HEALING: Entanglement injected. Integrity 100%.',
+        logStress: 'STRESS ACTIVE: 2,500 tx/s. Swarm self-organizing flow.',
+        logQuantumResist: 'POST-QUANTUM: Lattice ciphers activated on all layers.',
+        logFork: 'FORK: Trunkality conflict detected. Arbitration in progress.',
+        logGovernance: 'DAO CRISIS: Deadlock on proposal AIP-042. Forced delegation.',
+        logCascade: 'CASCADE: Failure propagated Layer 1→7. Emergency protocol active.',
+        logRecovery: 'RECOVERY: Rebuilding TEE enclaves. Restoring DAG.',
+        stable: 'STABLE', activeDef: 'ACTIVE DEFENSE', compromised: 'COMPROMISED', popConsensus: 'POP CONSENSUS',
+        selfHeal: 'SELF-HEALING', stressActive: 'STRESS ACTIVE', postQuantum: 'POST-QUANTUM',
+        forkAlert: 'FORK DETECTED', daoCrisis: 'DAO CRISIS', cascade: 'CASCADE', recovering: 'RECOVERING',
+        none: 'NONE', low: 'LOW', medium: 'MEDIUM', high: 'HIGH', critical: 'CRITICAL', extreme: 'EXTREME'
+      },
+      zh: {
+        integrityTitle: 'AURA 完整性评分', sysStatus: '系统状态', threatLevel: '威胁级别',
+        modesTitle: '模拟模式',
+        mNormal: '正常 (稳定)', dNormal: '安全飞地与签名最佳对齐',
+        mSybil: '女巫攻击 (10%)', dSybil: '检测到恶意节点渗透',
+        mManip: '微妙篡改 (0.1%)', dManip: '传输中的隐藏比特修改',
+        mVerif: '主动验证', dVerif: '动态共识委员会',
+        mHeal: '量子自愈', dHeal: '受损飞地的全息修复',
+        mStress: '极限压力负载', dStress: '2500+ 并发证明/秒',
+        mQuantumResist: '后量子抗性', dQuantumResist: '激活格基密码学',
+        mFork: 'DAG 分叉检测', dFork: '图中的主干性冲突',
+        mGovernance: 'DAO 治理危机', dGovernance: '流动投票死锁',
+        mCascade: '多层级联故障', dCascade: '跨7层传播的崩溃',
+        mRecovery: '自动恢复模式', dRecovery: 'AURA 系统全面重建',
+        telemetryTitle: '交互式 3D 模拟器', nodes: '活动节点', txRate: '铸造率',
+        energy: '混合能量流', latency: '共识延迟',
+        entropyTitle: '熵与 TEE 飞地', consensusTitle: '共识与 DAO 声誉',
+        radarTitle: '威胁雷达', zkTitle: 'ZK-SNARK 生成器',
+        dagTitle: '实时 DAG 拓扑', pipelineTitle: '加密管道 (7层)',
+        paramsTitle: '模拟参数', loggerTitle: 'AI 事件日志',
+        inspectTitle: '节点详情',
+        paramNodes: '网络节点', paramAttack: '攻击强度', paramRecovery: '恢复速度', paramThroughput: '吞吐量',
+        btnPulse: '注入签名', btnZK: 'ZK 证明', btnIsolate: '隔离节点', btnEntangle: '量子纠缠',
+        btnGenZK: '生成 ZK 证明',
+        tooltip: '拖动旋转 • 滚轮缩放 • 点击节点检查 • 按键 1-0 切换模式',
+        arBtn: '启动增强现实 (AR)', arDisable: '禁用 AR',
+        biomech: '生物力学', physics: '模块化物理', swarm: '群体AI', shader: '高级着色器', zk: 'ZK-SNARKs', lattice: '格密码学',
+        logNormal: '正在同步创世区块... TEE 签名已验证。',
+        logSybil: '警告：检测到恶意节点。质押削减已激活。',
+        logManip: '哈希错误：第2层区块受损。ZK 反制措施已激活。',
+        logVerif: '召集150个验证者的PoP委员会。声誉已重新计算。',
+        logHeal: '量子自愈：纠缠注入成功。完整性100%。',
+        logStress: '压力测试：2,500 tx/s。智能群自组织。',
+        logQuantumResist: '后量子：所有层激活格基密码。',
+        logFork: '分叉：检测到主干冲突。仲裁进行中。',
+        logGovernance: 'DAO危机：提案AIP-042死锁。强制委托。',
+        logCascade: '级联：故障从第1层传播至第7层。紧急协议激活。',
+        logRecovery: '恢复：重建TEE飞地。恢复DAG。',
+        stable: '稳定', activeDef: '主动防御', compromised: '系统受损', popConsensus: '共识验证',
+        selfHeal: '量子自愈', stressActive: '压力测试', postQuantum: '后量子',
+        forkAlert: '分叉检测', daoCrisis: 'DAO危机', cascade: '级联故障', recovering: '恢复中',
+        none: '无', low: '低', medium: '中等', high: '高', critical: '严重', extreme: '极端'
+      }
+    };
+
+    function t(key) { return T[currentLang][key] || key; }
+
+    // === SISTEMA DE TOAST ===
+    function showToast(text, type = '') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast ' + type;
+      toast.textContent = text;
+      container.appendChild(toast);
+      setTimeout(() => { toast.classList.add('fade-out'); }, 2500);
+      setTimeout(() => { toast.remove(); }, 3000);
+    }
+
+    // === SISTEMA DE LOG ===
+    const logContainer = document.getElementById('log-container');
+    function addLog(text, type = '') {
+      const now = new Date();
+      const ts = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      line.innerHTML = `<span class="log-time ${type}">[${ts}]</span><span>${text}</span>`;
+      logContainer.insertBefore(line, logContainer.firstChild);
+      while (logContainer.children.length > 25) logContainer.removeChild(logContainer.lastChild);
+    }
+
+    // === GRID ZK-SNARK ===
+    const zkGrid = document.getElementById('zk-grid');
+    for (let i = 0; i < 32; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'zk-cell';
+      zkGrid.appendChild(cell);
+    }
+    function generateZKProof() {
+      const cells = zkGrid.querySelectorAll('.zk-cell');
+      cells.forEach(c => { c.className = 'zk-cell'; });
+      let step = 0;
+      const interval = setInterval(() => {
+        if (step < 32) {
+          cells[step].classList.add('active');
+          step++;
+        } else {
+          clearInterval(interval);
+          // Verificar: algunos fallan si hay manipulacion
+          const failRate = ['MANIPULATION','CASCADING_FAIL'].includes(currentMode) ? 0.3 : 0.02;
+          cells.forEach(c => {
+            c.classList.remove('active');
+            c.classList.add(Math.random() < failRate ? 'failed' : 'proved');
+          });
+          zkProofCount++;
+          document.getElementById('val-zk-proofs').textContent = zkProofCount;
+          const verified = zkGrid.querySelectorAll('.proved').length;
+          const pct = Math.round((verified / 32) * 100);
+          const valVerify = document.getElementById('val-zk-verify');
+          valVerify.textContent = pct + '%';
+          valVerify.style.color = pct > 90 ? 'var(--heal-green)' : 'var(--red-alert)';
+          addLog(currentLang === 'es' ? `ZK-SNARK #${zkProofCount}: ${verified}/32 verificados (${pct}%)` :
+            (currentLang === 'zh' ? `ZK-SNARK #${zkProofCount}: ${verified}/32 已验证 (${pct}%)` :
+            `ZK-SNARK #${zkProofCount}: ${verified}/32 verified (${pct}%)`),
+            pct < 90 ? 'danger' : '');
+          if (pct < 90) showToast('ZK Proof: ' + pct + '% verified - Anomaly detected', 'danger');
+          else showToast('ZK Proof #' + zkProofCount + ' generated successfully', 'success');
+        }
+      }, 40);
+    }
+
+    // === RADAR DE AMENAZAS ===
+    const radarCanvas = document.getElementById('radar-canvas');
+    const rCtx = radarCanvas.getContext('2d');
+    let radarAngle = 0;
+    const radarBlips = [];
+
+    function addRadarBlip(type) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 0.2 + Math.random() * 0.7;
+      radarBlips.push({ angle, dist, type, life: 1.0, maxLife: 3 + Math.random() * 2 });
+    }
+
+    function drawRadar() {
+      const w = radarCanvas.width, h = radarCanvas.height;
+      const cx = w / 2, cy = h / 2, r = Math.min(cx, cy) - 5;
+      rCtx.clearRect(0, 0, w, h);
+
+      // Fondo oscuro
+      rCtx.beginPath();
+      rCtx.arc(cx, cy, r, 0, Math.PI * 2);
+      rCtx.fillStyle = 'rgba(10,12,14,0.9)';
+      rCtx.fill();
+
+      // Anillos concentricos
+      for (let i = 1; i <= 3; i++) {
+        rCtx.beginPath();
+        rCtx.arc(cx, cy, r * (i / 3), 0, Math.PI * 2);
+        rCtx.strokeStyle = 'rgba(79,195,247,0.1)';
+        rCtx.lineWidth = 1;
+        rCtx.stroke();
+      }
+
+      // Lineas cruz
+      rCtx.strokeStyle = 'rgba(79,195,247,0.07)';
+      rCtx.beginPath(); rCtx.moveTo(cx - r, cy); rCtx.lineTo(cx + r, cy); rCtx.stroke();
+      rCtx.beginPath(); rCtx.moveTo(cx, cy - r); rCtx.lineTo(cx, cy + r); rCtx.stroke();
+
+      // Barrido
+      const grad = rCtx.createConicalGradient ? null : null; // No soportado, usar arco
+      rCtx.beginPath();
+      rCtx.moveTo(cx, cy);
+      rCtx.arc(cx, cy, r, radarAngle - 0.5, radarAngle, false);
+      rCtx.closePath();
+      const sweepGrad = rCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      sweepGrad.addColorStop(0, 'rgba(79,195,247,0.3)');
+      sweepGrad.addColorStop(1, 'rgba(79,195,247,0.05)');
+      rCtx.fillStyle = sweepGrad;
+      rCtx.fill();
+
+      // Linea principal del barrido
+      rCtx.beginPath();
+      rCtx.moveTo(cx, cy);
+      rCtx.lineTo(cx + Math.cos(radarAngle) * r, cy + Math.sin(radarAngle) * r);
+      rCtx.strokeStyle = 'rgba(79,195,247,0.8)';
+      rCtx.lineWidth = 2;
+      rCtx.stroke();
+
+      // Blips
+      for (let i = radarBlips.length - 1; i >= 0; i--) {
+        const b = radarBlips[i];
+        b.life -= 0.016;
+        if (b.life <= 0) { radarBlips.splice(i, 1); continue; }
+        const alpha = Math.min(1, b.life / (b.maxLife * 0.3));
+        const bx = cx + Math.cos(b.angle) * b.dist * r;
+        const by = cy + Math.sin(b.angle) * b.dist * r;
+        const colors = { threat: '255,82,82', warning: '255,179,0', info: '79,195,247', quantum: '179,136,255' };
+        const col = colors[b.type] || colors.info;
+        rCtx.beginPath();
+        rCtx.arc(bx, by, 3, 0, Math.PI * 2);
+        rCtx.fillStyle = `rgba(${col},${alpha})`;
+        rCtx.fill();
+        // Halo
+        rCtx.beginPath();
+        rCtx.arc(bx, by, 6, 0, Math.PI * 2);
+        rCtx.fillStyle = `rgba(${col},${alpha * 0.3})`;
+        rCtx.fill();
+      }
+
+      // Centro
+      rCtx.beginPath();
+      rCtx.arc(cx, cy, 3, 0, Math.PI * 2);
+      rCtx.fillStyle = 'rgba(79,195,247,0.8)';
+      rCtx.fill();
+
+      radarAngle += 0.03;
+      requestAnimationFrame(drawRadar);
+    }
+    drawRadar();
+
+    // === MAPA TOPOLOGICO DAG ===
+    const dagCanvas = document.getElementById('dag-canvas');
+    const dCtx = dagCanvas.getContext('2d');
+    let dagTime = 0;
+
+    function drawDAGMap() {
+      const w = dagCanvas.width, h = dagCanvas.height;
+      dCtx.clearRect(0, 0, w, h);
+      dCtx.fillStyle = 'rgba(10,12,14,0.8)';
+      dCtx.fillRect(0, 0, w, h);
+
+      // Calcular posiciones 2D simplificadas
+      const layerXPositions = [w/2, w*0.2, w*0.35, w*0.5, w*0.65, w*0.8, w/2];
+      const layerYPositions = [h*0.12, h*0.28, h*0.42, h*0.55, h*0.68, h*0.82, h*0.94];
+      const layerCounts = [1, 4, 6, 8, 8, 6, 4];
+      const dagNodes = [];
+      let idx = 0;
+
+      for (let layer = 0; layer < 7; layer++) {
+        const count = layerCounts[layer];
+        const baseX = layerXPositions[layer];
+        const baseY = layerYPositions[layer];
+        for (let i = 0; i < count; i++) {
+          const spread = count > 1 ? (i / (count - 1) - 0.5) * w * 0.5 : 0;
+          const nd = (typeof nodeData !== 'undefined' && nodeData[idx]) ? nodeData[idx] : { compromised: false, quantum: false, recovered: false };
+          dagNodes.push({ x: baseX + spread, y: baseY + (Math.random() - 0.5) * 6, layer, compromised: nd.compromised, quantum: nd.quantum, recovered: nd.recovered, idx });
+          idx++;
+        }
+      }
+
+      // Dibujar aristas
+      dCtx.lineWidth = 0.5;
+      let fromIdx = 0;
+      for (let layer = 0; layer < 6; layer++) {
+        const count = layerCounts[layer];
+        const nextCount = layerCounts[layer + 1];
+        for (let i = 0; i < count; i++) {
+          const connections = layer === 0 ? nextCount : Math.min(nextCount, 1 + (i % 2));
+          for (let c = 0; c < connections; c++) {
+            const toIdx = fromIdx + count + (i + c) % nextCount;
+            if (dagNodes[toIdx]) {
+              const from = dagNodes[fromIdx + i];
+              const to = dagNodes[toIdx];
+              // Particula de flujo animada
+              const t = ((dagTime * 0.5 + i * 0.3 + c * 0.2) % 1);
+              const px = from.x + (to.x - from.x) * t;
+              const py = from.y + (to.y - from.y) * t;
+              dCtx.strokeStyle = 'rgba(79,195,247,0.1)';
+              dCtx.beginPath(); dCtx.moveTo(from.x, from.y); dCtx.lineTo(to.x, to.y); dCtx.stroke();
+              dCtx.fillStyle = 'rgba(79,195,247,0.6)';
+              dCtx.beginPath(); dCtx.arc(px, py, 1.2, 0, Math.PI * 2); dCtx.fill();
+            }
+          }
+        }
+        fromIdx += count;
+      }
+
+      // Dibujar nodos
+      dagNodes.forEach((n, i) => {
+        let color = 'rgba(79,195,247,0.8)';
+        let size = 3;
+        if (n.compromised) { color = 'rgba(255,82,82,0.9)'; size = 3.5; }
+        else if (n.quantum) { color = 'rgba(179,136,255,0.9)'; size = 3.5; }
+        else if (n.recovered) { color = 'rgba(0,230,118,0.9)'; size = 3.5; }
+        if (n.layer === 0) size = 5;
+        if (i === selectedNodeId) { size = 6; color = 'rgba(255,255,255,1)'; }
+        dCtx.beginPath();
+        dCtx.arc(n.x, n.y, size, 0, Math.PI * 2);
+        dCtx.fillStyle = color;
+        dCtx.fill();
+        // Glow
+        if (n.compromised || n.quantum || n.recovered || i === selectedNodeId) {
+          dCtx.beginPath();
+          dCtx.arc(n.x, n.y, size + 3, 0, Math.PI * 2);
+          dCtx.fillStyle = color.replace(/[\d.]+\)$/, '0.2)');
+          dCtx.fill();
+        }
+      });
+
+      dagTime += 0.016;
+      requestAnimationFrame(drawDAGMap);
+    }
+    drawDAGMap();
+
+    // === SELECCION DE NODOS ===
+    window.selectNode3D = function(nodeId) {
+      selectedNodeId = nodeId;
+      if (typeof window.highlightNode3D === 'function') window.highlightNode3D(nodeId);
+      if (nodeData && nodeData[nodeId]) {
+        const nd = nodeData[nodeId];
+        const layerNames = ['TRUST ROOT','DAG PROCEDENCIA','CONSENSO POP','ORACLE SEMANTICO','LIQUID DAO','AURA OS/SDK','ECOSISTEMA FEDERADO'];
+        document.getElementById('node-badge').textContent = `CAPA ${nd.layer + 1}: ${layerNames[nd.layer]}`;
+        document.getElementById('node-badge').className = nd.compromised ? 'node-pill critical' : 'node-pill';
+        document.getElementById('node-name').textContent = nd.name;
+        document.getElementById('node-desc').textContent = nd.desc;
+      }
+    };
+
+    // === ACCIONES DE NODOS ===
+    function triggerNodeAction(action) {
+      const name = document.getElementById('node-name').textContent;
+      if (action === 'seal') {
+        addLog(`SELLO: Firma inyectada en ${name}`);
+        showToast('Hardware seal injected: ' + name, 'success');
+        addRadarBlip('info');
+      } else if (action === 'zk') {
+        addLog(`ZK: Prueba generada para ${name}`, 'quantum');
+        showToast('ZK-SNARK proof for: ' + name, 'quantum');
+        addRadarBlip('quantum');
+      } else if (action === 'isolate') {
+        addLog(`AISLAMIENTO: ${name} aislado del DAG`, 'danger');
+        showToast('Node isolated: ' + name, 'danger');
+        addRadarBlip('threat');
+        if (nodeData && nodeData[selectedNodeId]) nodeData[selectedNodeId].compromised = true;
+        if (typeof window.highlightNode3D === 'function') window.highlightNode3D(selectedNodeId);
+      } else if (action === 'entangle') {
+        addLog(`ENTRELAZAMIENTO: Qubit vinculado a ${name}`, 'quantum');
+        showToast('Quantum entanglement: ' + name, 'quantum');
+        addRadarBlip('quantum');
+      }
+    }
+
+    // === CONFIGURACION DE MODO ===
+    const modeConfig = {
+      NORMAL:          { gauge: 99, color: '#4FC3F7', status: 'stable', threat: 'none', entropy: 99.2, consensus: 98.5, reputation: 96.7, tx: 142, energy: 94.8, latency: 12, staking: '142.8 kAURA', radarFreq: 0, logKey: 'logNormal', toastType: '', pipelineStatus: 'OK', pipelineColor: 'var(--heal-green)', pipelinePct: [99,98,97,96,95,94,93], leds: ['led','led','led','led','led','led'] },
+      SYBIL:           { gauge: 95, color: '#4FC3F7', status: 'activeDef', threat: 'medium', entropy: 74.2, consensus: 82.5, reputation: 81.4, tx: 89, energy: 72.1, latency: 45, staking: '98.2 kAURA', radarFreq: 3, logKey: 'logSybil', toastType: 'danger', pipelineStatus: 'OK', pipelineColor: 'var(--heal-green)', pipelinePct: [95,80,78,82,75,88,90], leds: ['led','led alert','led alert','led','led','led'] },
+      MANIPULATION:    { gauge: 5,  color: '#FF5252', status: 'compromised', threat: 'critical', entropy: 14.8, consensus: 31.2, reputation: 24.5, tx: 12, energy: 18.3, latency: 890, staking: '12.1 kAURA', radarFreq: 8, logKey: 'logManip', toastType: 'danger', pipelineStatus: 'FAIL', pipelineColor: 'var(--red-alert)', pipelinePct: [5,8,12,15,30,45,55], leds: ['led off','led off','led alert','led alert','led off','led off'] },
+      VERIFICATION:    { gauge: 98, color: '#4FC3F7', status: 'popConsensus', threat: 'low', entropy: 94.6, consensus: 97.2, reputation: 95.1, tx: 210, energy: 96.2, latency: 18, staking: '158.4 kAURA', radarFreq: 1, logKey: 'logVerif', toastType: '', pipelineStatus: 'OK', pipelineColor: 'var(--heal-green)', pipelinePct: [98,97,98,96,95,94,93], leds: ['led','led','led','led','led','led'] },
+      QUANTUM_HEAL:    { gauge: 100, color: '#00E676', status: 'selfHeal', threat: 'none', entropy: 100, consensus: 100, reputation: 100, tx: 180, energy: 100, latency: 8, staking: '200.0 kAURA', radarFreq: 0, logKey: 'logHeal', toastType: 'success', pipelineStatus: 'HEAL', pipelineColor: 'var(--heal-green)', pipelinePct: [100,100,100,100,100,100,100], leds: ['led heal-led','led heal-led','led heal-led','led heal-led','led heal-led','led heal-led'] },
+      STRESS_TEST:     { gauge: 88, color: '#FFB300', status: 'stressActive', threat: 'high', entropy: 85.4, consensus: 90.1, reputation: 88.3, tx: 2500, energy: 78.5, latency: 65, staking: '142.8 kAURA', radarFreq: 5, logKey: 'logStress', toastType: 'warning', pipelineStatus: 'LOAD', pipelineColor: 'var(--warning-amber)', pipelinePct: [92,88,85,82,80,78,75], leds: ['led','led warning-led','led warning-led','led','led','led'] },
+      QUANTUM_RESIST:  { gauge: 97, color: '#B388FF', status: 'postQuantum', threat: 'low', entropy: 98.1, consensus: 96.8, reputation: 97.5, tx: 120, energy: 91.2, latency: 22, staking: '155.0 kAURA', radarFreq: 1, logKey: 'logQuantumResist', toastType: 'quantum', pipelineStatus: 'PQ', pipelineColor: 'var(--quantum-purple)', pipelinePct: [98,97,97,96,96,95,94], leds: ['led quantum-led','led quantum-led','led quantum-led','led quantum-led','led quantum-led','led quantum-led'] },
+      FORK_DETECTED:   { gauge: 62, color: '#FF6E40', status: 'forkAlert', threat: 'high', entropy: 55.3, consensus: 48.7, reputation: 60.2, tx: 45, energy: 52.1, latency: 320, staking: '88.4 kAURA', radarFreq: 6, logKey: 'logFork', toastType: 'danger', pipelineStatus: 'FORK', pipelineColor: 'var(--fork-orange)', pipelinePct: [70,45,40,55,60,65,70], leds: ['led','led alert','led alert','led warning-led','led','led','led'] },
+      GOVERNANCE_CRISIS: { gauge: 45, color: '#FFB300', status: 'daoCrisis', threat: 'high', entropy: 68.4, consensus: 22.1, reputation: 42.8, tx: 35, energy: 55.0, latency: 450, staking: '42.1 kAURA', radarFreq: 4, logKey: 'logGovernance', toastType: 'warning', pipelineStatus: 'DEAD', pipelineColor: 'var(--warning-amber)', pipelinePct: [80,75,70,30,5,60,70], leds: ['led','led','led','led warning-led','led alert','led','led'] },
+      CASCADING_FAIL:  { gauge: 2,  color: '#FF5252', status: 'cascade', threat: 'extreme', entropy: 3.1, consensus: 5.4, reputation: 8.2, tx: 0, energy: 4.2, latency: 9999, staking: '0.0 kAURA', radarFreq: 12, logKey: 'logCascade', toastType: 'danger', pipelineStatus: 'DOWN', pipelineColor: 'var(--red-alert)', pipelinePct: [2,3,4,5,6,8,10], leds: ['led off','led off','led off','led off','led off','led off'] },
+      RECOVERY:        { gauge: 78, color: '#00E676', status: 'recovering', threat: 'low', entropy: 78.5, consensus: 72.3, reputation: 70.1, tx: 88, energy: 75.0, latency: 120, staking: '95.0 kAURA', radarFreq: 1, logKey: 'logRecovery', toastType: 'success', pipelineStatus: 'REBUILD', pipelineColor: 'var(--heal-green)', pipelinePct: [85,80,75,70,65,55,45], leds: ['led heal-led','led heal-led','led warning-led','led warning-led','led off','led off'] }
+    };
+
+    function setMode(mode) {
+      currentMode = mode;
+      const cfg = modeConfig[mode];
+      if (!cfg) return;
+
+      // Actualizar botones de modo
+      document.querySelectorAll('.mode-btn').forEach(b => {
+        b.className = 'mode-btn';
+        if (b.dataset.mode === mode) {
+          const dangerModes = ['SYBIL','MANIPULATION','FORK_DETECTED','CASCADING_FAIL'];
+          const quantumModes = ['QUANTUM_RESIST'];
+          const warningModes = ['GOVERNANCE_CRISIS','STRESS_TEST'];
+          const successModes = ['QUANTUM_HEAL','RECOVERY'];
+          if (dangerModes.includes(mode)) b.classList.add('active', 'danger');
+          else if (quantumModes.includes(mode)) b.classList.add('active', 'quantum-active');
+          else if (warningModes.includes(mode)) b.classList.add('active', 'warning-active');
+          else if (successModes.includes(mode)) b.classList.add('active', 'success-active');
+          else b.classList.add('active');
+        }
+      });
+
+      // Gauge
+      const gaugeVal = document.getElementById('gauge-val');
+      const gaugeRing = document.getElementById('gauge-ring');
+      gaugeVal.textContent = cfg.gauge;
+      gaugeVal.style.color = cfg.gauge <= 10 ? 'var(--red-alert)' : '#FFFFFF';
+      const circumference = 314; // 2 * PI * 50
+      gaugeRing.style.strokeDashoffset = circumference * (1 - cfg.gauge / 100);
+      gaugeRing.style.stroke = cfg.color;
+
+      // Status y Threat
+      const statusEl = document.getElementById('val-sys-status');
+      statusEl.textContent = t(cfg.status);
+      statusEl.style.color = cfg.color;
+      statusEl.className = 'telemetry-val' + (cfg.gauge <= 10 ? ' critical' : ' highlight');
+
+      const threatEl = document.getElementById('val-threat-level');
+      threatEl.textContent = t(cfg.threat);
+      const threatColors = { none: 'var(--silver-soft)', low: 'var(--cyan-glow)', medium: 'var(--warning-amber)', high: 'var(--red-alert)', critical: 'var(--red-alert)', extreme: 'var(--red-alert)' };
+      threatEl.style.color = threatColors[cfg.threat] || 'var(--silver-soft)';
+
+      // Barras de progreso
+      document.getElementById('val-entropy-level').textContent = cfg.entropy + '%';
+      document.getElementById('bar-entropy').style.width = cfg.entropy + '%';
+      document.getElementById('bar-entropy').style.background = cfg.entropy < 50 ? 'linear-gradient(90deg,#FF5252,#FF6E40)' : 'linear-gradient(90deg,#4FC3F7,#00E676)';
+
+      document.getElementById('val-consensus').textContent = cfg.consensus + '%';
+      document.getElementById('bar-consensus').style.width = cfg.consensus + '%';
+      document.getElementById('bar-consensus').style.background = cfg.consensus < 50 ? 'linear-gradient(90deg,#FF5252,#FFB300)' : 'linear-gradient(90deg,#4FC3F7,#00E676)';
+
+      document.getElementById('val-reputation').textContent = cfg.reputation + '%';
+      document.getElementById('bar-reputation').style.width = cfg.reputation + '%';
+      document.getElementById('bar-reputation').style.background = cfg.reputation < 50 ? 'linear-gradient(90deg,#FF5252,#FFB300)' : 'linear-gradient(90deg,#4FC3F7,#009688)';
+
+      // Telemetria
+      document.getElementById('val-nodes').textContent = simParams.nodes;
+      document.getElementById('val-txrate').textContent = cfg.tx + ' tx/s';
+      document.getElementById('val-energy').textContent = cfg.energy + '%';
+      document.getElementById('val-latency').textContent = cfg.latency > 1000 ? (cfg.latency / 1000).toFixed(1) + ' s' : cfg.latency + ' ms';
+      document.getElementById('val-staking').textContent = cfg.staking;
+
+      // LEDs
+      cfg.leds.forEach((led, i) => {
+        const ids = ['led-biomech','led-physics','led-swarm','led-shader','led-zk','led-lattice'];
+        document.getElementById(ids[i]).className = 'led-indicator ' + led;
+      });
+
+      // Pipeline de 7 capas
+      cfg.pipelinePct.forEach((pct, i) => {
+        const bar = document.getElementById('pip-bar-' + (i + 1));
+        const status = document.getElementById('pip-status-' + (i + 1));
+        const num = document.getElementById('pip-num-' + (i + 1));
+        bar.style.width = pct + '%';
+        bar.style.background = pct < 30 ? 'var(--red-alert)' : (pct < 60 ? 'var(--warning-amber)' : cfg.pipelineColor);
+        status.textContent = pct < 30 ? 'FAIL' : (pct < 60 ? 'DEGRAD' : cfg.pipelineStatus);
+        status.style.color = pct < 30 ? 'var(--red-alert)' : (pct < 60 ? 'var(--warning-amber)' : cfg.pipelineColor);
+        num.style.background = pct < 30 ? 'rgba(255,82,82,0.2)' : (pct < 60 ? 'rgba(255,179,0,0.2)' : 'rgba(79,195,247,0.15)');
+        num.style.color = pct < 30 ? 'var(--red-alert)' : (pct < 60 ? 'var(--warning-amber)' : 'var(--cyan-glow)');
+      });
+
+      // Efectos visuales globales
+      const viewport = document.querySelector('.viewport');
+      const scanline = document.getElementById('scanline-el');
+      viewport.classList.remove('glitch-active', 'cascade-shake', 'quantum-glow');
+      scanline.style.background = 'linear-gradient(to bottom, rgba(79,195,247,0.12), transparent)';
+
+      if (mode === 'MANIPULATION' || mode === 'CASCADING_FAIL') {
+        viewport.classList.add('glitch-active');
+        scanline.style.background = 'linear-gradient(to bottom, rgba(255,82,82,0.2), transparent)';
+      } else if (mode === 'QUANTUM_RESIST' || mode === 'QUANTUM_HEAL') {
+        viewport.classList.add('quantum-glow');
+        scanline.style.background = 'linear-gradient(to bottom, rgba(179,136,255,0.15), transparent)';
+      } else if (mode === 'CASCADING_FAIL') {
+        viewport.classList.add('cascade-shake');
+      }
+
+      // Actualizar escena 3D
+      if (typeof window.update3DScene === 'function') window.update3DScene(mode);
+
+      // Log y Toast
+      addLog(t(cfg.logKey), cfg.toastType === 'danger' ? 'danger' : (cfg.toastType === 'quantum' ? 'quantum' : ''));
+      if (cfg.toastType) showToast(t(cfg.status) + ' — ' + t(cfg.threat), cfg.toastType);
+    }
+
+    // === IDIOMA ===
+    function setLang(lang) {
+      currentLang = lang;
+      document.querySelectorAll('.controls-top-right .btn-group .btn').forEach((b, i) => {
+        b.classList.toggle('active', ['es','en','zh'][i] === lang);
+      });
+      document.getElementById('lbl-integrity-title').textContent = t('integrityTitle');
+      document.getElementById('lbl-sys-status').textContent = t('sysStatus');
+      document.getElementById('lbl-threat-level').textContent = t('threatLevel');
+      document.getElementById('lbl-modes-title').textContent = t('modesTitle');
+      document.getElementById('lbl-mode-normal').textContent = t('mNormal');
+      document.getElementById('lbl-desc-normal').textContent = t('dNormal');
+      document.getElementById('lbl-mode-sybil').textContent = t('mSybil');
+      document.getElementById('lbl-desc-sybil').textContent = t('dSybil');
+      document.getElementById('lbl-mode-manipulation').textContent = t('mManip');
+      document.getElementById('lbl-desc-manipulation').textContent = t('dManip');
+      document.getElementById('lbl-mode-verification').textContent = t('mVerif');
+      document.getElementById('lbl-desc-verification').textContent = t('dVerif');
+      document.getElementById('lbl-mode-quantum-heal').textContent = t('mHeal');
+      document.getElementById('lbl-desc-quantum-heal').textContent = t('dHeal');
+      document.getElementById('lbl-mode-stress-test').textContent = t('mStress');
+      document.getElementById('lbl-desc-stress-test').textContent = t('dStress');
+      document.getElementById('lbl-mode-quantum-resist').textContent = t('mQuantumResist');
+      document.getElementById('lbl-desc-quantum-resist').textContent = t('dQuantumResist');
+      document.getElementById('lbl-mode-fork').textContent = t('mFork');
+      document.getElementById('lbl-desc-fork').textContent = t('dFork');
+      document.getElementById('lbl-mode-governance').textContent = t('mGovernance');
+      document.getElementById('lbl-desc-governance').textContent = t('dGovernance');
+      document.getElementById('lbl-mode-cascade').textContent = t('mCascade');
+      document.getElementById('lbl-desc-cascade').textContent = t('dCascade');
+      document.getElementById('lbl-mode-recovery').textContent = t('mRecovery');
+      document.getElementById('lbl-desc-recovery').textContent = t('dRecovery');
+      document.getElementById('lbl-telemetry-title').textContent = t('telemetryTitle');
+      document.getElementById('lbl-lbl-nodes').textContent = t('nodes');
+      document.getElementById('lbl-lbl-txrate').textContent = t('txRate');
+      document.getElementById('lbl-lbl-energy').textContent = t('energy');
+      document.getElementById('lbl-lbl-latency').textContent = t('latency');
+      document.getElementById('lbl-entropy-title').textContent = t('entropyTitle');
+      document.getElementById('lbl-consensus-title').textContent = t('consensusTitle');
+      document.getElementById('lbl-radar-title').textContent = t('radarTitle');
+      document.getElementById('lbl-zk-title').textContent = t('zkTitle');
+      document.getElementById('lbl-dag-title').textContent = t('dagTitle');
+      document.getElementById('lbl-pipeline-title').textContent = t('pipelineTitle');
+      document.getElementById('lbl-params-title').textContent = t('paramsTitle');
+      document.getElementById('lbl-logger-title').textContent = t('loggerTitle');
+      document.getElementById('lbl-inspect-title').textContent = t('inspectTitle');
+      document.getElementById('lbl-param-nodes').textContent = t('paramNodes');
+      document.getElementById('lbl-param-attack').textContent = t('paramAttack');
+      document.getElementById('lbl-param-recovery').textContent = t('paramRecovery');
+      document.getElementById('lbl-param-throughput').textContent = t('paramThroughput');
+      document.getElementById('btn-pulse-lbl').textContent = t('btnPulse');
+      document.getElementById('btn-zk-lbl').textContent = t('btnZK');
+      document.getElementById('btn-isolate-lbl').textContent = t('btnIsolate');
+      document.getElementById('btn-entangle-lbl').textContent = t('btnEntangle');
+      document.getElementById('btn-gen-zk').textContent = t('btnGenZK');
+      document.getElementById('lbl-canvas-tooltip').textContent = t('tooltip');
+      document.getElementById('lbl-ar-btn').textContent = isARActive ? t('arDisable') : t('arBtn');
+      document.getElementById('lbl-feat-biomech').textContent = t('biomech');
+      document.getElementById('lbl-feat-physics').textContent = t('physics');
+      document.getElementById('lbl-feat-swarm').textContent = t('swarm');
+      document.getElementById('lbl-feat-shader').textContent = t('shader');
+      document.getElementById('lbl-feat-zk').textContent = t('zk');
+      document.getElementById('lbl-feat-lattice').textContent = t('lattice');
+      // Re-aplicar modo para actualizar textos dinamicos
+      setMode(currentMode);
+    }
+
+    // === PARAMETROS DE SIMULACION ===
+    function updateParam(param, value) {
+      value = Number(value);
+      simParams[param] = value;
+      if (param === 'nodes') {
+        document.getElementById('val-param-nodes').textContent = value;
+        document.getElementById('val-nodes').textContent = value;
+      } else if (param === 'attack') {
+        document.getElementById('val-param-attack').textContent = value + '%';
+      } else if (param === 'recovery') {
+        document.getElementById('val-param-recovery').textContent = value;
+      } else if (param === 'throughput') {
+        document.getElementById('val-param-throughput').textContent = value;
+        document.getElementById('val-txrate').textContent = value + ' tx/s';
+      }
+    }
+
+    // === TIMELINE ===
+    const maxTime = 300; // 5 minutos
+    function toggleTimeline() {
+      timelinePlaying = !timelinePlaying;
+      document.getElementById('btn-tl-play').innerHTML = timelinePlaying ? '&#9646;&#9646;' : '&#9654;';
+      document.getElementById('btn-tl-play').classList.toggle('active', timelinePlaying);
+    }
+    function resetTimeline() {
+      timelineProgress = 0;
+      timelinePlaying = false;
+      document.getElementById('btn-tl-play').innerHTML = '&#9654;';
+      document.getElementById('btn-tl-play').classList.remove('active');
+    }
+    function seekTimeline(e) {
+      const track = document.getElementById('timeline-track');
+      const rect = track.getBoundingClientRect();
+      timelineProgress = ((e.clientX - rect.left) / rect.width) * maxTime;
+    }
+    function setTimelineSpeed(val) { timelineSpeed = Number(val); }
+
+    setInterval(() => {
+      if (timelinePlaying) {
+        timelineProgress = Math.min(maxTime, timelineProgress + 0.1 * timelineSpeed);
+        if (timelineProgress >= maxTime) { timelinePlaying = false; document.getElementById('btn-tl-play').innerHTML = '&#9654;'; document.getElementById('btn-tl-play').classList.remove('active'); }
+      }
+      const pct = (timelineProgress / maxTime) * 100;
+      document.getElementById('timeline-fill').style.width = pct + '%';
+      const elapsed = Math.floor(timelineProgress);
+      const em = String(Math.floor(elapsed / 60)).padStart(2, '0');
+      const es = String(elapsed % 60).padStart(2, '0');
+      document.getElementById('timeline-time').textContent = `${em}:${es} / 05:00`;
+
+      // Generar blips de radar periodicamente segun modo
+      const cfg = modeConfig[currentMode];
+      if (cfg && Math.random() < cfg.radarFreq * 0.02) {
+        const types = ['SYBIL','MANIPULATION','FORK_DETECTED','CASCADING_FAIL'].includes(currentMode) ? 'threat' :
+          (['GOVERNANCE_CRISIS','STRESS_TEST'].includes(currentMode) ? 'warning' :
+          (['QUANTUM_RESIST','QUANTUM_HEAL'].includes(currentMode) ? 'quantum' : 'info'));
+        addRadarBlip(types);
+      }
+    }, 100);
+
+    // === AR ===
+    function toggleAR() {
+      isARActive = !isARActive;
+      const video = document.getElementById('camera-feed');
+      const btn = document.getElementById('btn-ar');
+      if (isARActive) {
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(stream => {
+          video.srcObject = stream; video.classList.add('active');
+          btn.classList.add('active');
+          document.getElementById('lbl-ar-btn').textContent = t('arDisable');
+          showToast('AR Activado', 'success');
+        }).catch(() => {
+          isARActive = false;
+          showToast('No se pudo acceder a la camara', 'danger');
+        });
+      } else {
+        video.srcObject = null; video.classList.remove('active');
+        btn.classList.remove('active');
+        document.getElementById('lbl-ar-btn').textContent = t('arBtn');
+      }
+    }
+
+    // === ATAJOS DE TECLADO ===
+    const modeKeyMap = { '1': 'NORMAL', '2': 'SYBIL', '3': 'MANIPULATION', '4': 'VERIFICATION', '5': 'QUANTUM_HEAL', '6': 'STRESS_TEST', '7': 'QUANTUM_RESIST', '8': 'FORK_DETECTED', '9': 'GOVERNANCE_CRISIS', '0': 'CASCADING_FAIL' };
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+      const key = e.key.toLowerCase();
+      if (modeKeyMap[key]) {
+        setMode(modeKeyMap[key]);
+      } else if (key === 'r') {
+        setMode('RECOVERY');
+      } else if (key === ' ') {
+        e.preventDefault();
+        toggleTimeline();
+      }
+    });
+
+    // === INICIALIZACION ===
+    addLog('Sistema AURA v2.0 inicializado. 37 nodos en linea.');
+    addLog('Modulos: DAG Topologia, Radar, Pipeline, ZK-SNARK activos.');
+    setMode('NORMAL');
+
+    // Generar prueba ZK inicial despues de un momento
+    setTimeout(() => generateZKProof(), 1500);
+  </script>
+</body>
+</html>
