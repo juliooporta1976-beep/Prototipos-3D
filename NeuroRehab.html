@@ -2,245 +2,321 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>VR NeuroRehab+ — Prototipo 3D Interactivo</title>
 <style>
   :root {
-    --titanium: #6B7280;
-    --titanium-dark: #4B5563;
+    --titanium: #6B6B6B;
     --cyan: #4FC3F7;
-    --cyan-dim: rgba(79,195,247,0.3);
-    --silver: #9CA3AF;
-    --white-clinic: #F3F4F6;
-    --anthracite: #1F2937;
-    --bg: #0D1117;
-    --hud-bg: rgba(13,17,23,0.85);
-    --border: rgba(79,195,247,0.25);
+    --silver: #B8B8B8;
+    --clinical: #E8E8E8;
+    --anthracite: #2D2D2D;
+    --bg: #0a0e14;
+    --panel: rgba(10,14,20,0.88);
+    --border: rgba(79,195,247,0.2);
+    --text: #d0d8e0;
+    --text-bright: #f0f4f8;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { background: var(--bg); overflow:hidden; font-family:'Segoe UI',system-ui,sans-serif; color:var(--white-clinic); }
-  canvas { display:block; }
-
-  /* Nombre del Dr. */
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    overflow: hidden;
+    width: 100vw; height: 100vh;
+  }
+  #canvas-container {
+    position: fixed; top:0; left:0; width:100%; height:100%; z-index:1;
+  }
+  #ar-video-bg {
+    position: fixed; top:0; left:0; width:100%; height:100%;
+    object-fit: cover; z-index:0; display:none;
+  }
+  /* Autor */
   #author-badge {
-    position:fixed; top:16px; left:16px; z-index:100;
-    background: linear-gradient(135deg, rgba(79,195,247,0.12), rgba(31,41,55,0.9));
-    border:1px solid var(--border); border-radius:8px;
-    padding:10px 18px; backdrop-filter:blur(12px);
-    font-size:13px; font-weight:600; letter-spacing:0.5px;
-    color: var(--cyan); text-shadow:0 0 12px rgba(79,195,247,0.3);
-    pointer-events:none;
+    position: fixed; top:16px; left:16px; z-index:100;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    backdrop-filter: blur(12px);
+    font-size: 13px;
+    color: var(--cyan);
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    pointer-events: none;
   }
-  #author-badge span { color: var(--white-clinic); font-weight:400; opacity:0.85; }
-
+  #author-badge span { color: var(--text); font-weight: 400; }
   /* Selector de idioma */
-  #lang-selector {
-    position:fixed; top:16px; right:16px; z-index:100;
-    display:flex; gap:4px;
+  #lang-panel {
+    position: fixed; top:16px; right:16px; z-index:100;
+    display: flex; gap:4px;
   }
-  #lang-selector button {
-    background: var(--hud-bg); border:1px solid var(--border);
-    color: var(--silver); padding:7px 14px; border-radius:6px;
-    cursor:pointer; font-size:12px; font-weight:600;
+  .lang-btn {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    backdrop-filter: blur(12px);
     transition: all 0.3s;
   }
-  #lang-selector button:hover, #lang-selector button.active {
-    background: rgba(79,195,247,0.15); color: var(--cyan);
-    border-color: var(--cyan); box-shadow: 0 0 12px rgba(79,195,247,0.2);
+  .lang-btn:hover, .lang-btn.active {
+    background: rgba(79,195,247,0.15);
+    color: var(--cyan);
+    border-color: var(--cyan);
   }
-
-  /* Panel de controles */
-  #controls-panel {
-    position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:100;
-    display:flex; gap:8px; flex-wrap:wrap; justify-content:center;
-    background: var(--hud-bg); border:1px solid var(--border);
-    border-radius:12px; padding:12px 16px; backdrop-filter:blur(16px);
+  /* Panel de control izquierdo */
+  #control-panel {
+    position: fixed; left:16px; top:70px; z-index:100;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    width: 220px;
+    backdrop-filter: blur(14px);
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
   }
-  #controls-panel button {
-    background: rgba(79,195,247,0.08); border:1px solid rgba(79,195,247,0.2);
-    color: var(--white-clinic); padding:8px 16px; border-radius:8px;
-    cursor:pointer; font-size:11px; font-weight:600;
-    transition: all 0.3s; white-space:nowrap;
+  #control-panel::-webkit-scrollbar { width:4px; }
+  #control-panel::-webkit-scrollbar-thumb { background: var(--cyan); border-radius:4px; }
+  .panel-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--cyan);
+    margin-bottom: 10px;
+    font-weight: 700;
   }
-  #controls-panel button:hover {
-    background: rgba(79,195,247,0.2); border-color: var(--cyan);
-    color: var(--cyan); transform:translateY(-1px);
-    box-shadow: 0 4px 16px rgba(79,195,247,0.15);
+  .panel-section { margin-bottom: 14px; }
+  .panel-section label {
+    display: block;
+    font-size: 11px;
+    color: var(--silver);
+    margin-bottom: 6px;
   }
-  #controls-panel button.active-mode {
-    background: rgba(79,195,247,0.25); border-color: var(--cyan);
-    color: var(--cyan); box-shadow: 0 0 16px rgba(79,195,247,0.25);
+  .sim-btn {
+    display: block;
+    width: 100%;
+    background: rgba(79,195,247,0.06);
+    border: 1px solid rgba(79,195,247,0.15);
+    color: var(--text);
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 11px;
+    margin-bottom: 4px;
+    text-align: left;
+    transition: all 0.25s;
   }
-
-  /* HUD lateral */
-  #hud-left {
-    position:fixed; left:16px; top:50%; transform:translateY(-50%); z-index:100;
-    display:flex; flex-direction:column; gap:8px;
+  .sim-btn:hover { background: rgba(79,195,247,0.12); color: var(--text-bright); }
+  .sim-btn.active {
+    background: rgba(79,195,247,0.2);
+    border-color: var(--cyan);
+    color: var(--cyan);
+    box-shadow: 0 0 12px rgba(79,195,247,0.15);
   }
-  .hud-stat {
-    background: var(--hud-bg); border:1px solid var(--border);
-    border-radius:8px; padding:10px 14px; backdrop-filter:blur(12px);
-    min-width:160px;
+  /* Slider */
+  .sim-slider {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--anthracite);
+    outline: none;
   }
-  .hud-stat .label { font-size:9px; color:var(--silver); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; }
-  .hud-stat .value { font-size:18px; font-weight:700; color:var(--cyan); }
-  .hud-stat .bar { height:3px; background:rgba(79,195,247,0.15); border-radius:2px; margin-top:6px; }
-  .hud-stat .bar-fill { height:100%; background:var(--cyan); border-radius:2px; transition:width 0.8s; }
-
-  /* HUD derecho */
-  #hud-right {
-    position:fixed; right:16px; top:50%; transform:translateY(-50%); z-index:100;
-    display:flex; flex-direction:column; gap:8px;
+  .sim-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--cyan);
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(79,195,247,0.4);
   }
-  .hud-node {
-    background: var(--hud-bg); border:1px solid var(--border);
-    border-radius:8px; padding:8px 12px; backdrop-filter:blur(12px);
-    font-size:10px; display:flex; align-items:center; gap:8px;
+  /* HUD inferior */
+  #hud-bar {
+    position: fixed; bottom:0; left:0; right:0; z-index:100;
+    background: linear-gradient(to top, rgba(10,14,20,0.95), transparent);
+    padding: 20px 24px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    pointer-events: none;
+  }
+  .hud-block { pointer-events: auto; }
+  .hud-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--cyan);
+    opacity: 0.7;
+  }
+  .hud-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-bright);
+    font-variant-numeric: tabular-nums;
+  }
+  .hud-value.cyan { color: var(--cyan); }
+  .hud-group { display: flex; gap: 28px; }
+  /* Botón AR */
+  #ar-toggle {
+    position: fixed; bottom: 70px; right: 16px; z-index: 100;
+    background: linear-gradient(135deg, rgba(79,195,247,0.2), rgba(79,195,247,0.08));
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    backdrop-filter: blur(10px);
     transition: all 0.3s;
+    text-transform: uppercase;
   }
-  .hud-node .dot { width:8px; height:8px; border-radius:50%; background:var(--cyan); box-shadow:0 0 8px var(--cyan); }
-  .hud-node.processing .dot { animation: pulse-dot 1s infinite; }
-  @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.3)} }
-
-  /* Indicador de modo */
-  #mode-indicator {
-    position:fixed; top:60px; left:50%; transform:translateX(-50%); z-index:100;
-    background: linear-gradient(90deg, transparent, rgba(79,195,247,0.1), transparent);
-    border:1px solid var(--border); border-radius:20px;
-    padding:6px 24px; font-size:11px; color:var(--cyan);
-    letter-spacing:2px; text-transform:uppercase; font-weight:600;
-    backdrop-filter:blur(8px);
-    opacity:0; transition: opacity 0.5s;
+  #ar-toggle:hover {
+    background: linear-gradient(135deg, rgba(79,195,247,0.35), rgba(79,195,247,0.15));
+    box-shadow: 0 0 20px rgba(79,195,247,0.2);
   }
-  #mode-indicator.visible { opacity:1; }
-
-  /* AR overlay */
-  #ar-overlay {
-    position:fixed; top:0; left:0; width:100%; height:100%; z-index:50;
-    display:none; background:#000;
+  #ar-toggle.active {
+    background: var(--cyan);
+    color: var(--anthracite);
   }
-  #ar-overlay video { width:100%; height:100%; object-fit:cover; }
-  #ar-overlay canvas { position:absolute; top:0; left:0; }
-  #ar-close {
-    position:absolute; top:16px; right:16px; z-index:60;
-    background:rgba(239,68,68,0.8); border:none; color:white;
-    width:40px; height:40px; border-radius:50%; cursor:pointer;
-    font-size:18px; font-weight:bold;
+  /* Toast */
+  #toast {
+    position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+    z-index: 200;
+    background: var(--panel);
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 12px;
+    backdrop-filter: blur(14px);
+    opacity: 0;
+    transition: opacity 0.4s;
+    pointer-events: none;
   }
-
-  /* Tooltip */
-  #tooltip {
-    position:fixed; z-index:200; display:none;
-    background: var(--hud-bg); border:1px solid var(--cyan);
-    border-radius:8px; padding:10px 14px; backdrop-filter:blur(16px);
-    max-width:240px; font-size:11px; line-height:1.5;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  #toast.show { opacity: 1; }
+  /* Indicador de estado */
+  #state-indicator {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    z-index: 100;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    backdrop-filter: blur(12px);
+    display: flex; align-items: center; gap: 8px;
   }
-  #tooltip .tt-title { color:var(--cyan); font-weight:700; font-size:12px; margin-bottom:4px; }
-
-  /* Loading */
-  #loading {
-    position:fixed; top:0; left:0; width:100%; height:100%; z-index:1000;
-    background: var(--bg); display:flex; flex-direction:column;
-    align-items:center; justify-content:center;
-    transition: opacity 0.8s;
+  #state-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--anthracite);
+    transition: background 0.4s, box-shadow 0.4s;
   }
-  #loading.hidden { opacity:0; pointer-events:none; }
-  #loading h2 { color:var(--cyan); font-size:24px; margin-bottom:8px; letter-spacing:2px; }
-  #loading p { color:var(--silver); font-size:12px; margin-bottom:24px; }
-  .loader-ring {
-    width:48px; height:48px; border:3px solid rgba(79,195,247,0.15);
-    border-top-color:var(--cyan); border-radius:50%;
-    animation: spin 1s linear infinite;
-  }
-  @keyframes spin { to{transform:rotate(360deg)} }
-
   /* Responsive */
-  @media(max-width:768px) {
-    #hud-left, #hud-right { display:none; }
-    #controls-panel { bottom:10px; padding:8px 10px; }
-    #controls-panel button { padding:6px 10px; font-size:10px; }
-    #author-badge { font-size:11px; padding:8px 12px; }
+  @media (max-width: 700px) {
+    #control-panel { width: 170px; padding: 10px; left: 8px; top: 60px; }
+    .sim-btn { font-size: 10px; padding: 5px 8px; }
+    #author-badge { font-size: 11px; padding: 8px 12px; }
+    .hud-value { font-size: 14px; }
+    .hud-group { gap: 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition-duration: 0.01ms !important; }
   }
 </style>
 </head>
 <body>
 
-<!-- Pantalla de carga -->
-<div id="loading">
-  <h2>VR NeuroRehab+</h2>
-  <p data-i18n="loading">Inicializando prototipo 3D...</p>
-  <div class="loader-ring"></div>
-</div>
+<video id="ar-video-bg" autoplay playsinline muted></video>
+<div id="canvas-container"></div>
 
-<!-- Nombre del autor -->
 <div id="author-badge">Dr. Julio César Oporta Barrera <span>| VR NeuroRehab+</span></div>
 
-<!-- Selector de idioma -->
-<div id="lang-selector">
-  <button data-lang="es" class="active">ESP</button>
-  <button data-lang="en">ENG</button>
-  <button data-lang="zh">中文</button>
+<div id="state-indicator">
+  <div id="state-dot"></div>
+  <span id="state-text" data-i18n="state_off">Apagado</span>
 </div>
 
-<!-- Indicador de modo -->
-<div id="mode-indicator"></div>
+<div id="lang-panel">
+  <button class="lang-btn active" data-lang="es">ES</button>
+  <button class="lang-btn" data-lang="en">EN</button>
+  <button class="lang-btn" data-lang="zh">中</button>
+</div>
 
-<!-- HUD izquierdo - Estadísticas -->
-<div id="hud-left">
-  <div class="hud-stat">
-    <div class="label" data-i18n="neural_activity">Actividad Neural</div>
-    <div class="value" id="stat-neural">87%</div>
-    <div class="bar"><div class="bar-fill" id="bar-neural" style="width:87%"></div></div>
+<div id="control-panel">
+  <div class="panel-title" data-i18n="panel_states">Estados Dinámicos</div>
+  <div class="panel-section">
+    <button class="sim-btn active" data-state="off" data-i18n="st_off">Apagado</button>
+    <button class="sim-btn" data-state="standby" data-i18n="st_standby">Espera</button>
+    <button class="sim-btn" data-state="calibration" data-i18n="st_cal">Calibración</button>
+    <button class="sim-btn" data-state="therapy" data-i18n="st_therapy">Terapia Activa</button>
+    <button class="sim-btn" data-state="emergency" data-i18n="st_emerg">Emergencia</button>
   </div>
-  <div class="hud-stat">
-    <div class="label" data-i18n="cognitive_load">Carga Cognitiva</div>
-    <div class="value" id="stat-cognitive">42%</div>
-    <div class="bar"><div class="bar-fill" id="bar-cognitive" style="width:42%"></div></div>
+
+  <div class="panel-title" data-i18n="panel_sims">Simulaciones</div>
+  <div class="panel-section">
+    <button class="sim-btn" data-sim="biomechanics" data-i18n="sim_bio">Biomecánica</button>
+    <button class="sim-btn" data-sim="modular" data-i18n="sim_mod">Física Modular</button>
+    <button class="sim-btn" data-sim="energy" data-i18n="sim_energy">Energía Híbrida</button>
+    <button class="sim-btn" data-sim="swarm" data-i18n="sim_swarm">IA de Enjambre</button>
+    <button class="sim-btn" data-sim="hud3d" data-i18n="sim_hud">HUD Táctico 3D</button>
+    <button class="sim-btn" data-sim="neural" data-i18n="sim_neural">Red Neuronal</button>
   </div>
-  <div class="hud-stat">
-    <div class="label" data-i18n="attention">Atención</div>
-    <div class="value" id="stat-attention">91%</div>
-    <div class="bar"><div class="bar-fill" id="bar-attention" style="width:91%"></div></div>
+
+  <div class="panel-title" data-i18n="panel_params">Parámetros</div>
+  <div class="panel-section">
+    <label data-i18n="param_diff">Dificultad Terapéutica</label>
+    <input type="range" class="sim-slider" id="diff-slider" min="1" max="10" value="5">
+    <label data-i18n="param_sens" style="margin-top:8px">Sensibilidad Sensorial</label>
+    <input type="range" class="sim-slider" id="sens-slider" min="1" max="10" value="7">
   </div>
-  <div class="hud-stat">
-    <div class="label" data-i18n="plasticity">Plasticidad</div>
-    <div class="value" id="stat-plasticity">73%</div>
-    <div class="bar"><div class="bar-fill" id="bar-plasticity" style="width:73%"></div></div>
+
+  <div class="panel-section">
+    <button class="sim-btn" id="btn-explode" data-i18n="sim_explode">Vista Explotada</button>
+    <button class="sim-btn" id="btn-reset" data-i18n="sim_reset">Reiniciar Vista</button>
   </div>
 </div>
 
-<!-- HUD derecho - Nodos IA -->
-<div id="hud-right">
-  <div class="hud-node processing" id="node-eeg"><div class="dot"></div><span data-i18n="node_eeg">Captura EEG</span></div>
-  <div class="hud-node" id="node-fnirs"><div class="dot" style="background:#81C784;box-shadow:0 0 8px #81C784"></div><span data-i18n="node_fnirs">fNIRS Prefrontal</span></div>
-  <div class="hud-node" id="node-preprocess"><div class="dot" style="background:#FFB74D;box-shadow:0 0 8px #FFB74D"></div><span data-i18n="node_preprocess">Preprocesamiento</span></div>
-  <div class="hud-node" id="node-ai"><div class="dot"></div><span data-i18n="node_ai">IA Adaptativa</span></div>
-  <div class="hud-node" id="node-vr"><div class="dot" style="background:#CE93D8;box-shadow:0 0 8px #CE93D8"></div><span data-i18n="node_vr">Entorno VR</span></div>
-  <div class="hud-node" id="node-feedback"><div class="dot" style="background:#4DB6AC;box-shadow:0 0 8px #4DB6AC"></div><span data-i18n="node_feedback">Biofeedback</span></div>
+<div id="hud-bar">
+  <div class="hud-group">
+    <div class="hud-block">
+      <div class="hud-label" data-i18n="hud_eeg">EEG</div>
+      <div class="hud-value cyan" id="hud-eeg">0.00 Hz</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-label" data-i18n="hud_fnirs">fNIRS</div>
+      <div class="hud-value" id="hud-fnirs">0.00 %</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-label" data-i18n="hud_cognitive">Carga Cognitiva</div>
+      <div class="hud-value cyan" id="hud-cog">0.0</div>
+    </div>
+  </div>
+  <div class="hud-group">
+    <div class="hud-block">
+      <div class="hud-label" data-i18n="hud_session">Sesión</div>
+      <div class="hud-value" id="hud-session">00:00</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-label" data-i18n="hud_engagement">Engagement</div>
+      <div class="hud-value cyan" id="hud-eng">0 %</div>
+    </div>
+  </div>
 </div>
 
-<!-- Panel de controles inferior -->
-<div id="controls-panel">
-  <button data-mode="calibration" data-i18n="btn_calibrate">Calibración</button>
-  <button data-mode="therapy" data-i18n="btn_therapy">Terapia</button>
-  <button data-mode="analysis" data-i18n="btn_analysis">Análisis IA</button>
-  <button data-mode="biomechanics" data-i18n="btn_biomech">Biomecánica</button>
-  <button data-mode="swarm" data-i18n="btn_swarm">IA Enjambre</button>
-  <button data-mode="energy" data-i18n="btn_energy">Energía Híbrida</button>
-  <button data-mode="ar" data-i18n="btn_ar">Realidad Aumentada</button>
-  <button data-mode="reset" data-i18n="btn_reset">Reiniciar</button>
-</div>
-
-<!-- Tooltip -->
-<div id="tooltip"><div class="tt-title"></div><div class="tt-body"></div></div>
-
-<!-- Overlay AR -->
-<div id="ar-overlay">
-  <video id="ar-video" autoplay playsinline></video>
-  <canvas id="ar-canvas"></canvas>
-  <button id="ar-close">✕</button>
-</div>
+<button id="ar-toggle" data-i18n="btn_ar">Realidad Aumentada</button>
+<div id="toast"></div>
 
 <script type="importmap">
 {
@@ -255,1639 +331,1648 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ============================================================
-// SISTEMA DE MULTILENGUAJE
+// SISTEMA DE TRADUCCIÓN MULTILENGUAJE
 // ============================================================
 const i18n = {
   es: {
-    loading: 'Inicializando prototipo 3D...',
-    neural_activity: 'Actividad Neural',
-    cognitive_load: 'Carga Cognitiva',
-    attention: 'Atención',
-    plasticity: 'Plasticidad',
-    node_eeg: 'Captura EEG',
-    node_fnirs: 'fNIRS Prefrontal',
-    node_preprocess: 'Preprocesamiento',
-    node_ai: 'IA Adaptativa',
-    node_vr: 'Entorno VR',
-    node_feedback: 'Biofeedback',
-    btn_calibrate: 'Calibración',
-    btn_therapy: 'Terapia',
-    btn_analysis: 'Análisis IA',
-    btn_biomech: 'Biomecánica',
-    btn_swarm: 'IA Enjambre',
-    btn_energy: 'Energía Híbrida',
+    state_off: 'Apagado', state_standby: 'Espera', state_cal: 'Calibración',
+    state_therapy: 'Terapia Activa', state_emerg: 'Emergencia',
+    panel_states: 'Estados Dinámicos', panel_sims: 'Simulaciones', panel_params: 'Parámetros',
+    st_off: 'Apagado', st_standby: 'Espera', st_cal: 'Calibración',
+    st_therapy: 'Terapia Activa', st_emerg: 'Emergencia',
+    sim_bio: 'Biomecánica', sim_mod: 'Física Modular', sim_energy: 'Energía Híbrida',
+    sim_swarm: 'IA de Enjambre', sim_hud: 'HUD Táctico 3D', sim_neural: 'Red Neuronal',
+    param_diff: 'Dificultad Terapéutica', param_sens: 'Sensibilidad Sensorial',
+    sim_explode: 'Vista Explotada', sim_reset: 'Reiniciar Vista',
+    hud_eeg: 'EEG', hud_fnirs: 'fNIRS', hud_cognitive: 'Carga Cognitiva',
+    hud_session: 'Sesión', hud_engagement: 'Engagement',
     btn_ar: 'Realidad Aumentada',
-    btn_reset: 'Reiniciar',
-    mode_calibrate: 'Modo: Calibración Sensorial',
-    mode_therapy: 'Modo: Terapia Adaptativa',
-    mode_analysis: 'Modo: Análisis de IA',
-    mode_biomech: 'Modo: Simulación Biomecánica',
-    mode_swarm: 'Modo: IA de Enjambre',
-    mode_energy: 'Modo: Energía Híbrida',
-    tt_headset: 'Visor VR NeuroRehab+ con sensores EEG/fNIRS integrados y pantalla de alta fidelidad.',
-    tt_brain: 'Modelo de cerebro con visualización de actividad neural en tiempo real y rutas de plasticidad.',
-    tt_eeg: 'Sensor de electroencefalografía portátil con 16 canales para captura de ritmos corticales.',
-    tt_fnirs: 'Sensor de espectroscopía infrarroja cercana para medir oxigenación prefrontal.',
-    tt_ai_node: 'Nodo de procesamiento de IA adaptativa con modelo AutoML y explicabilidad XAI.',
-    tt_data_flow: 'Flujo de datos neuronales en tiempo real entre sensores, IA y entorno VR.',
-    tt_bio: 'Modelo biomecánico para simulación de movimientos de rehabilitación.',
-    tt_swarm: 'Sistema de IA de enjambre para optimización distribuida de parámetros terapéuticos.',
-    tt_energy: 'Sistema de energía híbrida con gestión inteligente de consumo de sensores y VR.'
+    toast_ar_on: 'Realidad Aumentada activada', toast_ar_off: 'Realidad Aumentada desactivada',
+    toast_state: 'Estado: ', toast_sim: 'Simulación: '
   },
   en: {
-    loading: 'Initializing 3D prototype...',
-    neural_activity: 'Neural Activity',
-    cognitive_load: 'Cognitive Load',
-    attention: 'Attention',
-    plasticity: 'Plasticity',
-    node_eeg: 'EEG Capture',
-    node_fnirs: 'Prefrontal fNIRS',
-    node_preprocess: 'Preprocessing',
-    node_ai: 'Adaptive AI',
-    node_vr: 'VR Environment',
-    node_feedback: 'Biofeedback',
-    btn_calibrate: 'Calibration',
-    btn_therapy: 'Therapy',
-    btn_analysis: 'AI Analysis',
-    btn_biomech: 'Biomechanics',
-    btn_swarm: 'Swarm AI',
-    btn_energy: 'Hybrid Energy',
+    state_off: 'Off', state_standby: 'Standby', state_cal: 'Calibration',
+    state_therapy: 'Active Therapy', state_emerg: 'Emergency',
+    panel_states: 'Dynamic States', panel_sims: 'Simulations', panel_params: 'Parameters',
+    st_off: 'Off', st_standby: 'Standby', st_cal: 'Calibration',
+    st_therapy: 'Active Therapy', st_emerg: 'Emergency',
+    sim_bio: 'Biomechanics', sim_mod: 'Modular Physics', sim_energy: 'Hybrid Energy',
+    sim_swarm: 'Swarm AI', sim_hud: 'Tactical 3D HUD', sim_neural: 'Neural Network',
+    param_diff: 'Therapeutic Difficulty', param_sens: 'Sensory Sensitivity',
+    sim_explode: 'Exploded View', sim_reset: 'Reset View',
+    hud_eeg: 'EEG', hud_fnirs: 'fNIRS', hud_cognitive: 'Cognitive Load',
+    hud_session: 'Session', hud_engagement: 'Engagement',
     btn_ar: 'Augmented Reality',
-    btn_reset: 'Reset',
-    mode_calibrate: 'Mode: Sensory Calibration',
-    mode_therapy: 'Mode: Adaptive Therapy',
-    mode_analysis: 'Mode: AI Analysis',
-    mode_biomech: 'Mode: Biomechanics Simulation',
-    mode_swarm: 'Mode: Swarm Intelligence',
-    mode_energy: 'Mode: Hybrid Energy',
-    tt_headset: 'VR NeuroRehab+ headset with integrated EEG/fNIRS sensors and high-fidelity display.',
-    tt_brain: 'Brain model with real-time neural activity visualization and plasticity pathways.',
-    tt_eeg: 'Portable electroencephalography sensor with 16 channels for cortical rhythm capture.',
-    tt_fnirs: 'Near-infrared spectroscopy sensor for measuring prefrontal oxygenation.',
-    tt_ai_node: 'Adaptive AI processing node with AutoML model and XAI explainability.',
-    tt_data_flow: 'Real-time neural data flow between sensors, AI, and VR environment.',
-    tt_bio: 'Biomechanical model for rehabilitation movement simulation.',
-    tt_swarm: 'Swarm AI system for distributed optimization of therapeutic parameters.',
-    tt_energy: 'Hybrid energy system with intelligent power management for sensors and VR.'
+    toast_ar_on: 'Augmented Reality enabled', toast_ar_off: 'Augmented Reality disabled',
+    toast_state: 'State: ', toast_sim: 'Simulation: '
   },
   zh: {
-    loading: '正在初始化3D原型...',
-    neural_activity: '神经活动',
-    cognitive_load: '认知负荷',
-    attention: '注意力',
-    plasticity: '可塑性',
-    node_eeg: '脑电采集',
-    node_fnirs: '前额叶fNIRS',
-    node_preprocess: '预处理',
-    node_ai: '自适应AI',
-    node_vr: 'VR环境',
-    node_feedback: '生物反馈',
-    btn_calibrate: '校准',
-    btn_therapy: '治疗',
-    btn_analysis: 'AI分析',
-    btn_biomech: '生物力学',
-    btn_swarm: '群体智能',
-    btn_energy: '混合能源',
+    state_off: '关闭', state_standby: '待机', state_cal: '校准',
+    state_therapy: '主动治疗', state_emerg: '紧急',
+    panel_states: '动态状态', panel_sims: '模拟系统', panel_params: '参数设置',
+    st_off: '关闭', st_standby: '待机', st_cal: '校准',
+    st_therapy: '主动治疗', st_emerg: '紧急',
+    sim_bio: '生物力学', sim_mod: '模块化物理', sim_energy: '混合能量',
+    sim_swarm: '群体智能', sim_hud: '战术3D抬头显示', sim_neural: '神经网络',
+    param_diff: '治疗难度', param_sens: '感官灵敏度',
+    sim_explode: '爆炸视图', sim_reset: '重置视图',
+    hud_eeg: '脑电', hud_fnirs: '近红外', hud_cognitive: '认知负荷',
+    hud_session: '会话', hud_engagement: '参与度',
     btn_ar: '增强现实',
-    btn_reset: '重置',
-    mode_calibrate: '模式：感觉校准',
-    mode_therapy: '模式：自适应治疗',
-    mode_analysis: '模式：AI分析',
-    mode_biomech: '模式：生物力学模拟',
-    mode_swarm: '模式：群体智能',
-    mode_energy: '模式：混合能源',
-    tt_headset: 'VR NeuroRehab+头显，集成EEG/fNIRS传感器和高保真显示屏。',
-    tt_brain: '大脑模型，实时显示神经活动和可塑性路径。',
-    tt_eeg: '便携式脑电传感器，16通道皮层节律采集。',
-    tt_fnirs: '近红外光谱传感器，测量前额叶氧合水平。',
-    tt_ai_node: '自适应AI处理节点，含AutoML模型和XAI可解释性。',
-    tt_data_flow: '传感器、AI和VR环境之间的实时神经数据流。',
-    tt_bio: '生物力学模型，用于康复运动模拟。',
-    tt_swarm: '群体AI系统，分布式优化治疗参数。',
-    tt_energy: '混合能源系统，智能管理传感器和VR功耗。'
+    toast_ar_on: '增强现实已启用', toast_ar_off: '增强现实已禁用',
+    toast_state: '状态：', toast_sim: '模拟：'
   }
 };
-
 let currentLang = 'es';
-function setLang(lang) {
+
+function applyLang(lang) {
   currentLang = lang;
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
-    if (i18n[lang][key]) el.textContent = i18n[lang][key];
+    if (i18n[lang] && i18n[lang][key]) el.textContent = i18n[lang][key];
   });
-  document.querySelectorAll('#lang-selector button').forEach(b => {
+  document.querySelectorAll('.lang-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.lang === lang);
   });
 }
-document.querySelectorAll('#lang-selector button').forEach(b => {
-  b.addEventListener('click', () => setLang(b.dataset.lang));
+
+document.querySelectorAll('.lang-btn').forEach(btn => {
+  btn.addEventListener('click', () => applyLang(btn.dataset.lang));
 });
 
 // ============================================================
-// ESCENA 3D PRINCIPAL
+// TOAST NOTIFICACIONES
 // ============================================================
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ============================================================
+// VARIABLES GLOBALES
+// ============================================================
+let currentState = 'off';
+let currentSim = null;
+let isExploded = false;
+let isAR = false;
+let sessionTime = 0;
+let sessionInterval = null;
+const clock = new THREE.Clock();
+const diffSlider = document.getElementById('diff-slider');
+const sensSlider = document.getElementById('sens-slider');
+
+// Grupos de objetos
+const headsetGroup = new THREE.Group();
+const sensorBandGroup = new THREE.Group();
+const processingUnitGroup = new THREE.Group();
+const cableGroup = new THREE.Group();
+const aiNodesGroup = new THREE.Group();
+const energyGroup = new THREE.Group();
+const hud3dGroup = new THREE.Group();
+const swarmGroup = new THREE.Group();
+const neuralGroup = new THREE.Group();
+
+// Referencias a materiales que cambian con estados
+let ledMaterials = [];
+let electrodeMaterials = [];
+let mainBodyMat, frontMat, lensMat, paddingMat, darkMat, metalMat, cableMat;
+
+// Posiciones originales para vista explotada
+const originalPositions = new Map();
+
+// ============================================================
+// ESCENA, CÁMARA, RENDERIZADOR
+// ============================================================
+const container = document.getElementById('canvas-container');
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x0D1117, 0.035);
+scene.fog = new THREE.FogExp2(0x0a0e14, 0.15);
 
-const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
-camera.position.set(6, 4, 8);
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100);
+camera.position.set(0.35, 0.25, 0.55);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-document.body.prepend(renderer.domElement);
+renderer.toneMappingExposure = 1.2;
+container.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
-controls.minDistance = 3;
-controls.maxDistance = 25;
-controls.target.set(0, 1.5, 0);
+controls.minDistance = 0.15;
+controls.maxDistance = 2.0;
+controls.target.set(0, 0.02, 0);
 controls.autoRotate = true;
-controls.autoRotateSpeed = 0.4;
+controls.autoRotateSpeed = 0.5;
 
 // ============================================================
 // ILUMINACIÓN CINEMATOGRÁFICA
 // ============================================================
-// Luz clave - cálida lateral
-const keyLight = new THREE.DirectionalLight(0xFFF0E0, 1.8);
-keyLight.position.set(5, 8, 4);
+// Luz clave principal (lateral derecha, cálida-suave)
+const keyLight = new THREE.DirectionalLight(0xffeedd, 2.5);
+keyLight.position.set(1.5, 1.2, 1.0);
 keyLight.castShadow = true;
 keyLight.shadow.mapSize.set(2048, 2048);
-keyLight.shadow.camera.near = 0.5;
-keyLight.shadow.camera.far = 30;
-keyLight.shadow.camera.left = -10;
-keyLight.shadow.camera.right = 10;
-keyLight.shadow.camera.top = 10;
-keyLight.shadow.camera.bottom = -10;
-keyLight.shadow.bias = -0.001;
+keyLight.shadow.camera.near = 0.1;
+keyLight.shadow.camera.far = 5;
+keyLight.shadow.camera.left = -0.5;
+keyLight.shadow.camera.right = 0.5;
+keyLight.shadow.camera.top = 0.5;
+keyLight.shadow.camera.bottom = -0.5;
+keyLight.shadow.bias = -0.0002;
 scene.add(keyLight);
 
-// Luz de relleno - fría
-const fillLight = new THREE.DirectionalLight(0xB0C4DE, 0.6);
-fillLight.position.set(-4, 3, -2);
+// Luz de relleno (izquierda, fría-suave)
+const fillLight = new THREE.DirectionalLight(0xaaccff, 0.8);
+fillLight.position.set(-1.0, 0.8, -0.5);
 scene.add(fillLight);
 
-// Luz de borde - cian
+// Luz de contorno (detrás, acento cian)
 const rimLight = new THREE.DirectionalLight(0x4FC3F7, 1.2);
-rimLight.position.set(-3, 5, -6);
+rimLight.position.set(-0.3, 0.5, -1.0);
 scene.add(rimLight);
 
-// Luz ambiental suave
-const ambLight = new THREE.AmbientLight(0x1a2332, 0.8);
+// Luz ambiente muy suave
+const ambLight = new THREE.AmbientLight(0x1a2030, 0.6);
 scene.add(ambLight);
 
-// Puntos de acento cian
-const accentLight1 = new THREE.PointLight(0x4FC3F7, 2, 8, 2);
-accentLight1.position.set(0, 3, 0);
-scene.add(accentLight1);
+// Luz de acento inferior (reflejo de superficie)
+const bottomLight = new THREE.PointLight(0x4FC3F7, 0.3, 1.5);
+bottomLight.position.set(0, -0.3, 0);
+scene.add(bottomLight);
 
-const accentLight2 = new THREE.PointLight(0x4FC3F7, 1, 6, 2);
-accentLight2.position.set(-3, 2, 2);
-scene.add(accentLight2);
-
-// Spotlight para el modelo principal
-const spotLight = new THREE.SpotLight(0xFFFFFF, 1.5, 20, Math.PI / 6, 0.5, 1);
-spotLight.position.set(0, 10, 0);
-spotLight.target.position.set(0, 1.5, 0);
-spotLight.castShadow = true;
+// Spotlight superior para dramatismo
+const spotLight = new THREE.SpotLight(0xffffff, 1.5, 3, Math.PI / 6, 0.5, 1);
+spotLight.position.set(0, 1.5, 0);
+spotLight.target.position.set(0, 0, 0);
 scene.add(spotLight);
 scene.add(spotLight.target);
 
 // ============================================================
-// MATERIALES
+// SUELO Y ENTORNO
 // ============================================================
-const matTitanium = new THREE.MeshStandardMaterial({
-  color: 0x6B7280, metalness: 0.85, roughness: 0.35
-});
-const matTitaniumDark = new THREE.MeshStandardMaterial({
-  color: 0x4B5563, metalness: 0.9, roughness: 0.3
-});
-const matSilver = new THREE.MeshStandardMaterial({
-  color: 0x9CA3AF, metalness: 0.7, roughness: 0.4
-});
-const matWhite = new THREE.MeshStandardMaterial({
-  color: 0xF3F4F6, metalness: 0.1, roughness: 0.7
-});
-const matCyan = new THREE.MeshStandardMaterial({
-  color: 0x4FC3F7, emissive: 0x4FC3F7, emissiveIntensity: 0.5,
-  metalness: 0.3, roughness: 0.4
-});
-const matAnthracite = new THREE.MeshStandardMaterial({
-  color: 0x1F2937, metalness: 0.6, roughness: 0.5
-});
-const matPadding = new THREE.MeshStandardMaterial({
-  color: 0x2D3748, metalness: 0.0, roughness: 0.95
-});
-
-// Shader para visor holográfico
-const visorShaderMat = new THREE.ShaderMaterial({
-  uniforms: {
-    uTime: { value: 0 },
-    uColor: { value: new THREE.Color(0x4FC3F7) },
-    uIntensity: { value: 0.8 }
-  },
-  vertexShader: `
-    varying vec2 vUv;
-    varying vec3 vNormal;
-    varying vec3 vViewDir;
-    void main(){
-      vUv = uv;
-      vNormal = normalize(normalMatrix * normal);
-      vec4 mvPos = modelViewMatrix * vec4(position,1.0);
-      vViewDir = normalize(-mvPos.xyz);
-      gl_Position = projectionMatrix * mvPos;
-    }
-  `,
-  fragmentShader: `
-    uniform float uTime;
-    uniform vec3 uColor;
-    uniform float uIntensity;
-    varying vec2 vUv;
-    varying vec3 vNormal;
-    varying vec3 vViewDir;
-    void main(){
-      float fresnel = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 3.0);
-      float scanLine = sin(vUv.y * 80.0 + uTime * 3.0) * 0.5 + 0.5;
-      scanLine = smoothstep(0.4, 0.6, scanLine) * 0.15;
-      float hNoise = sin(vUv.x * 40.0 + uTime * 1.5) * sin(vUv.y * 30.0 - uTime * 2.0);
-      hNoise = hNoise * 0.05 + 0.05;
-      float alpha = fresnel * uIntensity + scanLine + hNoise;
-      alpha = clamp(alpha, 0.05, 0.85);
-      vec3 col = uColor * (0.7 + fresnel * 0.5);
-      gl_FragColor = vec4(col, alpha);
-    }
-  `,
-  transparent: true, side: THREE.DoubleSide, depthWrite: false
-});
-
-// Shader para cerebro
-const brainShaderMat = new THREE.ShaderMaterial({
-  uniforms: {
-    uTime: { value: 0 },
-    uBaseColor: { value: new THREE.Color(0xD4A574) },
-    uActiveColor: { value: new THREE.Color(0x4FC3F7) },
-    uPulseIntensity: { value: 0.6 }
-  },
-  vertexShader: `
-    varying vec3 vPos;
-    varying vec3 vNorm;
-    varying vec2 vUv;
-    uniform float uTime;
-    void main(){
-      vUv = uv;
-      vNorm = normalize(normalMatrix * normal);
-      vec3 p = position;
-      float disp = sin(p.x * 5.0 + uTime) * sin(p.y * 4.0 + uTime * 0.7) * sin(p.z * 6.0 - uTime * 0.5) * 0.03;
-      p += normal * disp;
-      vPos = (modelViewMatrix * vec4(p,1.0)).xyz;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(p,1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform float uTime;
-    uniform vec3 uBaseColor;
-    uniform vec3 uActiveColor;
-    uniform float uPulseIntensity;
-    varying vec3 vPos;
-    varying vec3 vNorm;
-    varying vec2 vUv;
-    void main(){
-      float pulse = sin(vUv.y * 12.0 + uTime * 2.0) * 0.5 + 0.5;
-      pulse *= sin(vUv.x * 8.0 - uTime * 1.5) * 0.5 + 0.5;
-      float activity = smoothstep(0.3, 0.8, pulse) * uPulseIntensity;
-      vec3 col = mix(uBaseColor, uActiveColor, activity);
-      float fresnel = pow(1.0 - max(dot(vNorm, normalize(-vPos)), 0.0), 2.0);
-      col += uActiveColor * fresnel * 0.3;
-      gl_FragColor = vec4(col, 0.88);
-    }
-  `,
-  transparent: true
-});
-
-// Shader para partículas de flujo de datos
-const dataFlowShaderMat = new THREE.ShaderMaterial({
-  uniforms: {
-    uTime: { value: 0 },
-    uColor: { value: new THREE.Color(0x4FC3F7) }
-  },
-  vertexShader: `
-    attribute float aPhase;
-    attribute float aSpeed;
-    varying float vAlpha;
-    uniform float uTime;
-    void main(){
-      vAlpha = sin(uTime * aSpeed + aPhase) * 0.5 + 0.5;
-      vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
-      gl_PointSize = (3.0 + vAlpha * 4.0) * (80.0 / -mvPos.z);
-      gl_Position = projectionMatrix * mvPos;
-    }
-  `,
-  fragmentShader: `
-    uniform vec3 uColor;
-    varying float vAlpha;
-    void main(){
-      float d = length(gl_PointCoord - 0.5) * 2.0;
-      float alpha = smoothstep(1.0, 0.0, d) * vAlpha;
-      gl_FragColor = vec4(uColor, alpha * 0.9);
-    }
-  `,
-  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
-});
-
-// Shader para enjambre
-const swarmShaderMat = new THREE.ShaderMaterial({
-  uniforms: {
-    uTime: { value: 0 },
-    uColor: { value: new THREE.Color(0x4FC3F7) }
-  },
-  vertexShader: `
-    attribute float aPhase;
-    varying float vAlpha;
-    uniform float uTime;
-    void main(){
-      vAlpha = 0.5 + 0.5 * sin(uTime * 2.0 + aPhase);
-      vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
-      gl_PointSize = (2.5 + vAlpha * 3.5) * (100.0 / -mvPos.z);
-      gl_Position = projectionMatrix * mvPos;
-    }
-  `,
-  fragmentShader: `
-    uniform vec3 uColor;
-    varying float vAlpha;
-    void main(){
-      float d = length(gl_PointCoord - 0.5) * 2.0;
-      float glow = exp(-d * d * 3.0);
-      gl_FragColor = vec4(uColor, glow * vAlpha * 0.8);
-    }
-  `,
-  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
-});
-
-// Shader para energía
-const energyShaderMat = new THREE.ShaderMaterial({
-  uniforms: {
-    uTime: { value: 0 }
-  },
-  vertexShader: `
-    varying vec2 vUv;
-    void main(){
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform float uTime;
-    varying vec2 vUv;
-    void main(){
-      vec3 c1 = vec3(0.31, 0.77, 0.97);
-      vec3 c2 = vec3(0.51, 0.87, 0.52);
-      vec3 c3 = vec3(1.0, 0.72, 0.3);
-      float t = vUv.x;
-      float wave = sin(t * 20.0 - uTime * 4.0) * 0.5 + 0.5;
-      wave *= sin(t * 15.0 + uTime * 3.0) * 0.3 + 0.7;
-      vec3 col = mix(c1, c2, smoothstep(0.0, 0.5, t));
-      col = mix(col, c3, smoothstep(0.5, 1.0, t));
-      col *= 0.6 + wave * 0.4;
-      float alpha = wave * 0.7 * smoothstep(0.0, 0.1, vUv.y) * smoothstep(1.0, 0.9, vUv.y);
-      gl_FragColor = vec4(col, alpha);
-    }
-  `,
-  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide
-});
-
-// ============================================================
-// SUELO CON CUADRÍCULA
-// ============================================================
-const gridHelper = new THREE.GridHelper(30, 60, 0x1a3a4a, 0x0f1f2a);
-gridHelper.position.y = -0.5;
-scene.add(gridHelper);
-
-// Plano de suelo sutil
-const floorGeom = new THREE.PlaneGeometry(30, 30);
+// Placa de presentación
+const floorGeom = new THREE.CircleGeometry(0.8, 64);
 const floorMat = new THREE.MeshStandardMaterial({
-  color: 0x0a1018, metalness: 0.5, roughness: 0.8, transparent: true, opacity: 0.9
+  color: 0x0d1117,
+  metalness: 0.8,
+  roughness: 0.3
 });
 const floor = new THREE.Mesh(floorGeom, floorMat);
 floor.rotation.x = -Math.PI / 2;
-floor.position.y = -0.51;
+floor.position.y = -0.12;
 floor.receiveShadow = true;
 scene.add(floor);
 
-// ============================================================
-// MODELO 3D: VISOR VR NEUROREHAB+
-// ============================================================
-const headsetGroup = new THREE.Group();
-headsetGroup.userData = { type: 'headset', tooltip: 'tt_headset' };
+// Anillo de acento en el suelo
+const ringGeom = new THREE.RingGeometry(0.35, 0.37, 64);
+const ringMat = new THREE.MeshBasicMaterial({ color: 0x4FC3F7, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
+const ring = new THREE.Mesh(ringGeom, ringMat);
+ring.rotation.x = -Math.PI / 2;
+ring.position.y = -0.119;
+scene.add(ring);
 
-// Cuerpo principal
-const bodyGeom = new THREE.BoxGeometry(2.4, 1.2, 1.0, 4, 4, 2);
-// Redondear ligeramente los bordes del cuerpo
-const bodyPositions = bodyGeom.attributes.position;
-for (let i = 0; i < bodyPositions.count; i++) {
-  const x = bodyPositions.getX(i);
-  const y = bodyPositions.getY(i);
-  const z = bodyPositions.getZ(i);
-  const absX = Math.abs(x), absY = Math.abs(y), absZ = Math.abs(z);
-  const maxDim = Math.max(absX / 1.2, absY / 0.6, absZ / 0.5);
-  if (maxDim > 0.9) {
-    const scale = 0.92 + 0.08 * (1.0 / Math.max(maxDim, 0.01));
-    bodyPositions.setXYZ(i, x * scale, y * scale, z * scale);
-  }
+// Cuadrícula sutil
+const gridHelper = new THREE.PolarGridHelper(0.7, 8, 4, 64, 0x1a2a3a, 0x1a2a3a);
+gridHelper.position.y = -0.118;
+scene.add(gridHelper);
+
+// Partículas ambientales
+const ambientParticleCount = 200;
+const apGeom = new THREE.BufferGeometry();
+const apPositions = new Float32Array(ambientParticleCount * 3);
+const apSizes = new Float32Array(ambientParticleCount);
+for (let i = 0; i < ambientParticleCount; i++) {
+  apPositions[i * 3] = (Math.random() - 0.5) * 2;
+  apPositions[i * 3 + 1] = (Math.random() - 0.5) * 1.5;
+  apPositions[i * 3 + 2] = (Math.random() - 0.5) * 2;
+  apSizes[i] = Math.random() * 2 + 0.5;
 }
-bodyGeom.computeVertexNormals();
-const body = new THREE.Mesh(bodyGeom, matTitanium);
-body.castShadow = true;
-headsetGroup.add(body);
+apGeom.setAttribute('position', new THREE.BufferAttribute(apPositions, 3));
+apGeom.setAttribute('size', new THREE.BufferAttribute(apSizes, 1));
 
-// Marco frontal
-const frameGeom = new THREE.BoxGeometry(2.5, 1.3, 0.15);
-const frame = new THREE.Mesh(frameGeom, matTitaniumDark);
-frame.position.z = 0.45;
-frame.castShadow = true;
-headsetGroup.add(frame);
-
-// Visor holográfico
-const visorGeom = new THREE.PlaneGeometry(2.1, 1.0, 32, 16);
-const visor = new THREE.Mesh(visorGeom, visorShaderMat);
-visor.position.z = 0.54;
-headsetGroup.add(visor);
-
-// Almohadillas de silicona
-const padGeom = new THREE.TorusGeometry(0.55, 0.12, 8, 24);
-const padTop = new THREE.Mesh(padGeom, matPadding);
-padTop.position.set(0, 0.6, -0.1);
-padTop.rotation.x = Math.PI / 2;
-headsetGroup.add(padTop);
-const padBottom = padTop.clone();
-padBottom.position.y = -0.6;
-headsetGroup.add(padBottom);
-const padLeft = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.12, 8, 24), matPadding);
-padLeft.position.set(-1.15, 0, -0.1);
-padLeft.rotation.y = Math.PI / 2;
-headsetGroup.add(padLeft);
-const padRight = padLeft.clone();
-padRight.position.x = 1.15;
-headsetGroup.add(padRight);
-
-// Correa superior
-const strapCurve = new THREE.CatmullRomCurve3([
-  new THREE.Vector3(0, 0.6, -0.3),
-  new THREE.Vector3(0, 1.3, -0.6),
-  new THREE.Vector3(0, 1.5, -0.3),
-  new THREE.Vector3(0, 0.6, -0.3)
-]);
-const strapGeom = new THREE.TubeGeometry(strapCurve, 20, 0.04, 8, false);
-const strap = new THREE.Mesh(strapGeom, matAnthracite);
-headsetGroup.add(strap);
-
-// Correas laterales
-for (let side of [-1, 1]) {
-  const sideCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(side * 1.2, 0, -0.1),
-    new THREE.Vector3(side * 1.5, 0, -0.4),
-    new THREE.Vector3(side * 1.3, -0.2, -0.7),
-    new THREE.Vector3(side * 0.8, -0.5, -0.5),
-    new THREE.Vector3(0, -0.5, -0.3)
-  ]);
-  const sideStrapGeom = new THREE.TubeGeometry(sideCurve, 16, 0.035, 6, false);
-  const sideStrap = new THREE.Mesh(sideStrapGeom, matAnthracite);
-  headsetGroup.add(sideStrap);
-}
-
-// ============================================================
-// Banda de sensores EEG
-// ============================================================
-const eegGroup = new THREE.Group();
-eegGroup.userData = { type: 'eeg', tooltip: 'tt_eeg' };
-
-const bandCurve = new THREE.CatmullRomCurve3([
-  new THREE.Vector3(-1.3, 0, 0),
-  new THREE.Vector3(-1.2, 0.8, -0.1),
-  new THREE.Vector3(-0.6, 1.2, -0.15),
-  new THREE.Vector3(0, 1.3, -0.15),
-  new THREE.Vector3(0.6, 1.2, -0.15),
-  new THREE.Vector3(1.2, 0.8, -0.1),
-  new THREE.Vector3(1.3, 0, 0)
-]);
-const bandGeom = new THREE.TubeGeometry(bandCurve, 30, 0.06, 8, false);
-const band = new THREE.Mesh(bandGeom, matTitaniumDark);
-eegGroup.add(band);
-
-// Electrodos EEG
-const electrodePositions = [];
-for (let i = 0; i < 16; i++) {
-  const t = (i + 1) / 17;
-  const pt = bandCurve.getPointAt(t);
-  electrodePositions.push(pt.clone());
-  const elecGeom = new THREE.CylinderGeometry(0.035, 0.035, 0.05, 8);
-  const elec = new THREE.Mesh(elecGeom, matCyan);
-  elec.position.copy(pt);
-  elec.lookAt(pt.clone().add(new THREE.Vector3(0, -1, 0)));
-  eegGroup.add(elec);
-  // Anillo indicador
-  const ringGeom = new THREE.RingGeometry(0.04, 0.06, 12);
-  const ringMat = new THREE.MeshBasicMaterial({ color: 0x4FC3F7, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
-  const ring = new THREE.Mesh(ringGeom, ringMat);
-  ring.position.copy(pt);
-  ring.position.y -= 0.03;
-  ring.rotation.x = -Math.PI / 2;
-  ring.userData = { pulsePhase: Math.random() * Math.PI * 2 };
-  eegGroup.add(ring);
-}
-headsetGroup.add(eegGroup);
-
-// ============================================================
-// Sensor fNIRS (módulo frontal)
-// ============================================================
-const fnirsGroup = new THREE.Group();
-fnirsGroup.userData = { type: 'fnirs', tooltip: 'tt_fnirs' };
-
-const fnirsBody = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 0.2, 2, 2, 1), matTitanium);
-fnirsBody.position.set(0, -0.5, 0.55);
-fnirsGroup.add(fnirsBody);
-
-// Emisores/detectores fNIRS
-for (let i = 0; i < 8; i++) {
-  const x = -0.45 + (i * 0.13);
-  const isEmitter = i % 2 === 0;
-  const fnirsDot = new THREE.Mesh(
-    new THREE.SphereGeometry(Math.max(0.02, 0.02), 8, 8),
-    new THREE.MeshBasicMaterial({ color: isEmitter ? 0x81C784 : 0xFFB74D })
-  );
-  fnirsDot.position.set(x, -0.5, 0.67);
-  fnirsGroup.add(fnirsDot);
-}
-headsetGroup.add(fnirsGroup);
-
-// Indicadores LED laterales
-for (let side of [-1, 1]) {
-  for (let j = 0; j < 3; j++) {
-    const led = new THREE.Mesh(
-      new THREE.SphereGeometry(Math.max(0.025, 0.025), 8, 8),
-      new THREE.MeshBasicMaterial({ color: 0x4FC3F7 })
-    );
-    led.position.set(side * 1.22, 0.2 - j * 0.2, 0.2);
-    led.userData = { ledPhase: j * 0.5 };
-    headsetGroup.add(led);
-  }
-}
-
-headsetGroup.position.set(0, 2.5, 0);
-scene.add(headsetGroup);
-
-// ============================================================
-// MODELO 3D: CEREBRO CON ACTIVIDAD NEURAL
-// ============================================================
-const brainGroup = new THREE.Group();
-brainGroup.userData = { type: 'brain', tooltip: 'tt_brain' };
-
-// Hemisferio izquierdo
-const hemiL = new THREE.Mesh(
-  new THREE.SphereGeometry(Math.max(0.8, 0.8), 48, 32, 0, Math.PI),
-  brainShaderMat
-);
-hemiL.scale.set(1, 0.85, 1.1);
-hemiL.position.x = -0.05;
-brainGroup.add(hemiL);
-
-// Hemisferio derecho
-const hemiR = new THREE.Mesh(
-  new THREE.SphereGeometry(Math.max(0.8, 0.8), 48, 32, Math.PI, Math.PI),
-  brainShaderMat
-);
-hemiR.scale.set(1, 0.85, 1.1);
-hemiR.position.x = 0.05;
-brainGroup.add(hemiR);
-
-// Surcos cerebrales (líneas decorativas)
-for (let i = 0; i < 12; i++) {
-  const points = [];
-  const startAngle = Math.random() * Math.PI * 2;
-  const startPhi = Math.random() * Math.PI * 0.6 + 0.2;
-  for (let j = 0; j < 10; j++) {
-    const t = j / 9;
-    const theta = startAngle + t * 1.2;
-    const phi = startPhi + t * 0.4;
-    const r = 0.82;
-    points.push(new THREE.Vector3(
-      r * Math.sin(phi) * Math.cos(theta),
-      r * Math.cos(phi) * 0.85,
-      r * Math.sin(phi) * Math.sin(theta) * 1.1
-    ));
-  }
-  const sulcusCurve = new THREE.CatmullRomCurve3(points);
-  const sulcusGeom = new THREE.TubeGeometry(sulcusCurve, 16, 0.008, 4, false);
-  const sulcusMat = new THREE.MeshBasicMaterial({ color: 0x8B7355, transparent: true, opacity: 0.4 });
-  brainGroup.add(new THREE.Mesh(sulcusGeom, sulcusMat));
-}
-
-// Rutas de plasticidad neural (vías animadas)
-const neuralPaths = [];
-for (let i = 0; i < 20; i++) {
-  const pts = [];
-  const sa = Math.random() * Math.PI * 2;
-  const sp = Math.random() * Math.PI * 0.5 + 0.3;
-  for (let j = 0; j < 8; j++) {
-    const t = j / 7;
-    const theta = sa + t * (Math.random() * 2 - 0.5);
-    const phi = sp + t * (Math.random() * 1 - 0.3);
-    const r = 0.83 + Math.sin(t * Math.PI) * 0.05;
-    pts.push(new THREE.Vector3(
-      r * Math.sin(phi) * Math.cos(theta),
-      r * Math.cos(phi) * 0.85,
-      r * Math.sin(phi) * Math.sin(theta) * 1.1
-    ));
-  }
-  const curve = new THREE.CatmullRomCurve3(pts);
-  const tubeGeom = new THREE.TubeGeometry(curve, 20, 0.012, 6, false);
-  const tubeMat = new THREE.MeshBasicMaterial({
-    color: 0x4FC3F7, transparent: true, opacity: 0.3
-  });
-  const tube = new THREE.Mesh(tubeGeom, tubeMat);
-  tube.userData = { pathCurve: curve, phase: Math.random() * Math.PI * 2, speed: 0.5 + Math.random() * 1.5 };
-  neuralPaths.push(tube);
-  brainGroup.add(tube);
-
-  // Nodo de sinapsis
-  const nodePos = curve.getPointAt(Math.random());
-  const synapse = new THREE.Mesh(
-    new THREE.SphereGeometry(Math.max(0.03, 0.03), 8, 8),
-    new THREE.MeshBasicMaterial({ color: 0x4FC3F7, transparent: true, opacity: 0.8 })
-  );
-  synapse.position.copy(nodePos);
-  synapse.userData = { pulsePhase: Math.random() * Math.PI * 2 };
-  brainGroup.add(synapse);
-}
-
-// Tronco cerebral
-const brainstem = new THREE.Mesh(
-  new THREE.CylinderGeometry(Math.max(0.15, 0.15), Math.max(0.2, 0.2), 0.6, 12),
-  brainShaderMat
-);
-brainstem.position.set(0, -0.7, -0.1);
-brainstem.rotation.x = 0.2;
-brainGroup.add(brainstem);
-
-// Cerebelo
-const cerebellum = new THREE.Mesh(
-  new THREE.SphereGeometry(Math.max(0.35, 0.35), 24, 16),
-  brainShaderMat
-);
-cerebellum.scale.set(1.2, 0.6, 0.9);
-cerebellum.position.set(0, -0.6, -0.5);
-brainGroup.add(cerebellum);
-
-brainGroup.position.set(0, 4.5, -1.5);
-brainGroup.scale.set(1.2, 1.2, 1.2);
-scene.add(brainGroup);
-
-// ============================================================
-// RED DE NODOS IA
-// ============================================================
-const aiNodesGroup = new THREE.Group();
-aiNodesGroup.userData = { type: 'ai_node', tooltip: 'tt_ai_node' };
-
-const nodeData = [
-  { label: 'EEG In', pos: [-3, 3, 2], color: 0x4FC3F7 },
-  { label: 'fNIRS In', pos: [-3, 2, 2.5], color: 0x81C784 },
-  { label: 'Preproc', pos: [-1.5, 2.5, 2], color: 0xFFB74D },
-  { label: 'Feature', pos: [0, 2.8, 1.5], color: 0xFFB74D },
-  { label: 'AutoML', pos: [1.5, 3, 1], color: 0x4FC3F7 },
-  { label: 'XAI', pos: [1.5, 2, 1.5], color: 0xCE93D8 },
-  { label: 'Decision', pos: [3, 2.5, 1], color: 0x4FC3F7 },
-  { label: 'VR Out', pos: [4.5, 3, 0.5], color: 0xCE93D8 },
-  { label: 'Feedback', pos: [4.5, 2, 0], color: 0x4DB6AC },
-  { label: 'Log', pos: [3, 1.5, 0.5], color: 0x9CA3AF },
-  { label: 'Monitor', pos: [0, 1.5, 2], color: 0x9CA3AF },
-  { label: 'Swarm', pos: [-1.5, 1.5, 2.5], color: 0x4FC3F7 }
-];
-
-const nodeMeshes = [];
-const nodeConnections = [];
-
-nodeData.forEach((nd, idx) => {
-  // Esfera del nodo
-  const nodeSphere = new THREE.Mesh(
-    new THREE.SphereGeometry(Math.max(0.15, 0.15), 16, 16),
-    new THREE.MeshStandardMaterial({
-      color: nd.color, emissive: nd.color, emissiveIntensity: 0.4,
-      metalness: 0.3, roughness: 0.5
-    })
-  );
-  nodeSphere.position.set(...nd.pos);
-  nodeSphere.userData = { idx, phase: Math.random() * Math.PI * 2 };
-  aiNodesGroup.add(nodeSphere);
-  nodeMeshes.push(nodeSphere);
-
-  // Anillo orbital
-  const orbitRing = new THREE.Mesh(
-    new THREE.RingGeometry(Math.max(0.2, 0.2), Math.max(0.25, 0.25), 32),
-    new THREE.MeshBasicMaterial({ color: nd.color, transparent: true, opacity: 0.3, side: THREE.DoubleSide })
-  );
-  orbitRing.position.copy(nodeSphere.position);
-  orbitRing.rotation.x = Math.random() * Math.PI;
-  orbitRing.rotation.y = Math.random() * Math.PI;
-  aiNodesGroup.add(orbitRing);
-
-  // Conexiones a nodos siguientes
-  const nextIndices = [];
-  if (idx < 2) nextIndices.push(2);
-  else if (idx === 2) nextIndices.push(3);
-  else if (idx === 3) nextIndices.push(4);
-  else if (idx === 4) nextIndices.push(5, 6);
-  else if (idx === 5) nextIndices.push(6);
-  else if (idx === 6) nextIndices.push(7, 8);
-  else if (idx === 7) nextIndices.push(8);
-  else if (idx === 8) nextIndices.push(9);
-  else if (idx === 11) nextIndices.push(0, 1);
-
-  nextIndices.forEach(ni => {
-    if (ni < nodeData.length) {
-      const lineGeom = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(...nd.pos),
-        new THREE.Vector3(...nodeData[ni].pos)
-      ]);
-      const lineMat = new THREE.LineBasicMaterial({ color: nd.color, transparent: true, opacity: 0.2 });
-      const line = new THREE.Line(lineGeom, lineMat);
-      aiNodesGroup.add(line);
-      nodeConnections.push({ from: idx, to: ni, line });
+const apMat = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(0x4FC3F7) } },
+  vertexShader: `
+    attribute float size;
+    uniform float uTime;
+    varying float vAlpha;
+    void main() {
+      vec3 pos = position;
+      pos.y += sin(uTime * 0.3 + position.x * 2.0) * 0.02;
+      pos.x += cos(uTime * 0.2 + position.z * 1.5) * 0.015;
+      vAlpha = 0.15 + 0.15 * sin(uTime + position.y * 3.0);
+      vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
+      gl_PointSize = size * (0.15 / -mvPos.z);
+      gl_Position = projectionMatrix * mvPos;
     }
+  `,
+  fragmentShader: `
+    uniform vec3 uColor;
+    varying float vAlpha;
+    void main() {
+      float d = length(gl_PointCoord - 0.5);
+      if (d > 0.5) discard;
+      float alpha = vAlpha * smoothstep(0.5, 0.0, d);
+      gl_FragColor = vec4(uColor, alpha);
+    }
+  `
+});
+const ambientParticles = new THREE.Points(apGeom, apMat);
+scene.add(ambientParticles);
+
+// ============================================================
+// MATERIALES DEL PROTOTIPO
+// ============================================================
+mainBodyMat = new THREE.MeshStandardMaterial({
+  color: 0x6B6B6B,
+  metalness: 0.7,
+  roughness: 0.35
+});
+frontMat = new THREE.MeshStandardMaterial({
+  color: 0x5a5a5a,
+  metalness: 0.75,
+  roughness: 0.3
+});
+darkMat = new THREE.MeshStandardMaterial({
+  color: 0x2D2D2D,
+  metalness: 0.5,
+  roughness: 0.6
+});
+lensMat = new THREE.MeshStandardMaterial({
+  color: 0x1a2030,
+  metalness: 0.9,
+  roughness: 0.1,
+  transparent: true,
+  opacity: 0.85
+});
+paddingMat = new THREE.MeshStandardMaterial({
+  color: 0xE8E8E8,
+  metalness: 0.0,
+  roughness: 0.9
+});
+metalMat = new THREE.MeshStandardMaterial({
+  color: 0xB8B8B8,
+  metalness: 0.85,
+  roughness: 0.2
+});
+cableMat = new THREE.MeshStandardMaterial({
+  color: 0x3a3a3a,
+  metalness: 0.2,
+  roughness: 0.8
+});
+
+// Material para LEDs indicadores
+function createLedMaterial() {
+  const m = new THREE.MeshStandardMaterial({
+    color: 0x4FC3F7,
+    emissive: 0x000000,
+    emissiveIntensity: 0,
+    metalness: 0.1,
+    roughness: 0.3
   });
-});
+  ledMaterials.push(m);
+  return m;
+}
 
-scene.add(aiNodesGroup);
+// Material para electrodos
+function createElectrodeMaterial() {
+  const m = new THREE.MeshStandardMaterial({
+    color: 0xB8B8B8,
+    metalness: 0.8,
+    roughness: 0.2,
+    emissive: 0x000000,
+    emissiveIntensity: 0
+  });
+  electrodeMaterials.push(m);
+  return m;
+}
 
 // ============================================================
-// PARTÍCULAS DE FLUJO DE DATOS
+// FUNCIÓN AUXILIAR: CAJA REDONDEADA
 // ============================================================
-const dataFlowCount = 500;
-const dfPositions = new Float32Array(dataFlowCount * 3);
-const dfPhases = new Float32Array(dataFlowCount);
-const dfSpeeds = new Float32Array(dataFlowCount);
-const dfPaths = []; // Cada partícula sigue una conexión
+function createRoundedBox(w, h, d, r, seg) {
+  const shape = new THREE.Shape();
+  const hw = w / 2 - r, hh = h / 2 - r;
+  shape.moveTo(-hw, -h / 2);
+  shape.lineTo(hw, -h / 2);
+  shape.quadraticCurveTo(w / 2, -h / 2, w / 2, -hh);
+  shape.lineTo(w / 2, hh);
+  shape.quadraticCurveTo(w / 2, h / 2, hw, h / 2);
+  shape.lineTo(-hw, h / 2);
+  shape.quadraticCurveTo(-w / 2, h / 2, -w / 2, hh);
+  shape.lineTo(-w / 2, -hh);
+  shape.quadraticCurveTo(-w / 2, -h / 2, -hw, -h / 2);
 
-for (let i = 0; i < dataFlowCount; i++) {
-  dfPhases[i] = Math.random() * Math.PI * 2;
-  dfSpeeds[i] = 0.5 + Math.random() * 2.0;
-  if (nodeConnections.length > 0) {
-    const connIdx = Math.floor(Math.random() * nodeConnections.length);
-    const conn = nodeConnections[connIdx];
-    const t = Math.random();
-    const from = new THREE.Vector3(...nodeData[conn.from].pos);
-    const to = new THREE.Vector3(...nodeData[conn.to].pos);
-    const pos = from.clone().lerp(to, t);
-    dfPositions[i * 3] = pos.x;
-    dfPositions[i * 3 + 1] = pos.y;
-    dfPositions[i * 3 + 2] = pos.z;
-    dfPaths.push({ connIdx, t, speed: 0.2 + Math.random() * 0.6 });
-  } else {
-    dfPositions[i * 3] = (Math.random() - 0.5) * 6;
-    dfPositions[i * 3 + 1] = 1.5 + Math.random() * 2;
-    dfPositions[i * 3 + 2] = Math.random() * 3;
-    dfPaths.push({ connIdx: 0, t: Math.random(), speed: 0.3 });
+  const bevelR = Math.max(0.001, r * 0.25);
+  const geom = new THREE.ExtrudeGeometry(shape, {
+    depth: d,
+    bevelEnabled: true,
+    bevelThickness: bevelR,
+    bevelSize: bevelR,
+    bevelSegments: seg || 3
+  });
+  geom.translate(0, 0, -d / 2);
+  return geom;
+}
+
+// ============================================================
+// CONSTRUCCIÓN DEL HEADSET VR
+// ============================================================
+function buildHeadset() {
+  // Cuerpo principal
+  const bodyGeom = createRoundedBox(0.28, 0.13, 0.09, 0.02, 4);
+  const body = new THREE.Mesh(bodyGeom, mainBodyMat);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  headsetGroup.add(body);
+  originalPositions.set(body.uuid, { pos: body.position.clone(), rot: body.rotation.clone() });
+
+  // Placa frontal (ligeramente más grande, muy delgada)
+  const frontGeom = createRoundedBox(0.285, 0.135, 0.005, 0.022, 3);
+  const front = new THREE.Mesh(frontGeom, frontMat);
+  front.position.z = 0.0475;
+  front.castShadow = true;
+  headsetGroup.add(front);
+  originalPositions.set(front.uuid, { pos: front.position.clone(), rot: front.rotation.clone() });
+
+  // Línea de acento cian en el frente
+  const accentLineGeom = new THREE.BoxGeometry(0.26, 0.003, 0.006);
+  const accentLineMat = new THREE.MeshBasicMaterial({ color: 0x4FC3F7, transparent: true, opacity: 0.6 });
+  const accentLine = new THREE.Mesh(accentLineGeom, accentLineMat);
+  accentLine.position.set(0, 0.04, 0.052);
+  headsetGroup.add(accentLine);
+  originalPositions.set(accentLine.uuid, { pos: accentLine.position.clone(), rot: accentLine.rotation.clone() });
+
+  // Housing de lentes (2)
+  const lensHousingGeom = new THREE.CylinderGeometry(0.028, 0.028, 0.025, 32);
+  const lens1 = new THREE.Mesh(lensHousingGeom, darkMat);
+  lens1.rotation.x = Math.PI / 2;
+  lens1.position.set(-0.055, -0.005, 0.04);
+  headsetGroup.add(lens1);
+  originalPositions.set(lens1.uuid, { pos: lens1.position.clone(), rot: lens1.rotation.clone() });
+
+  const lens2 = new THREE.Mesh(lensHousingGeom.clone(), darkMat);
+  lens2.rotation.x = Math.PI / 2;
+  lens2.position.set(0.055, -0.005, 0.04);
+  headsetGroup.add(lens2);
+  originalPositions.set(lens2.uuid, { pos: lens2.position.clone(), rot: lens2.rotation.clone() });
+
+  // Lentes (vidrio)
+  const lensGlassGeom = new THREE.CylinderGeometry(0.024, 0.024, 0.005, 32);
+  const lg1 = new THREE.Mesh(lensGlassGeom, lensMat);
+  lg1.rotation.x = Math.PI / 2;
+  lg1.position.set(-0.055, -0.005, 0.048);
+  headsetGroup.add(lg1);
+  originalPositions.set(lg1.uuid, { pos: lg1.position.clone(), rot: lg1.rotation.clone() });
+
+  const lg2 = new THREE.Mesh(lensGlassGeom.clone(), lensMat);
+  lg2.rotation.x = Math.PI / 2;
+  lg2.position.set(0.055, -0.005, 0.048);
+  headsetGroup.add(lg2);
+  originalPositions.set(lg2.uuid, { pos: lg2.position.clone(), rot: lg2.rotation.clone() });
+
+  // Anillos de lentes (metálicos)
+  const lensRingGeom = new THREE.TorusGeometry(0.029, 0.002, 8, 32);
+  const lr1 = new THREE.Mesh(lensRingGeom, metalMat);
+  lr1.position.set(-0.055, -0.005, 0.052);
+  headsetGroup.add(lr1);
+  originalPositions.set(lr1.uuid, { pos: lr1.position.clone(), rot: lr1.rotation.clone() });
+
+  const lr2 = new THREE.Mesh(lensRingGeom.clone(), metalMat);
+  lr2.position.set(0.055, -0.005, 0.052);
+  headsetGroup.add(lr2);
+  originalPositions.set(lr2.uuid, { pos: lr2.position.clone(), rot: lr2.rotation.clone() });
+
+  // Cresta superior (sensor strip)
+  const crestGeom = createRoundedBox(0.22, 0.025, 0.06, 0.008, 3);
+  const crest = new THREE.Mesh(crestGeom, darkMat);
+  crest.position.set(0, 0.07, -0.01);
+  crest.castShadow = true;
+  headsetGroup.add(crest);
+  originalPositions.set(crest.uuid, { pos: crest.position.clone(), rot: crest.rotation.clone() });
+
+  // Paneles laterales con ventilación
+  for (let side of [-1, 1]) {
+    const sideGeom = createRoundedBox(0.008, 0.08, 0.06, 0.003, 2);
+    const sidePanel = new THREE.Mesh(sideGeom, darkMat);
+    sidePanel.position.set(side * 0.144, 0.01, -0.005);
+    sidePanel.castShadow = true;
+    headsetGroup.add(sidePanel);
+    originalPositions.set(sidePanel.uuid, { pos: sidePanel.position.clone(), rot: sidePanel.rotation.clone() });
+
+    // Ranuras de ventilación
+    for (let v = 0; v < 4; v++) {
+      const ventGeom = new THREE.BoxGeometry(0.009, 0.002, 0.015);
+      const vent = new THREE.Mesh(ventGeom, new THREE.MeshBasicMaterial({ color: 0x1a1a1a }));
+      vent.position.set(side * 0.149, -0.015 + v * 0.015, -0.005);
+      headsetGroup.add(vent);
+      originalPositions.set(vent.uuid, { pos: vent.position.clone(), rot: vent.rotation.clone() });
+    }
+
+    // Montura de correa
+    const mountGeom = new THREE.CylinderGeometry(0.008, 0.008, 0.015, 16);
+    const mount = new THREE.Mesh(mountGeom, metalMat);
+    mount.rotation.z = Math.PI / 2;
+    mount.position.set(side * 0.145, 0.0, -0.04);
+    headsetGroup.add(mount);
+    originalPositions.set(mount.uuid, { pos: mount.position.clone(), rot: mount.rotation.clone() });
   }
+
+  // Puente nasal
+  const noseShape = new THREE.Shape();
+  noseShape.moveTo(-0.03, 0);
+  noseShape.quadraticCurveTo(0, -0.025, 0.03, 0);
+  noseShape.quadraticCurveTo(0, -0.015, -0.03, 0);
+  const noseGeom = new THREE.ExtrudeGeometry(noseShape, { depth: 0.04, bevelEnabled: false });
+  const nose = new THREE.Mesh(noseGeom, darkMat);
+  nose.position.set(0, -0.065, 0.02);
+  nose.rotation.x = -0.1;
+  headsetGroup.add(nose);
+  originalPositions.set(nose.uuid, { pos: nose.position.clone(), rot: nose.rotation.clone() });
+
+  // Padding facial (trasero)
+  const padGeom = createRoundedBox(0.24, 0.10, 0.012, 0.03, 3);
+  const pad = new THREE.Mesh(padGeom, paddingMat);
+  pad.position.z = -0.051;
+  headsetGroup.add(pad);
+  originalPositions.set(pad.uuid, { pos: pad.position.clone(), rot: pad.rotation.clone() });
+
+  // LEDs indicadores (frente)
+  const ledGeom = new THREE.SphereGeometry(0.003, 12, 12);
+  const ledPositions = [
+    [-0.11, 0.05, 0.053], [-0.095, 0.05, 0.053], [0.095, 0.05, 0.053], [0.11, 0.05, 0.053],
+    [0, 0.05, 0.053]
+  ];
+  ledPositions.forEach(p => {
+    const led = new THREE.Mesh(ledGeom, createLedMaterial());
+    led.position.set(p[0], p[1], p[2]);
+    headsetGroup.add(led);
+    originalPositions.set(led.uuid, { pos: led.position.clone(), rot: led.rotation.clone() });
+  });
+
+  // Botón de encendido
+  const btnGeom = new THREE.CylinderGeometry(0.005, 0.005, 0.008, 16);
+  const btnMat = new THREE.MeshStandardMaterial({ color: 0x4FC3F7, metalness: 0.6, roughness: 0.3, emissive: 0x4FC3F7, emissiveIntensity: 0 });
+  const powerBtn = new THREE.Mesh(btnGeom, btnMat);
+  powerBtn.rotation.z = Math.PI / 2;
+  powerBtn.position.set(0.146, 0.05, 0.01);
+  headsetGroup.add(powerBtn);
+  ledMaterials.push(btnMat);
+  originalPositions.set(powerBtn.uuid, { pos: powerBtn.position.clone(), rot: powerBtn.rotation.clone() });
+
+  // Puerto de datos (abajo)
+  const portGeom = new THREE.BoxGeometry(0.02, 0.005, 0.012);
+  const port = new THREE.Mesh(portGeom, darkMat);
+  port.position.set(0, -0.065, 0.02);
+  headsetGroup.add(port);
+  originalPositions.set(port.uuid, { pos: port.position.clone(), rot: port.rotation.clone() });
+
+  scene.add(headsetGroup);
 }
 
-const dfGeom = new THREE.BufferGeometry();
-dfGeom.setAttribute('position', new THREE.BufferAttribute(dfPositions, 3));
-dfGeom.setAttribute('aPhase', new THREE.BufferAttribute(dfPhases, 1));
-dfGeom.setAttribute('aSpeed', new THREE.BufferAttribute(dfSpeeds, 1));
-const dataFlowPoints = new THREE.Points(dfGeom, dataFlowShaderMat);
-dataFlowPoints.userData = { paths: dfPaths, visible: true };
-scene.add(dataFlowPoints);
-
 // ============================================================
-// MODELO BIOMECÁNICO
+// BANDA DE SENSORES EEG
 // ============================================================
-const bioGroup = new THREE.Group();
-bioGroup.userData = { type: 'bio', tooltip: 'tt_bio' };
-bioGroup.visible = false;
+function buildSensorBand() {
+  // Curva de la banda sobre la cabeza
+  const bandCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.12, 0.065, -0.02),
+    new THREE.Vector3(-0.14, 0.10, -0.03),
+    new THREE.Vector3(-0.12, 0.14, -0.01),
+    new THREE.Vector3(-0.05, 0.16, 0.0),
+    new THREE.Vector3(0.0, 0.165, 0.0),
+    new THREE.Vector3(0.05, 0.16, 0.0),
+    new THREE.Vector3(0.12, 0.14, -0.01),
+    new THREE.Vector3(0.14, 0.10, -0.03),
+    new THREE.Vector3(0.12, 0.065, -0.02),
+  ]);
 
-const jointPositions = {
-  hips: new THREE.Vector3(0, 1.2, 0),
-  spine: new THREE.Vector3(0, 1.8, 0),
-  chest: new THREE.Vector3(0, 2.3, 0),
-  neck: new THREE.Vector3(0, 2.6, 0),
-  head: new THREE.Vector3(0, 2.9, 0),
-  lShoulder: new THREE.Vector3(-0.4, 2.5, 0),
-  rShoulder: new THREE.Vector3(0.4, 2.5, 0),
-  lElbow: new THREE.Vector3(-0.7, 2.0, 0),
-  rElbow: new THREE.Vector3(0.7, 2.0, 0),
-  lHand: new THREE.Vector3(-0.9, 1.5, 0.2),
-  rHand: new THREE.Vector3(0.9, 1.5, 0.2),
-  lHip: new THREE.Vector3(-0.2, 1.2, 0),
-  rHip: new THREE.Vector3(0.2, 1.2, 0),
-  lKnee: new THREE.Vector3(-0.25, 0.6, 0),
-  rKnee: new THREE.Vector3(0.25, 0.6, 0),
-  lFoot: new THREE.Vector3(-0.25, 0.05, 0.1),
-  rFoot: new THREE.Vector3(0.25, 0.05, 0.1)
-};
+  const bandGeom = new THREE.TubeGeometry(bandCurve, 32, 0.006, 8, false);
+  const band = new THREE.Mesh(bandGeom, darkMat);
+  sensorBandGroup.add(band);
+  originalPositions.set(band.uuid, { pos: band.position.clone(), rot: band.rotation.clone() });
 
-const bioMaterials = {
-  bone: new THREE.MeshStandardMaterial({ color: 0x9CA3AF, metalness: 0.5, roughness: 0.5 }),
-  joint: new THREE.MeshStandardMaterial({ color: 0x4FC3F7, emissive: 0x4FC3F7, emissiveIntensity: 0.3, metalness: 0.3, roughness: 0.5 }),
-  mesh: new THREE.MeshStandardMaterial({ color: 0x6B7280, transparent: true, opacity: 0.25, wireframe: true })
-};
+  // Electrodos EEG (posiciones aproximadas 10-20)
+  const electrodePositions = [
+    [-0.10, 0.09, -0.025], [-0.07, 0.13, -0.015], [-0.03, 0.155, -0.005],
+    [0.0, 0.16, 0.0],
+    [0.03, 0.155, -0.005], [0.07, 0.13, -0.015], [0.10, 0.09, -0.025],
+    [-0.13, 0.11, -0.028], [0.13, 0.11, -0.028],
+    [-0.05, 0.15, 0.01], [0.05, 0.15, 0.01],
+    [-0.09, 0.125, -0.01], [0.09, 0.125, -0.01]
+  ];
 
-// Esqueleto
-const boneConnections = [
-  ['hips','spine'],['spine','chest'],['chest','neck'],['neck','head'],
-  ['chest','lShoulder'],['lShoulder','lElbow'],['lElbow','lHand'],
-  ['chest','rShoulder'],['rShoulder','rElbow'],['rElbow','rHand'],
-  ['hips','lHip'],['lHip','lKnee'],['lKnee','lFoot'],
-  ['hips','rHip'],['rHip','rKnee'],['rKnee','rFoot']
-];
+  const electrodeGeom = new THREE.CylinderGeometry(0.004, 0.005, 0.008, 12);
+  const electrodeRingGeom = new THREE.TorusGeometry(0.005, 0.001, 6, 16);
 
-const bioBones = {};
-boneConnections.forEach(([a, b]) => {
-  const pA = jointPositions[a], pB = jointPositions[b];
-  const dir = pB.clone().sub(pA);
-  const len = Math.max(0.01, dir.length());
-  const mid = pA.clone().add(pB).multiplyScalar(0.5);
-  const boneGeom = new THREE.CylinderGeometry(Math.max(0.025, 0.025), Math.max(0.025, 0.025), len, 6);
-  const bone = new THREE.Mesh(boneGeom, bioMaterials.bone);
-  bone.position.copy(mid);
-  bone.lookAt(pB);
-  bone.rotateX(Math.PI / 2);
-  bioGroup.add(bone);
-  bioBones[`${a}_${b}`] = { mesh: bone, a, b, origA: pA.clone(), origB: pB.clone() };
-});
+  electrodePositions.forEach(p => {
+    const elec = new THREE.Mesh(electrodeGeom, createElectrodeMaterial());
+    elec.position.set(p[0], p[1], p[2]);
+    // Orientar electrodos hacia abajo
+    elec.lookAt(p[0], p[1] - 0.1, p[2]);
+    sensorBandGroup.add(elec);
+    originalPositions.set(elec.uuid, { pos: elec.position.clone(), rot: elec.rotation.clone() });
 
-// Articulaciones
-Object.entries(jointPositions).forEach(([name, pos]) => {
-  const jMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(Math.max(0.04, 0.04), 10, 10),
-    bioMaterials.joint
-  );
-  jMesh.position.copy(pos);
-  jMesh.userData = { jointName: name, origPos: pos.clone() };
-  bioGroup.add(jMesh);
-});
+    // Anillo metálico del electrodo
+    const eRing = new THREE.Mesh(electrodeRingGeom, metalMat);
+    eRing.position.set(p[0], p[1], p[2]);
+    eRing.lookAt(p[0], p[1] - 0.1, p[2]);
+    sensorBandGroup.add(eRing);
+    originalPositions.set(eRing.uuid, { pos: eRing.position.clone(), rot: eRing.rotation.clone() });
+  });
 
-// Malla corporal wireframe
-const bodyShape = new THREE.CapsuleGeometry(Math.max(0.3, 0.3), 1.0, 8, 16);
-const bodyMesh = new THREE.Mesh(bodyShape, bioMaterials.mesh);
-bodyMesh.position.set(0, 1.7, 0);
-bioGroup.add(bodyMesh);
+  // Trazos de conexión entre electrodos
+  for (let i = 0; i < electrodePositions.length - 1; i++) {
+    const p1 = new THREE.Vector3(...electrodePositions[i]);
+    const p2 = new THREE.Vector3(...electrodePositions[i + 1]);
+    const mid = p1.clone().add(p2).multiplyScalar(0.5);
+    mid.y += 0.005;
+    const traceCurve = new THREE.QuadraticBezierCurve3(p1, mid, p2);
+    const traceGeom = new THREE.TubeGeometry(traceCurve, 8, 0.001, 4, false);
+    const traceMat = new THREE.MeshBasicMaterial({ color: 0x4FC3F7, transparent: true, opacity: 0.15 });
+    const trace = new THREE.Mesh(traceGeom, traceMat);
+    sensorBandGroup.add(trace);
+    originalPositions.set(trace.uuid, { pos: trace.position.clone(), rot: trace.rotation.clone() });
+  }
 
-// Cabeza wireframe
-const headMesh = new THREE.Mesh(
-  new THREE.SphereGeometry(Math.max(0.18, 0.18), 12, 12),
-  bioMaterials.mesh
-);
-headMesh.position.set(0, 2.9, 0);
-bioGroup.add(headMesh);
-
-bioGroup.position.set(0, 0.5, 3);
-scene.add(bioGroup);
-
-// ============================================================
-// PARTÍCULAS DE ENJAMBRE IA
-// ============================================================
-const swarmCount = 800;
-const swarmPositions = new Float32Array(swarmCount * 3);
-const swarmVelocities = [];
-const swarmPhases = new Float32Array(swarmCount);
-
-for (let i = 0; i < swarmCount; i++) {
-  swarmPositions[i * 3] = (Math.random() - 0.5) * 8;
-  swarmPositions[i * 3 + 1] = 2 + Math.random() * 4;
-  swarmPositions[i * 3 + 2] = (Math.random() - 0.5) * 8;
-  swarmVelocities.push(new THREE.Vector3(
-    (Math.random() - 0.5) * 0.02,
-    (Math.random() - 0.5) * 0.02,
-    (Math.random() - 0.5) * 0.02
-  ));
-  swarmPhases[i] = Math.random() * Math.PI * 2;
+  scene.add(sensorBandGroup);
 }
 
-const swarmGeom = new THREE.BufferGeometry();
-swarmGeom.setAttribute('position', new THREE.BufferAttribute(swarmPositions, 3));
-swarmGeom.setAttribute('aPhase', new THREE.BufferAttribute(swarmPhases, 1));
-const swarmPoints = new THREE.Points(swarmGeom, swarmShaderMat);
-swarmPoints.visible = false;
-scene.add(swarmPoints);
+// ============================================================
+// CORREA POSTERIOR
+// ============================================================
+function buildStrap() {
+  const strapCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.145, 0.0, -0.04),
+    new THREE.Vector3(-0.16, -0.02, -0.08),
+    new THREE.Vector3(-0.14, -0.03, -0.13),
+    new THREE.Vector3(-0.08, -0.035, -0.15),
+    new THREE.Vector3(0.0, -0.035, -0.155),
+    new THREE.Vector3(0.08, -0.035, -0.15),
+    new THREE.Vector3(0.14, -0.03, -0.13),
+    new THREE.Vector3(0.16, -0.02, -0.08),
+    new THREE.Vector3(0.145, 0.0, -0.04),
+  ]);
+  const strapGeom = new THREE.TubeGeometry(strapCurve, 40, 0.008, 8, false);
+  const strapMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, metalness: 0.3, roughness: 0.7 });
+  const strap = new THREE.Mesh(strapGeom, strapMat);
+  headsetGroup.add(strap);
+  originalPositions.set(strap.uuid, { pos: strap.position.clone(), rot: strap.rotation.clone() });
+
+  // Mecanismo de ajuste
+  const adjGeom = new THREE.BoxGeometry(0.03, 0.02, 0.01);
+  const adj = new THREE.Mesh(adjGeom, metalMat);
+  adj.position.set(0, -0.035, -0.155);
+  headsetGroup.add(adj);
+  originalPositions.set(adj.uuid, { pos: adj.position.clone(), rot: adj.rotation.clone() });
+}
+
+// ============================================================
+// UNIDAD DE PROCESAMIENTO
+// ============================================================
+function buildProcessingUnit() {
+  const puBodyGeom = createRoundedBox(0.10, 0.06, 0.15, 0.008, 3);
+  const puBody = new THREE.Mesh(puBodyGeom, mainBodyMat);
+  puBody.position.set(0.22, -0.08, -0.05);
+  puBody.castShadow = true;
+  processingUnitGroup.add(puBody);
+  originalPositions.set(puBody.uuid, { pos: puBody.position.clone(), rot: puBody.rotation.clone() });
+
+  // Tapa superior con acento
+  const puTopGeom = createRoundedBox(0.102, 0.003, 0.152, 0.009, 2);
+  const puTopMat = new THREE.MeshStandardMaterial({ color: 0x5a5a5a, metalness: 0.75, roughness: 0.3 });
+  const puTop = new THREE.Mesh(puTopGeom, puTopMat);
+  puTop.position.set(0.22, -0.047, -0.05);
+  processingUnitGroup.add(puTop);
+  originalPositions.set(puTop.uuid, { pos: puTop.position.clone(), rot: puTop.rotation.clone() });
+
+  // Línea de acento cian
+  const puAccentGeom = new THREE.BoxGeometry(0.08, 0.002, 0.003);
+  const puAccentMat = new THREE.MeshBasicMaterial({ color: 0x4FC3F7, transparent: true, opacity: 0.5 });
+  const puAccent = new THREE.Mesh(puAccentGeom, puAccentMat);
+  puAccent.position.set(0.22, -0.045, -0.05);
+  processingUnitGroup.add(puAccent);
+  originalPositions.set(puAccent.uuid, { pos: puAccent.position.clone(), rot: puAccent.rotation.clone() });
+
+  // Rejilla de ventilación
+  for (let v = 0; v < 5; v++) {
+    const ventGeom = new THREE.BoxGeometry(0.06, 0.002, 0.003);
+    const vent = new THREE.Mesh(ventGeom, new THREE.MeshBasicMaterial({ color: 0x1a1a1a }));
+    vent.position.set(0.22, -0.045, -0.09 + v * 0.012);
+    processingUnitGroup.add(vent);
+    originalPositions.set(vent.uuid, { pos: vent.position.clone(), rot: vent.rotation.clone() });
+  }
+
+  // Puertos traseros
+  for (let p = 0; p < 3; p++) {
+    const portGeom = new THREE.CylinderGeometry(0.004, 0.004, 0.01, 12);
+    const port = new THREE.Mesh(portGeom, darkMat);
+    port.rotation.x = Math.PI / 2;
+    port.position.set(0.18 + p * 0.02, -0.08, 0.026);
+    processingUnitGroup.add(port);
+    originalPositions.set(port.uuid, { pos: port.position.clone(), rot: port.rotation.clone() });
+  }
+
+  // LED de estado de la unidad
+  const puLedGeom = new THREE.SphereGeometry(0.003, 12, 12);
+  const puLed = new THREE.Mesh(puLedGeom, createLedMaterial());
+  puLed.position.set(0.26, -0.06, -0.05);
+  processingUnitGroup.add(puLed);
+  originalPositions.set(puLed.uuid, { pos: puLed.position.clone(), rot: puLed.rotation.clone() });
+
+  // Etiqueta "NeuroRehab+"
+  const labelGeom = new THREE.PlaneGeometry(0.06, 0.012);
+  const labelCanvas = document.createElement('canvas');
+  labelCanvas.width = 256;
+  labelCanvas.height = 64;
+  const lctx = labelCanvas.getContext('2d');
+  lctx.fillStyle = '#0a0e14';
+  lctx.fillRect(0, 0, 256, 64);
+  lctx.fillStyle = '#4FC3F7';
+  lctx.font = '600 28px sans-serif';
+  lctx.textAlign = 'center';
+  lctx.textBaseline = 'middle';
+  lctx.fillText('NeuroRehab+', 128, 32);
+  const labelTex = new THREE.CanvasTexture(labelCanvas);
+  const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true });
+  const label = new THREE.Mesh(labelGeom, labelMat);
+  label.position.set(0.22, -0.07, 0.076);
+  processingUnitGroup.add(label);
+  originalPositions.set(label.uuid, { pos: label.position.clone(), rot: label.rotation.clone() });
+
+  scene.add(processingUnitGroup);
+}
+
+// ============================================================
+// CABLES DE CONEXIÓN
+// ============================================================
+function buildCables() {
+  // Cable principal: headset → unidad de procesamiento
+  const mainCableCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.0, -0.065, 0.02),
+    new THREE.Vector3(0.05, -0.07, 0.03),
+    new THREE.Vector3(0.12, -0.075, 0.02),
+    new THREE.Vector3(0.18, -0.08, 0.01),
+    new THREE.Vector3(0.22, -0.08, -0.025),
+  ]);
+  const mainCableGeom = new THREE.TubeGeometry(mainCableCurve, 20, 0.004, 8, false);
+  const mainCable = new THREE.Mesh(mainCableGeom, cableMat);
+  cableGroup.add(mainCable);
+  originalPositions.set(mainCable.uuid, { pos: mainCable.position.clone(), rot: mainCable.rotation.clone() });
+
+  // Cable de alimentación
+  const powerCableCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.22, -0.11, 0.0),
+    new THREE.Vector3(0.22, -0.14, 0.02),
+    new THREE.Vector3(0.22, -0.16, 0.06),
+    new THREE.Vector3(0.20, -0.16, 0.12),
+  ]);
+  const powerCableGeom = new THREE.TubeGeometry(powerCableCurve, 16, 0.003, 8, false);
+  const powerCable = new THREE.Mesh(powerCableGeom, cableMat);
+  cableGroup.add(powerCable);
+  originalPositions.set(powerCable.uuid, { pos: powerCable.position.clone(), rot: powerCable.rotation.clone() });
+
+  // Conector del cable principal
+  const connGeom = new THREE.CylinderGeometry(0.006, 0.005, 0.015, 12);
+  const conn = new THREE.Mesh(connGeom, metalMat);
+  conn.position.set(0.0, -0.065, 0.025);
+  cableGroup.add(conn);
+  originalPositions.set(conn.uuid, { pos: conn.position.clone(), rot: conn.rotation.clone() });
+
+  scene.add(cableGroup);
+}
+
+// ============================================================
+// SISTEMA DE NODOS IA
+// ============================================================
+function buildAINodes() {
+  const nodePositions = [
+    { pos: [0.0, 0.25, 0.0], label: 'AutoML', size: 0.015 },
+    { pos: [-0.12, 0.22, 0.05], label: 'RNN', size: 0.01 },
+    { pos: [0.12, 0.22, 0.05], label: 'RL', size: 0.01 },
+    { pos: [-0.08, 0.28, -0.06], label: 'XAI', size: 0.009 },
+    { pos: [0.08, 0.28, -0.06], label: 'BCI', size: 0.009 },
+    { pos: [0.0, 0.20, 0.08], label: 'EEG', size: 0.008 },
+    { pos: [0.0, 0.30, 0.0], label: 'Pipeline', size: 0.012 },
+    { pos: [-0.15, 0.26, -0.02], label: 'fNIRS', size: 0.008 },
+    { pos: [0.15, 0.26, -0.02], label: 'HL7', size: 0.008 },
+  ];
+
+  // Esferas de nodos
+  const nodeMeshes = [];
+  nodePositions.forEach((np, i) => {
+    const nodeGeom = new THREE.SphereGeometry(np.size, 16, 16);
+    const nodeMat = new THREE.MeshStandardMaterial({
+      color: 0x4FC3F7,
+      emissive: 0x4FC3F7,
+      emissiveIntensity: 0.3,
+      metalness: 0.5,
+      roughness: 0.3,
+      transparent: true,
+      opacity: 0
+    });
+    const node = new THREE.Mesh(nodeGeom, nodeMat);
+    node.position.set(...np.pos);
+    node.userData = { basePos: np.pos.slice(), label: np.label, mat: nodeMat };
+    aiNodesGroup.add(node);
+    nodeMeshes.push(node);
+
+    // Anillo orbital
+    const orbitGeom = new THREE.TorusGeometry(np.size * 1.5, 0.001, 8, 32);
+    const orbitMat = new THREE.MeshBasicMaterial({ color: 0x4FC3F7, transparent: true, opacity: 0 });
+    const orbit = new THREE.Mesh(orbitGeom, orbitMat);
+    orbit.position.copy(node.position);
+    orbit.userData = { mat: orbitMat };
+    aiNodesGroup.add(orbit);
+  });
+
+  // Conexiones entre nodos
+  const connectionPairs = [
+    [0, 1], [0, 2], [0, 5], [0, 6], [1, 3], [2, 4], [3, 6], [4, 6],
+    [1, 7], [2, 8], [0, 6], [6, 3], [6, 4]
+  ];
+  const connectionLines = [];
+  connectionPairs.forEach(([a, b]) => {
+    const pA = new THREE.Vector3(...nodePositions[a].pos);
+    const pB = new THREE.Vector3(...nodePositions[b].pos);
+    const lineGeom = new THREE.BufferGeometry().setFromPoints([pA, pB]);
+    const lineMat = new THREE.LineBasicMaterial({ color: 0x4FC3F7, transparent: true, opacity: 0 });
+    const line = new THREE.Line(lineGeom, lineMat);
+    aiNodesGroup.add(line);
+    connectionLines.push({ line, mat: lineMat, a, b });
+  });
+
+  aiNodesGroup.userData = { nodeMeshes, connectionLines, visible: false };
+  aiNodesGroup.visible = false;
+  scene.add(aiNodesGroup);
+}
 
 // ============================================================
 // VISUALIZACIÓN DE ENERGÍA HÍBRIDA
 // ============================================================
-const energyGroup = new THREE.Group();
-energyGroup.userData = { type: 'energy', tooltip: 'tt_energy' };
-energyGroup.visible = false;
-
-// Anillo de energía principal
-const energyRing = new THREE.Mesh(
-  new THREE.TorusGeometry(Math.max(2, 2), Math.max(0.08, 0.08), 16, 64),
-  energyShaderMat.clone()
-);
-energyRing.position.set(0, 2.5, 0);
-energyRing.rotation.x = Math.PI / 2;
-energyGroup.add(energyRing);
-
-// Anillos secundarios
-for (let i = 0; i < 3; i++) {
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(Math.max(1.5 + i * 0.4, 0.1), Math.max(0.04, 0.04), 12, 48),
-    energyShaderMat.clone()
-  );
-  ring.position.set(0, 2.5, 0);
-  ring.rotation.x = Math.PI / 2 + (i - 1) * 0.3;
-  ring.rotation.z = i * 0.5;
-  ring.userData = { rotSpeed: 0.3 + i * 0.15, axis: i };
-  energyGroup.add(ring);
-}
-
-// Núcleo de energía
-const energyCore = new THREE.Mesh(
-  new THREE.IcosahedronGeometry(Math.max(0.3, 0.3), 2),
-  new THREE.MeshStandardMaterial({
-    color: 0x4FC3F7, emissive: 0x4FC3F7, emissiveIntensity: 0.8,
-    metalness: 0.2, roughness: 0.3, transparent: true, opacity: 0.7
-  })
-);
-energyCore.position.set(0, 2.5, 0);
-energyGroup.add(energyCore);
-
-// Partículas de energía
-const energyPartCount = 300;
-const epPositions = new Float32Array(energyPartCount * 3);
-const epPhases = new Float32Array(energyPartCount);
-const epSpeeds = new Float32Array(energyPartCount);
-for (let i = 0; i < energyPartCount; i++) {
-  const angle = Math.random() * Math.PI * 2;
-  const r = 1.2 + Math.random() * 2;
-  const y = 2.5 + (Math.random() - 0.5) * 2;
-  epPositions[i * 3] = Math.cos(angle) * r;
-  epPositions[i * 3 + 1] = y;
-  epPositions[i * 3 + 2] = Math.sin(angle) * r;
-  epPhases[i] = angle;
-  epSpeeds[i] = 0.3 + Math.random() * 0.7;
-}
-const epGeom = new THREE.BufferGeometry();
-epGeom.setAttribute('position', new THREE.BufferAttribute(epPositions, 3));
-epGeom.setAttribute('aPhase', new THREE.BufferAttribute(epPhases, 1));
-epGeom.setAttribute('aSpeed', new THREE.BufferAttribute(epSpeeds, 1));
-const energyParticles = new THREE.Points(epGeom, dataFlowShaderMat);
-energyGroup.add(energyParticles);
-
-scene.add(energyGroup);
-
-// ============================================================
-// LÍNEAS DE CONEXIÓN CEREBRO-VR (flujo principal)
-// ============================================================
-const mainFlowLines = [];
-const flowPoints = [
-  new THREE.Vector3(0, 3.6, -0.5),  // Desde cerebro
-  new THREE.Vector3(0, 3.2, 0),
-  new THREE.Vector3(0, 2.8, 0.3),
-  new THREE.Vector3(0, 2.5, 0.5)   // Hasta visor
-];
-
-for (let i = 0; i < flowPoints.length - 1; i++) {
-  const curve = new THREE.CatmullRomCurve3([flowPoints[i], flowPoints[i + 1]]);
-  const tubeGeom = new THREE.TubeGeometry(curve, 12, 0.015, 6, false);
-  const tubeMat = new THREE.MeshBasicMaterial({ color: 0x4FC3F7, transparent: true, opacity: 0.4 });
-  const tube = new THREE.Mesh(tubeGeom, tubeMat);
-  scene.add(tube);
-  mainFlowLines.push(tube);
-}
-
-// ============================================================
-// PARTÍCULAS AMBIENTALES
-// ============================================================
-const ambientCount = 200;
-const ambPositions = new Float32Array(ambientCount * 3);
-const ambPhases = new Float32Array(ambientCount);
-const ambSpeeds = new Float32Array(ambientCount);
-for (let i = 0; i < ambientCount; i++) {
-  ambPositions[i * 3] = (Math.random() - 0.5) * 20;
-  ambPositions[i * 3 + 1] = Math.random() * 8;
-  ambPositions[i * 3 + 2] = (Math.random() - 0.5) * 20;
-  ambPhases[i] = Math.random() * Math.PI * 2;
-  ambSpeeds[i] = 0.2 + Math.random() * 0.5;
-}
-const ambGeom = new THREE.BufferGeometry();
-ambGeom.setAttribute('position', new THREE.BufferAttribute(ambPositions, 3));
-ambGeom.setAttribute('aPhase', new THREE.BufferAttribute(ambPhases, 1));
-ambGeom.setAttribute('aSpeed', new THREE.BufferAttribute(ambSpeeds, 1));
-const ambMat = new THREE.ShaderMaterial({
-  uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(0x4FC3F7) } },
-  vertexShader: `
-    attribute float aPhase;
-    attribute float aSpeed;
-    varying float vAlpha;
-    uniform float uTime;
-    void main(){
-      vAlpha = 0.3 + 0.3 * sin(uTime * aSpeed + aPhase);
-      vec3 p = position;
-      p.y += sin(uTime * 0.3 + aPhase) * 0.3;
-      vec4 mvPos = modelViewMatrix * vec4(p, 1.0);
-      gl_PointSize = (1.5 + vAlpha * 2.0) * (60.0 / -mvPos.z);
-      gl_Position = projectionMatrix * mvPos;
-    }
-  `,
-  fragmentShader: `
-    uniform vec3 uColor;
-    varying float vAlpha;
-    void main(){
-      float d = length(gl_PointCoord - 0.5) * 2.0;
-      float a = exp(-d * d * 4.0) * vAlpha * 0.4;
-      gl_FragColor = vec4(uColor, a);
-    }
-  `,
-  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
-});
-scene.add(new THREE.Points(ambGeom, ambMat));
-
-// ============================================================
-// SISTEMA DE INTERACCIÓN (RAYCASTING)
-// ============================================================
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
-const tooltip = document.getElementById('tooltip');
-const ttTitle = tooltip.querySelector('.tt-title');
-const ttBody = tooltip.querySelector('.tt-body');
-
-const interactiveObjects = [];
-scene.traverse(obj => {
-  if (obj.userData && obj.userData.tooltip) {
-    interactiveObjects.push(obj);
-  }
-  // También añadir el grupo del headset
-  if (obj.parent === headsetGroup && !obj.userData.tooltip) {
-    obj.userData = obj.userData || {};
-    if (!obj.userData.tooltip) obj.userData.tooltip = 'tt_headset';
-    interactiveObjects.push(obj);
-  }
-});
-
-renderer.domElement.addEventListener('mousemove', (e) => {
-  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-
-  raycaster.setFromCamera(mouse, camera);
-  const hits = raycaster.intersectObjects(interactiveObjects, false);
-
-  if (hits.length > 0) {
-    let obj = hits[0].object;
-    // Subir hasta encontrar tooltip
-    while (obj && !obj.userData.tooltip) obj = obj.parent;
-    if (obj && obj.userData.tooltip) {
-      const key = obj.userData.tooltip;
-      const text = i18n[currentLang][key] || key;
-      ttTitle.textContent = key.replace('tt_', '').replace(/_/g, ' ').toUpperCase();
-      ttBody.textContent = text;
-      tooltip.style.display = 'block';
-      tooltip.style.left = (e.clientX + 16) + 'px';
-      tooltip.style.top = (e.clientY + 16) + 'px';
-      renderer.domElement.style.cursor = 'pointer';
-      return;
-    }
-  }
-  tooltip.style.display = 'none';
-  renderer.domElement.style.cursor = 'grab';
-});
-
-// ============================================================
-// ESTADOS DINÁMICOS Y MODOS OPERATIVOS
-// ============================================================
-let currentMode = 'default';
-const modeIndicator = document.getElementById('mode-indicator');
-let modeTimeout = null;
-
-function setMode(mode) {
-  // Desactivar modo anterior
-  document.querySelectorAll('#controls-panel button').forEach(b => b.classList.remove('active-mode'));
-
-  if (mode === 'reset') {
-    currentMode = 'default';
-    headsetGroup.visible = true;
-    brainGroup.visible = true;
-    aiNodesGroup.visible = true;
-    dataFlowPoints.visible = true;
-    bioGroup.visible = false;
-    swarmPoints.visible = false;
-    energyGroup.visible = false;
-    mainFlowLines.forEach(l => l.visible = true);
-    controls.autoRotate = true;
-    controls.target.set(0, 1.5, 0);
-    camera.position.set(6, 4, 8);
-    showModeIndicator('');
-    return;
+function buildEnergyFlow() {
+  // Partículas de energía a lo largo del cable principal
+  const energyCount = 60;
+  const ePositions = new Float32Array(energyCount * 3);
+  eProgress = new Float32Array(energyCount);
+  for (let i = 0; i < energyCount; i++) {
+    eProgress[i] = Math.random();
   }
 
-  if (mode === 'ar') {
-    startAR();
-    return;
-  }
+  const eGeom = new THREE.BufferGeometry();
+  eGeom.setAttribute('position', new THREE.BufferAttribute(ePositions, 3));
 
-  currentMode = mode;
-  const btn = document.querySelector(`[data-mode="${mode}"]`);
-  if (btn) btn.classList.add('active-mode');
+  const eMat = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    uniforms: { uColor: { value: new THREE.Color(0x4FC3F7) } },
+    vertexShader: `
+      varying float vDist;
+      void main() {
+        vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+        vDist = -mvPos.z;
+        gl_PointSize = 4.0 * (0.2 / max(vDist, 0.01));
+        gl_Position = projectionMatrix * mvPos;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColor;
+      void main() {
+        float d = length(gl_PointCoord - 0.5);
+        if (d > 0.5) discard;
+        float glow = smoothstep(0.5, 0.0, d);
+        gl_FragColor = vec4(uColor, glow * 0.9);
+      }
+    `
+  });
 
-  const modeTextKey = `mode_${mode}`;
-  showModeIndicator(i18n[currentLang][modeTextKey] || mode);
+  const energyPoints = new THREE.Points(eGeom, eMat);
+  energyGroup.add(energyPoints);
 
-  // Resetear visibilidad
-  headsetGroup.visible = true;
-  brainGroup.visible = true;
-  aiNodesGroup.visible = true;
-  dataFlowPoints.visible = true;
-  bioGroup.visible = false;
-  swarmPoints.visible = false;
+  // Curva de referencia para el flujo de energía
+  const energyCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.0, -0.065, 0.02),
+    new THREE.Vector3(0.05, -0.07, 0.03),
+    new THREE.Vector3(0.12, -0.075, 0.02),
+    new THREE.Vector3(0.18, -0.08, 0.01),
+    new THREE.Vector3(0.22, -0.08, -0.025),
+    // Desde la unidad hacia el headset por la banda
+    new THREE.Vector3(0.12, -0.02, -0.02),
+    new THREE.Vector3(0.0, 0.065, -0.02),
+    new THREE.Vector3(-0.05, 0.12, -0.02),
+    new THREE.Vector3(0.0, 0.16, 0.0),
+    new THREE.Vector3(0.05, 0.12, -0.02),
+  ]);
+  energyGroup.userData = { energyCurve, energyPoints, visible: false };
   energyGroup.visible = false;
-  mainFlowLines.forEach(l => l.visible = true);
-  controls.autoRotate = true;
+  scene.add(energyGroup);
+}
+let eProgress;
 
-  switch (mode) {
-    case 'calibration':
-      // Mostrar solo headset y sensores, pulsar electrodos
-      brainGroup.visible = false;
-      aiNodesGroup.visible = false;
-      dataFlowPoints.visible = false;
-      mainFlowLines.forEach(l => l.visible = false);
-      controls.autoRotate = false;
-      break;
+// ============================================================
+// IA DE ENJAMBRE (PARTÍCULAS COORDINADAS)
+// ============================================================
+function buildSwarmAI() {
+  const swarmCount = 300;
+  const sPositions = new Float32Array(swarmCount * 3);
+  const sVelocities = [];
+  const sTargets = [];
+  for (let i = 0; i < swarmCount; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.random() * Math.PI;
+    const r = 0.15 + Math.random() * 0.1;
+    sPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    sPositions[i * 3 + 1] = 0.1 + r * Math.cos(phi);
+    sPositions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+    sVelocities.push(new THREE.Vector3(
+      (Math.random() - 0.5) * 0.002,
+      (Math.random() - 0.5) * 0.002,
+      (Math.random() - 0.5) * 0.002
+    ));
+    sTargets.push(new THREE.Vector3(
+      (Math.random() - 0.5) * 0.2,
+      0.05 + Math.random() * 0.2,
+      (Math.random() - 0.5) * 0.2
+    ));
+  }
 
-    case 'therapy':
-      // Todo visible, flujo de datos activo
-      break;
+  const sGeom = new THREE.BufferGeometry();
+  sGeom.setAttribute('position', new THREE.BufferAttribute(sPositions, 3));
 
-    case 'analysis':
-      // Enfocar en nodos IA y cerebro
-      headsetGroup.visible = false;
-      mainFlowLines.forEach(l => l.visible = false);
-      break;
+  const sMat = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(0x4FC3F7) } },
+    vertexShader: `
+      varying float vAlpha;
+      void main() {
+        vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+        vAlpha = 0.6;
+        gl_PointSize = 3.0 * (0.15 / max(-mvPos.z, 0.01));
+        gl_Position = projectionMatrix * mvPos;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColor;
+      varying float vAlpha;
+      void main() {
+        float d = length(gl_PointCoord - 0.5);
+        if (d > 0.5) discard;
+        float glow = smoothstep(0.5, 0.05, d);
+        gl_FragColor = vec4(uColor, glow * vAlpha);
+      }
+    `
+  });
 
+  const swarmPoints = new THREE.Points(sGeom, sMat);
+  swarmGroup.add(swarmPoints);
+  swarmGroup.userData = { velocities: sVelocities, targets: sTargets, visible: false };
+  swarmGroup.visible = false;
+  scene.add(swarmGroup);
+}
+
+// ============================================================
+// RED NEURONAL 3D
+// ============================================================
+function buildNeuralNetwork() {
+  const layers = [5, 8, 10, 8, 4];
+  const layerSpacing = 0.06;
+  const neuronRadius = 0.005;
+  const neuronMeshes = [];
+  const connectionLines = [];
+
+  layers.forEach((count, li) => {
+    const x = (li - (layers.length - 1) / 2) * layerSpacing;
+    const layerNeurons = [];
+    for (let ni = 0; ni < count; ni++) {
+      const y = ((ni - (count - 1) / 2) * 0.018);
+      const z = (Math.random() - 0.5) * 0.02;
+      const nGeom = new THREE.SphereGeometry(neuronRadius, 10, 10);
+      const nMat = new THREE.MeshStandardMaterial({
+        color: 0x4FC3F7,
+        emissive: 0x4FC3F7,
+        emissiveIntensity: 0,
+        transparent: true,
+        opacity: 0
+      });
+      const neuron = new THREE.Mesh(nGeom, nMat);
+      neuron.position.set(x, y + 0.15, z);
+      neuralGroup.add(neuron);
+      layerNeurons.push({ mesh: neuron, mat: nMat, baseEmissive: 0 });
+    }
+    neuronMeshes.push(layerNeurons);
+  });
+
+  // Conexiones entre capas
+  for (let li = 0; li < layers.length - 1; li++) {
+    for (let ni = 0; ni < layers[li]; ni++) {
+      for (let nj = 0; nj < layers[li + 1]; nj++) {
+        if (Math.random() > 0.4) continue; // No todas las conexiones
+        const pA = neuronMeshes[li][ni].mesh.position;
+        const pB = neuronMeshes[li + 1][nj].mesh.position;
+        const lGeom = new THREE.BufferGeometry().setFromPoints([pA, pB]);
+        const lMat = new THREE.LineBasicMaterial({ color: 0x4FC3F7, transparent: true, opacity: 0 });
+        const line = new THREE.Line(lGeom, lMat);
+        neuralGroup.add(line);
+        connectionLines.push({ line, mat: lMat, fromLayer: li, fromNode: ni, toNode: nj });
+      }
+    }
+  }
+
+  neuralGroup.userData = { neuronMeshes, connectionLines, visible: false };
+  neuralGroup.visible = false;
+  scene.add(neuralGroup);
+}
+
+// ============================================================
+// HUD TÁCTICO 3D (ELEMENTOS HOLOGRÁFICOS)
+// ============================================================
+function buildHUD3D() {
+  // Paneles holográficos alrededor del headset
+  const hudPanelMat = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    uniforms: {
+      uTime: { value: 0 },
+      uColor: { value: new THREE.Color(0x4FC3F7) },
+      uOpacity: { value: 0 }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      varying vec3 vWorldNormal;
+      void main() {
+        vUv = uv;
+        vWorldNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime;
+      uniform vec3 uColor;
+      uniform float uOpacity;
+      varying vec2 vUv;
+      varying vec3 vWorldNormal;
+      void main() {
+        float scanline = sin(vUv.y * 80.0 + uTime * 4.0) * 0.5 + 0.5;
+        float border = step(0.02, vUv.x) * step(0.02, vUv.y) *
+                       step(vUv.x, 0.98) * step(vUv.y, 0.98);
+        float corner = smoothstep(0.0, 0.05, vUv.x) * smoothstep(0.0, 0.05, vUv.y) *
+                       smoothstep(0.0, 0.05, 1.0 - vUv.x) * smoothstep(0.0, 0.05, 1.0 - vUv.y);
+        float alpha = border * (scanline * 0.15 + 0.1) * corner * uOpacity;
+        gl_FragColor = vec4(uColor, alpha);
+      }
+    `
+  });
+
+  // Panel izquierdo
+  const panelLGeom = new THREE.PlaneGeometry(0.12, 0.08);
+  const panelL = new THREE.Mesh(panelLGeom, hudPanelMat.clone());
+  panelL.position.set(-0.22, 0.08, 0.05);
+  panelL.rotation.y = 0.3;
+  hud3dGroup.add(panelL);
+
+  // Panel derecho
+  const panelR = new THREE.Mesh(panelLGeom.clone(), hudPanelMat.clone());
+  panelR.position.set(0.22, 0.08, 0.05);
+  panelR.rotation.y = -0.3;
+  hud3dGroup.add(panelR);
+
+  // Panel inferior
+  const panelBGeom = new THREE.PlaneGeometry(0.2, 0.06);
+  const panelB = new THREE.Mesh(panelBGeom, hudPanelMat.clone());
+  panelB.position.set(0, -0.15, 0.08);
+  panelB.rotation.x = -0.4;
+  hud3dGroup.add(panelB);
+
+  // Anillos de datos orbitales
+  for (let i = 0; i < 3; i++) {
+    const orbitR = 0.15 + i * 0.04;
+    const orbitGeom = new THREE.TorusGeometry(orbitR, 0.001, 6, 64);
+    const orbitMat = new THREE.MeshBasicMaterial({
+      color: 0x4FC3F7, transparent: true, opacity: 0
+    });
+    const orbit = new THREE.Mesh(orbitGeom, orbitMat);
+    orbit.position.set(0, 0.05, -0.02);
+    orbit.rotation.x = Math.PI / 2 + i * 0.3;
+    orbit.rotation.z = i * 0.5;
+    hud3dGroup.add(orbit);
+  }
+
+  // Texto en canvas para los paneles
+  function makeTextTexture(text, w, h) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = 'rgba(10,14,20,0.0)';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#4FC3F7';
+    ctx.font = '600 18px monospace';
+    ctx.textAlign = 'left';
+    const lines = text.split('\n');
+    lines.forEach((line, i) => {
+      ctx.globalAlpha = 0.7 - i * 0.05;
+      ctx.fillText(line, 10, 25 + i * 22);
+    });
+    return new THREE.CanvasTexture(c);
+  }
+
+  const texts = [
+    'EEG: 10.5 Hz\nfNIRS: 68.2%\nCOG: 0.72\nSTATE: ACTIVE',
+    'RNN: 0.94\nRL: 0.89\nXAI: PASS\nDRIFT: 0.02',
+    'SESSION: 24:15\nENGAGEMENT: 87%\nDIFFICULTY: 7\nPATIENT: OK'
+  ];
+  const panels = [panelL, panelR, panelB];
+  panels.forEach((p, i) => {
+    const tGeom = new THREE.PlaneGeometry(0.11, 0.07);
+    const tMat = new THREE.MeshBasicMaterial({
+      map: makeTextTexture(texts[i], 256, 128),
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    const tMesh = new THREE.Mesh(tGeom, tMat);
+    tMesh.position.copy(p.position);
+    tMesh.position.z += 0.001 * (i === 2 ? -1 : 1);
+    tMesh.rotation.copy(p.rotation);
+    tMesh.userData.textMat = tMat;
+    hud3dGroup.add(tMesh);
+  });
+
+  hud3dGroup.userData = { visible: false, hudPanelMat };
+  hud3dGroup.visible = false;
+  scene.add(hud3dGroup);
+}
+
+// ============================================================
+// CONSTRUIR TODOS LOS COMPONENTES
+// ============================================================
+buildHeadset();
+buildStrap();
+buildSensorBand();
+buildProcessingUnit();
+buildCables();
+buildAINodes();
+buildEnergyFlow();
+buildSwarmAI();
+buildNeuralNetwork();
+buildHUD3D();
+
+// ============================================================
+// ESTADOS DINÁMICOS
+// ============================================================
+const stateColors = {
+  off: { led: 0x000000, emissive: 0, electrode: 0x000000, electrodeEmissive: 0 },
+  standby: { led: 0x4FC3F7, emissive: 0.3, electrode: 0x000000, electrodeEmissive: 0 },
+  calibration: { led: 0xFFC107, emissive: 0.6, electrode: 0xFFC107, electrodeEmissive: 0.2 },
+  therapy: { led: 0x4FC3F7, emissive: 1.0, electrode: 0x4FC3F7, electrodeEmissive: 0.5 },
+  emergency: { led: 0xFF1744, emissive: 1.0, electrode: 0xFF1744, electrodeEmissive: 0.8 }
+};
+
+function setState(state) {
+  currentState = state;
+  const sc = stateColors[state];
+  const stateText = document.getElementById('state-text');
+  const stateDot = document.getElementById('state-dot');
+
+  // Actualizar LEDs
+  ledMaterials.forEach(m => {
+    m.color.setHex(sc.led);
+    m.emissive.setHex(sc.led);
+    m.emissiveIntensity = sc.emissive;
+  });
+
+  // Actualizar electrodos
+  electrodeMaterials.forEach(m => {
+    m.emissive.setHex(sc.electrode);
+    m.emissiveIntensity = sc.electrodeEmissive;
+  });
+
+  // Indicador de estado UI
+  const dotColor = state === 'off' ? '#2D2D2D' : state === 'emergency' ? '#FF1744' : state === 'calibration' ? '#FFC107' : '#4FC3F7';
+  stateDot.style.background = dotColor;
+  stateDot.style.boxShadow = state === 'off' ? 'none' : `0 0 8px ${dotColor}`;
+
+  // Temporizador de sesión
+  if (state === 'therapy' || state === 'calibration') {
+    if (!sessionInterval) {
+      sessionInterval = setInterval(() => {
+        sessionTime++;
+        const m = String(Math.floor(sessionTime / 60)).padStart(2, '0');
+        const s = String(sessionTime % 60).padStart(2, '0');
+        document.getElementById('hud-session').textContent = `${m}:${s}`;
+      }, 1000);
+    }
+  } else {
+    clearInterval(sessionInterval);
+    sessionInterval = null;
+    if (state === 'off') {
+      sessionTime = 0;
+      document.getElementById('hud-session').textContent = '00:00';
+    }
+  }
+
+  showToast(i18n[currentLang].toast_state + (i18n[currentLang]['st_' + state.replace('therapy', 'therapy')] || state));
+}
+
+// ============================================================
+// SIMULACIONES
+// ============================================================
+function setSimulation(sim) {
+  // Ocultar todas las visualizaciones primero
+  aiNodesGroup.visible = false;
+  energyGroup.visible = false;
+  swarmGroup.visible = false;
+  neuralGroup.visible = false;
+  hud3dGroup.visible = false;
+
+  if (currentSim === sim) {
+    currentSim = null;
+    // Restablecer opacidades
+    resetSimVisuals();
+    showToast(i18n[currentLang].toast_sim + 'OFF');
+    return;
+  }
+
+  currentSim = sim;
+  controls.autoRotate = sim !== 'biomechanics';
+
+  switch (sim) {
     case 'biomechanics':
-      headsetGroup.visible = false;
-      brainGroup.visible = false;
-      aiNodesGroup.visible = false;
-      dataFlowPoints.visible = false;
-      mainFlowLines.forEach(l => l.visible = false);
-      bioGroup.visible = true;
-      controls.autoRotate = false;
+      // La biomecánica se maneja en el loop de animación
       break;
-
-    case 'swarm':
-      headsetGroup.visible = false;
-      brainGroup.visible = false;
-      aiNodesGroup.visible = false;
-      dataFlowPoints.visible = false;
-      mainFlowLines.forEach(l => l.visible = false);
-      swarmPoints.visible = true;
+    case 'modular':
+      toggleExploded(true);
       break;
-
     case 'energy':
-      headsetGroup.visible = false;
-      brainGroup.visible = false;
-      aiNodesGroup.visible = false;
-      dataFlowPoints.visible = false;
-      mainFlowLines.forEach(l => l.visible = false);
       energyGroup.visible = true;
       break;
+    case 'swarm':
+      swarmGroup.visible = true;
+      break;
+    case 'hud3d':
+      hud3dGroup.visible = true;
+      // Animar opacidad de paneles
+      hud3dGroup.children.forEach(child => {
+        if (child.material && child.material.uniforms && child.material.uniforms.uOpacity) {
+          child.material.uniforms.uOpacity.value = 1.0;
+        }
+        if (child.userData.textMat) {
+          child.userData.textMat.opacity = 0.8;
+        }
+        if (child.material && child.material.opacity !== undefined && !child.material.uniforms) {
+          child.material.opacity = 0.3;
+        }
+      });
+      break;
+    case 'neural':
+      neuralGroup.visible = true;
+      neuralGroup.userData.neuronMeshes.forEach(layer => {
+        layer.forEach(n => {
+          n.mat.opacity = 0.9;
+          n.mat.emissiveIntensity = 0.3;
+        });
+      });
+      neuralGroup.userData.connectionLines.forEach(c => {
+        c.mat.opacity = 0.15;
+      });
+      break;
+  }
+
+  showToast(i18n[currentLang].toast_sim + sim);
+}
+
+function resetSimVisuals() {
+  // Reset nodos IA
+  aiNodesGroup.children.forEach(c => {
+    if (c.userData.mat) c.userData.mat.opacity = 0;
+    if (c.material && c.material.opacity !== undefined) c.material.opacity = 0;
+  });
+  // Reset energía
+  // Reset enjambre
+  // Reset red neural
+  neuralGroup.userData.neuronMeshes.forEach(layer => {
+    layer.forEach(n => { n.mat.opacity = 0; n.mat.emissiveIntensity = 0; });
+  });
+  neuralGroup.userData.connectionLines.forEach(c => { c.mat.opacity = 0; });
+  // Reset HUD 3D
+  hud3dGroup.children.forEach(child => {
+    if (child.material && child.material.uniforms && child.material.uniforms.uOpacity) {
+      child.material.uniforms.uOpacity.value = 0;
+    }
+    if (child.userData.textMat) child.userData.textMat.opacity = 0;
+    if (child.material && child.material.opacity !== undefined && !child.material.uniforms) {
+      child.material.opacity = 0;
+    }
+  });
+  // Reset vista explotada
+  if (isExploded) toggleExploded(false);
+}
+
+// ============================================================
+// VISTA EXPLOTADA
+// ============================================================
+const explodeOffsets = {
+  headset: new THREE.Vector3(0, 0, 0),
+  sensorBand: new THREE.Vector3(0, 0.12, 0),
+  processingUnit: new THREE.Vector3(0.15, -0.08, 0),
+  cable: new THREE.Vector3(0.05, -0.12, 0.08)
+};
+
+let explodeAnimProgress = 0;
+let explodeAnimating = false;
+let explodeTarget = false;
+
+function toggleExploded(exploded) {
+  isExploded = exploded;
+  explodeTarget = exploded;
+  explodeAnimating = true;
+}
+
+function updateExplode(dt) {
+  if (!explodeAnimating) return;
+  const speed = 2.0;
+  if (explodeTarget) {
+    explodeAnimProgress = Math.min(1, explodeAnimProgress + dt * speed);
+  } else {
+    explodeAnimProgress = Math.max(0, explodeAnimProgress - dt * speed);
+  }
+  const t = smoothstep(explodeAnimProgress);
+
+  headsetGroup.children.forEach(child => {
+    const orig = originalPositions.get(child.uuid);
+    if (orig) {
+      child.position.lerpVectors(orig.pos, orig.pos.clone().add(explodeOffsets.headset), t);
+    }
+  });
+  sensorBandGroup.children.forEach(child => {
+    const orig = originalPositions.get(child.uuid);
+    if (orig) {
+      child.position.lerpVectors(orig.pos, orig.pos.clone().add(explodeOffsets.sensorBand), t);
+    }
+  });
+  processingUnitGroup.children.forEach(child => {
+    const orig = originalPositions.get(child.uuid);
+    if (orig) {
+      child.position.lerpVectors(orig.pos, orig.pos.clone().add(explodeOffsets.processingUnit), t);
+    }
+  });
+  cableGroup.children.forEach(child => {
+    const orig = originalPositions.get(child.uuid);
+    if (orig) {
+      child.position.lerpVectors(orig.pos, orig.pos.clone().add(explodeOffsets.cable), t);
+    }
+  });
+
+  if ((explodeTarget && explodeAnimProgress >= 1) || (!explodeTarget && explodeAnimProgress <= 0)) {
+    explodeAnimating = false;
   }
 }
 
-function showModeIndicator(text) {
-  modeIndicator.textContent = text;
-  modeIndicator.classList.toggle('visible', !!text);
-  if (modeTimeout) clearTimeout(modeTimeout);
-  if (text) {
-    modeTimeout = setTimeout(() => modeIndicator.classList.remove('visible'), 3000);
-  }
+function smoothstep(t) {
+  return t * t * (3 - 2 * t);
 }
-
-document.querySelectorAll('#controls-panel button').forEach(btn => {
-  btn.addEventListener('click', () => setMode(btn.dataset.mode));
-});
 
 // ============================================================
 // REALIDAD AUMENTADA
 // ============================================================
-let arActive = false;
-let arScene, arCamera, arRenderer, arAnimationId;
+let arStream = null;
 
-async function startAR() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
-    const overlay = document.getElementById('ar-overlay');
-    const video = document.getElementById('ar-video');
-    const arCanvas = document.getElementById('ar-canvas');
-    video.srcObject = stream;
-    overlay.style.display = 'block';
+async function toggleAR() {
+  const arBtn = document.getElementById('ar-toggle');
+  const videoBg = document.getElementById('ar-video-bg');
 
-    arCanvas.width = window.innerWidth;
-    arCanvas.height = window.innerHeight;
-
-    arScene = new THREE.Scene();
-    arCamera = new THREE.PerspectiveCamera(50, arCanvas.width / arCanvas.height, 0.1, 100);
-    arCamera.position.set(0, 2, 5);
-    arCamera.lookAt(0, 2, 0);
-
-    arRenderer = new THREE.WebGLRenderer({ canvas: arCanvas, alpha: true, antialias: true });
-    arRenderer.setSize(arCanvas.width, arCanvas.height);
-    arRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    arRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-
-    // Luz AR
-    arScene.add(new THREE.AmbientLight(0xffffff, 0.8));
-    const arDir = new THREE.DirectionalLight(0xffffff, 1.5);
-    arDir.position.set(3, 5, 4);
-    arScene.add(arDir);
-    const arPoint = new THREE.PointLight(0x4FC3F7, 2, 8);
-    arPoint.position.set(0, 3, 0);
-    arScene.add(arPoint);
-
-    // Clonar headset para AR
-    const arHeadset = headsetGroup.clone();
-    arHeadset.position.set(0, 2, 0);
-    arHeadset.scale.set(0.8, 0.8, 0.8);
-    arScene.add(arHeadset);
-
-    // Clonar cerebro para AR
-    const arBrain = brainGroup.clone();
-    arBrain.position.set(0, 4, -1);
-    arBrain.scale.set(0.6, 0.6, 0.6);
-    arScene.add(arBrain);
-
-    // Plano de referencia (mesa)
-    const arPlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(4, 4),
-      new THREE.MeshStandardMaterial({ color: 0x4FC3F7, transparent: true, opacity: 0.08, side: THREE.DoubleSide })
-    );
-    arPlane.rotation.x = -Math.PI / 2;
-    arPlane.position.y = 0;
-    arScene.add(arPlane);
-
-    const arGrid = new THREE.GridHelper(4, 20, 0x4FC3F7, 0x4FC3F7);
-    arGrid.material.transparent = true;
-    arGrid.material.opacity = 0.15;
-    arScene.add(arGrid);
-
-    // Controles AR (touch/mouse)
-    let arRotY = 0;
-    let arLastX = 0;
-    const onPointerDown = (e) => { arLastX = e.clientX || e.touches[0].clientX; };
-    const onPointerMove = (e) => {
-      const x = e.clientX || (e.touches && e.touches[0].clientX) || arLastX;
-      arRotY += (x - arLastX) * 0.005;
-      arLastX = x;
-    };
-    arCanvas.addEventListener('mousedown', onPointerDown);
-    arCanvas.addEventListener('mousemove', onPointerMove);
-    arCanvas.addEventListener('touchstart', onPointerDown, { passive: true });
-    arCanvas.addEventListener('touchmove', onPointerMove, { passive: true });
-
-    arActive = true;
-    controls.autoRotate = false;
-
-    function arLoop() {
-      if (!arActive) return;
-      arAnimationId = requestAnimationFrame(arLoop);
-      arHeadset.rotation.y = arRotY;
-      arBrain.rotation.y = arRotY * 0.5;
-
-      // Actualizar shaders AR
-      arHeadset.traverse(child => {
-        if (child.material === visorShaderMat || (child.material && child.material.uniforms && child.material.uniforms.uTime)) {
-          child.material.uniforms.uTime.value = performance.now() * 0.001;
-        }
+  if (!isAR) {
+    try {
+      arStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
       });
-
-      arRenderer.render(arScene, arCamera);
+      videoBg.srcObject = arStream;
+      videoBg.style.display = 'block';
+      renderer.setClearColor(0x000000, 0);
+      scene.fog = null;
+      floor.visible = false;
+      ring.visible = false;
+      gridHelper.visible = false;
+      ambientParticles.visible = false;
+      isAR = true;
+      arBtn.classList.add('active');
+      camera.position.set(0, 0.1, 0.4);
+      controls.target.set(0, 0, 0);
+      showToast(i18n[currentLang].toast_ar_on);
+    } catch (e) {
+      showToast('AR no disponible en este dispositivo');
     }
-    arLoop();
-
-  } catch (err) {
-    console.warn('AR no disponible:', err);
-    showModeIndicator(i18n[currentLang].btn_ar + ' - No disponible');
+  } else {
+    if (arStream) {
+      arStream.getTracks().forEach(t => t.stop());
+      arStream = null;
+    }
+    videoBg.style.display = 'none';
+    videoBg.srcObject = null;
+    renderer.setClearColor(0x0a0e14, 1);
+    scene.fog = new THREE.FogExp2(0x0a0e14, 0.15);
+    floor.visible = true;
+    ring.visible = true;
+    gridHelper.visible = true;
+    ambientParticles.visible = true;
+    isAR = false;
+    arBtn.classList.remove('active');
+    camera.position.set(0.35, 0.25, 0.55);
+    controls.target.set(0, 0.02, 0);
+    showToast(i18n[currentLang].toast_ar_off);
   }
 }
-
-function stopAR() {
-  arActive = false;
-  if (arAnimationId) cancelAnimationFrame(arAnimationId);
-  const overlay = document.getElementById('ar-overlay');
-  overlay.style.display = 'none';
-  const video = document.getElementById('ar-video');
-  if (video.srcObject) {
-    video.srcObject.getTracks().forEach(t => t.stop());
-    video.srcObject = null;
-  }
-  controls.autoRotate = true;
-}
-
-document.getElementById('ar-close').addEventListener('click', stopAR);
 
 // ============================================================
-// SIMULACIÓN DE HUD EN TIEMPO REAL
+// EVENTOS DE UI
+// ============================================================
+document.querySelectorAll('[data-state]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-state]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    setState(btn.dataset.state);
+  });
+});
+
+document.querySelectorAll('[data-sim]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-sim]').forEach(b => b.classList.remove('active'));
+    if (currentSim === btn.dataset.sim) {
+      btn.classList.remove('active');
+    } else {
+      btn.classList.add('active');
+    }
+    setSimulation(btn.dataset.sim);
+  });
+});
+
+document.getElementById('btn-explode').addEventListener('click', () => {
+  toggleExploded(!isExploded);
+  document.getElementById('btn-explode').classList.toggle('active', isExploded);
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  // Reset todo
+  currentSim = null;
+  isExploded = false;
+  explodeTarget = false;
+  document.querySelectorAll('[data-sim]').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-explode').classList.remove('active');
+  resetSimVisuals();
+  camera.position.set(0.35, 0.25, 0.55);
+  controls.target.set(0, 0.02, 0);
+  controls.autoRotate = true;
+  setState('off');
+  document.querySelectorAll('[data-state]').forEach(b => b.classList.remove('active'));
+  document.querySelector('[data-state="off"]').classList.add('active');
+});
+
+document.getElementById('ar-toggle').addEventListener('click', toggleAR);
+
+// ============================================================
+// ACTUALIZACIÓN DEL HUD
 // ============================================================
 function updateHUD(time) {
-  const neural = 75 + Math.sin(time * 0.8) * 12 + Math.sin(time * 2.3) * 5;
-  const cognitive = 35 + Math.sin(time * 0.5) * 15 + Math.cos(time * 1.7) * 8;
-  const attention = 80 + Math.sin(time * 0.3) * 10 + Math.sin(time * 1.9) * 6;
-  const plasticity = 65 + Math.sin(time * 0.6) * 10 + Math.cos(time * 2.1) * 5;
+  const diff = parseInt(diffSlider.value);
+  const sens = parseInt(sensSlider.value);
+  const isActive = currentState === 'therapy' || currentState === 'calibration';
 
-  document.getElementById('stat-neural').textContent = Math.round(neural) + '%';
-  document.getElementById('bar-neural').style.width = neural + '%';
-  document.getElementById('stat-cognitive').textContent = Math.round(cognitive) + '%';
-  document.getElementById('bar-cognitive').style.width = cognitive + '%';
-  document.getElementById('stat-attention').textContent = Math.round(attention) + '%';
-  document.getElementById('bar-attention').style.width = attention + '%';
-  document.getElementById('stat-plasticity').textContent = Math.round(plasticity) + '%';
-  document.getElementById('bar-plasticity').style.width = plasticity + '%';
+  if (isActive) {
+    const eegBase = 8 + diff * 0.8 + Math.sin(time * 2.3) * 1.5;
+    const fnirsBase = 55 + sens * 3 + Math.sin(time * 1.7) * 5;
+    const cogBase = 0.3 + diff * 0.06 + Math.sin(time * 1.1) * 0.1;
+    const engBase = 60 + diff * 2.5 + Math.sin(time * 0.8) * 8;
 
-  // Animar nodos IA del HUD
-  const nodeEls = document.querySelectorAll('.hud-node');
-  nodeEls.forEach((el, i) => {
-    el.classList.toggle('processing', Math.sin(time * 1.5 + i * 1.2) > -0.3);
-  });
-}
-
-// ============================================================
-// ANIMACIÓN BIOMECÁNICA
-// ============================================================
-function animateBiomechanics(time) {
-  if (!bioGroup.visible) return;
-
-  bioGroup.traverse(child => {
-    if (child.userData && child.userData.jointName) {
-      const name = child.userData.jointName;
-      const orig = child.userData.origPos;
-      let offset = new THREE.Vector3();
-
-      switch (name) {
-        case 'rHand':
-          offset.set(Math.sin(time * 1.5) * 0.3, Math.cos(time * 1.5) * 0.2 + 0.3, Math.sin(time * 0.8) * 0.15);
-          break;
-        case 'rElbow':
-          offset.set(Math.sin(time * 1.5) * 0.15, Math.cos(time * 1.5) * 0.1 + 0.1, 0);
-          break;
-        case 'lHand':
-          offset.set(Math.sin(time * 1.2 + 1) * 0.2, Math.cos(time * 1.2 + 1) * 0.15 + 0.2, Math.sin(time * 0.7 + 1) * 0.1);
-          break;
-        case 'lElbow':
-          offset.set(Math.sin(time * 1.2 + 1) * 0.1, Math.cos(time * 1.2 + 1) * 0.08, 0);
-          break;
-        case 'head':
-          offset.set(Math.sin(time * 0.5) * 0.05, 0, 0);
-          break;
-        case 'rKnee':
-          offset.y = Math.sin(time * 0.8) * 0.05;
-          break;
-        case 'lKnee':
-          offset.y = Math.sin(time * 0.8 + Math.PI) * 0.05;
-          break;
-      }
-      child.position.copy(orig).add(offset);
-    }
-  });
-
-  // Actualizar huesos
-  Object.values(bioBones).forEach(bone => {
-    const aPos = bioGroup.children.find(c => c.userData.jointName === bone.a);
-    const bPos = bioGroup.children.find(c => c.userData.jointName === bone.b);
-    if (aPos && bPos) {
-      const mid = aPos.position.clone().add(bPos.position).multiplyScalar(0.5);
-      bone.mesh.position.copy(mid);
-      const dir = bPos.position.clone().sub(aPos.position);
-      const len = Math.max(0.01, dir.length());
-      bone.mesh.scale.y = len / (bone.origB.clone().sub(bone.origA).length());
-      bone.mesh.lookAt(bPos.position);
-      bone.mesh.rotateX(Math.PI / 2);
-    }
-  });
-}
-
-// ============================================================
-// SIMULACIÓN DE ENJAMBRE
-// ============================================================
-function animateSwarm(time) {
-  if (!swarmPoints.visible) return;
-  const pos = swarmGeom.attributes.position.array;
-  const center = new THREE.Vector3(0, 3, 0);
-
-  for (let i = 0; i < swarmCount; i++) {
-    const idx = i * 3;
-    const vel = swarmVelocities[i];
-    const px = pos[idx], py = pos[idx + 1], pz = pos[idx + 2];
-    const posVec = new THREE.Vector3(px, py, pz);
-
-    // Reglas de enjambre simplificadas
-    const toCenter = center.clone().sub(posVec).multiplyScalar(0.001);
-    vel.add(toCenter);
-
-    // Separación (muestreo parcial para rendimiento)
-    if (i % 4 === 0) {
-      for (let j = Math.max(0, i - 8); j < Math.min(swarmCount, i + 8); j++) {
-        if (i === j) continue;
-        const dx = pos[idx] - pos[j * 3];
-        const dy = pos[idx + 1] - pos[j * 3 + 1];
-        const dz = pos[idx + 2] - pos[j * 3 + 2];
-        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        if (dist < 0.5 && dist > 0.001) {
-          vel.add(new THREE.Vector3(dx / dist, dy / dist, dz / dist).multiplyScalar(0.002));
-        }
-      }
-    }
-
-    // Alineación y cohesión (muestreo)
-    if (i % 10 === 0) {
-      const sampleIdx = Math.floor(Math.random() * swarmCount) * 3;
-      const otherVel = swarmVelocities[Math.floor(sampleIdx / 3)];
-      vel.add(otherVel.clone().sub(vel).multiplyScalar(0.01));
-    }
-
-    // Movimiento orbital
-    const angle = Math.atan2(pz - center.z, px - center.x) + 0.005;
-    const radius = Math.sqrt((px - center.x) ** 2 + (pz - center.z) ** 2);
-    const targetR = 2 + Math.sin(time * 0.3 + i * 0.01) * 1;
-    vel.x += (Math.cos(angle) * targetR - px + center.x) * 0.002;
-    vel.z += (Math.sin(angle) * targetR - pz + center.z) * 0.002;
-    vel.y += (3 + Math.sin(time * 0.5 + i * 0.02) - py) * 0.001;
-
-    // Limitar velocidad
-    const speed = vel.length();
-    if (speed > 0.04) vel.multiplyScalar(0.04 / speed);
-
-    vel.multiplyScalar(0.98); // Fricción
-    pos[idx] += vel.x;
-    pos[idx + 1] += vel.y;
-    pos[idx + 2] += vel.z;
+    document.getElementById('hud-eeg').textContent = eegBase.toFixed(2) + ' Hz';
+    document.getElementById('hud-fnirs').textContent = fnirsBase.toFixed(1) + ' %';
+    document.getElementById('hud-cog').textContent = Math.min(cogBase, 1.0).toFixed(2);
+    document.getElementById('hud-eng').textContent = Math.min(Math.round(engBase), 99) + ' %';
+  } else if (currentState === 'standby') {
+    document.getElementById('hud-eeg').textContent = (8.5 + Math.sin(time) * 0.3).toFixed(2) + ' Hz';
+    document.getElementById('hud-fnirs').textContent = (58 + Math.sin(time * 0.7) * 1).toFixed(1) + ' %';
+    document.getElementById('hud-cog').textContent = (0.15 + Math.sin(time * 0.5) * 0.02).toFixed(2);
+    document.getElementById('hud-eng').textContent = '0 %';
+  } else {
+    document.getElementById('hud-eeg').textContent = '0.00 Hz';
+    document.getElementById('hud-fnirs').textContent = '0.00 %';
+    document.getElementById('hud-cog').textContent = '0.00';
+    document.getElementById('hud-eng').textContent = '0 %';
   }
-  swarmGeom.attributes.position.needsUpdate = true;
 }
 
 // ============================================================
-// BUCLE PRINCIPAL DE ANIMACIÓN
+// BUCLE DE ANIMACIÓN PRINCIPAL
 // ============================================================
-const clock = new THREE.Clock();
-
 function animate() {
   requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
   const time = clock.getElapsedTime();
-  const delta = clock.getDelta();
 
   controls.update();
+  updateExplode(dt);
+  updateHUD(time);
 
-  // Actualizar shaders con tiempo
-  visorShaderMat.uniforms.uTime.value = time;
-  brainShaderMat.uniforms.uTime.value = time;
-  dataFlowShaderMat.uniforms.uTime.value = time;
-  swarmShaderMat.uniforms.uTime.value = time;
-  ambMat.uniforms.uTime.value = time;
+  // Partículas ambientales
+  apMat.uniforms.uTime.value = time;
 
-  // Actualizar shader de energía
-  energyGroup.traverse(child => {
-    if (child.material && child.material.uniforms && child.material.uniforms.uTime) {
-      child.material.uniforms.uTime.value = time;
-    }
-  });
+  // Anillo de suelo pulsa
+  ring.material.opacity = 0.15 + 0.1 * Math.sin(time * 1.5);
 
-  // Pulsar electrodos EEG
-  eegGroup.children.forEach(child => {
-    if (child.userData && child.userData.pulsePhase !== undefined) {
-      const scale = 1 + Math.sin(time * 3 + child.userData.pulsePhase) * 0.3;
-      child.scale.setScalar(scale);
-      child.material.opacity = 0.3 + Math.sin(time * 3 + child.userData.pulsePhase) * 0.3;
-    }
-  });
-
-  // Pulsar nodos de sinapsis en cerebro
-  brainGroup.children.forEach(child => {
-    if (child.userData && child.userData.pulsePhase !== undefined) {
-      const s = 1 + Math.sin(time * 4 + child.userData.pulsePhase) * 0.5;
-      child.scale.setScalar(s);
-    }
-    // Animar rutas neurales
-    if (child.userData && child.userData.pathCurve) {
-      child.material.opacity = 0.15 + Math.sin(time * child.userData.speed + child.userData.phase) * 0.2;
-    }
-  });
-
-  // Rotar cerebro lentamente
-  brainGroup.rotation.y = Math.sin(time * 0.2) * 0.3;
-
-  // Pulsar nodos IA
-  nodeMeshes.forEach((nm, i) => {
-    const s = 1 + Math.sin(time * 2 + nm.userData.phase) * 0.15;
-    nm.scale.setScalar(s);
-    if (nm.material.emissiveIntensity !== undefined) {
-      nm.material.emissiveIntensity = 0.3 + Math.sin(time * 2 + nm.userData.phase) * 0.3;
-    }
-  });
-
-  // Animar flujo de datos
-  if (dataFlowPoints.visible && nodeConnections.length > 0) {
-    const dfPos = dfGeom.attributes.position.array;
-    const paths = dataFlowPoints.userData.paths;
-    for (let i = 0; i < dataFlowCount; i++) {
-      const p = paths[i];
-      p.t += p.speed * 0.005;
-      if (p.t > 1) p.t -= 1;
-      const conn = nodeConnections[p.connIdx];
-      if (conn) {
-        const from = new THREE.Vector3(...nodeData[conn.from].pos);
-        const to = new THREE.Vector3(...nodeData[conn.to].pos);
-        const pos = from.clone().lerp(to, p.t);
-        // Añadir algo de variación
-        pos.x += Math.sin(time * 2 + i) * 0.05;
-        pos.y += Math.cos(time * 1.5 + i * 0.5) * 0.05;
-        dfPos[i * 3] = pos.x;
-        dfPos[i * 3 + 1] = pos.y;
-        dfPos[i * 3 + 2] = pos.z;
-      }
-    }
-    dfGeom.attributes.position.needsUpdate = true;
+  // Simulación de biomecánica: movimiento sutil del headset
+  if (currentSim === 'biomechanics') {
+    const bioX = Math.sin(time * 0.7) * 0.02;
+    const bioY = Math.cos(time * 0.5) * 0.015 + Math.sin(time * 1.3) * 0.008;
+    const bioZ = Math.sin(time * 0.9) * 0.01;
+    const bioRx = Math.sin(time * 0.6) * 0.05;
+    const bioRy = Math.sin(time * 0.4) * 0.08;
+    headsetGroup.position.set(bioX, bioY, bioZ);
+    headsetGroup.rotation.set(bioRx, bioRy, 0);
+    sensorBandGroup.position.set(bioX, bioY, bioZ);
+    sensorBandGroup.rotation.set(bioRx, bioRy, 0);
+  } else if (!isExploded) {
+    // Retornar suavemente a posición original
+    headsetGroup.position.lerp(new THREE.Vector3(0, 0, 0), dt * 3);
+    headsetGroup.rotation.lerp(new THREE.Euler(0, 0, 0), dt * 3);
+    sensorBandGroup.position.lerp(new THREE.Vector3(0, 0, 0), dt * 3);
+    sensorBandGroup.rotation.lerp(new THREE.Euler(0, 0, 0), dt * 3);
   }
 
-  // Pulsar líneas de flujo principal
-  mainFlowLines.forEach((line, i) => {
-    line.material.opacity = 0.2 + Math.sin(time * 3 + i * 0.8) * 0.2;
-  });
+  // Pulso de electrodos en estados activos
+  if (currentState === 'therapy' || currentState === 'calibration') {
+    electrodeMaterials.forEach((m, i) => {
+      const pulse = 0.3 + 0.4 * Math.sin(time * 3 + i * 0.8);
+      m.emissiveIntensity = pulse;
+    });
+  }
 
-  // Animar LEDs del headset
-  headsetGroup.children.forEach(child => {
-    if (child.userData && child.userData.ledPhase !== undefined) {
-      child.material.opacity = 0.5 + Math.sin(time * 4 + child.userData.ledPhase) * 0.5;
-    }
-  });
+  // Pulso de LEDs en standby
+  if (currentState === 'standby') {
+    ledMaterials.forEach((m, i) => {
+      m.emissiveIntensity = 0.15 + 0.15 * Math.sin(time * 2 + i * 0.5);
+    });
+  }
 
-  // Animar energía
+  // Parpadeo en emergencia
+  if (currentState === 'emergency') {
+    const blink = Math.sin(time * 8) > 0 ? 1.0 : 0.1;
+    ledMaterials.forEach(m => { m.emissiveIntensity = blink; });
+    electrodeMaterials.forEach(m => { m.emissiveIntensity = blink * 0.8; });
+  }
+
+  // ---- SIMULACIÓN: ENERGÍA HÍBRIDA ----
   if (energyGroup.visible) {
-    energyCore.rotation.y = time * 0.5;
-    energyCore.rotation.x = time * 0.3;
-    const coreScale = 1 + Math.sin(time * 2) * 0.15;
-    energyCore.scale.setScalar(coreScale);
+    const curve = energyGroup.userData.energyCurve;
+    const positions = energyGroup.userData.energyPoints.geometry.attributes.position.array;
+    for (let i = 0; i < eProgress.length; i++) {
+      eProgress[i] = (eProgress[i] + dt * (0.15 + Math.random() * 0.1)) % 1.0;
+      const pt = curve.getPointAt(eProgress[i]);
+      // Añadir algo de variación radial
+      const offset = 0.005;
+      positions[i * 3] = pt.x + (Math.random() - 0.5) * offset;
+      positions[i * 3 + 1] = pt.y + (Math.random() - 0.5) * offset;
+      positions[i * 3 + 2] = pt.z + (Math.random() - 0.5) * offset;
+    }
+    energyGroup.userData.energyPoints.geometry.attributes.position.needsUpdate = true;
+  }
 
-    energyGroup.children.forEach(child => {
-      if (child.userData && child.userData.rotSpeed) {
-        if (child.userData.axis === 0) child.rotation.z += child.userData.rotSpeed * 0.01;
-        else if (child.userData.axis === 1) child.rotation.x += child.userData.rotSpeed * 0.01;
-        else child.rotation.y += child.userData.rotSpeed * 0.01;
+  // ---- SIMULACIÓN: IA DE ENJAMBRE ----
+  if (swarmGroup.visible) {
+    const sPos = swarmGroup.children[0].geometry.attributes.position.array;
+    const vels = swarmGroup.userData.velocities;
+    const targets = swarmGroup.userData.targets;
+    for (let i = 0; i < vels.length; i++) {
+      // Cambiar objetivo periódicamente
+      if (Math.random() < 0.005) {
+        targets[i].set(
+          (Math.random() - 0.5) * 0.2,
+          0.05 + Math.random() * 0.2,
+          (Math.random() - 0.5) * 0.2
+        );
+      }
+      // Comportamiento de enjambre: hacia objetivo + separación + cohesión
+      const toTarget = new THREE.Vector3().subVectors(targets[i],
+        new THREE.Vector3(sPos[i * 3], sPos[i * 3 + 1], sPos[i * 3 + 2]));
+      toTarget.multiplyScalar(0.001);
+      vels[i].add(toTarget);
+      vels[i].multiplyScalar(0.98); // Amortiguación
+      // Limitar velocidad
+      if (vels[i].length() > 0.003) vels[i].setLength(0.003);
+
+      sPos[i * 3] += vels[i].x;
+      sPos[i * 3 + 1] += vels[i].y;
+      sPos[i * 3 + 2] += vels[i].z;
+    }
+    swarmGroup.children[0].geometry.attributes.position.needsUpdate = true;
+    swarmGroup.children[0].material.uniforms.uTime.value = time;
+  }
+
+  // ---- SIMULACIÓN: NODOS IA ----
+  if (aiNodesGroup.visible) {
+    const { nodeMeshes, connectionLines } = aiNodesGroup.userData;
+    // Animar aparición
+    nodeMeshes.forEach((n, i) => {
+      n.mat.opacity = Math.min(1, n.mat.opacity + dt * 2);
+      // Pulso sutil
+      const pulse = 0.3 + 0.2 * Math.sin(time * 2 + i * 1.2);
+      n.mat.emissiveIntensity = pulse;
+      // Movimiento orbital sutil
+      const base = n.userData.basePos;
+      n.position.x = base[0] + Math.sin(time * 0.5 + i) * 0.005;
+      n.position.y = base[1] + Math.cos(time * 0.4 + i * 0.7) * 0.005;
+    });
+    // Actualizar conexiones
+    connectionLines.forEach(c => {
+      c.mat.opacity = Math.min(0.3, c.mat.opacity + dt);
+      // Pulso en las líneas
+      c.mat.opacity = 0.1 + 0.15 * Math.sin(time * 3 + c.a + c.b);
+    });
+    // Anillos orbitales
+    aiNodesGroup.children.forEach((child, i) => {
+      if (child.userData.mat) {
+        child.userData.mat.opacity = Math.min(0.4, child.userData.mat.opacity + dt);
+        child.rotation.x += dt * (0.5 + i * 0.1);
+        child.rotation.z += dt * 0.3;
+        child.position.copy(nodeMeshes[Math.min(i, nodeMeshes.length - 1)].position);
       }
     });
-
-    // Rotar partículas de energía
-    const epPos = epGeom.attributes.position.array;
-    for (let i = 0; i < energyPartCount; i++) {
-      const angle = epPhases[i] + time * epSpeeds[i] * 0.3;
-      const r = 1.2 + (i / energyPartCount) * 2;
-      epPos[i * 3] = Math.cos(angle) * r;
-      epPos[i * 3 + 2] = Math.sin(angle) * r;
-      epPos[i * 3 + 1] = 2.5 + Math.sin(time * epSpeeds[i] + i) * 0.8;
-    }
-    epGeom.attributes.position.needsUpdate = true;
   }
 
-  // Luces de acento pulsantes
-  accentLight1.intensity = 1.5 + Math.sin(time * 1.5) * 0.5;
-  accentLight2.intensity = 0.8 + Math.sin(time * 2 + 1) * 0.3;
+  // ---- SIMULACIÓN: RED NEURONAL ----
+  if (neuralGroup.visible) {
+    const { neuronMeshes, connectionLines } = neuralGroup.userData;
+    // Activación secuencial de neuronas
+    const wavePhase = (time * 0.5) % 1.0;
+    neuronMeshes.forEach((layer, li) => {
+      const layerPhase = li / (neuronMeshes.length - 1);
+      const activation = Math.max(0, 1 - Math.abs(wavePhase - layerPhase) * 4);
+      layer.forEach((n, ni) => {
+        const localActivation = activation * (0.5 + 0.5 * Math.sin(time * 4 + ni * 2));
+        n.mat.emissiveIntensity = Math.max(0.1, localActivation);
+      });
+    });
+    // Pulso en conexiones
+    connectionLines.forEach((c, i) => {
+      const linePhase = (time * 0.8 + i * 0.01) % 1.0;
+      c.mat.opacity = 0.05 + 0.2 * Math.max(0, Math.sin(linePhase * Math.PI));
+    });
+  }
 
-  // Simulaciones
-  animateBiomechanics(time);
-  animateSwarm(time);
-  updateHUD(time);
+  // ---- SIMULACIÓN: HUD TÁCTICO 3D ----
+  if (hud3dGroup.visible) {
+    hud3dGroup.children.forEach(child => {
+      if (child.material && child.material.uniforms && child.material.uniforms.uTime) {
+        child.material.uniforms.uTime.value = time;
+      }
+      // Rotación de anillos orbitales
+      if (child.geometry && child.geometry.type === 'TorusGeometry') {
+        child.rotation.z += dt * 0.2;
+      }
+    });
+  }
+
+  // Actualizar luces de acento según estado
+  if (currentState === 'therapy') {
+    rimLight.intensity = 1.2 + 0.3 * Math.sin(time * 2);
+    bottomLight.intensity = 0.3 + 0.15 * Math.sin(time * 1.5);
+  } else if (currentState === 'emergency') {
+    rimLight.color.setHex(Math.sin(time * 8) > 0 ? 0xFF1744 : 0x440000);
+    rimLight.intensity = 1.5;
+  } else {
+    rimLight.color.setHex(0x4FC3F7);
+    rimLight.intensity = 1.2;
+    bottomLight.intensity = 0.3;
+  }
 
   renderer.render(scene, camera);
 }
 
 // ============================================================
-// REDIMENSIONAR VENTANA
+// RESIZE
 // ============================================================
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  if (arActive) {
-    const arCanvas = document.getElementById('ar-canvas');
-    arCanvas.width = window.innerWidth;
-    arCanvas.height = window.innerHeight;
-    if (arRenderer) arRenderer.setSize(arCanvas.width, arCanvas.height);
-    if (arCamera) {
-      arCamera.aspect = arCanvas.width / arCanvas.height;
-      arCamera.updateProjectionMatrix();
-    }
-  }
 });
 
 // ============================================================
-// INICIALIZAR
+// INICIO
 // ============================================================
-setTimeout(() => {
-  document.getElementById('loading').classList.add('hidden');
-}, 1500);
-
+setState('off');
 animate();
+
 </script>
 </body>
 </html>
