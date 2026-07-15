@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>CNIQN · Prototipo 3D Interactivo</title>
+<style>
+  :root{
+    --graphite: #3a3d42;
+    --graphite-dark: #24262a;
+    --graphite-darker: #16171a;
+    --cyan: #4FC3F7;
+    --cyan-soft: rgba(79,195,247,0.55);
+    --silver: #c9cdd2;
+    --clinical: #f2f5f7;
+    --anthracite: #1c1e21;
+    --panel-bg: rgba(28,30,33,0.82);
+    --font-ui: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'Consolas', 'SF Mono', 'Courier New', monospace;
+  }
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+    background: radial-gradient(ellipse at 50% 30%, #34383d 0%, #24262a 55%, #16171a 100%);
+    font-family: var(--font-ui);
+    color: var(--clinical);
+    user-select:none;
+  }
+  #canvas-container{ position:fixed; inset:0; z-index:1; }
+  canvas{ display:block; touch-action:none; }
+
+  /* ---------- TOP BAR ---------- */
+  #topbar{
+    position:fixed; top:0; left:0; right:0; z-index:10;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding:14px 22px; pointer-events:none;
+  }
+  #credential{
+    pointer-events:auto;
+    background:var(--panel-bg);
+    border:1px solid rgba(79,195,247,0.35);
+    border-radius:6px;
+    padding:8px 14px;
+    font-size:12.5px;
+    letter-spacing:0.4px;
+    backdrop-filter: blur(6px);
+    box-shadow:0 0 18px rgba(79,195,247,0.08);
+  }
+  #credential .role{ color:var(--cyan); font-size:10.5px; display:block; letter-spacing:1.2px; text-transform:uppercase; }
+  #credential .name{ font-weight:600; color:var(--clinical); }
+
+  #lang-switch{ pointer-events:auto; display:flex; gap:6px; }
+  .lang-btn{
+    background:var(--panel-bg); border:1px solid rgba(255,255,255,0.12);
+    color:var(--silver); padding:6px 12px; border-radius:5px; font-size:12px;
+    cursor:pointer; letter-spacing:0.5px; transition:all .2s;
+    backdrop-filter: blur(6px);
+  }
+  .lang-btn:hover{ border-color:var(--cyan); color:var(--cyan); }
+  .lang-btn.active{ background:rgba(79,195,247,0.16); color:var(--cyan); border-color:var(--cyan); }
+
+  /* ---------- TITLE BLOCK ---------- */
+  #title-block{
+    position:fixed; top:64px; left:0; right:0; text-align:center; z-index:9;
+    pointer-events:none;
+  }
+  #title-block h1{
+    margin:0; font-size:22px; letter-spacing:2px; font-weight:700; color:var(--clinical);
+    text-shadow:0 0 18px rgba(79,195,247,0.25);
+  }
+  #title-block h2{
+    margin:4px 0 0; font-size:13.5px; letter-spacing:3px; font-weight:500; color:var(--cyan);
+  }
+  #title-block .acronym{ margin-top:2px; font-size:10.5px; letter-spacing:5px; color:var(--silver); opacity:.7; }
+
+  .band{
+    position:fixed; left:50%; transform:translateX(-50%); z-index:9; pointer-events:none;
+    text-align:center; width:min(92vw,520px);
+  }
+  .band .band-title{
+    display:inline-block; border:1px solid rgba(79,195,247,0.45); border-radius:5px;
+    padding:6px 22px; font-size:14px; letter-spacing:2px; font-weight:600; color:var(--cyan);
+    background:rgba(20,22,25,0.55); backdrop-filter: blur(4px);
+    pointer-events:auto; cursor:pointer; transition:all .2s ease;
+  }
+  .band .band-title:hover{
+    background:rgba(79,195,247,0.18); box-shadow:0 0 22px rgba(79,195,247,0.35); transform:scale(1.03);
+  }
+  .band .band-title:active{ transform:scale(0.98); }
+  .band .band-title::after{
+    content:"▸ "; opacity:.65; font-size:10px; vertical-align:middle;
+  }
+  .band .band-sub{ margin-top:6px; font-size:10.5px; letter-spacing:1px; color:var(--silver); opacity:.85; }
+  #band-top{ top:150px; }
+  #band-bottom{ bottom:70px; }
+
+  /* ---------- FOOTER ---------- */
+  #footer{
+    position:fixed; bottom:0; left:0; right:0; z-index:9;
+    background:rgba(18,19,22,0.75); border-top:1px solid rgba(79,195,247,0.25);
+    padding:9px 18px; display:flex; justify-content:center; gap:34px; flex-wrap:wrap;
+    font-size:10.5px; letter-spacing:1px; color:var(--silver); backdrop-filter: blur(6px);
+  }
+  #footer span{ display:flex; align-items:center; gap:7px; }
+  #footer .dot{ width:6px; height:6px; border-radius:50%; background:var(--cyan); box-shadow:0 0 8px var(--cyan); }
+
+  /* ---------- CONTROLS DOCK (bottom-left) ---------- */
+  #dock{
+    position:fixed; bottom:52px; left:16px; z-index:11; display:flex; flex-direction:column; gap:8px;
+  }
+  .dock-btn{
+    background:var(--panel-bg); border:1px solid rgba(255,255,255,0.14); color:var(--silver);
+    padding:9px 14px; border-radius:6px; font-size:12px; cursor:pointer; letter-spacing:0.5px;
+    display:flex; align-items:center; gap:8px; backdrop-filter: blur(6px); transition:all .2s;
+    min-width:168px;
+  }
+  .dock-btn:hover{ border-color:var(--cyan); color:var(--cyan); }
+  .dock-btn.on{ background:rgba(79,195,247,0.16); color:var(--cyan); border-color:var(--cyan); }
+  .dock-btn .ic{ font-size:14px; }
+
+  /* ---------- SIMULATOR PANEL ---------- */
+  #sim-panel{
+    position:fixed; top:0; right:-420px; width:400px; height:100%; z-index:20;
+    background:var(--panel-bg); border-left:1px solid rgba(79,195,247,0.3);
+    backdrop-filter: blur(10px); transition:right .35s ease; padding:18px 16px;
+    overflow-y:auto; font-size:12.5px;
+  }
+  #sim-panel.open{ right:0; }
+  #sim-panel h3{ margin:0 0 10px; font-size:14px; letter-spacing:1.5px; color:var(--cyan); }
+  #sim-close{
+    position:absolute; top:14px; right:14px; cursor:pointer; color:var(--silver);
+    background:none; border:none; font-size:18px;
+  }
+  .tabs{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+  .tab-btn{
+    background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--silver);
+    padding:6px 10px; border-radius:5px; font-size:10.5px; cursor:pointer; letter-spacing:0.3px;
+  }
+  .tab-btn.active{ background:rgba(79,195,247,0.18); border-color:var(--cyan); color:var(--cyan); }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; animation:fadein .25s ease; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+  .tab-panel p.desc{ color:var(--silver); opacity:.85; line-height:1.5; margin:0 0 12px; }
+  .field{ margin-bottom:12px; }
+  .field label{ display:block; margin-bottom:5px; color:var(--silver); font-size:11px; letter-spacing:.3px; }
+  .field input[type=range]{ width:100%; accent-color:var(--cyan); }
+  .btn-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;}
+  .action-btn{
+    background:rgba(79,195,247,0.12); border:1px solid var(--cyan); color:var(--cyan);
+    padding:7px 12px; border-radius:5px; font-size:11px; cursor:pointer; letter-spacing:.3px;
+  }
+  .action-btn:hover{ background:rgba(79,195,247,0.24); }
+  .readout{
+    font-family:var(--font-mono); font-size:11px; color:var(--cyan); background:rgba(0,0,0,0.25);
+    padding:8px 10px; border-radius:5px; margin-top:8px; line-height:1.6; white-space:pre-line;
+  }
+  .mode-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .mode-card{
+    border:1px solid rgba(255,255,255,0.12); border-radius:6px; padding:10px; cursor:pointer;
+    text-align:center; font-size:11px; color:var(--silver); background:rgba(255,255,255,0.03);
+  }
+  .mode-card.active{ border-color:var(--cyan); color:var(--cyan); background:rgba(79,195,247,0.12); }
+  .jump-card{
+    border:1px solid rgba(255,255,255,0.12); border-radius:6px; padding:10px; cursor:pointer;
+    text-align:center; font-size:11px; color:var(--silver); background:rgba(255,255,255,0.03);
+    transition:all .2s ease;
+  }
+  .jump-card:hover{ border-color:var(--cyan); color:var(--cyan); background:rgba(79,195,247,0.1); }
+
+  .bar-chart{ margin-top:16px; display:flex; flex-direction:column; gap:9px; }
+  .bar-row{ display:flex; align-items:center; gap:8px; }
+  .bar-label{ width:88px; font-size:10.5px; color:var(--silver); flex-shrink:0; }
+  .bar-track{ flex:1; height:9px; background:rgba(255,255,255,0.07); border-radius:5px; overflow:hidden; }
+  .bar-fill{ height:100%; width:0%; background:linear-gradient(90deg, rgba(79,195,247,0.5), var(--cyan)); border-radius:5px; transition:width .5s ease; box-shadow:0 0 8px rgba(79,195,247,0.5); }
+  .bar-pct{ width:38px; font-size:10.5px; color:var(--cyan); text-align:right; font-family:var(--font-mono); flex-shrink:0; }
+
+  /* ---------- HUD TACTICO OVERLAY ---------- */
+  #hud-overlay{
+    position:fixed; inset:0; z-index:8; pointer-events:none; display:none; font-family:var(--font-mono);
+  }
+  #hud-overlay.on{ display:block; }
+  .hud-corner{ position:absolute; width:26px; height:26px; border-color:var(--cyan); opacity:.8; }
+  .hud-corner.tl{ top:80px; left:16px; border-top:2px solid var(--cyan); border-left:2px solid var(--cyan); }
+  .hud-corner.tr{ top:80px; right:16px; border-top:2px solid var(--cyan); border-right:2px solid var(--cyan); }
+  .hud-corner.bl{ bottom:100px; left:16px; border-bottom:2px solid var(--cyan); border-left:2px solid var(--cyan); }
+  .hud-corner.br{ bottom:100px; right:16px; border-bottom:2px solid var(--cyan); border-right:2px solid var(--cyan); }
+  #hud-telemetry{
+    position:absolute; left:22px; top:110px; font-size:11px; color:var(--cyan); line-height:1.7;
+    text-shadow:0 0 6px rgba(79,195,247,0.6); white-space:pre;
+  }
+  #hud-nodes{
+    position:absolute; right:22px; top:110px; font-size:10.5px; color:var(--silver); line-height:1.8;
+    text-align:right; white-space:pre;
+  }
+  #hud-scan{
+    position:absolute; left:50%; top:0; bottom:0; width:2px; background:linear-gradient(var(--cyan),transparent);
+    opacity:.25; transform:translateX(-50%); animation:hudscan 4s linear infinite;
+  }
+  @keyframes hudscan{ 0%{left:8%;} 100%{left:92%;} }
+
+  /* ---------- AR MODAL ---------- */
+  #ar-modal{
+    position:fixed; inset:0; z-index:50; background:rgba(10,11,13,0.88); display:none;
+    align-items:center; justify-content:center; backdrop-filter: blur(4px);
+  }
+  #ar-modal.show{ display:flex; }
+  #ar-modal .box{
+    max-width:420px; background:var(--panel-bg); border:1px solid var(--cyan); border-radius:10px;
+    padding:26px; text-align:center; font-size:13px; line-height:1.6; color:var(--silver);
+  }
+  #ar-modal .box h4{ color:var(--cyan); margin-top:0; letter-spacing:1px; }
+  #ar-modal .box button{
+    margin-top:16px; background:rgba(79,195,247,0.15); border:1px solid var(--cyan); color:var(--cyan);
+    padding:8px 18px; border-radius:6px; cursor:pointer; font-size:12px;
+  }
+
+  /* ---------- LOADER ---------- */
+  #loader{
+    position:fixed; inset:0; z-index:100; background:#1a1c1f; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px; transition:opacity 0.4s ease;
+  }
+  #loader.hidden{ opacity:0; pointer-events:none; }
+  #loader .ring{
+    width:54px; height:54px; border-radius:50%; border:3px solid rgba(79,195,247,0.15);
+    border-top-color:var(--cyan); animation:spin 1s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  #loader p{ color:var(--silver); font-size:12px; letter-spacing:1px; }
+
+  ::-webkit-scrollbar{ width:6px; }
+  ::-webkit-scrollbar-thumb{ background:rgba(79,195,247,0.35); border-radius:3px; }
+
+  @media (max-width: 760px){
+    #sim-panel{ width:100%; right:-100%; }
+    #title-block h1{ font-size:15px; letter-spacing:1px; }
+    #title-block h2{ font-size:10px; letter-spacing:1.5px; }
+    .band{ width:94vw; }
+    .band .band-title{ font-size:11px; padding:5px 12px; }
+    #dock{ bottom:120px; }
+    #hud-nodes{ display:none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="ring"></div>
+  <p id="loader-text">INICIALIZANDO NÚCLEO CUÁNTICO…</p>
+</div>
+
+<div id="canvas-container"></div>
+
+<div id="hud-overlay">
+  <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+  <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+  <div id="hud-scan"></div>
+  <div id="hud-telemetry"></div>
+  <div id="hud-nodes"></div>
+</div>
+
+<div id="topbar">
+  <div id="credential">
+    <span class="role" data-i18n="credRole">Dirección Científica</span>
+    <span class="name">Dr. Julio César Oporta Barrera</span>
+  </div>
+  <div id="lang-switch">
+    <button class="lang-btn" data-lang="es">ES</button>
+    <button class="lang-btn" data-lang="en">EN</button>
+    <button class="lang-btn" data-lang="zh">中文</button>
+  </div>
+</div>
+
+<div id="title-block">
+  <h1 data-i18n="mainTitle">CENTRO NICARAGÜENSE DE INTELIGENCIA CUÁNTICA Y NEUROCOGNITIVA</h1>
+  <h2 data-i18n="subTitle">PROTOTIPO 3D INTERACTIVO</h2>
+  <div class="acronym">C N I Q N</div>
+</div>
+
+<div class="band" id="band-top">
+  <div class="band-title" data-i18n="thinkTank">THINK TANK ESTRATÉGICO</div>
+  <div class="band-sub" data-i18n="thinkTankSub">Prospectiva · Asesoría · Evaluación de riesgos · Impacto multisectorial</div>
+</div>
+
+<div class="band" id="band-bottom">
+  <div class="band-title" data-i18n="lab">LABORATORIO DE DESARROLLO</div>
+  <div class="band-sub" data-i18n="labSub">Algoritmos · Simulación · Prototipado digital · Aplicaciones estratégicas</div>
+</div>
+
+<div id="dock">
+  <button class="dock-btn" id="btn-sim"><span class="ic">◧</span><span data-i18n="btnSim">Simulador interactivo</span></button>
+  <button class="dock-btn" id="btn-hud"><span class="ic">▣</span><span data-i18n="btnHud">HUD táctico</span></button>
+  <button class="dock-btn" id="btn-rotate"><span class="ic">⟳</span><span data-i18n="btnRotate">Rotación automática</span></button>
+  <button class="dock-btn" id="btn-ar"><span class="ic">◎</span><span data-i18n="btnAr">Ver en Realidad Aumentada</span></button>
+</div>
+
+<div id="footer">
+  <span><i class="dot"></i><span data-i18n="fEtica">Ética Científica</span></span>
+  <span><i class="dot"></i><span data-i18n="fDatos">Protección de Datos</span></span>
+  <span><i class="dot"></i><span data-i18n="fGob">Gobernanza Algorítmica</span></span>
+  <span><i class="dot"></i><span data-i18n="fSup">Supervisión Institucional</span></span>
+</div>
+
+<div id="sim-panel">
+  <button id="sim-close">✕</button>
+  <h3 data-i18n="simTitle">SIMULADOR INTERACTIVO CNIQN</h3>
+  <div class="tabs">
+    <button class="tab-btn" data-tab="thinktank" data-i18n="tabThinkTank">Think Tank</button>
+    <button class="tab-btn" data-tab="lab" data-i18n="tabLab">Laboratorio</button>
+    <button class="tab-btn" data-tab="bio" data-i18n="tabBio">Biomecánica</button>
+    <button class="tab-btn" data-tab="phys" data-i18n="tabPhys">Física modular</button>
+    <button class="tab-btn" data-tab="energy" data-i18n="tabEnergy">Energía híbrida</button>
+    <button class="tab-btn" data-tab="swarm" data-i18n="tabSwarm">IA de enjambre</button>
+    <button class="tab-btn" data-tab="modes" data-i18n="tabModes">Modos operativos</button>
+    <button class="tab-btn" data-tab="hud" data-i18n="tabHudPanel">HUD táctico</button>
+    <button class="tab-btn" data-tab="shader" data-i18n="tabShader">Shaders avanzados</button>
+  </div>
+
+  <!-- PESTAÑA THINK TANK -->
+  <div class="tab-panel" id="panel-thinktank">
+    <p class="desc" data-i18n="ttDesc">Simulador de prospectiva estratégica: ajusta las variables del Think Tank y observa la proyección de impacto multisectorial en tiempo real.</p>
+    <div class="field"><label data-i18n="ttProspectiva">Prospectiva tecnológica</label><input type="range" id="tt-prospectiva" min="0" max="100" value="60"></div>
+    <div class="field"><label data-i18n="ttAsesoria">Asesoría y cooperación</label><input type="range" id="tt-asesoria" min="0" max="100" value="55"></div>
+    <div class="field"><label data-i18n="ttRiesgo">Exposición a riesgo</label><input type="range" id="tt-riesgo" min="0" max="100" value="40"></div>
+    <div class="field"><label data-i18n="ttImpacto">Impacto multisectorial</label><input type="range" id="tt-impacto" min="0" max="100" value="65"></div>
+    <div class="btn-row"><button class="action-btn" id="tt-run" data-i18n="ttRun">Ejecutar proyección</button></div>
+    <div class="bar-chart" id="tt-chart">
+      <div class="bar-row"><span class="bar-label" data-i18n="ttCientifico">Científico</span><div class="bar-track"><div class="bar-fill" id="bar-cientifico"></div></div><span class="bar-pct" id="pct-cientifico">0%</span></div>
+      <div class="bar-row"><span class="bar-label" data-i18n="ttEconomico">Económico</span><div class="bar-track"><div class="bar-fill" id="bar-economico"></div></div><span class="bar-pct" id="pct-economico">0%</span></div>
+      <div class="bar-row"><span class="bar-label" data-i18n="ttTecnologico">Tecnológico</span><div class="bar-track"><div class="bar-fill" id="bar-tecnologico"></div></div><span class="bar-pct" id="pct-tecnologico">0%</span></div>
+      <div class="bar-row"><span class="bar-label" data-i18n="ttEstrategico">Estratégico</span><div class="bar-track"><div class="bar-fill" id="bar-estrategico"></div></div><span class="bar-pct" id="pct-estrategico">0%</span></div>
+      <div class="bar-row"><span class="bar-label" data-i18n="ttInternacional">Internacional</span><div class="bar-track"><div class="bar-fill" id="bar-internacional"></div></div><span class="bar-pct" id="pct-internacional">0%</span></div>
+    </div>
+  </div>
+
+  <!-- PESTAÑA LABORATORIO -->
+  <div class="tab-panel" id="panel-lab">
+    <p class="desc" data-i18n="labDesc2">Simulación integral del Laboratorio de Desarrollo: lanza a la vez el motor de física modular, el flujo de energía híbrida y el enjambre de IA sobre el modelo 3D.</p>
+    <div class="btn-row"><button class="action-btn" id="lab-run" data-i18n="labRun">Ejecutar simulación de laboratorio</button></div>
+    <div class="readout" id="lab-readout" data-i18n="labIdle">En espera. Pulsa el botón para iniciar la simulación combinada.</div>
+    <p class="desc" style="margin-top:14px;" data-i18n="labJump">También puedes abrir cada módulo por separado:</p>
+    <div class="mode-grid">
+      <div class="jump-card" data-jump="bio" data-i18n="tabBio">Biomecánica</div>
+      <div class="jump-card" data-jump="phys" data-i18n="tabPhys">Física modular</div>
+      <div class="jump-card" data-jump="energy" data-i18n="tabEnergy">Energía híbrida</div>
+      <div class="jump-card" data-jump="swarm" data-i18n="tabSwarm">IA de enjambre</div>
+    </div>
+  </div>
+
+  <!-- RESTO DE PESTAÑAS -->
+  <div class="tab-panel" id="panel-bio">
+    <p class="desc" data-i18n="bioDesc">Simulación de una cadena articulada biomecánica en tiempo real, aplicada al modelado de sistemas neurocognitivos.</p>
+    <div class="field"><label data-i18n="bioFreq">Frecuencia de movimiento</label><input type="range" id="bio-freq" min="0" max="100" value="40"></div>
+    <div class="field"><label data-i18n="bioAmp">Amplitud articular</label><input type="range" id="bio-amp" min="0" max="100" value="50"></div>
+  </div>
+
+  <div class="tab-panel" id="panel-phys">
+    <p class="desc" data-i18n="physDesc">Motor de física modular: cada módulo responde a gravedad, colisión y rebote de forma independiente.</p>
+    <div class="btn-row">
+      <button class="action-btn" id="phys-drop" data-i18n="physDrop">Liberar módulos</button>
+      <button class="action-btn" id="phys-reset" data-i18n="physReset">Reiniciar</button>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel-energy">
+    <p class="desc" data-i18n="energyDesc">Flujo de energía híbrida entre nodos del sistema, con intensidad ajustable en tiempo real.</p>
+    <div class="field"><label data-i18n="energyLoad">Carga energética</label><input type="range" id="energy-load" min="0" max="100" value="55"></div>
+    <div class="readout" id="energy-readout"></div>
+  </div>
+
+  <div class="tab-panel" id="panel-swarm">
+    <p class="desc" data-i18n="swarmDesc">Enjambre de agentes autónomos con reglas de cohesión, separación y alineación (IA distribuida).</p>
+    <div class="field"><label data-i18n="swarmCohesion">Cohesión</label><input type="range" id="swarm-cohesion" min="0" max="100" value="45"></div>
+    <div class="field"><label data-i18n="swarmSpeed">Velocidad</label><input type="range" id="swarm-speed" min="0" max="100" value="50"></div>
+  </div>
+
+  <div class="tab-panel" id="panel-modes">
+    <p class="desc" data-i18n="modesDesc">Selecciona un estado operativo del sistema. Cada modo reconfigura color, energía y comportamiento del núcleo.</p>
+    <div class="mode-grid">
+      <div class="mode-card active" data-mode="normal" data-i18n="modeNormal">Normal</div>
+      <div class="mode-card" data-mode="strategic" data-i18n="modeStrategic">Estratégico</div>
+      <div class="mode-card" data-mode="research" data-i18n="modeResearch">Investigación</div>
+      <div class="mode-card" data-mode="alert" data-i18n="modeAlert">Emergencia</div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel-hud">
+    <p class="desc" data-i18n="hudDesc">Activa la superposición táctica con telemetría en tiempo real del núcleo y los nodos del sistema.</p>
+    <div class="btn-row"><button class="action-btn" id="hud-toggle-btn" data-i18n="hudToggle">Activar HUD táctico</button></div>
+  </div>
+
+  <div class="tab-panel" id="panel-shader">
+    <p class="desc" data-i18n="shaderDesc">Alterna entre material físico estándar y un shader holográfico avanzado (fresnel + escaneo) para el núcleo.</p>
+    <div class="btn-row"><button class="action-btn" id="shader-toggle-btn" data-i18n="shaderToggle">Activar shader holográfico</button></div>
+  </div>
+</div>
+
+<div id="ar-modal">
+  <div class="box">
+    <h4 data-i18n="arTitle">REALIDAD AUMENTADA</h4>
+    <p id="ar-message" data-i18n="arUnsupported">Este dispositivo o navegador no expone una sesión WebXR de AR en este contexto (archivo local). Para usar AR con cámara, abre este mismo archivo desde un servidor con HTTPS en un teléfono Android compatible con ARCore (Chrome). Mientras tanto puedes activar el modo de rotación libre por giroscopio.</p>
+    <button id="ar-gyro-btn" data-i18n="arGyro">Activar modo giroscopio</button>
+    <button id="ar-close" data-i18n="arClose">Cerrar</button>
+  </div>
+</div>
+
+<!-- ====== THREE.JS DESDE CDN (VERSIÓN MODERNA) ====== -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.150.0/three.min.js"></script>
+
+<!-- ====== CÓDIGO DE LA APLICACIÓN ====== -->
+<script>
+(function(){
+"use strict";
+
+/* ---------------- I18N ---------------- */
+const I18N = {
+  es:{
+    credRole:"Dirección Científica",
+    mainTitle:"CENTRO NICARAGÜENSE DE INTELIGENCIA CUÁNTICA Y NEUROCOGNITIVA",
+    subTitle:"PROTOTIPO 3D INTERACTIVO",
+    thinkTank:"THINK TANK ESTRATÉGICO",
+    thinkTankSub:"Prospectiva · Asesoría · Evaluación de riesgos · Impacto multisectorial",
+    lab:"LABORATORIO DE DESARROLLO",
+    labSub:"Algoritmos · Simulación · Prototipado digital · Aplicaciones estratégicas",
+    btnSim:"Simulador interactivo", btnHud:"HUD táctico", btnRotate:"Rotación automática", btnAr:"Ver en Realidad Aumentada",
+    fEtica:"Ética Científica", fDatos:"Protección de Datos", fGob:"Gobernanza Algorítmica", fSup:"Supervisión Institucional",
+    simTitle:"SIMULADOR INTERACTIVO CNIQN",
+    tabBio:"Biomecánica", tabPhys:"Física modular", tabEnergy:"Energía híbrida", tabSwarm:"IA de enjambre",
+    tabModes:"Modos operativos", tabHudPanel:"HUD táctico", tabShader:"Shaders avanzados",
+    tabThinkTank:"Think Tank", tabLab:"Laboratorio",
+    bioDesc:"Simulación de una cadena articulada biomecánica en tiempo real, aplicada al modelado de sistemas neurocognitivos.",
+    bioFreq:"Frecuencia de movimiento", bioAmp:"Amplitud articular",
+    physDesc:"Motor de física modular: cada módulo responde a gravedad, colisión y rebote de forma independiente.",
+    physDrop:"Liberar módulos", physReset:"Reiniciar",
+    energyDesc:"Flujo de energía híbrida entre nodos del sistema, con intensidad ajustable en tiempo real.",
+    energyLoad:"Carga energética",
+    swarmDesc:"Enjambre de agentes autónomos con reglas de cohesión, separación y alineación (IA distribuida).",
+    swarmCohesion:"Cohesión", swarmSpeed:"Velocidad",
+    modesDesc:"Selecciona un estado operativo del sistema. Cada modo reconfigura color, energía y comportamiento del núcleo.",
+    modeNormal:"Normal", modeStrategic:"Estratégico", modeResearch:"Investigación", modeAlert:"Emergencia",
+    hudDesc:"Activa la superposición táctica con telemetría en tiempo real del núcleo y los nodos del sistema.",
+    hudToggle:"Activar HUD táctico", hudToggleOff:"Desactivar HUD táctico",
+    shaderDesc:"Alterna entre material físico estándar y un shader holográfico avanzado (fresnel + escaneo) para el núcleo.",
+    shaderToggle:"Activar shader holográfico", shaderToggleOff:"Desactivar shader holográfico",
+    arTitle:"REALIDAD AUMENTADA",
+    arUnsupported:"Este dispositivo o navegador no expone una sesión WebXR de AR en este contexto (archivo local). Para usar AR con cámara, abre este mismo archivo desde un servidor con HTTPS en un teléfono Android compatible con ARCore (Chrome). Mientras tanto puedes activar el modo de rotación libre por giroscopio.",
+    arSupported:"Tu dispositivo expone soporte WebXR AR. Se abrirá la cámara y podrás colocar el prototipo sobre tu mesa de trabajo.",
+    arLaunch:"Iniciar sesión AR", arGyro:"Activar modo giroscopio", arClose:"Cerrar",
+    loaderText:"INICIALIZANDO NÚCLEO CUÁNTICO…",
+    n1:"Modelado Cuántico Aplicado", n2:"Neurocognición Computacional", n3:"IA Híbrida",
+    n4:"Optimización Energética", n5:"Bioseguridad Predictiva", n6:"Prospectiva Económica",
+    hudCoherence:"Coherencia cuántica", hudTemp:"Temp. núcleo", hudEnergy:"Flujo energético", hudSync:"Sincronía neuronal",
+    hudNodesTitle:"ESTADO DE NODOS", hudLat:"Lat", hudLon:"Lon", modeLabel:"MODO",
+    ttDesc:"Simulador de prospectiva estratégica: ajusta las variables del Think Tank y observa la proyección de impacto multisectorial en tiempo real.",
+    ttProspectiva:"Prospectiva tecnológica", ttAsesoria:"Asesoría y cooperación", ttRiesgo:"Exposición a riesgo", ttImpacto:"Impacto multisectorial",
+    ttRun:"Ejecutar proyección",
+    ttCientifico:"Científico", ttEconomico:"Económico", ttTecnologico:"Tecnológico", ttEstrategico:"Estratégico", ttInternacional:"Internacional",
+    labDesc2:"Simulación integral del Laboratorio de Desarrollo: lanza a la vez el motor de física modular, el flujo de energía híbrida y el enjambre de IA sobre el modelo 3D.",
+    labRun:"Ejecutar simulación de laboratorio",
+    labIdle:"En espera. Pulsa el botón para iniciar la simulación combinada.",
+    labRunning:"Simulación en curso: física modular activa · flujo energético al 85% · enjambre acelerado.",
+    labJump:"También puedes abrir cada módulo por separado:"
+  },
+  en:{
+    credRole:"Scientific Direction",
+    mainTitle:"NICARAGUAN CENTER FOR QUANTUM & NEUROCOGNITIVE INTELLIGENCE",
+    subTitle:"INTERACTIVE 3D PROTOTYPE",
+    thinkTank:"STRATEGIC THINK TANK",
+    thinkTankSub:"Foresight · Advisory · Risk assessment · Multisectoral impact",
+    lab:"DEVELOPMENT LABORATORY",
+    labSub:"Algorithms · Simulation · Digital prototyping · Strategic applications",
+    btnSim:"Interactive simulator", btnHud:"Tactical HUD", btnRotate:"Auto rotation", btnAr:"View in Augmented Reality",
+    fEtica:"Scientific Ethics", fDatos:"Data Protection", fGob:"Algorithmic Governance", fSup:"Institutional Oversight",
+    simTitle:"CNIQN INTERACTIVE SIMULATOR",
+    tabBio:"Biomechanics", tabPhys:"Modular physics", tabEnergy:"Hybrid energy", tabSwarm:"Swarm AI",
+    tabModes:"Operational modes", tabHudPanel:"Tactical HUD", tabShader:"Advanced shaders",
+    tabThinkTank:"Think Tank", tabLab:"Laboratory",
+    bioDesc:"Real-time simulation of an articulated biomechanical chain, applied to neurocognitive system modeling.",
+    bioFreq:"Movement frequency", bioAmp:"Joint amplitude",
+    physDesc:"Modular physics engine: each module responds independently to gravity, collision and bounce.",
+    physDrop:"Release modules", physReset:"Reset",
+    energyDesc:"Hybrid energy flow between system nodes, with adjustable real-time intensity.",
+    energyLoad:"Energy load",
+    swarmDesc:"Swarm of autonomous agents with cohesion, separation and alignment rules (distributed AI).",
+    swarmCohesion:"Cohesion", swarmSpeed:"Speed",
+    modesDesc:"Select an operational state for the system. Each mode reconfigures the core's color, energy and behavior.",
+    modeNormal:"Normal", modeStrategic:"Strategic", modeResearch:"Research", modeAlert:"Emergency",
+    hudDesc:"Enable the tactical overlay with real-time telemetry from the core and system nodes.",
+    hudToggle:"Enable tactical HUD", hudToggleOff:"Disable tactical HUD",
+    shaderDesc:"Toggle between standard physical material and an advanced holographic shader (fresnel + scanline) for the core.",
+    shaderToggle:"Enable holographic shader", shaderToggleOff:"Disable holographic shader",
+    arTitle:"AUGMENTED REALITY",
+    arUnsupported:"This device or browser does not expose a WebXR AR session in this context (local file). To use camera-based AR, open this same file from an HTTPS server on an ARCore-compatible Android phone (Chrome). Meanwhile you can enable free gyroscope rotation mode.",
+    arSupported:"Your device exposes WebXR AR support. The camera will open so you can place the prototype on your work table.",
+    arLaunch:"Start AR session", arGyro:"Enable gyroscope mode", arClose:"Close",
+    loaderText:"INITIALIZING QUANTUM CORE…",
+    n1:"Applied Quantum Modeling", n2:"Computational Neurocognition", n3:"Hybrid AI",
+    n4:"Energy Optimization", n5:"Predictive Biosafety", n6:"Economic Foresight",
+    hudCoherence:"Quantum coherence", hudTemp:"Core temp.", hudEnergy:"Energy flow", hudSync:"Neural sync",
+    hudNodesTitle:"NODE STATUS", hudLat:"Lat", hudLon:"Lon", modeLabel:"MODE",
+    ttDesc:"Strategic foresight simulator: adjust the Think Tank variables and watch the multisectoral impact projection update in real time.",
+    ttProspectiva:"Technology foresight", ttAsesoria:"Advisory & cooperation", ttRiesgo:"Risk exposure", ttImpacto:"Multisectoral impact",
+    ttRun:"Run projection",
+    ttCientifico:"Scientific", ttEconomico:"Economic", ttTecnologico:"Technological", ttEstrategico:"Strategic", ttInternacional:"International",
+    labDesc2:"Integrated Development Laboratory simulation: launches the modular physics engine, hybrid energy flow and AI swarm on the 3D model at once.",
+    labRun:"Run laboratory simulation",
+    labIdle:"Standing by. Press the button to start the combined simulation.",
+    labRunning:"Simulation running: modular physics active · energy flow at 85% · swarm accelerated.",
+    labJump:"You can also open each module separately:"
+  },
+  zh:{
+    credRole:"科学主任",
+    mainTitle:"尼加拉瓜量子与神经认知智能中心",
+    subTitle:"交互式三维原型",
+    thinkTank:"战略智库",
+    thinkTankSub:"前瞻研究 · 咨询服务 · 风险评估 · 多部门影响",
+    lab:"研发实验室",
+    labSub:"算法开发 · 仿真模拟 · 数字原型 · 战略应用",
+    btnSim:"交互式模拟器", btnHud:"战术HUD", btnRotate:"自动旋转", btnAr:"增强现实查看",
+    fEtica:"科学伦理", fDatos:"数据保护", fGob:"算法治理", fSup:"机构监督",
+    simTitle:"CNIQN 交互式模拟器",
+    tabBio:"生物力学", tabPhys:"模块化物理", tabEnergy:"混合能源", tabSwarm:"群体人工智能",
+    tabModes:"运行模式", tabHudPanel:"战术HUD", tabShader:"高级着色器",
+    tabThinkTank:"智库", tabLab:"实验室",
+    bioDesc:"实时模拟生物力学关节链，应用于神经认知系统建模。",
+    bioFreq:"运动频率", bioAmp:"关节幅度",
+    physDesc:"模块化物理引擎：每个模块独立响应重力、碰撞和反弹。",
+    physDrop:"释放模块", physReset:"重置",
+    energyDesc:"系统节点之间的混合能源流动，可实时调节强度。",
+    energyLoad:"能源负载",
+    swarmDesc:"具有聚合、分离和对齐规则的自主智能体群（分布式人工智能）。",
+    swarmCohesion:"聚合度", swarmSpeed:"速度",
+    modesDesc:"选择系统的运行状态。每种模式都会重新配置核心的颜色、能量和行为。",
+    modeNormal:"正常", modeStrategic:"战略", modeResearch:"研究", modeAlert:"紧急",
+    hudDesc:"启用战术叠加层，实时显示核心与节点的遥测数据。",
+    hudToggle:"启用战术HUD", hudToggleOff:"关闭战术HUD",
+    shaderDesc:"在标准物理材质与高级全息着色器（菲涅尔+扫描线）之间切换核心外观。",
+    shaderToggle:"启用全息着色器", shaderToggleOff:"关闭全息着色器",
+    arTitle:"增强现实",
+    arUnsupported:"当前设备或浏览器在此环境（本地文件）下未提供 WebXR AR 会话。如需使用摄像头AR，请通过HTTPS服务器在支持ARCore的安卓手机（Chrome）上打开此文件。同时您可以启用陀螺仪自由旋转模式。",
+    arSupported:"您的设备支持 WebXR AR。摄像头即将开启，您可以将原型放置在工作台上。",
+    arLaunch:"启动AR会话", arGyro:"启用陀螺仪模式", arClose:"关闭",
+    loaderText:"正在初始化量子核心…",
+    n1:"应用量子建模", n2:"计算神经认知", n3:"混合人工智能",
+    n4:"能源优化", n5:"预测性生物安全", n6:"经济前瞻",
+    hudCoherence:"量子相干性", hudTemp:"核心温度", hudEnergy:"能量流", hudSync:"神经同步",
+    hudNodesTitle:"节点状态", hudLat:"纬度", hudLon:"经度", modeLabel:"模式",
+    ttDesc:"战略前瞻模拟器：调整智库变量，实时观察多部门影响预测。",
+    ttProspectiva:"技术前瞻", ttAsesoria:"咨询与合作", ttRiesgo:"风险敞口", ttImpacto:"多部门影响",
+    ttRun:"运行预测",
+    ttCientifico:"科学", ttEconomico:"经济", ttTecnologico:"技术", ttEstrategico:"战略", ttInternacional:"国际",
+    labDesc2:"研发实验室综合仿真：同时在三维模型上启动模块化物理引擎、混合能源流动和群体人工智能。",
+    labRun:"运行实验室仿真",
+    labIdle:"待机中。点击按钮开始综合仿真。",
+    labRunning:"仿真运行中：模块化物理已激活 · 能源流达85% · 群体加速。",
+    labJump:"您也可以单独打开每个模块："
+  }
+};
+let currentLang = "es";
+window.__CNIQN_I18N__ = I18N;
+window.__CNIQN_GET_LANG__ = ()=>currentLang;
+
+/* ---------------- RENDERER / SCENE / CAMERA ---------------- */
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x24262a, 0.028);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 500);
+camera.position.set(0, 0.6, 15.5);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.xr.enabled = true;
+container.appendChild(renderer.domElement);
+
+/* ---------------- CINEMATIC LIGHTING ---------------- */
+const hemi = new THREE.HemisphereLight(0x8fa2ad, 0x1a1b1d, 0.55);
+scene.add(hemi);
+
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.35);
+keyLight.position.set(6, 9, 7);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(1024,1024);
+keyLight.shadow.camera.near = 1; keyLight.shadow.camera.far = 40;
+keyLight.shadow.camera.left = -12; keyLight.shadow.camera.right = 12;
+keyLight.shadow.camera.top = 12; keyLight.shadow.camera.bottom = -12;
+scene.add(keyLight);
+
+const rimLight = new THREE.DirectionalLight(0x4fc3f7, 1.1);
+rimLight.position.set(-8, 3, -6);
+scene.add(rimLight);
+
+const fillLight = new THREE.PointLight(0x8fbfe0, 0.5, 30);
+fillLight.position.set(-5, -4, 6);
+scene.add(fillLight);
+
+const coreGlowLight = new THREE.PointLight(0x4fc3f7, 2.2, 14, 2);
+coreGlowLight.position.set(0,0,0);
+scene.add(coreGlowLight);
+
+/* ---------------- GROUND ---------------- */
+const groundMat = new THREE.MeshStandardMaterial({ color:0x1f2124, roughness:0.95, metalness:0.05 });
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(80,80), groundMat);
+ground.rotation.x = -Math.PI/2;
+ground.position.y = -4.6;
+ground.receiveShadow = true;
+scene.add(ground);
+const gridHelper = new THREE.GridHelper(80, 40, 0x4fc3f7, 0x2b2e32);
+gridHelper.position.y = -4.58;
+gridHelper.material.opacity = 0.12;
+gridHelper.material.transparent = true;
+scene.add(gridHelper);
+
+/* ---------------- STARFIELD ---------------- */
+const starCount = 900;
+const starGeo = new THREE.BufferGeometry();
+const starPos = new Float32Array(starCount*3);
+for(let i=0;i<starCount;i++){
+  const r = 40 + Math.random()*60;
+  const theta = Math.random()*Math.PI*2;
+  const phi = Math.acos((Math.random()*2)-1);
+  starPos[i*3]   = r*Math.sin(phi)*Math.cos(theta);
+  starPos[i*3+1] = r*Math.cos(phi)*0.6;
+  starPos[i*3+2] = r*Math.sin(phi)*Math.sin(theta);
+}
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos,3));
+const starMat = new THREE.PointsMaterial({ color:0x9fd6f2, size:0.09, transparent:true, opacity:0.55, sizeAttenuation:true });
+const stars = new THREE.Points(starGeo, starMat);
+scene.add(stars);
+
+/* ---------------- MATERIAL LIBRARY ---------------- */
+const MAT = {
+  titanium: new THREE.MeshPhysicalMaterial({ color:0x53565c, metalness:0.85, roughness:0.38, clearcoat:0.25, clearcoatRoughness:0.5 }),
+  graphite: new THREE.MeshPhysicalMaterial({ color:0x2f3134, metalness:0.7, roughness:0.5 }),
+  silver:   new THREE.MeshPhysicalMaterial({ color:0xc9cdd2, metalness:0.9, roughness:0.28, clearcoat:0.4 }),
+  clinical: new THREE.MeshStandardMaterial({ color:0xeef2f4, metalness:0.15, roughness:0.55 }),
+  cyanGlow: new THREE.MeshStandardMaterial({ color:0x4fc3f7, emissive:0x4fc3f7, emissiveIntensity:1.4, metalness:0.3, roughness:0.25 }),
+  cyanGlass:new THREE.MeshPhysicalMaterial({ color:0x2e5a6e, metalness:0.2, roughness:0.15, transmission:0.55, transparent:true, opacity:0.85, thickness:1.2, emissive:0x1c4a5c, emissiveIntensity:0.25 }),
+};
+
+/* ---------------- LABEL SPRITE FACTORY ---------------- */
+function makeLabelSprite(text, opts){
+  opts = opts || {};
+  const scale = opts.scale || 1;
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  const fontSize = opts.fontSize || 46;
+  canvas.width = 1024; canvas.height = 256;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.font = `600 ${fontSize}px Segoe UI, Arial, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = opts.color || 'rgba(79,195,247,0.9)';
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = opts.color || '#eaf6ff';
+  wrapText(ctx, text, canvas.width/2, canvas.height/2, 960, fontSize*1.15);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(3.6*scale, 0.9*scale, 1);
+  sprite.userData.setText = (t)=> updateLabelSprite(sprite, t, opts);
+  return sprite;
+}
+function wrapText(ctx, text, x, y, maxWidth, lineHeight){
+  const words = text.split(' ');
+  let line=''; const lines=[];
+  for(let n=0;n<words.length;n++){
+    const test = line + words[n] + ' ';
+    if(ctx.measureText(test).width > maxWidth && n>0){ lines.push(line); line = words[n]+' '; }
+    else line = test;
+  }
+  lines.push(line);
+  const startY = y - (lines.length-1)*lineHeight/2;
+  lines.forEach((l,i)=> ctx.fillText(l.trim(), x, startY + i*lineHeight));
+}
+function updateLabelSprite(sprite, text, opts){
+  opts = opts||{};
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024; canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  const fontSize = opts.fontSize || 46;
+  ctx.font = `600 ${fontSize}px Segoe UI, Arial, sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.shadowColor = opts.color || 'rgba(79,195,247,0.9)';
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = opts.color || '#eaf6ff';
+  wrapText(ctx, text, canvas.width/2, canvas.height/2, 960, fontSize*1.15);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  sprite.material.map.dispose();
+  sprite.material.map = tex;
+  sprite.material.needsUpdate = true;
+}
+
+/* ---------------- ORBIT CONTROLS ---------------- */
+function makeOrbitControls(cam, dom){
+  const state = { theta:0.0, phi:1.35, radius:15.5, target:new THREE.Vector3(0,0.2,0), dragging:false, lastX:0, lastY:0, autoRotate:false };
+  function update(){
+    const t = state.theta, p = Math.max(0.35, Math.min(2.7, state.phi));
+    cam.position.x = state.target.x + state.radius * Math.sin(p) * Math.sin(t);
+    cam.position.y = state.target.y + state.radius * Math.cos(p);
+    cam.position.z = state.target.z + state.radius * Math.sin(p) * Math.cos(t);
+    cam.lookAt(state.target);
+  }
+  dom.addEventListener('pointerdown', e=>{ state.dragging=true; state.lastX=e.clientX; state.lastY=e.clientY; });
+  window.addEventListener('pointerup', ()=> state.dragging=false);
+  window.addEventListener('pointermove', e=>{
+    if(!state.dragging) return;
+    const dx = e.clientX - state.lastX, dy = e.clientY - state.lastY;
+    state.lastX = e.clientX; state.lastY = e.clientY;
+    state.theta -= dx*0.0055;
+    state.phi   -= dy*0.0055;
+  });
+  dom.addEventListener('wheel', e=>{
+    e.preventDefault();
+    state.radius = Math.max(6, Math.min(34, state.radius + e.deltaY*0.012));
+  }, { passive:false });
+  let pinchDist = null;
+  dom.addEventListener('touchmove', e=>{
+    if(e.touches.length===2){
+      const dx = e.touches[0].clientX-e.touches[1].clientX;
+      const dy = e.touches[0].clientY-e.touches[1].clientY;
+      const dist = Math.sqrt(dx*dx+dy*dy);
+      if(pinchDist!==null){
+        state.radius = Math.max(6, Math.min(34, state.radius - (dist-pinchDist)*0.02));
+      }
+      pinchDist = dist;
+    }
+  }, { passive:true });
+  dom.addEventListener('touchend', ()=> pinchDist=null);
+  state.update = update;
+  update();
+  return state;
+}
+const controls = makeOrbitControls(camera, renderer.domElement);
+
+/* ---------------- RESIZE ---------------- */
+window.addEventListener('resize', ()=>{
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+window.__CNIQN_CORE__ = { scene, camera, renderer, controls, MAT, makeLabelSprite, updateLabelSprite };
+
+/* ============================================================
+   MODELO CENTRAL
+   ============================================================ */
+const modelRoot = new THREE.Group();
+scene.add(modelRoot);
+
+const coreGroup = new THREE.Group();
+modelRoot.add(coreGroup);
+
+const hemiGeo = new THREE.SphereGeometry(1.55, 48, 48);
+const hemiL = new THREE.Mesh(hemiGeo, MAT.cyanGlass.clone());
+hemiL.position.set(-0.62, 0, 0);
+hemiL.castShadow = true;
+const hemiR = new THREE.Mesh(hemiGeo, MAT.cyanGlass.clone());
+hemiR.position.set(0.62, 0, 0);
+hemiR.castShadow = true;
+coreGroup.add(hemiL, hemiR);
+
+const wireGeo = new THREE.IcosahedronGeometry(1.9, 1);
+const wireMat = new THREE.MeshBasicMaterial({ color:0x4fc3f7, wireframe:true, transparent:true, opacity:0.12 });
+const wireShell = new THREE.Mesh(wireGeo, wireMat);
+coreGroup.add(wireShell);
+
+const frameOuter = new THREE.Mesh(new THREE.BoxGeometry(0.85,0.85,0.85), new THREE.MeshBasicMaterial({color:0x4fc3f7, wireframe:true}));
+coreGroup.add(frameOuter);
+const frameInner = new THREE.Mesh(new THREE.BoxGeometry(0.28,0.28,0.28), MAT.titanium.clone());
+frameInner.material.emissive = new THREE.Color(0x4fc3f7);
+frameInner.material.emissiveIntensity = 0.6;
+coreGroup.add(frameInner);
+
+const innerArm = new THREE.Group();
+const innerArmDot = new THREE.Mesh(new THREE.SphereGeometry(0.09,16,16), MAT.cyanGlow.clone());
+innerArmDot.position.set(0.55,0.25,0);
+innerArm.add(innerArmDot);
+coreGroup.add(innerArm);
+
+const nicLabel = makeLabelSprite("NIC", { fontSize:64, color:'#eaf6ff' });
+nicLabel.position.set(0, 2.35, 0);
+nicLabel.scale.set(1.6,0.55,1);
+coreGroup.add(nicLabel);
+
+/* ---- Anillos orbitales ---- */
+const ringGroupA = new THREE.Group();
+const ringGroupB = new THREE.Group();
+coreGroup.add(ringGroupA, ringGroupB);
+
+function makeEllipticRing(rx, ry, color, opacity){
+  const curve = new THREE.EllipseCurve(0,0, rx, ry, 0, Math.PI*2, false, 0);
+  const points = curve.getPoints(128).map(p=>new THREE.Vector3(p.x,p.y,0));
+  const geo = new THREE.BufferGeometry().setFromPoints(points);
+  const mat = new THREE.LineDashedMaterial({ color, dashSize:0.18, gapSize:0.12, transparent:true, opacity });
+  const line = new THREE.LineLoop(geo, mat);
+  line.computeLineDistances();
+  return line;
+}
+const ringA = makeEllipticRing(3.1, 1.55, 0x4fc3f7, 0.55);
+ringA.rotation.x = Math.PI/2.3;
+ringGroupA.add(ringA);
+
+const ringB = makeEllipticRing(2.6, 2.6, 0xc9cdd2, 0.35);
+ringB.rotation.x = Math.PI/2;
+ringB.rotation.z = 0.4;
+ringGroupB.add(ringB);
+
+const satellites = [];
+function addSatellite(ringGroup, radiusVec, color, size, speed, offset){
+  const dot = new THREE.Mesh(new THREE.SphereGeometry(size,16,16), new THREE.MeshStandardMaterial({color, emissive:color, emissiveIntensity:1.1, metalness:0.4, roughness:0.3}));
+  ringGroup.add(dot);
+  satellites.push({ mesh:dot, rx:radiusVec.x, ry:radiusVec.y, speed, offset });
+}
+addSatellite(ringGroupA, {x:3.1,y:1.55}, 0x4fc3f7, 0.10, 0.6, 0);
+addSatellite(ringGroupA, {x:3.1,y:1.55}, 0x4fc3f7, 0.10, 0.6, Math.PI);
+addSatellite(ringGroupB, {x:2.6,y:2.6}, 0xf5b942, 0.075, -0.45, 0.8);
+addSatellite(ringGroupB, {x:2.6,y:2.6}, 0xf5b942, 0.075, -0.45, 0.8+Math.PI);
+
+/* ---- 6 nodos periféricos ---- */
+const nodeDefs = [
+  { key:'n1', pos:[-4.6, 3.1, -0.4], accent:0x4fc3f7 },
+  { key:'n2', pos:[ 4.6, 3.1, -0.4], accent:0x4fc3f7 },
+  { key:'n3', pos:[-7.0, 0.0,  0.2], accent:0xf5b942 },
+  { key:'n4', pos:[ 7.0, 0.0,  0.2], accent:0xf5b942 },
+  { key:'n5', pos:[-4.6,-3.1, -0.4], accent:0x4fc3f7 },
+  { key:'n6', pos:[ 4.6,-3.1, -0.4], accent:0x4fc3f7 },
+];
+const nodeMeshes = [];
+const nodeLabels = [];
+const connectors = [];
+
+function getText(key){
+  const lang = window.__CNIQN_GET_LANG__();
+  return window.__CNIQN_I18N__[lang][key];
+}
+
+nodeDefs.forEach((def, i)=>{
+  const group = new THREE.Group();
+  group.position.set(...def.pos);
+  modelRoot.add(group);
+
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.045, 16, 48), new THREE.MeshStandardMaterial({color:def.accent, emissive:def.accent, emissiveIntensity:0.9, metalness:0.5, roughness:0.3}));
+  group.add(ring);
+
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.30, 32, 32), MAT.titanium.clone());
+  core.castShadow = true;
+  group.add(core);
+
+  const numLabel = makeLabelSprite(String(i+1), { fontSize:90, color:'#ffffff', scale:0.42 });
+  numLabel.position.set(0,0,0.05);
+  group.add(numLabel);
+
+  const nameLabel = makeLabelSprite(getText(def.key), { fontSize:40, scale:0.9 });
+  nameLabel.position.set(0, -0.85, 0);
+  group.add(nameLabel);
+  nameLabel.userData.i18nKey = def.key;
+  nodeLabels.push(nameLabel);
+
+  const points = [new THREE.Vector3(0,0,0), group.position.clone()];
+  const geo = new THREE.BufferGeometry().setFromPoints(points);
+  const mat = new THREE.LineDashedMaterial({ color:def.accent, dashSize:0.22, gapSize:0.14, transparent:true, opacity:0.7 });
+  const line = new THREE.Line(geo, mat);
+  line.computeLineDistances();
+  modelRoot.add(line);
+  connectors.push(line);
+
+  nodeMeshes.push({ group, ring, core, baseY:def.pos[1], phase:i*0.7 });
+});
+
+window.__CNIQN_MODEL__ = {
+  modelRoot, coreGroup, wireShell, frameInner, innerArm, ringGroupA, ringGroupB,
+  satellites, nodeMeshes, nodeLabels, hemiL, hemiR
+};
+
+/* ============================================================
+   MÓDULOS DEL SIMULADOR
+   ============================================================ */
+const CORE = window.__CNIQN_CORE__;
+const MODEL = window.__CNIQN_MODEL__;
+const simScene = CORE.scene;
+
+/* ---- 1. BIOMECÁNICA ---- */
+const bioGroup = new THREE.Group();
+bioGroup.position.set(0, -3.0, 5.5);
+bioGroup.visible = true;
+simScene.add(bioGroup);
+const bioSegments = [];
+const BIO_N = 6;
+for(let i=0;i<BIO_N;i++){
+  const seg = new THREE.Group();
+  const bone = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.55, 6, 10), CORE.MAT.titanium.clone());
+  bone.rotation.z = Math.PI/2;
+  bone.position.x = 0.3;
+  bone.castShadow = true;
+  const joint = new THREE.Mesh(new THREE.SphereGeometry(0.135,16,16), CORE.MAT.cyanGlow.clone());
+  seg.add(bone, joint);
+  seg.position.x = i===0 ? 0 : 0.6;
+  bioGroup.add(seg);
+  if(i>0) bioSegments[i-1].group.add(seg);
+  bioSegments.push({ group:seg, phase:i*0.55 });
+}
+let bioParams = { freq:0.4, amp:0.5 };
+
+/* ---- 2. FÍSICA MODULAR ---- */
+const physGroup = new THREE.Group();
+simScene.add(physGroup);
+const physBodies = [];
+const FLOOR_Y = -4.55;
+function spawnPhysicsModule(){
+  const size = 0.28 + Math.random()*0.14;
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(size,size,size), CORE.MAT.silver.clone());
+  mesh.castShadow = true;
+  mesh.position.set((Math.random()-0.5)*3.2, 6+Math.random()*2, (Math.random()-0.5)*3.2 + 3);
+  mesh.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
+  physGroup.add(mesh);
+  physBodies.push({ mesh, vel:new THREE.Vector3((Math.random()-0.5)*0.02,0,(Math.random()-0.5)*0.02), size, rot:new THREE.Vector3(Math.random()*0.05,Math.random()*0.05,0) });
+}
+function resetPhysics(){ physBodies.forEach(b=>physGroup.remove(b.mesh)); physBodies.length = 0; }
+function stepPhysics(){
+  const g = -0.0062;
+  physBodies.forEach(b=>{
+    b.vel.y += g;
+    b.mesh.position.addScaledVector(b.vel, 1);
+    b.mesh.rotation.x += b.rot.x; b.mesh.rotation.y += b.rot.y;
+    const floor = FLOOR_Y + b.size/2;
+    if(b.mesh.position.y < floor){
+      b.mesh.position.y = floor;
+      b.vel.y *= -0.55;
+      b.vel.x *= 0.85; b.vel.z *= 0.85;
+    }
+  });
+}
+
+/* ---- 3. ENERGÍA HÍBRIDA ---- */
+const energyGroup = new THREE.Group();
+simScene.add(energyGroup);
+const energyStart = new THREE.Vector3(-7.0, 0.0, 0.2);
+const energyEnd   = new THREE.Vector3(7.0, 0.0, 0.2);
+const energyCurve = new THREE.CatmullRomCurve3([
+  energyStart, new THREE.Vector3(-2,1.4,1.2), new THREE.Vector3(0,0.4,1.6), new THREE.Vector3(2,1.4,1.2), energyEnd
+]);
+const ENERGY_N = 40;
+const energyParticles = [];
+for(let i=0;i<ENERGY_N;i++){
+  const p = new THREE.Mesh(new THREE.SphereGeometry(0.06,8,8), new THREE.MeshStandardMaterial({color:0x4fc3f7, emissive:0x4fc3f7, emissiveIntensity:1.6}));
+  energyGroup.add(p);
+  energyParticles.push({ mesh:p, t:i/ENERGY_N });
+}
+const energyPathGeo = new THREE.BufferGeometry().setFromPoints(energyCurve.getPoints(64));
+const energyPath = new THREE.Line(energyPathGeo, new THREE.LineBasicMaterial({color:0x4fc3f7, transparent:true, opacity:0.18}));
+energyGroup.add(energyPath);
+let energyLoad = 0.55;
+
+/* ---- 4. IA DE ENJAMBRE ---- */
+const swarmGroup = new THREE.Group();
+simScene.add(swarmGroup);
+const SWARM_N = 34;
+const swarmAgents = [];
+for(let i=0;i<SWARM_N;i++){
+  const m = new THREE.Mesh(new THREE.ConeGeometry(0.05,0.16,6), new THREE.MeshStandardMaterial({color:0xc9cdd2, emissive:0x2b6f8f, emissiveIntensity:0.6}));
+  const pos = new THREE.Vector3((Math.random()-0.5)*6,(Math.random()-0.5)*4,(Math.random()-0.5)*6);
+  m.position.copy(pos);
+  swarmGroup.add(m);
+  swarmAgents.push({ mesh:m, vel:new THREE.Vector3((Math.random()-0.5)*.02,(Math.random()-0.5)*.02,(Math.random()-0.5)*.02) });
+}
+let swarmParams = { cohesion:0.45, speed:0.5 };
+function stepSwarm(){
+  const center = new THREE.Vector3();
+  swarmAgents.forEach(a=>center.add(a.mesh.position));
+  center.multiplyScalar(1/swarmAgents.length);
+  swarmAgents.forEach(a=>{
+    const toCenter = center.clone().sub(a.mesh.position).multiplyScalar(0.0006*swarmParams.cohesion*4);
+    a.vel.add(toCenter);
+    swarmAgents.forEach(b=>{
+      if(a===b) return;
+      const d = a.mesh.position.distanceTo(b.mesh.position);
+      if(d < 0.9 && d>0.001){
+        const away = a.mesh.position.clone().sub(b.mesh.position).normalize().multiplyScalar(0.0009);
+        a.vel.add(away);
+      }
+    });
+    a.vel.clampLength(0, 0.02 + swarmParams.speed*0.06);
+    a.mesh.position.add(a.vel);
+    if(a.mesh.position.length() > 6.5){ a.vel.add(center.clone().sub(a.mesh.position).normalize().multiplyScalar(0.01)); }
+    if(a.vel.lengthSq() > 0.00001){
+      const dir = a.vel.clone().normalize();
+      a.mesh.lookAt(a.mesh.position.clone().add(dir));
+      a.mesh.rotateX(Math.PI/2);
+    }
+  });
+}
+
+/* ---- 5. MODOS OPERATIVOS ---- */
+const MODES = {
+  normal:   { bg:[0x34383d,0x24262a,0x16171a], accent:0x4fc3f7, intensity:2.2 },
+  strategic:{ bg:[0x2c3542,0x1d2530,0x11151b], accent:0x6fd1ff, intensity:2.8 },
+  research: { bg:[0x2f3a34,0x202823,0x141915], accent:0x7de3b0, intensity:2.4 },
+  alert:    { bg:[0x422a2a,0x2a1a1a,0x180f0f], accent:0xff7a5c, intensity:3.2 },
+};
+function applyMode(modeKey){
+  const m = MODES[modeKey] || MODES.normal;
+  document.body.style.background = `radial-gradient(ellipse at 50% 30%, #${m.bg[0].toString(16)} 0%, #${m.bg[1].toString(16)} 55%, #${m.bg[2].toString(16)} 100%)`;
+  CORE.scene.background = null;
+  const coreLight = MODEL.frameInner.material;
+  coreLight.emissive = new THREE.Color(m.accent);
+  coreLight.emissiveIntensity = m.intensity/3;
+  window.__CNIQN_STATE__.mode = modeKey;
+}
+
+/* ---- 6. SHADER HOLOGRÁFICO ---- */
+const holoUniforms = {
+  uTime: { value: 0 },
+  uColor: { value: new THREE.Color(0x4fc3f7) },
+};
+const holoMaterial = new THREE.ShaderMaterial({
+  uniforms: holoUniforms,
+  transparent: true,
+  side: THREE.DoubleSide,
+  vertexShader: `
+    varying vec3 vNormal;
+    varying vec3 vPos;
+    void main(){
+      vNormal = normalize(normalMatrix * normal);
+      vPos = position;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    uniform vec3 uColor;
+    varying vec3 vNormal;
+    varying vec3 vPos;
+    void main(){
+      vec3 viewDir = normalize(cameraPosition - vPos);
+      float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), 2.4);
+      float scan = sin((vPos.y*6.0) - uTime*2.2) * 0.5 + 0.5;
+      float alpha = clamp(fresnel*1.2 + scan*0.15, 0.0, 1.0);
+      gl_FragColor = vec4(uColor * (0.6+scan*0.6), alpha*0.9);
+    }
+  `
+});
+let holoActive = false;
+function toggleHolo(){
+  holoActive = !holoActive;
+  MODEL.hemiL.material = holoActive ? holoMaterial : CORE.MAT.cyanGlass;
+  MODEL.hemiR.material = holoActive ? holoMaterial : CORE.MAT.cyanGlass;
+  return holoActive;
+}
+
+window.__CNIQN_SIM__ = {
+  bioGroup, bioSegments, bioParams,
+  physGroup, physBodies, spawnPhysicsModule, resetPhysics, stepPhysics,
+  energyGroup, energyParticles, energyCurve, get energyLoad(){return energyLoad;}, set energyLoad(v){energyLoad=v;},
+  swarmGroup, swarmAgents, swarmParams, stepSwarm,
+  applyMode, toggleHolo, holoUniforms
+};
+window.__CNIQN_STATE__ = window.__CNIQN_STATE__ || { mode:'normal' };
+
+/* ============================================================
+   INTERFAZ, HUD, IDIOMA, AR Y BUCLE DE ANIMACIÓN
+   ============================================================ */
+const CORE2 = window.__CNIQN_CORE__;
+const MODEL2 = window.__CNIQN_MODEL__;
+const SIM = window.__CNIQN_SIM__;
+const I18N2 = window.__CNIQN_I18N__;
+
+/* ---------------- LANGUAGE SWITCH ---------------- */
+function applyLanguage(lang){
+  window.__CNIQN_I18N_CURRENT__ = lang;
+  const dict = I18N2[lang];
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key = el.getAttribute('data-i18n');
+    if(dict[key] !== undefined) el.textContent = dict[key];
+  });
+  document.querySelectorAll('.lang-btn').forEach(b=> b.classList.toggle('active', b.dataset.lang===lang));
+  document.getElementById('loader-text').textContent = dict.loaderText;
+  MODEL2.nodeLabels.forEach(lbl=>{
+    const key = lbl.userData.i18nKey;
+    lbl.userData.setText(dict[key]);
+  });
+  window.__CNIQN_LANG_SET__ = lang;
+}
+window.__CNIQN_GET_LANG__ = ()=> window.__CNIQN_LANG_SET__ || 'es';
+
+document.querySelectorAll('.lang-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> applyLanguage(btn.dataset.lang));
+});
+applyLanguage('es');
+
+/* ---------------- SIM PANEL ---------------- */
+const simPanel = document.getElementById('sim-panel');
+document.getElementById('btn-sim').addEventListener('click', ()=>{
+  simPanel.classList.toggle('open');
+  document.getElementById('btn-sim').classList.toggle('on');
+});
+document.getElementById('sim-close').addEventListener('click', ()=>{
+  simPanel.classList.remove('open');
+  document.getElementById('btn-sim').classList.remove('on');
+});
+function activateTab(tabKey){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  const btn = document.querySelector('.tab-btn[data-tab="'+tabKey+'"]');
+  if(btn) btn.classList.add('active');
+  const panel = document.getElementById('panel-'+tabKey);
+  if(panel) panel.classList.add('active');
+}
+function openSimPanel(){
+  simPanel.classList.add('open');
+  document.getElementById('btn-sim').classList.add('on');
+}
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> activateTab(btn.dataset.tab));
+});
+
+/* ---------------- BANDAS CLICABLES ---------------- */
+document.querySelector('#band-top .band-title').addEventListener('click', ()=>{
+  openSimPanel();
+  activateTab('thinktank');
+  runThinkTankProjection();
+});
+document.querySelector('#band-bottom .band-title').addEventListener('click', ()=>{
+  openSimPanel();
+  activateTab('lab');
+});
+
+/* ---------------- BIOMECÁNICA ---------------- */
+document.getElementById('bio-freq').addEventListener('input', e=>{ SIM.bioParams.freq = e.target.value/100; });
+document.getElementById('bio-amp').addEventListener('input', e=>{ SIM.bioParams.amp = e.target.value/100; });
+
+/* ---------------- FÍSICA ---------------- */
+document.getElementById('phys-drop').addEventListener('click', ()=>{
+  for(let i=0;i<6;i++) SIM.spawnPhysicsModule();
+});
+document.getElementById('phys-reset').addEventListener('click', SIM.resetPhysics);
+
+/* ---------------- ENERGÍA ---------------- */
+document.getElementById('energy-load').addEventListener('input', e=>{ SIM.energyLoad = e.target.value/100; });
+
+/* ---------------- ENJAMBRE ---------------- */
+document.getElementById('swarm-cohesion').addEventListener('input', e=>{ SIM.swarmParams.cohesion = e.target.value/100; });
+document.getElementById('swarm-speed').addEventListener('input', e=>{ SIM.swarmParams.speed = e.target.value/100; });
+
+/* ---------------- MODOS ---------------- */
+document.querySelectorAll('.mode-card').forEach(card=>{
+  card.addEventListener('click', ()=>{
+    document.querySelectorAll('.mode-card').forEach(c=>c.classList.remove('active'));
+    card.classList.add('active');
+    SIM.applyMode(card.dataset.mode);
+  });
+});
+
+/* ---------------- THINK TANK ---------------- */
+const ttInputs = {
+  prospectiva: document.getElementById('tt-prospectiva'),
+  asesoria: document.getElementById('tt-asesoria'),
+  riesgo: document.getElementById('tt-riesgo'),
+  impacto: document.getElementById('tt-impacto'),
+};
+function computeThinkTank(){
+  const p = +ttInputs.prospectiva.value, a = +ttInputs.asesoria.value, r = +ttInputs.riesgo.value, i = +ttInputs.impacto.value;
+  return {
+    cientifico:    p*0.5  + a*0.3  + i*0.2,
+    economico:     i*0.45 + a*0.25 + (100-r)*0.3,
+    tecnologico:   p*0.35 + i*0.35 + a*0.3,
+    estrategico:   a*0.4  + (100-r)*0.4 + p*0.2,
+    internacional: i*0.5  + a*0.5,
+  };
+}
+function renderThinkTankChart(animated){
+  const scores = computeThinkTank();
+  Object.entries(scores).forEach(([key,val])=>{
+    const pct = Math.round(Math.max(0,Math.min(100,val)));
+    const fill = document.getElementById('bar-'+key);
+    const label = document.getElementById('pct-'+key);
+    if(fill) fill.style.width = pct+'%';
+    if(label) label.textContent = pct+'%';
+  });
+  const avg = Object.values(scores).reduce((s,v)=>s+v,0)/5;
+  window.__CNIQN_STATE__.ttImpactAvg = avg/100;
+  if(animated) window.__CNIQN_STATE__.ttPulseUntil = performance.now() + 1600;
+}
+Object.values(ttInputs).forEach(inp=> inp.addEventListener('input', ()=> renderThinkTankChart(false)));
+document.getElementById('tt-run').addEventListener('click', ()=> renderThinkTankChart(true));
+function runThinkTankProjection(){ renderThinkTankChart(true); }
+renderThinkTankChart(false);
+
+/* ---------------- LABORATORIO ---------------- */
+const labReadout = document.getElementById('lab-readout');
+document.getElementById('lab-run').addEventListener('click', ()=>{
+  const dict = I18N2[window.__CNIQN_GET_LANG__()];
+  for(let i=0;i<8;i++) SIM.spawnPhysicsModule();
+  SIM.energyLoad = 0.85;
+  document.getElementById('energy-load').value = 85;
+  SIM.swarmParams.speed = Math.min(1, SIM.swarmParams.speed + 0.35);
+  document.getElementById('swarm-speed').value = Math.round(SIM.swarmParams.speed*100);
+  labReadout.textContent = dict.labRunning;
+  window.__CNIQN_STATE__.labPulseUntil = performance.now() + 2200;
+  setTimeout(()=>{ labReadout.textContent = dict.labIdle; }, 4000);
+});
+document.querySelectorAll('.jump-card').forEach(card=>{
+  card.addEventListener('click', ()=> activateTab(card.dataset.jump));
+});
+
+/* ---------------- HUD ---------------- */
+const hudOverlay = document.getElementById('hud-overlay');
+const btnHud = document.getElementById('btn-hud');
+const hudToggleBtn = document.getElementById('hud-toggle-btn');
+function setHud(on){
+  hudOverlay.classList.toggle('on', on);
+  btnHud.classList.toggle('on', on);
+  const dict = I18N2[window.__CNIQN_GET_LANG__()];
+  hudToggleBtn.textContent = on ? dict.hudToggleOff : dict.hudToggle;
+}
+let hudOn = false;
+btnHud.addEventListener('click', ()=>{ hudOn = !hudOn; setHud(hudOn); });
+hudToggleBtn.addEventListener('click', ()=>{ hudOn = !hudOn; setHud(hudOn); });
+
+/* ---------------- SHADER ---------------- */
+const shaderBtn = document.getElementById('shader-toggle-btn');
+shaderBtn.addEventListener('click', ()=>{
+  const active = SIM.toggleHolo();
+  const dict = I18N2[window.__CNIQN_GET_LANG__()];
+  shaderBtn.textContent = active ? dict.shaderToggleOff : dict.shaderToggle;
+});
+
+/* ---------------- AUTO ROTATE ---------------- */
+let autoRotate = true;
+const btnRotate = document.getElementById('btn-rotate');
+btnRotate.classList.add('on');
+btnRotate.addEventListener('click', ()=>{ autoRotate = !autoRotate; btnRotate.classList.toggle('on', autoRotate); });
+
+/* ---------------- REALIDAD AUMENTADA ---------------- */
+const arModal = document.getElementById('ar-modal');
+const arMessage = document.getElementById('ar-message');
+const arGyroBtn = document.getElementById('ar-gyro-btn');
+const arCloseBtn = document.getElementById('ar-close');
+document.getElementById('btn-ar').addEventListener('click', async ()=>{
+  const dict = I18N2[window.__CNIQN_GET_LANG__()];
+  arModal.classList.add('show');
+  if(navigator.xr && navigator.xr.isSessionSupported){
+    try{
+      const supported = await navigator.xr.isSessionSupported('immersive-ar');
+      if(supported){
+        arMessage.textContent = dict.arSupported;
+        startArSession();
+        return;
+      }
+    }catch(err){ /* fall through */ }
+  }
+  arMessage.textContent = dict.arUnsupported;
+});
+arCloseBtn.addEventListener('click', ()=> arModal.classList.remove('show'));
+
+async function startArSession(){
+  try{
+    const session = await navigator.xr.requestSession('immersive-ar', { optionalFeatures:['local-floor','hit-test'] });
+    CORE2.renderer.xr.setReferenceSpaceType('local-floor');
+    await CORE2.renderer.xr.setSession(session);
+    MODEL2.modelRoot.scale.set(0.28,0.28,0.28);
+    MODEL2.modelRoot.position.set(0,0,-1.4);
+    arModal.classList.remove('show');
+    session.addEventListener('end', ()=>{
+      MODEL2.modelRoot.scale.set(1,1,1);
+      MODEL2.modelRoot.position.set(0,0,0);
+    });
+  }catch(err){
+    const dict = I18N2[window.__CNIQN_GET_LANG__()];
+    arMessage.textContent = dict.arUnsupported;
+  }
+}
+
+let gyroActive = false;
+arGyroBtn.addEventListener('click', async ()=>{
+  if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+    try{ await DeviceOrientationEvent.requestPermission(); }catch(e){}
+  }
+  gyroActive = !gyroActive;
+  arModal.classList.remove('show');
+});
+window.addEventListener('deviceorientation', (e)=>{
+  if(!gyroActive) return;
+  const beta = (e.beta||0) * (Math.PI/180);
+  const gamma = (e.gamma||0) * (Math.PI/180);
+  CORE2.controls.phi = THREE.MathUtils.clamp(1.35 + beta*0.4, 0.4, 2.6);
+  CORE2.controls.theta = gamma*0.6;
+});
+
+/* ---------------- HUD TELEMETRY ---------------- */
+const hudTelemetry = document.getElementById('hud-telemetry');
+const hudNodes = document.getElementById('hud-nodes');
+function updateHudText(t){
+  const dict = I18N2[window.__CNIQN_GET_LANG__()];
+  const coherence = (86 + Math.sin(t*0.6)*6 + Math.random()*1.5).toFixed(1);
+  const temp = (12.4 + Math.sin(t*0.4)*0.6).toFixed(2);
+  const energy = (SIM.energyLoad*100).toFixed(0);
+  const sync = (91 + Math.cos(t*0.5)*4).toFixed(1);
+  const lat = (12.1150 + Math.sin(t*0.05)*0.002).toFixed(4);
+  const lon = (-86.2362 + Math.cos(t*0.05)*0.002).toFixed(4);
+  hudTelemetry.textContent =
+`${dict.modeLabel}: ${window.__CNIQN_STATE__.mode.toUpperCase()}
+${dict.hudCoherence}: ${coherence}%
+${dict.hudTemp}: ${temp}°C
+${dict.hudEnergy}: ${energy}%
+${dict.hudSync}: ${sync}%
+${dict.hudLat} ${lat}  ${dict.hudLon} ${lon}`;
+
+  const names = ['n1','n2','n3','n4','n5','n6'];
+  let nodeTxt = dict.hudNodesTitle + '\n';
+  names.forEach((k,i)=>{
+    const status = (Math.sin(t*0.3+i)*0.5+0.5) > 0.15 ? 'OK' : 'SYNC';
+    nodeTxt += `${(i+1)}. ${dict[k]} — ${status}\n`;
+  });
+  hudNodes.textContent = nodeTxt;
+}
+
+/* ---------------- ANIMATION LOOP ---------------- */
+let loaderHidden = false;
+const loader = document.getElementById('loader');
+
+const clock = new THREE.Clock();
+function animate(){
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+
+  // Ocultar loader en el primer frame
+  if(!loaderHidden){
+    loader.classList.add('hidden');
+    loaderHidden = true;
+  }
+
+  MODEL2.coreGroup.rotation.y += dt*0.15;
+  MODEL2.wireShell.rotation.y -= dt*0.08;
+  MODEL2.wireShell.rotation.x += dt*0.03;
+  MODEL2.frameInner.rotation.x += dt*0.6;
+  MODEL2.frameInner.rotation.y += dt*0.4;
+  MODEL2.ringGroupA.rotation.z += dt*0.12;
+  MODEL2.ringGroupB.rotation.z -= dt*0.08;
+  MODEL2.innerArm.rotation.z += dt*0.5;
+
+  MODEL2.satellites.forEach(s=>{
+    const a = t*s.speed + s.offset;
+    s.mesh.position.set(Math.cos(a)*s.rx, Math.sin(a)*s.ry, 0);
+  });
+
+  MODEL2.nodeMeshes.forEach(n=>{
+    n.group.position.y = n.baseY + Math.sin(t*0.8+n.phase)*0.12;
+    n.ring.rotation.z += dt*0.5;
+    n.ring.rotation.x += dt*0.2;
+  });
+
+  SIM.bioSegments.forEach((s,i)=>{
+    const f = SIM.bioParams.freq*3+0.3;
+    const amp = SIM.bioParams.amp*0.6;
+    s.group.rotation.z = Math.sin(t*f + s.phase)*amp;
+  });
+
+  SIM.stepPhysics();
+
+  SIM.energyParticles.forEach(p=>{
+    p.t += dt*(0.15 + SIM.energyLoad*0.9);
+    if(p.t>1) p.t -= 1;
+    const pos = SIM.energyCurve.getPointAt(p.t);
+    p.mesh.position.copy(pos);
+    const s = 0.05 + SIM.energyLoad*0.05;
+    p.mesh.scale.setScalar(s/0.06);
+    p.mesh.material.emissiveIntensity = 1.0 + SIM.energyLoad*2.0;
+  });
+
+  SIM.stepSwarm();
+  SIM.holoUniforms.uTime.value = t;
+
+  if(autoRotate) CORE2.controls.theta += dt*0.06;
+  CORE2.controls.update();
+
+  if(hudOn) updateHudText(t);
+
+  CORE2.renderer.render(CORE2.scene, CORE2.camera);
+}
+CORE2.renderer.setAnimationLoop(animate);
+
+/* ---------------- LOADER FALLBACK (por si el primer frame tarda) ---------------- */
+setTimeout(()=>{
+  if(!loaderHidden){
+    loader.classList.add('hidden');
+    loaderHidden = true;
+  }
+}, 800);
+
+})();
+</script>
+</body>
+</html>
