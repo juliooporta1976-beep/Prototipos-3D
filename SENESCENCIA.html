@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SENESCENCIA CERO - Prototipo 3D Interactivo // Dr. Julio César Oporta Barrera</title>
+  
+  <!-- Tailwind CSS & Google Fonts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- Three.js & OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #030712;
+      color: #f3f4f6;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .shadow-glow {
+      box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+    }
+    .shadow-red-glow {
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+    }
+    /* Hide scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    
+    @keyframes dash {
+      to {
+        stroke-dashoffset: -40;
+      }
+    }
+    .animate-dash {
+      stroke-dasharray: 6, 6;
+      animation: dash 1.5s linear infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen overflow-x-hidden relative bg-radial bg-gradient-to-tr from-slate-950 via-slate-950 to-slate-900">
+
+  <!-- BACKGROUND DECORATIONS -->
+  <div class="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-35 pointer-events-none"></div>
+
+  <!-- MAIN HEADER CONTAINER -->
+  <header class="w-full max-w-7xl mx-auto px-4 pt-6 pb-2 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10 border-b border-slate-800/40">
+    <div>
+      <div class="flex items-center gap-2">
+        <span class="bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded text-[10px] font-mono tracking-wider font-bold">NASA/ESA CLINICAL SPEC</span>
+        <span class="text-slate-400 font-mono text-xs">V2.46-OFFLINE</span>
+      </div>
+      <h1 class="text-2xl font-bold tracking-tight text-white mt-1 uppercase" id="app-title">SENESCENCIA CERO</h1>
+      <p class="text-xs text-slate-400 max-w-2xl" id="app-subtitle">Terapia intraarticular basada en eliminación selectiva de células senescentes en osteoartritis</p>
+    </div>
+    
+    <div class="flex flex-col items-end gap-2 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+      <span class="text-xs font-mono text-cyan-400 font-bold" id="app-author">Dr. Julio César Oporta Barrera</span>
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] font-mono text-slate-500">LANG / 语言:</span>
+        <select id="lang-select" onchange="changeLanguage(this.value)" class="bg-slate-950 text-slate-300 font-mono text-xs rounded border border-slate-700/80 px-2.5 py-1 focus:outline-none focus:border-cyan-400">
+          <option value="es" selected>ESPAÑOL</option>
+          <option value="en" >ENGLISH</option>
+          <option value="zh" >简体中文</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN BENTO-GRID DASHBOARD -->
+  <main class="w-full max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
+    
+    <!-- LEFT PANEL: THREE.JS 3D CLINICAL VISUALIZER (7 COLS) -->
+    <section class="lg:col-span-7 flex flex-col gap-4">
+      <div class="relative w-full h-[450px] bg-slate-950/40 rounded-2xl border border-slate-800/60 overflow-hidden shadow-2xl backdrop-blur-xl flex flex-col">
+        <div id="canvas-container" class="relative w-full flex-grow">
+          <canvas id="three-canvas" class="w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+          
+          {/* Overlay elements */}
+          <div class="absolute top-4 left-4 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700/50 text-xs font-mono text-cyan-400" id="dr-badge">
+            Dr. Julio César Oporta Barrera
+          </div>
+
+          <div class="absolute top-4 right-4 flex items-center gap-2">
+            <button onclick="toggleAutoRotate()" id="btn-autorotate" class="bg-cyan-500/10 border border-cyan-500/50 text-cyan-400 px-3 py-1.5 rounded-lg text-xs font-mono transition-all flex items-center gap-1.5">
+              <span id="spin-dot" class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+              <span id="txt-rotate">Giro Auto</span>
+            </button>
+          </div>
+
+          <div class="absolute bottom-4 left-4 flex items-center gap-1 bg-slate-900/95 backdrop-blur-md p-1 rounded-xl border border-slate-700/50">
+            <button onclick="setViewType('macro')" id="btn-macro" class="bg-cyan-500 text-slate-950 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all">MACRO (Joint)</button>
+            <button onclick="setViewType('micro')" id="btn-micro" class="text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all">MICRO (Cellular)</button>
+          </div>
+
+          <div class="absolute bottom-4 right-4 flex flex-col gap-1">
+            <button onclick="toggleXray()" id="btn-xray" class="bg-slate-900/90 border border-slate-700/50 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-mono transition-all text-left flex items-center justify-between gap-3">
+              <span id="txt-xray">X-Ray (Transparente)</span>
+              <span id="dot-xray" class="w-2 h-2 rounded-full bg-slate-600"></span>
+            </button>
+            <button onclick="toggleExploded()" id="btn-exploded" class="bg-slate-900/90 border border-slate-700/50 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-mono transition-all text-left flex items-center justify-between gap-3">
+              <span id="txt-exploded">Vista Explotada</span>
+              <span id="dot-exploded" class="w-2 h-2 rounded-full bg-slate-600"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- SUB AI GRAPH PANEL (INCLUDED FOR COMPLETENESS) -->
+      <div class="relative w-full h-[320px] bg-slate-900/60 rounded-2xl border border-slate-800/60 p-5 shadow-2xl backdrop-blur-xl flex flex-col justify-between">
+        <div class="flex justify-between items-center mb-1">
+          <h3 class="text-sm font-semibold font-sans text-cyan-400 flex items-center gap-2" id="ai-title">RED DE PROCESAMIENTO IA</h3>
+          <span class="text-xs font-mono text-slate-500 bg-slate-950/50 px-2 py-1 rounded border border-slate-800 uppercase" id="txt-stat-mode">STATUS: REPOSO</span>
+        </div>
+        
+        <div class="relative flex-grow w-full flex items-center justify-center">
+          <!-- AI Nodes SVG Graph -->
+          <svg viewBox="0 0 720 280" class="w-full h-full max-h-[260px] select-none" id="node-graph-svg"></svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: TACTICAL HUD & SIMULATOR CONTROLS (5 COLS) -->
+    <section class="lg:col-span-5 flex flex-col gap-6">
+      
+      <!-- TACTICAL HUD CARD -->
+      <div id="hud-card" class="bg-slate-900/60 rounded-2xl border border-slate-800/60 p-5 shadow-2xl backdrop-blur-xl flex flex-col justify-between transition-all duration-500">
+        <div class="flex justify-between items-center border-b border-slate-800/60 pb-3 mb-4">
+          <div>
+            <h2 class="text-md font-bold text-cyan-400 tracking-wider flex items-center gap-2" id="hud-title">HUD TÁCTICO BIOMÉDICO</h2>
+            <p class="text-[9px] font-mono text-slate-500">TERM_ID: OPT-2026 // LOC_SRC: SYNOVIAL_MEMBRANE</p>
+          </div>
+          <div id="hud-alerts"></div>
+        </div>
+
+        <!-- GAUGES -->
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div class="bg-slate-950/40 border border-slate-800/50 rounded-xl p-3 flex flex-col justify-between">
+            <span class="text-[9px] font-mono text-slate-500 uppercase" id="lbl-sasp">Reducción SASP</span>
+            <span class="text-2xl font-bold font-mono text-cyan-400 my-1" id="val-sasp">0%</span>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div id="bar-sasp" class="bg-cyan-400 h-full transition-all duration-500 shadow-glow" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <div class="bg-slate-950/40 border border-slate-800/50 rounded-xl p-3 flex flex-col justify-between">
+            <span class="text-[9px] font-mono text-slate-500 uppercase" id="lbl-viab">Viabilidad Celular</span>
+            <span class="text-2xl font-bold font-mono text-emerald-400 my-1" id="val-viab">80%</span>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div id="bar-viab" class="bg-emerald-400 h-full transition-all duration-500 shadow-glow" style="width: 80%"></div>
+            </div>
+          </div>
+
+          <div class="bg-slate-950/40 border border-slate-800/50 rounded-xl p-3 flex flex-col justify-between">
+            <span class="text-[9px] font-mono text-slate-500 uppercase" id="lbl-inflame">Índice Inflamación</span>
+            <span class="text-2xl font-bold font-mono text-rose-400 my-1" id="val-inflame">95%</span>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div id="bar-inflame" class="bg-rose-400 h-full transition-all duration-500 shadow-glow" style="width: 95%"></div>
+            </div>
+          </div>
+
+          <div class="bg-slate-950/40 border border-slate-800/50 rounded-xl p-3 flex flex-col justify-between">
+            <span class="text-[9px] font-mono text-slate-500 uppercase" id="lbl-pain">Dolor (VAS)</span>
+            <span class="text-2xl font-bold font-mono text-amber-400 my-1" id="val-pain">9.0</span>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div id="bar-pain" class="bg-amber-400 h-full transition-all duration-500 shadow-glow" style="width: 90%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONTROLS & PARAMETERS -->
+        <div class="bg-slate-950/30 border border-slate-800/50 rounded-2xl p-4 flex flex-col gap-4 mb-4">
+          <div>
+            <label class="text-[9px] font-mono text-slate-500 block mb-1 uppercase" id="lbl-senolytic">Agente Senolítico</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button onclick="setCompound('navitoclax')" id="comp-navitoclax" class="py-1.5 px-2 bg-cyan-500/10 border border-cyan-500/60 text-cyan-400 rounded-lg text-xs font-mono font-bold transition-all truncate text-center">Navitoclax</button>
+              <button onclick="setCompound('dasatinib_quercetin')" id="comp-dq" class="py-1.5 px-2 bg-slate-900/60 border border-slate-800 text-slate-400 rounded-lg text-xs font-mono transition-all truncate text-center">D+Q Combo</button>
+              <button onclick="setCompound('fisetin')" id="comp-fisetin" class="py-1.5 px-2 bg-slate-900/60 border border-slate-800 text-slate-400 rounded-lg text-xs font-mono transition-all truncate text-center">Fisetina</button>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-[9px] font-mono text-slate-500 block mb-1 uppercase" id="lbl-delivery">Sistema de Liberación</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="setDelivery('liquid')" id="deliv-liquid" class="py-1.5 px-2.5 bg-slate-900/60 border border-slate-800 text-slate-400 rounded-lg text-xs font-mono text-left flex flex-col justify-between">
+                <span class="font-bold text-[9px] uppercase">Solución Directa</span>
+                <span class="text-[8px] text-slate-500 leading-none mt-1">Depuración Rápida</span>
+              </button>
+              <button onclick="setDelivery('plga')" id="deliv-plga" class="py-1.5 px-2.5 bg-cyan-500/10 border border-cyan-500/60 text-cyan-400 rounded-lg text-xs font-mono text-left flex flex-col justify-between">
+                <span class="font-bold text-[9px] uppercase">Nanopartículas PLGA</span>
+                <span class="text-[8px] text-slate-500 leading-none mt-1">Liberación 3-6 semanas</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-[9px] font-mono text-slate-500 uppercase" id="lbl-dosage">Concentración Local</span>
+              <span class="text-xs font-mono text-cyan-400 font-bold" id="val-dosage">5.0 mg/ml</span>
+            </div>
+            <input type="range" id="slider-dosage" min="1.0" max="20.0" step="0.5" value="5.0" oninput="updateDosage(this.value)" class="w-full accent-cyan-400 cursor-pointer h-1 bg-slate-800 rounded-lg appearance-none">
+          </div>
+
+          <div id="np-size-section">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-[9px] font-mono text-slate-500 uppercase" id="lbl-size">Tamaño de Partícula</span>
+              <span class="text-xs font-mono text-cyan-400 font-bold" id="val-size">150 nm</span>
+            </div>
+            <input type="range" id="slider-size" min="50" max="300" step="10" value="150" oninput="updateSize(this.value)" class="w-full accent-cyan-400 cursor-pointer h-1 bg-slate-800 rounded-lg appearance-none">
+          </div>
+        </div>
+
+        <!-- OPERATIONAL MODE CONTROLLERS -->
+        <div>
+          <span class="text-[9px] font-mono text-slate-500 block mb-2 uppercase" id="lbl-modes">Modos de Operación</span>
+          <div class="grid grid-cols-5 gap-1.5">
+            <button onclick="setSimState('reposo')" id="mode-reposo" class="py-2 px-1 rounded-xl text-[9px] font-mono border bg-cyan-500/10 border-cyan-500/50 text-cyan-400 font-bold hover:opacity-90 flex flex-col items-center justify-center gap-1 min-h-[45px]">
+              <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>REPOSO
+            </button>
+            <button onclick="setSimState('analisis')" id="mode-analisis" class="py-2 px-1 rounded-xl text-[9px] font-mono border bg-slate-900 border-slate-800 text-slate-400 hover:opacity-90 flex flex-col items-center justify-center gap-1 min-h-[45px]">
+              <span class="w-1.5 h-1.5 rounded-full bg-yellow-400"></span>ANÁLISIS
+            </button>
+            <button onclick="setSimState('simulacion')" id="mode-simulacion" class="py-2 px-1 rounded-xl text-[9px] font-mono border bg-slate-900 border-slate-800 text-slate-400 hover:opacity-90 flex flex-col items-center justify-center gap-1 min-h-[45px]">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>INYECCIÓN
+            </button>
+            <button onclick="setSimState('operacion')" id="mode-operacion" class="py-2 px-1 rounded-xl text-[9px] font-mono border bg-slate-900 border-slate-800 text-slate-400 hover:opacity-90 flex flex-col items-center justify-center gap-1 min-h-[45px]">
+              <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>APOPTOSIS
+            </button>
+            <button onclick="setSimState('mantenimiento')" id="mode-mantenimiento" class="py-2 px-1 rounded-xl text-[9px] font-mono border bg-slate-900 border-slate-800 text-slate-400 hover:opacity-90 flex flex-col items-center justify-center gap-1 min-h-[45px]">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>REGENERA
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-4 p-3.5 bg-slate-950/70 border border-slate-850 rounded-xl text-xs font-mono text-slate-400" id="mode-desc">
+          Estado patológico inicial. Alta carga de células senescentes secretando SASP perjudicial (IL-6, MMP-13, MCP-1) que induce inflamación y degrada progresivamente el cartílago articular.
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- STANDALONE JS SCRIPT BUNDLED -->
+  <script>
+    // State management
+    let lang = "es";
+    let simState = "reposo";
+    let compound = "navitoclax";
+    let deliverySystem = "plga";
+    let dosage = 5.0;
+    let particleSize = 150;
+
+    let viewType = "macro";
+    let xrayMode = false;
+    let explodedView = false;
+    let autoRotate = true;
+
+    // translations library
+    const translations = {
+      es: {
+        title: "SENESCENCIA CERO",
+        subtitle: "Terapia intraarticular basada en eliminación selectiva de células senescentes en osteoartritis",
+        author: "Dr. Julio César Oporta Barrera",
+        hudTitle: "HUD TÁCTICO BIOMÉDICO",
+        lblSasp: "Reducción SASP",
+        lblViab: "Viabilidad Celular",
+        lblInflame: "Índice Inflamación",
+        lblPain: "Dolor (VAS)",
+        lblSenolytic: "Agente Senolítico",
+        lblDelivery: "Sistema de Liberación",
+        lblDosage: "Concentración Local",
+        lblSize: "Tamaño de Partícula",
+        lblModes: "Modos de Operación",
+        descReposo: "Estado patológico inicial. Alta carga de células senescentes secretando SASP perjudicial (IL-6, MMP-13, MCP-1) que induce inflamación y degrada progresivamente el cartílago articular.",
+        descAnalisis: "Escaneo mediante IA de la densidad de células senescentes en condrocitos y sinoviocitos. Modelado volumétrico predictivo del líquido sinovial y estimación del umbral terapéutico.",
+        descSimulacion: "Simulación de inyección intraarticular del compuesto. Las nanopartículas PLGA (120-180 nm) se distribuyen homogéneamente en el líquido sinovial y se adhieren localmente al tejido dañado.",
+        descOperacion: "Activación del agente senolítico. Inhibición selectiva de vías antiapoptóticas (BCL-2 / p53) que destruye exclusivamente las células senescentes mientras preserva el 100% de células sanas.",
+        descMantenimiento: "Resultados terapéuticos. Reducción sostenida del SASP (>40%), modulación del microambiente inflamatorio, detención del daño colágeno y restauración de la homeostasis articular."
+      },
+      en: {
+        title: "ZERO SENESCENCE",
+        subtitle: "Intra-articular therapy based on selective elimination of senescent cells in osteoarthritis",
+        author: "Dr. Julio César Oporta Barrera",
+        hudTitle: "BIOMEDICAL TACTICAL HUD",
+        lblSasp: "SASP Reduction",
+        lblViab: "Cell Viability",
+        lblInflame: "Inflammation Index",
+        lblPain: "Pain (VAS)",
+        lblSenolytic: "Senolytic Agent",
+        lblDelivery: "Delivery System",
+        lblDosage: "Local Concentration",
+        lblSize: "Particle Size",
+        lblModes: "Operational Modes",
+        descReposo: "Initial pathological state. High load of senescent cells secreting harmful SASP (IL-6, MMP-13, MCP-1), driving inflammation and progressive cartilage degradation.",
+        descAnalisis: "AI scanning of senescent cell density in chondrocytes and synoviocytes. Predictive volumetric modeling of synovial fluid and therapeutic threshold estimation.",
+        descSimulacion: "Simulation of intra-articular injection. PLGA nanoparticles (120-180 nm) distribute evenly in the synovial fluid and locally adhere to damaged tissues.",
+        descOperacion: "Activation of the senolytic agent. Selective inhibition of anti-apoptotic pathways (BCL-2 / p53) that destroys senescent cells while preserving 100% of healthy cells.",
+        descMantenimiento: "Therapeutic outcomes. Sustained SASP reduction (>40%), modulation of the inflammatory microenvironment, halting collagen damage and restoring joint homeostasis."
+      },
+      zh: {
+        title: "零衰老计划 (SENESCENCIA CERO)",
+        subtitle: "基于关节内选择性清除衰老细胞治疗骨关节炎的创新疗法",
+        author: "Julio César Oporta Barrera 博士",
+        hudTitle: "生物医学战术 HUD 终端",
+        lblSasp: "SASP 因子降低率",
+        lblViab: "健康细胞存活率",
+        lblInflame: "关节腔炎症指数",
+        lblPain: "疼痛感评分 (VAS)",
+        lblSenolytic: "清除剂类型",
+        lblDelivery: "给药递送系统",
+        lblDosage: "局部给药浓度",
+        lblSize: "纳米颗粒粒径",
+        lblModes: "系统运行模式",
+        descReposo: "骨关节炎的初始病理状态。大量衰老细胞聚集并持续分泌有害的 SASP 因子 (IL-6, MMP-13, MCP-1)，导致滑膜炎及软骨基质不可逆性降解。",
+        descAnalisis: "利用 AI 扫描并评估软骨与滑膜层中的衰老细胞密度。滑液容积的三维重建与给药安全阈值的动态评估。",
+        descSimulacion: "模拟关节内注射。PLGA 降解纳米微球 (120-180 nm) 在滑液中均匀分散，并特异性靶向黏附于受损的软骨表面与滑膜层。",
+        descOperacion: "激活 senolytic 清除机制。选择性阻断 BCL-2 家族抗凋亡通路 / 激活 p53 信号，精确诱导衰老细胞自噬凋亡，完全不损伤健康软骨细胞。",
+        descMantenimiento: "卓越的治疗结局。SASP 分泌水平持续降低（>40%），关节微环境从促炎转为抗炎促修复状态，软骨损伤中止，恢复关节生理平衡。"
+      }
+    };
+
+    function changeLanguage(val) {
+      lang = val;
+      const trans = translations[lang];
+      document.getElementById('app-title').textContent = trans.title;
+      document.getElementById('app-subtitle').textContent = trans.subtitle;
+      document.getElementById('app-author').textContent = trans.author;
+      document.getElementById('dr-badge').textContent = trans.author;
+      document.getElementById('hud-title').textContent = trans.hudTitle;
+      document.getElementById('lbl-sasp').textContent = trans.lblSasp;
+      document.getElementById('lbl-viab').textContent = trans.lblViab;
+      document.getElementById('lbl-inflame').textContent = trans.lblInflame;
+      document.getElementById('lbl-pain').textContent = trans.lblPain;
+      document.getElementById('lbl-senolytic').textContent = trans.lblSenolytic;
+      document.getElementById('lbl-delivery').textContent = trans.lblDelivery;
+      document.getElementById('lbl-dosage').textContent = trans.lblDosage;
+      document.getElementById('lbl-size').textContent = trans.lblSize;
+      document.getElementById('lbl-modes').textContent = trans.lblModes;
+      
+      // Update descriptors
+      updateStateDescription();
+      renderNodeGraph();
+    }
+
+    function updateStateDescription() {
+      const trans = translations[lang];
+      const descBox = document.getElementById('mode-desc');
+      if (simState === 'reposo') descBox.textContent = trans.descReposo;
+      else if (simState === 'analisis') descBox.textContent = trans.descAnalisis;
+      else if (simState === 'simulacion') descBox.textContent = trans.descSimulacion;
+      else if (simState === 'operacion') descBox.textContent = trans.descOperacion;
+      else if (simState === 'mantenimiento') descBox.textContent = trans.descMantenimiento;
+    }
+
+    // 3D Scene Variables
+    let scene, camera, renderer, controls;
+    let femurGroup, tibiaGroup, patella, condyleLeft, condyleRight;
+    let cartilageLeft, cartilageRight, syringeGroup;
+    let boneMaterial, cartilageMaterialHealthy, cartilageMaterialDamaged;
+    let macroGroup, microGroup;
+    let macroParticles = [];
+    let cells = [];
+    let microNanoparticles = [];
+    let injectionProgress = 0;
+
+    function init3D() {
+      const container = document.getElementById('canvas-container');
+      const canvas = document.getElementById('three-canvas');
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+      camera.position.set(0, 5, 12);
+
+      renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.shadowMap.enabled = true;
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+
+      // Lights
+      const ambientLight = new THREE.AmbientLight(0x1e293b, 1.5);
+      scene.add(ambientLight);
+
+      const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
+      mainLight.position.set(5, 10, 7);
+      scene.add(mainLight);
+
+      const cyanLight1 = new THREE.PointLight(0x4fc3f7, 3, 15);
+      cyanLight1.position.set(-4, 2, 4);
+      scene.add(cyanLight1);
+
+      // Materials
+      boneMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0xcccccc, metalness: 0.1, roughness: 0.4, clearcoat: 0.8, clearcoatRoughness: 0.2, transmission: 0, opacity: 1, transparent: true
+      });
+
+      cartilageMaterialHealthy = new THREE.MeshPhysicalMaterial({
+        color: 0x4fc3f7, emissive: 0x0288d1, emissiveIntensity: 0.5, metalness: 0.2, roughness: 0.1, transmission: 0.6, opacity: 0.9, transparent: true
+      });
+
+      cartilageMaterialDamaged = new THREE.MeshPhysicalMaterial({
+        color: 0xff7043, emissive: 0xd84315, emissiveIntensity: 0.6, metalness: 0.1, roughness: 0.5, transmission: 0.2, opacity: 0.9, transparent: true
+      });
+
+      // Macro Group Model
+      macroGroup = new THREE.Group();
+      scene.add(macroGroup);
+
+      femurGroup = new THREE.Group();
+      const femurShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 4, 16), boneMaterial);
+      femurShaft.position.y = 2.5;
+      femurGroup.add(femurShaft);
+
+      condyleLeft = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), boneMaterial);
+      condyleLeft.position.set(-0.6, 0.7, 0);
+      condyleLeft.scale.set(1, 1.2, 1.4);
+      femurGroup.add(condyleLeft);
+
+      condyleRight = condyleLeft.clone();
+      condyleRight.position.x = 0.6;
+      femurGroup.add(condyleRight);
+      macroGroup.add(femurGroup);
+
+      tibiaGroup = new THREE.Group();
+      const tibiaShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.7, 4, 16), boneMaterial);
+      tibiaShaft.position.y = -2.8;
+      tibiaGroup.add(tibiaShaft);
+
+      const tibiaHead = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 0.9, 1, 16), boneMaterial);
+      tibiaHead.position.y = -0.6;
+      tibiaHead.scale.set(1.1, 1, 1.3);
+      tibiaGroup.add(tibiaHead);
+      macroGroup.add(tibiaGroup);
+
+      patella = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), boneMaterial);
+      patella.scale.set(1.2, 0.8, 0.6);
+      patella.position.set(0, 0, 1.6);
+      macroGroup.add(patella);
+
+      cartilageLeft = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.25, 16), cartilageMaterialHealthy);
+      cartilageLeft.position.set(-0.6, -0.1, 0);
+      cartilageLeft.scale.set(1, 1, 1.3);
+      tibiaGroup.add(cartilageLeft);
+
+      cartilageRight = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.25, 16), cartilageMaterialDamaged);
+      cartilageRight.position.set(0.6, -0.1, 0);
+      cartilageRight.scale.set(1, 1, 1.3);
+      tibiaGroup.add(cartilageRight);
+
+      // Syringe
+      syringeGroup = new THREE.Group();
+      const needle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 3, 8), new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.9 }));
+      needle.rotation.z = Math.PI/4;
+      needle.position.set(-3.5, 2.5, 0);
+      syringeGroup.add(needle);
+
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 2, 8), new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 0.8, opacity: 0.5, transparent: true }));
+      barrel.rotation.z = Math.PI/4;
+      barrel.position.set(-4.9, 3.9, 0);
+      syringeGroup.add(barrel);
+      macroGroup.add(syringeGroup);
+      syringeGroup.visible = false;
+
+      // Injectable particles
+      for(let i=0; i<60; i++) {
+        const p = new THREE.Mesh(new THREE.SphereGeometry(0.06, 4, 4), new THREE.MeshBasicMaterial({ color: 0x4fc3f7 }));
+        p.position.set(-3, 2, 0);
+        p.visible = false;
+        macroGroup.add(p);
+        macroParticles.push(p);
+      }
+
+      // Micro Group Model
+      microGroup = new THREE.Group();
+      scene.add(microGroup);
+      microGroup.visible = false;
+
+      // Healthy Cell
+      const healthyCellMat = new THREE.MeshPhysicalMaterial({ color: 0x00e5ff, emissive: 0x00a1ff, emissiveIntensity: 0.2, transparent: true, opacity: 0.85 });
+      const hcGroup = new THREE.Group();
+      hcGroup.position.set(-3, 1, -1);
+      hcGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), healthyCellMat));
+      microGroup.add(hcGroup);
+      cells.push({ mesh: hcGroup, type: 'healthy', offset: 0, sasp: [], isDying: false });
+
+      // Senescent Cell
+      const senescentCellMat = new THREE.MeshPhysicalMaterial({ color: 0x111e15, emissive: 0x4caf50, emissiveIntensity: 0.5, transparent: true, opacity: 0.9 });
+      const scGroup = new THREE.Group();
+      scGroup.position.set(2, 1, 0);
+      const cellBody = new THREE.Mesh(new THREE.SphereGeometry(1.2, 16, 16), senescentCellMat);
+      cellBody.scale.set(1.3, 0.8, 1.2);
+      scGroup.add(cellBody);
+
+      // SASP Clouds
+      const saspSpheres = [];
+      for(let i=0; i<10; i++) {
+        const sasp = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff3d00 }));
+        sasp.position.set((Math.random()-0.5)*3, (Math.random()-0.5)*3, (Math.random()-0.5)*3);
+        scGroup.add(sasp);
+        saspSpheres.push(sasp);
+      }
+      microGroup.add(scGroup);
+      cells.push({ mesh: scGroup, type: 'senescent', offset: 1.5, sasp: saspSpheres, isDying: false });
+
+      // Micro Nanoparticles
+      for(let i=0; i<15; i++) {
+        const np = new THREE.Group();
+        np.add(new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshStandardMaterial({ color: 0x455a64, metalness: 0.8 })));
+        np.position.set((Math.random()-0.5)*8, (Math.random()-0.5)*8, (Math.random()-0.5)*6);
+        microGroup.add(np);
+        microNanoparticles.push({ mesh: np, velocity: new THREE.Vector3((Math.random()-0.5)*0.02, (Math.random()-0.5)*0.02, (Math.random()-0.5)*0.02), docked: false });
+      }
+
+      window.addEventListener('resize', onWindowResize);
+      animate();
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById('canvas-container');
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const time = Date.now() * 0.001;
+
+      if (autoRotate) {
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.5;
+      } else {
+        controls.autoRotate = false;
+      }
+      controls.update();
+
+      // View Types
+      if (viewType === 'macro') {
+        macroGroup.visible = true;
+        microGroup.visible = false;
+      } else {
+        macroGroup.visible = false;
+        microGroup.visible = true;
+      }
+
+      // Exploded/X-ray transitions
+      const targetFemurY = explodedView ? 1.5 : 0;
+      const targetTibiaY = explodedView ? -1.5 : 0;
+      femurGroup.position.y += (targetFemurY - femurGroup.position.y) * 0.05;
+      tibiaGroup.position.y += (targetTibiaY - tibiaGroup.position.y) * 0.05;
+
+      const targetXray = xrayMode ? 0.9 : 0.0;
+      boneMaterial.transmission += (targetXray - boneMaterial.transmission) * 0.08;
+      boneMaterial.opacity += ((xrayMode ? 0.4 : 1.0) - boneMaterial.opacity) * 0.08;
+
+      // MACRO SIM STATE
+      if (viewType === 'macro') {
+        if (simState === 'reposo' || simState === 'analisis') {
+          cartilageMaterialDamaged.color.setHex(0xff7043);
+          syringeGroup.visible = false;
+          macroParticles.forEach(p => p.visible = false);
+        } else if (simState === 'simulacion') {
+          syringeGroup.visible = true;
+          syringeGroup.position.lerp(new THREE.Vector3(1, -1, 0), 0.02);
+          injectionProgress += 0.02;
+          macroParticles.forEach((p, idx) => {
+            p.visible = true;
+            const flowT = (injectionProgress + idx * 0.03) % 1;
+            p.position.lerpVectors(new THREE.Vector3(-0.8, 0.8, 0.3), new THREE.Vector3((Math.random()-0.5)*1.2, -0.1, (Math.random()-0.5)*1.2), flowT);
+          });
+        } else {
+          syringeGroup.visible = false;
+          cartilageMaterialDamaged.color.lerp(new THREE.Color(0x4fc3f7), 0.01);
+          macroParticles.forEach((p, idx) => {
+            const targetPos = new THREE.Vector3(idx % 2 === 0 ? 0.6 : -0.6, -0.1, (Math.random()-0.5)*1);
+            p.position.lerp(targetPos, 0.02);
+          });
+        }
+      }
+
+      // MICRO SIM STATE
+      if (viewType === 'micro') {
+        cells.forEach(cell => {
+          const pulse = 1.0 + Math.sin(time * 2 + cell.offset) * 0.04;
+          cell.mesh.scale.setScalar(pulse);
+          if (cell.type === 'senescent' && simState === 'operacion') {
+            cell.mesh.scale.setScalar(Math.max(0.1, cell.mesh.scale.x - 0.005));
+            cell.sasp.forEach(sasp => sasp.scale.setScalar(Math.max(0.01, sasp.scale.x - 0.01)));
+          }
+        });
+
+        microNanoparticles.forEach(np => {
+          if (simState === 'simulacion' || simState === 'operacion') {
+            const dest = new THREE.Vector3(2, 1, 0); // target senescent cell
+            const dir = new THREE.Vector3().subVectors(dest, np.mesh.position).normalize();
+            np.mesh.position.addScaledVector(dir, 0.05);
+          } else {
+            np.mesh.position.add(np.velocity);
+          }
+        });
+      }
+
+      // TELEMETRY REFRESH
+      updateTelemetryNumbers();
+
+      renderer.render(scene, camera);
+    }
+
+    function setViewType(val) {
+      viewType = val;
+      document.getElementById('btn-macro').className = viewType === 'macro' ? 'bg-cyan-500 text-slate-950 px-3 py-1.5 rounded-lg text-xs font-mono font-medium' : 'text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg text-xs font-mono';
+      document.getElementById('btn-micro').className = viewType === 'micro' ? 'bg-cyan-500 text-slate-950 px-3 py-1.5 rounded-lg text-xs font-mono font-medium' : 'text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg text-xs font-mono';
+    }
+
+    function toggleAutoRotate() {
+      autoRotate = !autoRotate;
+      document.getElementById('btn-autorotate').className = autoRotate ? 'bg-cyan-500/10 border border-cyan-500/50 text-cyan-400 px-3 py-1.5 rounded-lg text-xs font-mono' : 'bg-slate-900 border border-slate-700 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-mono';
+      document.getElementById('spin-dot').className = autoRotate ? 'w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse' : 'w-1.5 h-1.5 rounded-full bg-slate-500';
+    }
+
+    function toggleXray() {
+      xrayMode = !xrayMode;
+      document.getElementById('dot-xray').className = xrayMode ? 'w-2 h-2 rounded-full bg-cyan-400 shadow-glow' : 'w-2 h-2 rounded-full bg-slate-600';
+    }
+
+    function toggleExploded() {
+      explodedView = !explodedView;
+      document.getElementById('dot-exploded').className = explodedView ? 'w-2 h-2 rounded-full bg-cyan-400 shadow-glow' : 'w-2 h-2 rounded-full bg-slate-600';
+    }
+
+    function setCompound(val) {
+      compound = val;
+      document.getElementById('comp-navitoclax').className = compound === 'navitoclax' ? 'py-1.5 px-2 bg-cyan-500/10 border border-cyan-500/60 text-cyan-400 rounded-lg text-xs font-mono font-bold' : 'py-1.5 px-2 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-xs font-mono';
+      document.getElementById('comp-dq').className = compound === 'dasatinib_quercetin' ? 'py-1.5 px-2 bg-cyan-500/10 border border-cyan-500/60 text-cyan-400 rounded-lg text-xs font-mono font-bold' : 'py-1.5 px-2 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-xs font-mono';
+      document.getElementById('comp-fisetin').className = compound === 'fisetin' ? 'py-1.5 px-2 bg-cyan-500/10 border border-cyan-500/60 text-cyan-400 rounded-lg text-xs font-mono font-bold' : 'py-1.5 px-2 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-xs font-mono';
+    }
+
+    function setDelivery(val) {
+      deliverySystem = val;
+      document.getElementById('deliv-liquid').className = deliverySystem === 'liquid' ? 'py-1.5 px-2.5 bg-cyan-500/10 border border-cyan-500/60 text-cyan-400 rounded-lg text-xs font-mono text-left flex flex-col justify-between' : 'py-1.5 px-2.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-xs font-mono text-left flex flex-col justify-between';
+      document.getElementById('deliv-plga').className = deliverySystem === 'plga' ? 'py-1.5 px-2.5 bg-cyan-500/10 border border-cyan-500/60 text-cyan-400 rounded-lg text-xs font-mono text-left flex flex-col justify-between' : 'py-1.5 px-2.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-xs font-mono text-left flex flex-col justify-between';
+      
+      const sizeSection = document.getElementById('np-size-section');
+      if (deliverySystem === 'plga') {
+        sizeSection.style.opacity = '1';
+        sizeSection.style.pointerEvents = 'auto';
+      } else {
+        sizeSection.style.opacity = '0.3';
+        sizeSection.style.pointerEvents = 'none';
+      }
+    }
+
+    function updateDosage(val) {
+      dosage = parseFloat(val);
+      document.getElementById('val-dosage').textContent = dosage.toFixed(1) + ' mg/ml';
+      handleToxicityAlarm();
+    }
+
+    function updateSize(val) {
+      particleSize = parseInt(val);
+      document.getElementById('val-size').textContent = particleSize + ' nm';
+    }
+
+    function handleToxicityAlarm() {
+      const hud = document.getElementById('hud-card');
+      const alerts = document.getElementById('hud-alerts');
+      if (dosage > 12.5) {
+        hud.className = "bg-slate-900/60 rounded-2xl border border-red-500/50 p-5 shadow-2xl backdrop-blur-xl flex flex-col justify-between bg-red-950/10 animate-pulse";
+        alerts.innerHTML = '<div class="bg-red-500/20 border border-red-500/50 text-red-400 text-[10px] font-mono px-2 py-1 rounded">ALERTA: TOXICIDAD LOCAL</div>';
+      } else {
+        hud.className = "bg-slate-900/60 rounded-2xl border border-slate-800/60 p-5 shadow-2xl backdrop-blur-xl flex flex-col justify-between";
+        alerts.innerHTML = '';
+      }
+    }
+
+    function setSimState(val) {
+      simState = val;
+      ['reposo', 'analisis', 'simulacion', 'operacion', 'mantenimiento'].forEach(state => {
+        const btn = document.getElementById('mode-' + state);
+        if (state === simState) {
+          btn.className = "py-2 px-1 rounded-xl text-[9px] font-mono border bg-cyan-500/10 border-cyan-500/50 text-cyan-400 font-bold hover:opacity-90 flex flex-col items-center justify-center gap-1 min-h-[45px]";
+        } else {
+          btn.className = "py-2 px-1 rounded-xl text-[9px] font-mono border bg-slate-900 border-slate-800 text-slate-400 hover:opacity-90 flex flex-col items-center justify-center gap-1 min-h-[45px]";
+        }
+      });
+
+      document.getElementById('txt-stat-mode').textContent = "STATUS: " + simState.toUpperCase();
+      updateStateDescription();
+      renderNodeGraph();
+    }
+
+    function updateTelemetryNumbers() {
+      const potency = compound === 'navitoclax' ? 1.2 : compound === 'dasatinib_quercetin' ? 1.0 : 0.7;
+      const release = deliverySystem === 'plga' ? 1.0 : 0.45;
+
+      let sasp = 0;
+      let viab = 80;
+      let inflame = 95;
+      let pain = 9.0;
+
+      if (simState === 'reposo') {
+        sasp = 0; viab = 80; inflame = 95; pain = 9.0;
+      } else if (simState === 'analisis') {
+        sasp = 5; viab = 80; inflame = 90; pain = 8.5;
+      } else if (simState === 'simulacion') {
+        sasp = 15; viab = 82; inflame = 80; pain = 7.0;
+      } else if (simState === 'operacion') {
+        sasp = Math.min(95, Math.floor(55 * potency));
+        viab = Math.min(99, Math.floor(88 + 5 * potency));
+        inflame = Math.max(10, Math.floor(45 - 15 * potency));
+        pain = Math.max(1.0, parseFloat((5.0 - 2 * potency).toFixed(1)));
+      } else if (simState === 'mantenimiento') {
+        sasp = Math.min(99, Math.floor(88 * potency * release));
+        viab = Math.min(99, Math.floor(94 + 5 * potency * release));
+        inflame = Math.max(5, Math.floor(20 - 10 * potency * release));
+        pain = Math.max(0.5, parseFloat((2.0 - 1.2 * potency * release).toFixed(1)));
+      }
+
+      // If extreme dosage, reduce viability due to toxicity
+      if (dosage > 12.5) {
+        viab = Math.max(30, viab - Math.floor((dosage - 12.5) * 4));
+        inflame = Math.min(100, inflame + Math.floor((dosage - 12.5) * 3));
+      }
+
+      document.getElementById('val-sasp').textContent = sasp + '%';
+      document.getElementById('bar-sasp').style.width = sasp + '%';
+
+      document.getElementById('val-viab').textContent = viab + '%';
+      document.getElementById('bar-viab').style.width = viab + '%';
+      
+      document.getElementById('val-inflame').textContent = inflame + '%';
+      document.getElementById('bar-inflame').style.width = inflame + '%';
+
+      document.getElementById('val-pain').textContent = pain;
+      document.getElementById('bar-pain').style.width = (pain * 10) + '%';
+    }
+
+    function renderNodeGraph() {
+      const svg = document.getElementById('node-graph-svg');
+      // Simple custom visual structure of AI system inside exported HTML
+      const isES = lang === 'es';
+      const isZH = lang === 'zh';
+      const patientTitle = isES ? 'Perfil Paciente' : isZH ? '患者生理特征' : 'Patient Profile';
+      const bioTitle = isES ? 'Biomarcadores Base' : isZH ? '初始生物标志物' : 'Base Biomarkers';
+      const stressTitle = isES ? 'Estrés Mecánico' : isZH ? '机械负荷评估' : 'Mechanical Stress';
+      const aiCoreTitle = isES ? 'Núcleo IA' : isZH ? 'AI 预测核心' : 'Predictive AI Core';
+      const doseTitle = isES ? 'Optimizar Dosis' : isZH ? '给药剂量优化' : 'Dose Optimizer';
+      const diffusionTitle = isES ? 'Difusión Sinovial' : isZH ? '滑液扩散动力学' : 'Diffusion Kinetics';
+      const apopTitle = isES ? 'Modelo Apoptosis' : isZH ? '细胞凋亡率模型' : 'Apoptosis Model';
+      const saspTitle = isES ? 'Predicción SASP' : isZH ? 'SASP 降解预测' : 'SASP Prediction';
+      const clinicalTitle = isES ? 'Éxito Clínico' : isZH ? '预估临床成功率' : 'Clinical Success';
+
+      const isActive = simState !== 'reposo';
+      const pathStyle = isActive ? 'stroke="#00e5ff" stroke-width="2" class="animate-dash"' : 'stroke="#334155" stroke-width="1"';
+
+      svg.innerHTML = `
+        <!-- Paths -->
+        <path d="M 60 40 L 220 100" fill="none" ${pathStyle} />
+        <path d="M 60 120 L 220 100" fill="none" ${pathStyle} />
+        <path d="M 60 200 L 220 100" fill="none" ${pathStyle} />
+        <path d="M 220 100 L 380 40" fill="none" ${pathStyle} />
+        <path d="M 220 100 L 380 120" fill="none" ${pathStyle} />
+        <path d="M 220 100 L 380 200" fill="none" ${pathStyle} />
+        <path d="M 380 40 L 540 60" fill="none" ${pathStyle} />
+        <path d="M 380 120 L 540 120" fill="none" ${pathStyle} />
+        <path d="M 380 200 L 540 180" fill="none" ${pathStyle} />
+
+        <!-- Nodes Inputs -->
+        <circle cx="60" cy="40" r="15" fill="#0f172a" stroke="#475569" stroke-width="2" />
+        <text x="60" y="70" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="monospace">${patientTitle}</text>
+
+        <circle cx="60" cy="120" r="15" fill="#0f172a" stroke="#475569" stroke-width="2" />
+        <text x="60" y="150" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="monospace">${bioTitle}</text>
+
+        <circle cx="60" cy="200" r="15" fill="#0f172a" stroke="#475569" stroke-width="2" />
+        <text x="60" y="230" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="monospace">${stressTitle}</text>
+
+        <!-- Node AI Core -->
+        <circle cx="220" cy="100" r="22" fill="#083344" stroke="#00e5ff" stroke-width="2" />
+        <text x="220" y="140" fill="#00e5ff" font-size="10" text-anchor="middle" font-weight="bold" font-family="monospace">${aiCoreTitle}</text>
+
+        <!-- Node Processing -->
+        <circle cx="380" cy="40" r="15" fill="#0f172a" stroke="#475569" stroke-width="1" />
+        <text x="380" y="70" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="monospace">${doseTitle}</text>
+
+        <circle cx="380" cy="120" r="15" fill="#0f172a" stroke="#475569" stroke-width="1" />
+        <text x="380" y="150" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="monospace">${diffusionTitle}</text>
+
+        <circle cx="380" cy="200" r="15" fill="#0f172a" stroke="#475569" stroke-width="1" />
+        <text x="380" y="230" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="monospace">${apopTitle}</text>
+
+        <!-- Node Output -->
+        <circle cx="540" cy="60" r="15" fill="#064e3b" stroke="#10b981" stroke-width="2" />
+        <text x="540" y="90" fill="#10b981" font-size="9" text-anchor="middle" font-family="monospace">${saspTitle}</text>
+
+        <circle cx="540" cy="180" r="15" fill="#064e3b" stroke="#10b981" stroke-width="2" />
+        <text x="540" y="210" fill="#10b981" font-size="9" text-anchor="middle" font-family="monospace">${clinicalTitle}</text>
+      `;
+    }
+
+    // Run initialization
+    window.onload = () => {
+      init3D();
+      changeLanguage(lang);
+    };
+  </script>
+</body>
+</html>
