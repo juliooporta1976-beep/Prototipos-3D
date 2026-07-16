@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SNAPI — Sistema Nacional de Activación Productiva Inmediata</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root{--bg:#0a0c12;--fg:#e0e2e8;--muted:#6b7280;--accent:#FFB300;--accent2:#FFD54F;--card:rgba(10,14,22,0.88);--border:rgba(255,179,0,0.18);--danger:#FF5252;--success:#69F0AE;--warn:#FFD740;--titanium:#3A3D42;--font-h:'Rajdhani',sans-serif;--font-d:'Space Grotesk',sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-d);overflow:hidden;width:100vw;height:100vh;user-select:none}
+#loading{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s,visibility .5s}
+#loading.hidden{opacity:0;visibility:hidden;pointer-events:none}
+#loading h1{font-family:var(--font-h);font-size:1.6rem;font-weight:700;letter-spacing:.12em;color:var(--accent);text-shadow:0 0 40px rgba(255,179,0,.45);text-align:center;line-height:1.35;max-width:90vw}
+#loading p{color:var(--muted);margin-top:.5rem;font-size:.85rem;letter-spacing:.15em}
+.load-bar{width:320px;height:2px;background:rgba(255,179,0,.15);margin-top:2rem;border-radius:2px;overflow:hidden}
+.load-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .15s;border-radius:2px}
+canvas{display:block;position:fixed;inset:0;z-index:1}
+.hud{position:fixed;z-index:10;pointer-events:none}
+.hud>*{pointer-events:auto}
+.hud-top{top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:linear-gradient(180deg,rgba(10,12,18,.94) 0%,transparent 100%)}
+.hud-logo{display:flex;align-items:center;gap:10px;flex-shrink:1;min-width:0}
+.hud-logo .mark{width:28px;height:28px;border:2px solid var(--accent);transform:rotate(45deg);display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0}
+.hud-logo .mark::after{content:'';width:12px;height:12px;border:1.5px solid var(--accent);transform:rotate(0deg);opacity:.6}
+.hud-logo span{font-family:var(--font-h);font-size:.68rem;font-weight:700;letter-spacing:.08em;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+.hud-state{display:flex;align-items:center;gap:8px;padding:4px 14px;border:1px solid var(--border);border-radius:4px;background:var(--card);backdrop-filter:blur(12px);flex-shrink:0}
+.hud-state .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;box-shadow:0 0 4px var(--accent)}50%{opacity:.4;box-shadow:none}}
+.hud-state label{font-size:.7rem;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.hud-state .val{font-family:var(--font-h);font-size:.85rem;font-weight:600;color:var(--fg)}
+.hud-right{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.hud-clock{font-family:var(--font-h);font-size:.8rem;color:var(--muted);letter-spacing:.1em}
+.lang-sel{display:flex;gap:2px}
+.lang-sel button{background:transparent;border:1px solid var(--border);color:var(--muted);padding:3px 8px;font-size:.65rem;cursor:pointer;font-family:var(--font-d);letter-spacing:.05em;transition:all .2s}
+.lang-sel button.active{color:var(--accent);border-color:var(--accent);background:rgba(255,179,0,.08)}
+.lang-sel button:hover{color:var(--fg)}
+.btn-icon{width:30px;height:30px;border:1px solid var(--border);background:var(--card);backdrop-filter:blur(8px);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.75rem;transition:all .2s;border-radius:3px}
+.btn-icon:hover{color:var(--accent);border-color:var(--accent)}
+.hud-left{top:70px;left:14px;bottom:80px;width:220px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;scrollbar-width:none}
+.hud-left::-webkit-scrollbar{display:none}
+.panel{background:var(--card);backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:6px;padding:12px;position:relative;overflow:hidden}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.3}
+.panel-title{font-family:var(--font-h);font-size:.7rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.panel-title i{font-size:.6rem;opacity:.7}
+.phase-item{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:all .2s}
+.phase-item:hover{padding-left:4px}
+.phase-item:last-child{border:none}
+.phase-dot{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--muted);transition:all .3s;flex-shrink:0}
+.phase-dot.active{border-color:var(--accent);background:var(--accent);box-shadow:0 0 8px var(--accent)}
+.phase-dot.complete{border-color:var(--success);background:var(--success)}
+.phase-dot.warning{border-color:var(--warn);background:var(--warn)}
+.phase-dot.error{border-color:var(--danger);background:var(--danger)}
+.phase-name{font-size:.72rem;color:var(--fg);flex:1}
+.phase-val{font-family:var(--font-h);font-size:.72rem;color:var(--muted);font-weight:500}
+.indicator-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:.68rem}
+.indicator-row .lbl{color:var(--muted)}
+.indicator-row .num{font-family:var(--font-h);font-weight:600;color:var(--fg)}
+.indicator-row .num.good{color:var(--success)}
+.indicator-row .num.bad{color:var(--danger)}
+.mini-bar{height:3px;background:rgba(255,255,255,.06);border-radius:2px;margin-top:3px;overflow:hidden}
+.mini-bar-fill{height:100%;border-radius:2px;transition:width .5s}
+.hud-right-panel{top:70px;right:14px;bottom:80px;width:210px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;scrollbar-width:none}
+.hud-right-panel::-webkit-scrollbar{display:none}
+.ai-node-mini{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:.65rem}
+.ai-node-mini .nd{width:5px;height:5px;border-radius:50%;background:var(--accent);opacity:.7;animation:pulse-dot 1.5s infinite}
+.ai-node-mini .nd.off{background:var(--muted);opacity:.3;animation:none}
+.ai-node-mini .nm{color:var(--muted);flex:1}
+.ai-node-mini .st{color:var(--accent);font-family:var(--font-h);font-weight:500}
+.hud-bottom{bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 20px;background:linear-gradient(0deg,rgba(10,12,18,.94) 0%,transparent 100%);flex-wrap:wrap}
+.mode-btn{padding:5px 12px;border:1px solid var(--border);background:var(--card);backdrop-filter:blur(8px);color:var(--muted);font-family:var(--font-h);font-size:.65rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .25s;border-radius:3px;white-space:nowrap}
+.mode-btn:hover{color:var(--fg);border-color:rgba(255,179,0,.4)}
+.mode-btn.active{color:var(--accent);border-color:var(--accent);background:rgba(255,179,0,.1);box-shadow:0 0 12px rgba(255,179,0,.18)}
+.cam-controls{position:fixed;bottom:60px;right:14px;z-index:10;display:flex;flex-direction:column;gap:4px}
+.cam-btn{width:32px;height:32px;border:1px solid var(--border);background:var(--card);backdrop-filter:blur(8px);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.7rem;transition:all .2s;border-radius:3px}
+.cam-btn:hover,.cam-btn.active{color:var(--accent);border-color:var(--accent)}
+.info-panel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;width:380px;max-width:90vw;background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:8px;padding:20px;opacity:0;visibility:hidden;transition:all .3s}
+.info-panel.show{opacity:1;visibility:visible}
+.info-panel .close-btn{position:absolute;top:10px;right:12px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;transition:color .2s}
+.info-panel .close-btn:hover{color:var(--fg)}
+.info-panel h3{font-family:var(--font-h);font-size:1.1rem;font-weight:700;color:var(--accent);letter-spacing:.1em;margin-bottom:4px}
+.info-panel .subtitle{font-size:.7rem;color:var(--muted);letter-spacing:.08em;margin-bottom:12px}
+.info-panel p{font-size:.78rem;color:var(--fg);line-height:1.6;margin-bottom:8px;opacity:.85}
+.info-panel .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.info-panel .stat-box{background:rgba(255,179,0,.05);border:1px solid var(--border);border-radius:4px;padding:8px;text-align:center}
+.info-panel .stat-box .sv{font-family:var(--font-h);font-size:1.2rem;font-weight:700;color:var(--accent)}
+.info-panel .stat-box .sl{font-size:.6rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
+.toast-area{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:30;display:flex;flex-direction:column;gap:6px;align-items:center}
+.toast{padding:8px 18px;background:var(--card);backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:4px;font-size:.72rem;color:var(--fg);animation:toast-in .3s,toast-out .3s 2.7s forwards;white-space:nowrap}
+.toast.warn{border-color:rgba(255,215,64,.4);color:var(--warn)}
+.toast.err{border-color:rgba(255,82,82,.4);color:var(--danger)}
+.toast.ok{border-color:rgba(105,240,174,.4);color:var(--success)}
+@keyframes toast-in{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes toast-out{to{opacity:0;transform:translateY(-10px)}}
+.crosshair{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:none;opacity:.15}
+.crosshair::before,.crosshair::after{content:'';position:absolute;background:var(--accent)}
+.crosshair::before{width:1px;height:20px;left:0;top:-10px}
+.crosshair::after{width:20px;height:1px;top:0;left:-10px}
+.alert-bar{position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:25;padding:6px 20px;background:rgba(255,82,82,.12);border:1px solid rgba(255,82,82,.35);border-radius:4px;font-family:var(--font-h);font-size:.75rem;font-weight:600;color:var(--danger);letter-spacing:.15em;opacity:0;transition:opacity .3s;pointer-events:none}
+.alert-bar.show{opacity:1;animation:pulse-dot 1s infinite}
+@media(max-width:768px){.hud-left,.hud-right-panel{display:none}.hud-top{padding:8px 12px}.hud-logo span{font-size:.55rem}.mode-btn{padding:4px 8px;font-size:.58rem}}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <h1>SISTEMA NACIONAL DE ACTIVACION<br>PRODUCTIVA INMEDIATA (SNAPI)</h1>
+  <p id="load-text">Inicializando sistema...</p>
+  <div class="load-bar"><div class="load-fill" id="load-fill"></div></div>
+</div>
+
+<div class="crosshair"></div>
+
+<div class="alert-bar" id="alert-bar"></div>
+<div class="toast-area" id="toast-area"></div>
+
+<div class="hud hud-top">
+  <div class="hud-logo">
+    <div class="mark"></div>
+    <span>SISTEMA NACIONAL DE ACTIVACION PRODUCTIVA INMEDIATA (SNAPI)</span>
+  </div>
+  <div class="hud-state">
+    <div class="dot" id="state-dot"></div>
+    <label data-i18n="estado">ESTADO</label>
+    <div class="val" id="state-label">REPOSO</div>
+  </div>
+  <div class="hud-right">
+    <div class="hud-clock" id="hud-clock">00:00:00</div>
+    <div class="lang-sel">
+      <button class="active" data-lang="es">ES</button>
+      <button data-lang="en">EN</button>
+      <button data-lang="zh">中</button>
+    </div>
+    <button class="btn-icon" id="btn-ar" title="Realidad Aumentada"><i class="fas fa-vr-cardboard"></i></button>
+    <button class="btn-icon" id="btn-fullscreen" title="Pantalla completa"><i class="fas fa-expand"></i></button>
+  </div>
+</div>
+
+<div class="hud hud-left" id="hud-left">
+  <div class="panel">
+    <div class="panel-title"><i class="fas fa-layer-group"></i> <span data-i18n="fases_operativas">FASES OPERATIVAS</span></div>
+    <div id="phase-list"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title"><i class="fas fa-chart-line"></i> <span data-i18n="indicadores">INDICADORES</span></div>
+    <div id="indicator-list"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title"><i class="fas fa-bolt"></i> <span data-i18n="energia">ENERGIA DEL SISTEMA</span></div>
+    <div class="indicator-row"><span class="lbl" data-i18n="core">Nucleo</span><span class="num good" id="nrg-core">98%</span></div>
+    <div class="mini-bar"><div class="mini-bar-fill" id="nrg-core-bar" style="width:98%;background:var(--success)"></div></div>
+    <div class="indicator-row" style="margin-top:6px"><span class="lbl" data-i18n="red_ia">Red IA</span><span class="num" id="nrg-ai">76%</span></div>
+    <div class="mini-bar"><div class="mini-bar-fill" id="nrg-ai-bar" style="width:76%;background:var(--accent)"></div></div>
+    <div class="indicator-row" style="margin-top:6px"><span class="lbl" data-i18n="fases_mod">Fases</span><span class="num good" id="nrg-phases">92%</span></div>
+    <div class="mini-bar"><div class="mini-bar-fill" id="nrg-phases-bar" style="width:92%;background:var(--success)"></div></div>
+  </div>
+</div>
+
+<div class="hud hud-right-panel" id="hud-right">
+  <div class="panel">
+    <div class="panel-title"><i class="fas fa-brain"></i> <span data-i18n="red_ia_full">RED DE INTELIGENCIA ARTIFICIAL</span></div>
+    <div id="ai-nodes-list"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title"><i class="fas fa-satellite-dish"></i> <span data-i18n="sensores">SENSORES</span></div>
+    <div id="sensor-list"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title"><i class="fas fa-signal"></i> <span data-i18n="telemetria">TELEMETRIA</span></div>
+    <div id="telemetry-list"></div>
+  </div>
+</div>
+
+<div class="hud hud-bottom" id="hud-bottom">
+  <button class="mode-btn active" data-mode="rest"><i class="fas fa-moon"></i> <span data-i18n="m_reposo">REPOSO</span></button>
+  <button class="mode-btn" data-mode="analysis"><i class="fas fa-search-plus"></i> <span data-i18n="m_analisis">ANALISIS</span></button>
+  <button class="mode-btn" data-mode="diagnostic"><i class="fas fa-stethoscope"></i> <span data-i18n="m_diagnostico">DIAGNOSTICO</span></button>
+  <button class="mode-btn" data-mode="simulation"><i class="fas fa-play-circle"></i> <span data-i18n="m_simulacion">SIMULACION</span></button>
+  <button class="mode-btn" data-mode="operation"><i class="fas fa-cog"></i> <span data-i18n="m_operacion">OPERACION</span></button>
+  <button class="mode-btn" data-mode="maintenance"><i class="fas fa-tools"></i> <span data-i18n="m_mantenimiento">MANTENIMIENTO</span></button>
+  <button class="mode-btn" data-mode="emergency"><i class="fas fa-exclamation-triangle"></i> <span data-i18n="m_emergencia">EMERGENCIA</span></button>
+  <button class="mode-btn" data-mode="energy"><i class="fas fa-bolt"></i> <span data-i18n="m_energia">ENERGIA</span></button>
+  <button class="mode-btn" data-mode="ai"><i class="fas fa-brain"></i> <span data-i18n="m_ia">IA</span></button>
+  <button class="mode-btn" data-mode="hybrid"><i class="fas fa-atom"></i> <span data-i18n="m_hibrido">HIBRIDO</span></button>
+</div>
+
+<div class="cam-controls">
+  <button class="cam-btn" data-cam="free" title="Vista libre"><i class="fas fa-arrows-alt"></i></button>
+  <button class="cam-btn" data-cam="auto" title="Vista automatica"><i class="fas fa-sync-alt"></i></button>
+  <button class="cam-btn" data-cam="explode" title="Vista explotada"><i class="fas fa-expand-arrows-alt"></i></button>
+  <button class="cam-btn" data-cam="xray" title="Vista X-Ray"><i class="fas fa-x-ray"></i></button>
+  <button class="cam-btn" data-cam="section" title="Vista seccionada"><i class="fas fa-cut"></i></button>
+  <button class="cam-btn" data-cam="top" title="Vista superior"><i class="fas fa-arrow-down"></i></button>
+</div>
+
+<div class="info-panel" id="info-panel">
+  <button class="close-btn" id="info-close"><i class="fas fa-times"></i></button>
+  <h3 id="info-title"></h3>
+  <div class="subtitle" id="info-subtitle"></div>
+  <p id="info-desc"></p>
+  <div class="stat-grid" id="info-stats"></div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+/* ========== COLOR PRINCIPAL: DORADO AMBAR ========== */
+const ACCENT_HEX = 0xFFB300;
+const ACCENT_CSS = '#FFB300';
+const ACCENT2_HEX = 0xFFD54F;
+const ACCENT3_HEX = 0xFF8F00;
+
+/* ========== CARGA INMEDIATA ========== */
+const loadFill = document.getElementById('load-fill');
+loadFill.style.width = '100%';
+setTimeout(() => document.getElementById('loading').classList.add('hidden'), 200);
+
+/* ========== SISTEMA MULTILENGUAJE ========== */
+const LANG = {
+  es: {
+    estado:'ESTADO',fases_operativas:'FASES OPERATIVAS',indicadores:'INDICADORES',energia:'ENERGIA DEL SISTEMA',
+    core:'Nucleo',red_ia:'Red IA',fases_mod:'Fases',red_ia_full:'RED DE INTELIGENCIA ARTIFICIAL',
+    sensores:'SENSORES',telemetria:'TELEMETRIA',
+    m_reposo:'REPOSO',m_analisis:'ANALISIS',m_diagnostico:'DIAGNOSTICO',m_simulacion:'SIMULACION',
+    m_operacion:'OPERACION',m_mantenimiento:'MANTENIMIENTO',m_emergencia:'EMERGENCIA',
+    m_energia:'ENERGIA',m_ia:'IA',m_hibrido:'HIBRIDO',
+    ph1:'Identificacion',ph2:'Activacion',ph3:'Produccion',ph4:'Generacion Ingresos',ph5:'Escalamiento',
+    ind1:'Emprendimientos Activos',ind2:'Ingresos Generados',ind3:'Tasa Sostenibilidad',ind4:'Cobertura Territorial',
+    ai1:'Procesamiento',ai2:'Prediccion',ai3:'Aprendizaje',ai4:'Decision',ai5:'Rutas Activas',ai6:'Flujo Datos',
+    sn1:'Biometrico',sn2:'Territorial',sn3:'Economico',sn4:'Ambiental',sn5:'Social',
+    tm1:'Latencia Sistema',tm2:'Throughput',tm3:'Uso CPU',tm4:'Memoria Activa',
+    states:{rest:'REPOSO',analysis:'ANALISIS',diagnostic:'DIAGNOSTICO',simulation:'SIMULACION',operation:'OPERACION',maintenance:'MANTENIMIENTO',emergency:'EMERGENCIA',energy:'ENERGIA',ai:'INTELIGENCIA ARTIFICIAL',hybrid:'HIBRIDO'},
+    toast_ar:'AR requiere dispositivo movil compatible con WebXR',
+    toast_state:'Modo activado: ',toast_click:'Haga clic en un modulo para detalles',
+    alert_emergency:'ALERTA DE EMERGENCIA — PROTOCOLO DE CONTENCION ACTIVADO',
+    tri_s:'SIMPLIFICACION',tri_i:'INMEDIATEZ',tri_r:'RESULTADOS',
+    desc_ph1:'Localizacion de beneficiarios con necesidad economica inmediata, disponibilidad de tiempo y capacidades basicas aprovechables mediante estructuras comunitarias.',
+    desc_ph2:'Diseno de micro-negocios viables, de bajo costo y rapida implementacion. Talleres practicos de ideacion y asesoria tecnica basica.',
+    desc_ph3:'Inicio de operaciones en plazo maximo de 7 dias. Uso de recursos locales, tecnicas simples y acompanamiento tecnico.',
+    desc_ph4:'Validacion economica mediante ventas iniciales. Circuitos cortos de comercializacion en mercados locales.',
+    desc_ph5:'Acceso a microcreditos progresivos, formalizacion e integracion a cadenas de valor.',
+    stat_beneficiarios:'Beneficiarios',stat_dias:'Dias Max.',stat_ingreso:'Ingreso Min.',stat_escalamiento:'Escalamiento'
+  },
+  en: {
+    estado:'STATUS',fases_operativas:'OPERATIONAL PHASES',indicadores:'INDICATORS',energia:'SYSTEM ENERGY',
+    core:'Core',red_ia:'AI Net',fases_mod:'Phases',red_ia_full:'ARTIFICIAL INTELLIGENCE NETWORK',
+    sensores:'SENSORS',telemetria:'TELEMETRY',
+    m_reposo:'REST',m_analisis:'ANALYSIS',m_diagnostico:'DIAGNOSTIC',m_simulacion:'SIMULATION',
+    m_operation:'OPERATION',m_mantenimiento:'MAINTENANCE',m_emergencia:'EMERGENCY',
+    m_energia:'ENERGY',m_ia:'AI',m_hibrido:'HYBRID',
+    ph1:'Identification',ph2:'Activation',ph3:'Production',ph4:'Income Generation',ph5:'Scaling',
+    ind1:'Active Enterprises',ind2:'Income Generated',ind3:'Sustainability Rate',ind4:'Territorial Coverage',
+    ai1:'Processing',ai2:'Prediction',ai3:'Learning',ai4:'Decision',ai5:'Active Routes',ai6:'Data Flow',
+    sn1:'Biometric',sn2:'Territorial',sn3:'Economic',sn4:'Environmental',sn5:'Social',
+    tm1:'System Latency',tm2:'Throughput',tm3:'CPU Usage',tm4:'Active Memory',
+    states:{rest:'REST',analysis:'ANALYSIS',diagnostic:'DIAGNOSTIC',simulation:'SIMULATION',operation:'OPERATION',maintenance:'MAINTENANCE',emergency:'EMERGENCY',energy:'ENERGY',ai:'ARTIFICIAL INTELLIGENCE',hybrid:'HYBRID'},
+    toast_ar:'AR requires a WebXR-compatible mobile device',
+    toast_state:'Mode activated: ',toast_click:'Click on a module for details',
+    alert_emergency:'EMERGENCY ALERT — CONTAINMENT PROTOCOL ACTIVATED',
+    tri_s:'SIMPLIFICATION',tri_i:'IMMEDIACY',tri_r:'RESULTS',
+    desc_ph1:'Locating beneficiaries with immediate economic need, time availability and basic exploitable skills through community structures.',
+    desc_ph2:'Designing viable, low-cost, quick-implementation micro-businesses. Practical ideation workshops and basic technical advisory.',
+    desc_ph3:'Starting operations within maximum 7 days. Using local resources, simple techniques and technical accompaniment.',
+    desc_ph4:'Economic validation through initial sales. Short commercialization circuits in local markets.',
+    desc_ph5:'Access to progressive micro-credits, formalization and integration into value chains.',
+    stat_beneficiarios:'Beneficiaries',stat_dias:'Max Days',stat_ingreso:'Min Income',stat_escalamiento:'Scaling'
+  },
+  zh: {
+    estado:'状态',fases_operativas:'运营阶段',indicadores:'指标',energia:'系统能量',
+    core:'核心',red_ia:'AI网络',fases_mod:'阶段',red_ia_full:'人工智能网络',
+    sensores:'传感器',telemetria:'遥测',
+    m_reposo:'待机',m_analisis:'分析',m_diagnostico:'诊断',m_simulacion:'模拟',
+    m_operation:'运营',m_mantenimiento:'维护',m_emergencia:'紧急',
+    m_energia:'能量',m_ia:'AI',m_hibrido:'混合',
+    ph1:'识别',ph2:'激活',ph3:'生产',ph4:'收入生成',ph5:'扩展',
+    ind1:'活跃企业',ind2:'已生成收入',ind3:'可持续率',ind4:'领土覆盖',
+    ai1:'处理',ai2:'预测',ai3:'学习',ai4:'决策',ai5:'活跃路由',ai6:'数据流',
+    sn1:'生物识别',sn2:'领土',sn3:'经济',sn4:'环境',sn5:'社会',
+    tm1:'系统延迟',tm2:'吞吐量',tm3:'CPU使用率',tm4:'活动内存',
+    states:{rest:'待机',analysis:'分析',diagnostic:'诊断',simulation:'模拟',operation:'运营',maintenance:'维护',emergency:'紧急',energy:'能量',ai:'人工智能',hybrid:'混合'},
+    toast_ar:'AR需要支持WebXR的移动设备',
+    toast_state:'模式已激活：',toast_click:'点击模块查看详情',
+    alert_emergency:'紧急警报 — 遏制协议已激活',
+    tri_s:'简化',tri_i:'即时性',tri_r:'结果',
+    desc_ph1:'通过社区结构定位有即时经济需求、时间可用性和基本可利用技能的受益人。',
+    desc_ph2:'设计可行、低成本、快速实施的微型企业。实践性创意工作坊和基础技术咨询。',
+    desc_ph3:'在最多7天内启动运营。使用本地资源、简单技术和技术陪同。',
+    desc_ph4:'通过初始销售进行经济验证。本地市场的短商业链路。',
+    desc_ph5:'获得渐进式微贷款、正规化和价值链整合。',
+    stat_beneficiarios:'受益人',stat_dias:'最大天数',stat_ingreso:'最低收入',stat_escalamiento:'扩展'
+  }
+};
+let currentLang = 'es';
+function t(key){ return LANG[currentLang][key] || key; }
+function applyLang(){
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.getAttribute('data-i18n');
+    if(LANG[currentLang][k]) el.textContent = LANG[currentLang][k];
+  });
+  buildPhaseList(); buildIndicators(); buildAINodes(); buildSensors(); buildTelemetry();
+  document.getElementById('state-label').textContent = t('states')[currentMode];
+}
+document.querySelectorAll('.lang-sel button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.lang-sel button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentLang = btn.dataset.lang;
+    applyLang();
+  });
+});
+
+/* ========== ESTADOS DEL SISTEMA ========== */
+let currentMode = 'rest';
+const modeConfigs = {
+  rest:       { bloom:0.45, ambientInt:0.3, accentColor:'#FFB300', speed:0.3, particleSpeed:0.2, alert:false },
+  analysis:   { bloom:0.6,  ambientInt:0.25,accentColor:'#FFD54F', speed:0.5, particleSpeed:0.4, alert:false },
+  diagnostic: { bloom:0.5,  ambientInt:0.35,accentColor:'#B2FF59', speed:0.6, particleSpeed:0.3, alert:false },
+  simulation: { bloom:0.8,  ambientInt:0.3, accentColor:'#FFB300', speed:1.0, particleSpeed:1.0, alert:false },
+  operation:  { bloom:0.7,  ambientInt:0.4, accentColor:'#FF8F00', speed:0.8, particleSpeed:0.8, alert:false },
+  maintenance:{ bloom:0.3,  ambientInt:0.5, accentColor:'#FFD740', speed:0.2, particleSpeed:0.1, alert:false },
+  emergency:  { bloom:1.0,  ambientInt:0.15,accentColor:'#FF5252', speed:1.5, particleSpeed:1.5, alert:true },
+  energy:     { bloom:0.9,  ambientInt:0.2, accentColor:'#FF8F00', speed:1.2, particleSpeed:1.8, alert:false },
+  ai:         { bloom:0.75, ambientInt:0.25,accentColor:'#FF6D00', speed:0.9, particleSpeed:0.6, alert:false },
+  hybrid:     { bloom:0.85, ambientInt:0.3, accentColor:'#FFB300', speed:1.0, particleSpeed:1.2, alert:false }
+};
+
+/* ========== UTILIDADES ========== */
+function toast(msg, type=''){
+  const d = document.createElement('div');
+  d.className = 'toast ' + type;
+  d.textContent = msg;
+  document.getElementById('toast-area').appendChild(d);
+  setTimeout(() => d.remove(), 3200);
+}
+function updateClock(){
+  const n = new Date();
+  document.getElementById('hud-clock').textContent =
+    String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');
+}
+setInterval(updateClock, 1000); updateClock();
+
+/* ========== CONSTRUIR HUD DINAMICO ========== */
+const phaseData = [
+  {key:'ph1', status:'active', val:'D1-2'},
+  {key:'ph2', status:'active', val:'D3-4'},
+  {key:'ph3', status:'active', val:'D5-7'},
+  {key:'ph4', status:'active', val:'D8-15'},
+  {key:'ph5', status:'active', val:'D16-30'}
+];
+function buildPhaseList(){
+  const c = document.getElementById('phase-list');
+  c.innerHTML = '';
+  phaseData.forEach((p,i) => {
+    const d = document.createElement('div');
+    d.className = 'phase-item';
+    d.dataset.phase = i;
+    d.innerHTML = `<div class="phase-dot ${p.status}"></div><span class="phase-name">${t(p.key)}</span><span class="phase-val">${p.val}</span>`;
+    d.addEventListener('click', () => focusPhase(i));
+    c.appendChild(d);
+  });
+}
+function buildIndicators(){
+  const c = document.getElementById('indicator-list');
+  const vals = [[Math.floor(Math.random()*500+800),'good'], ['$'+(Math.random()*50+20).toFixed(1)+'K','good'], [Math.floor(Math.random()*15+78)+'%','good'], [Math.floor(Math.random()*10+85)+'%','good']];
+  const keys = ['ind1','ind2','ind3','ind4'];
+  c.innerHTML = '';
+  keys.forEach((k,i) => {
+    c.innerHTML += `<div class="indicator-row"><span class="lbl">${t(k)}</span><span class="num ${vals[i][1]}">${vals[i][0]}</span></div>`;
+  });
+}
+function buildAINodes(){
+  const c = document.getElementById('ai-nodes-list');
+  const keys = ['ai1','ai2','ai3','ai4','ai5','ai6'];
+  const sts = ['98.2%','94.7%','87.3%','91.5%','156','2.4GB/s'];
+  c.innerHTML = '';
+  keys.forEach((k,i) => {
+    const off = currentMode==='rest' && i>2 ? ' off':'';
+    c.innerHTML += `<div class="ai-node-mini"><div class="nd${off}"></div><span class="nm">${t(k)}</span><span class="st">${sts[i]}</span></div>`;
+  });
+}
+function buildSensors(){
+  const c = document.getElementById('sensor-list');
+  const keys = ['sn1','sn2','sn3','sn4','sn5'];
+  const sts = ['OK','OK','OK','OK','OK'];
+  c.innerHTML = '';
+  keys.forEach((k,i) => {
+    c.innerHTML += `<div class="indicator-row"><span class="lbl">${t(k)}</span><span class="num good">${sts[i]}</span></div>`;
+  });
+}
+function buildTelemetry(){
+  const c = document.getElementById('telemetry-list');
+  const keys = ['tm1','tm2','tm3','tm4'];
+  const vals = ['12ms','847/s','34%','2.1GB'];
+  c.innerHTML = '';
+  keys.forEach((k,i) => {
+    c.innerHTML += `<div class="indicator-row"><span class="lbl">${t(k)}</span><span class="num">${vals[i]}</span></div>`;
+  });
+}
+buildPhaseList(); buildIndicators(); buildAINodes(); buildSensors(); buildTelemetry();
+
+/* ========== ESCENA THREE.JS ========== */
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0a0c12, 0.018);
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 500);
+camera.position.set(12, 8, 16);
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false, powerPreference:'high-performance' });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+/* ========== POST-PROCESAMIENTO ========== */
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.45, 0.4, 0.85);
+composer.addPass(bloomPass);
+
+const vignetteShader = {
+  uniforms: { tDiffuse:{value:null}, offset:{value:1.2}, darkness:{value:1.4} },
+  vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float offset; uniform float darkness; varying vec2 vUv;
+    void main(){ vec4 c=texture2D(tDiffuse,vUv); vec2 uv=(vUv-vec2(0.5))*vec2(offset); float v=clamp(1.0-dot(uv,uv),0.0,1.0); c.rgb*=mix(vec3(1.0-darkness),vec3(1.0),v); gl_FragColor=c; }`
+};
+const vignettePass = new ShaderPass(vignetteShader);
+composer.addPass(vignettePass);
+
+/* ========== CONTROLES ========== */
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 5;
+controls.maxDistance = 50;
+controls.maxPolarAngle = Math.PI * 0.85;
+controls.target.set(0, 1, 0);
+
+/* ========== ILUMINACION CINEMATOGRAFICA ========== */
+const ambientLight = new THREE.AmbientLight(0x1a2030, 0.3);
+scene.add(ambientLight);
+
+const keyLight = new THREE.DirectionalLight(0xffeedd, 1.2);
+keyLight.position.set(8, 15, 5);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.camera.near = 0.5;
+keyLight.shadow.camera.far = 50;
+keyLight.shadow.camera.left = -15;
+keyLight.shadow.camera.right = 15;
+keyLight.shadow.camera.top = 15;
+keyLight.shadow.camera.bottom = -15;
+keyLight.shadow.bias = -0.001;
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(ACCENT_HEX, 0.3);
+fillLight.position.set(-10, 5, -5);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(ACCENT3_HEX, 0.5);
+rimLight.position.set(0, 3, -12);
+scene.add(rimLight);
+
+const accentLight1 = new THREE.PointLight(ACCENT_HEX, 2.5, 20, 2);
+accentLight1.position.set(0, 4, 0);
+scene.add(accentLight1);
+
+const accentLight2 = new THREE.PointLight(ACCENT3_HEX, 1.2, 15, 2);
+accentLight2.position.set(-5, 2, 5);
+scene.add(accentLight2);
+
+const accentLight3 = new THREE.PointLight(ACCENT_HEX, 1.2, 15, 2);
+accentLight3.position.set(5, 2, -5);
+scene.add(accentLight3);
+
+/* ========== MATERIALES PBR ========== */
+const matTitanium = new THREE.MeshStandardMaterial({ color:0x3A3D42, metalness:0.92, roughness:0.28 });
+const matTitaniumLight = new THREE.MeshStandardMaterial({ color:0x5A5D62, metalness:0.88, roughness:0.3 });
+const matCyan = new THREE.MeshStandardMaterial({ color:ACCENT_HEX, metalness:0.7, roughness:0.15, emissive:ACCENT_HEX, emissiveIntensity:0.4 });
+const matCyanBright = new THREE.MeshStandardMaterial({ color:ACCENT2_HEX, metalness:0.5, roughness:0.1, emissive:ACCENT_HEX, emissiveIntensity:0.8 });
+const matGlass = new THREE.MeshPhysicalMaterial({ color:0xffcc80, metalness:0, roughness:0.05, transmission:0.85, thickness:0.5, transparent:true, opacity:0.3 });
+const matWhite = new THREE.MeshStandardMaterial({ color:0xf0f0f0, metalness:0.1, roughness:0.4 });
+const matCarbon = new THREE.MeshStandardMaterial({ color:0x1a1c20, metalness:0.8, roughness:0.5 });
+const matDark = new THREE.MeshStandardMaterial({ color:0x15171c, metalness:0.6, roughness:0.6 });
+const matScreen = new THREE.MeshStandardMaterial({ color:0x0a1520, metalness:0.3, roughness:0.2, emissive:ACCENT_HEX, emissiveIntensity:0.15 });
+const matEmissive = new THREE.MeshStandardMaterial({ color:ACCENT_HEX, emissive:ACCENT_HEX, emissiveIntensity:1.0 });
+
+const allMaterials = [matTitanium, matTitaniumLight, matCyan, matCyanBright, matGlass, matWhite, matCarbon, matDark, matScreen, matEmissive];
+const origOpacity = new Map();
+allMaterials.forEach(m => origOpacity.set(m, m.opacity));
+
+/* ========== GRUPOS PRINCIPALES ========== */
+const coreGroup = new THREE.Group();
+const phasesGroup = new THREE.Group();
+const connectionsGroup = new THREE.Group();
+const particlesGroup = new THREE.Group();
+const aiGroup = new THREE.Group();
+const ringsGroup = new THREE.Group();
+const groundGroup = new THREE.Group();
+scene.add(coreGroup, phasesGroup, connectionsGroup, particlesGroup, aiGroup, ringsGroup, groundGroup);
+
+/* ========== SUELO CON GRID ========== */
+(function buildGround(){
+  const gridHelper = new THREE.GridHelper(40, 40, 0x2a2210, 0x0d1520);
+  gridHelper.position.y = -0.5;
+  groundGroup.add(gridHelper);
+  const floorGeo = new THREE.PlaneGeometry(50, 50);
+  const floorMat = new THREE.MeshStandardMaterial({ color:0x080a0f, metalness:0.5, roughness:0.8 });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI/2;
+  floor.position.y = -0.51;
+  floor.receiveShadow = true;
+  groundGroup.add(floor);
+  for(let i=1; i<=3; i++){
+    const r = Math.max(0.1, i*5);
+    const ringGeo = new THREE.RingGeometry(r-0.02, r+0.02, 64);
+    const ringMat = new THREE.MeshBasicMaterial({ color:ACCENT_HEX, transparent:true, opacity:0.1-i*0.02, side:THREE.DoubleSide });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI/2;
+    ring.position.y = -0.49;
+    groundGroup.add(ring);
+  }
+})();
+
+/* ========== TRIANGULO DINAMICO SNAPI (NUCLEO) ========== */
+const triVertices = [];
+const triAngle = (i) => (i/3)*Math.PI*2 - Math.PI/2;
+const triRadius = 2.5;
+for(let i=0; i<3; i++){
+  const a = triAngle(i);
+  triVertices.push(new THREE.Vector3(Math.cos(a)*triRadius, 0, Math.sin(a)*triRadius));
+}
+const pillarPositions = [];
+for(let i=0; i<3; i++){
+  const v = triVertices[i];
+  const h = 4;
+  const pGeo = new THREE.CylinderGeometry(Math.max(0.01,0.06), Math.max(0.01,0.08), h, 8);
+  const pillar = new THREE.Mesh(pGeo, matTitanium);
+  pillar.position.set(v.x, h/2, v.z);
+  pillar.castShadow = true;
+  coreGroup.add(pillar);
+  const sGeo = new THREE.SphereGeometry(Math.max(0.01,0.15), 16, 16);
+  const sphere = new THREE.Mesh(sGeo, matCyan);
+  sphere.position.set(v.x, h, v.z);
+  coreGroup.add(sphere);
+  pillarPositions.push(new THREE.Vector3(v.x, h, v.z));
+  const bGeo = new THREE.SphereGeometry(Math.max(0.01,0.1), 12, 12);
+  const base = new THREE.Mesh(bGeo, matTitaniumLight);
+  base.position.set(v.x, 0, v.z);
+  coreGroup.add(base);
+}
+for(let i=0; i<3; i++){
+  const a = pillarPositions[i];
+  const b = pillarPositions[(i+1)%3];
+  const dir = new THREE.Vector3().subVectors(b, a);
+  const len = Math.max(0.01, dir.length());
+  const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
+  const beamGeo = new THREE.CylinderGeometry(Math.max(0.01,0.03), Math.max(0.01,0.03), len, 6);
+  const beam = new THREE.Mesh(beamGeo, matCyan);
+  beam.position.copy(mid);
+  beam.lookAt(b);
+  beam.rotateX(Math.PI/2);
+  coreGroup.add(beam);
+}
+const coreSphereGeo = new THREE.IcosahedronGeometry(Math.max(0.01,0.8), 2);
+const coreSphereMat = new THREE.MeshPhysicalMaterial({ color:ACCENT_HEX, metalness:0.2, roughness:0.1, transmission:0.6, thickness:1.0, transparent:true, opacity:0.5, emissive:ACCENT_HEX, emissiveIntensity:0.3 });
+const coreSphere = new THREE.Mesh(coreSphereGeo, coreSphereMat);
+coreSphere.position.y = 2.2;
+coreGroup.add(coreSphere);
+const coreRings = [];
+for(let i=0; i<3; i++){
+  const rGeo = new THREE.TorusGeometry(Math.max(0.01, 1.2+i*0.3), Math.max(0.001,0.015), 8, 64);
+  const ring = new THREE.Mesh(rGeo, matCyan.clone());
+  ring.material.transparent = true;
+  ring.material.opacity = 0.3 - i*0.08;
+  ring.position.y = 2.2;
+  ring.rotation.x = Math.PI/2 + i*0.4;
+  ring.rotation.z = i*0.6;
+  coreGroup.add(ring);
+  coreRings.push(ring);
+}
+function makeLabel(text, pos){
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  ctx.font = '600 22px Rajdhani, sans-serif';
+  ctx.fillStyle = ACCENT_CSS;
+  ctx.textAlign = 'center';
+  ctx.fillText(text, 128, 40);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.minFilter = THREE.LinearFilter;
+  const mat = new THREE.SpriteMaterial({ map:tex, transparent:true, opacity:0.9 });
+  const sprite = new THREE.Sprite(mat);
+  sprite.position.copy(pos);
+  sprite.scale.set(2, 0.5, 1);
+  return sprite;
+}
+const triLabels = [];
+function updateTriLabels(){
+  triLabels.forEach(s => coreGroup.remove(s));
+  triLabels.length = 0;
+  const keys = ['tri_s','tri_i','tri_r'];
+  for(let i=0; i<3; i++){
+    const p = pillarPositions[i].clone();
+    p.y += 0.6;
+    triLabels.push(makeLabel(t(keys[i]), p));
+    coreGroup.add(triLabels[triLabels.length-1]);
+  }
+}
+updateTriLabels();
+
+/* ========== 5 MODULOS DE FASES ========== */
+const phaseModules = [];
+const phaseRadius = 7;
+const phaseAngleOffset = -Math.PI/2;
+for(let i=0; i<5; i++){
+  const angle = phaseAngleOffset + (i/5)*Math.PI*2;
+  const x = Math.cos(angle)*phaseRadius;
+  const z = Math.sin(angle)*phaseRadius;
+  const group = new THREE.Group();
+  group.position.set(x, 0, z);
+  group.userData = { index:i, angle, basePos:new THREE.Vector3(x,0,z) };
+
+  const baseGeo = new THREE.CylinderGeometry(Math.max(0.01,1.0), Math.max(0.01,1.2), 0.15, 6+i*2);
+  const base = new THREE.Mesh(baseGeo, matTitanium);
+  base.position.y = 0.075;
+  base.castShadow = true;
+  base.receiveShadow = true;
+  group.add(base);
+
+  const bRingGeo = new THREE.TorusGeometry(Math.max(0.01,1.1), Math.max(0.001,0.02), 8, 32+i*8);
+  const bRing = new THREE.Mesh(bRingGeo, matCyan.clone());
+  bRing.material.transparent = true;
+  bRing.material.opacity = 0.5;
+  bRing.rotation.x = Math.PI/2;
+  bRing.position.y = 0.16;
+  group.add(bRing);
+
+  let coreEl;
+  switch(i){
+    case 0: {
+      const geo = new THREE.IcosahedronGeometry(Math.max(0.01,0.6), 1);
+      coreEl = new THREE.Mesh(geo, matGlass);
+      coreEl.position.y = 1.2;
+      group.add(coreEl);
+      for(let r=0; r<2; r++){
+        const rrGeo = new THREE.TorusGeometry(Math.max(0.01,0.8+r*0.2), Math.max(0.001,0.012), 8, 32);
+        const rr = new THREE.Mesh(rrGeo, matCyan.clone());
+        rr.material.transparent = true; rr.material.opacity = 0.4;
+        rr.position.y = 1.2;
+        rr.rotation.x = Math.PI/3*r;
+        rr.rotation.y = Math.PI/4*r;
+        group.add(rr);
+        coreEl.userData = coreEl.userData || {};
+        if(!coreEl.userData.rings) coreEl.userData.rings = [];
+        coreEl.userData.rings.push(rr);
+      }
+      break;
+    }
+    case 1: {
+      const geo = new THREE.OctahedronGeometry(Math.max(0.01,0.5), 0);
+      coreEl = new THREE.Mesh(geo, matCyan);
+      coreEl.position.y = 1.2;
+      group.add(coreEl);
+      const orbitals = [];
+      for(let o=0; o<4; o++){
+        const oGeo = new THREE.BoxGeometry(Math.max(0.01,0.12), Math.max(0.01,0.12), Math.max(0.01,0.12));
+        const oMesh = new THREE.Mesh(oGeo, matCyanBright);
+        oMesh.position.y = 1.2;
+        group.add(oMesh);
+        orbitals.push(oMesh);
+      }
+      coreEl.userData.orbitals = orbitals;
+      break;
+    }
+    case 2: {
+      const geo = new THREE.CylinderGeometry(Math.max(0.01,0.4), Math.max(0.01,0.4), 0.8, 8);
+      coreEl = new THREE.Mesh(geo, matTitaniumLight);
+      coreEl.position.y = 1.0;
+      group.add(coreEl);
+      const segs = [];
+      for(let s=0; s<3; s++){
+        const sGeo = new THREE.TorusGeometry(Math.max(0.01,0.5+s*0.15), Math.max(0.001,0.03), 6, 16);
+        const sMesh = new THREE.Mesh(sGeo, matCyan.clone());
+        sMesh.material.transparent = true; sMesh.material.opacity = 0.5;
+        sMesh.position.y = 0.8+s*0.3;
+        sMesh.rotation.x = Math.PI/2;
+        group.add(sMesh);
+        segs.push(sMesh);
+      }
+      coreEl.userData.segs = segs;
+      break;
+    }
+    case 3: {
+      const geo = new THREE.OctahedronGeometry(Math.max(0.01,0.55), 0);
+      coreEl = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ color:ACCENT_HEX, metalness:0.9, roughness:0.05, emissive:ACCENT_HEX, emissiveIntensity:0.6, clearcoat:1.0 }));
+      coreEl.position.y = 1.3;
+      coreEl.rotation.y = Math.PI/4;
+      group.add(coreEl);
+      break;
+    }
+    case 4: {
+      coreEl = new THREE.Group();
+      coreEl.position.y = 0.2;
+      for(let s=0; s<4; s++){
+        const sGeo = new THREE.CylinderGeometry(Math.max(0.01,0.5-s*0.1), Math.max(0.01,0.55-s*0.1), 0.25, 4);
+        const sMesh = new THREE.Mesh(sGeo, s%2===0 ? matTitanium : matTitaniumLight);
+        sMesh.position.y = s*0.3;
+        sMesh.rotation.y = Math.PI/4;
+        sMesh.castShadow = true;
+        coreEl.add(sMesh);
+      }
+      group.add(coreEl);
+      const crownGeo = new THREE.SphereGeometry(Math.max(0.01,0.15), 12, 12);
+      const crown = new THREE.Mesh(crownGeo, matCyanBright);
+      crown.position.y = 1.5;
+      group.add(crown);
+      break;
+    }
+  }
+
+  const labelPos = new THREE.Vector3(0, 2.5, 0);
+  const phaseKeys = ['ph1','ph2','ph3','ph4','ph5'];
+  const label = makeLabel(t(phaseKeys[i]), labelPos);
+  group.add(label);
+  group.userData.label = label;
+  group.userData.labelKey = phaseKeys[i];
+
+  phasesGroup.add(group);
+  phaseModules.push(group);
+}
+
+/* ========== CONEXIONES ENTRE FASES ========== */
+const connectionCurves = [];
+const flowParticles = [];
+for(let i=0; i<5; i++){
+  const a = phaseModules[i].position;
+  const b = phaseModules[(i+1)%5].position;
+  const mid = new THREE.Vector3().addVectors(a,b).multiplyScalar(0.5);
+  mid.y = 1.5;
+  const curve = new THREE.QuadraticBezierCurve3(a.clone().setY(0.5), mid, b.clone().setY(0.5));
+  connectionCurves.push(curve);
+  const tubeGeo = new THREE.TubeGeometry(curve, 32, Math.max(0.001,0.02), 6, false);
+  const tubeMat = new THREE.MeshBasicMaterial({ color:ACCENT_HEX, transparent:true, opacity:0.15 });
+  const tube = new THREE.Mesh(tubeGeo, tubeMat);
+  connectionsGroup.add(tube);
+  for(let p=0; p<5; p++){
+    const pGeo = new THREE.SphereGeometry(Math.max(0.001,0.04), 6, 6);
+    const pMat = new THREE.MeshBasicMaterial({ color:ACCENT_HEX, transparent:true, opacity:0.8 });
+    const particle = new THREE.Mesh(pGeo, pMat);
+    particle.userData = { curve, offset: p/5, speed: 0.15+Math.random()*0.1 };
+    connectionsGroup.add(particle);
+    flowParticles.push(particle);
+  }
+}
+for(let i=0; i<5; i++){
+  const a = phaseModules[i].position;
+  const b = new THREE.Vector3(0, 0.5, 0);
+  const mid = new THREE.Vector3().addVectors(a,b).multiplyScalar(0.5);
+  mid.y = 0.8;
+  const curve = new THREE.QuadraticBezierCurve3(a.clone().setY(0.3), mid, b);
+  const tubeGeo = new THREE.TubeGeometry(curve, 24, Math.max(0.001,0.015), 6, false);
+  const tubeMat = new THREE.MeshBasicMaterial({ color:ACCENT_HEX, transparent:true, opacity:0.08 });
+  connectionsGroup.add(new THREE.Mesh(tubeGeo, tubeMat));
+}
+
+/* ========== PARTICULAS AMBIENTALES ========== */
+const particleCount = 800;
+const pPositions = new Float32Array(particleCount * 3);
+const pVelocities = new Float32Array(particleCount * 3);
+for(let i=0; i<particleCount; i++){
+  pPositions[i*3] = (Math.random()-0.5)*30;
+  pPositions[i*3+1] = Math.random()*12;
+  pPositions[i*3+2] = (Math.random()-0.5)*30;
+  pVelocities[i*3] = (Math.random()-0.5)*0.01;
+  pVelocities[i*3+1] = Math.random()*0.005+0.002;
+  pVelocities[i*3+2] = (Math.random()-0.5)*0.01;
+}
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
+const pMat = new THREE.PointsMaterial({ color:ACCENT_HEX, size:0.06, transparent:true, opacity:0.4, blending:THREE.AdditiveBlending, depthWrite:false });
+const ambientParticles = new THREE.Points(pGeo, pMat);
+particlesGroup.add(ambientParticles);
+
+/* ========== RED DE IA (NODOS) ========== */
+const aiNodes = [];
+const aiConnections = [];
+const aiNodeCount = 24;
+for(let i=0; i<aiNodeCount; i++){
+  const theta = Math.random()*Math.PI*2;
+  const phi = Math.random()*Math.PI*0.5;
+  const r = 3 + Math.random()*4;
+  const x = Math.cos(theta)*Math.sin(phi)*r;
+  const y = 5 + Math.cos(phi)*r*0.5;
+  const z = Math.sin(theta)*Math.sin(phi)*r;
+  const nGeo = new THREE.SphereGeometry(Math.max(0.001,0.06+Math.random()*0.04), 8, 8);
+  const nMat = new THREE.MeshBasicMaterial({ color:ACCENT_HEX, transparent:true, opacity:0.6 });
+  const node = new THREE.Mesh(nGeo, nMat);
+  node.position.set(x, y, z);
+  node.userData = { active:Math.random()>0.3, fireTime:Math.random()*10, fireDuration:0.5+Math.random()*0.5 };
+  aiGroup.add(node);
+  aiNodes.push(node);
+}
+for(let i=0; i<aiNodeCount; i++){
+  for(let j=i+1; j<aiNodeCount; j++){
+    const d = aiNodes[i].position.distanceTo(aiNodes[j].position);
+    if(d < 4){
+      const pts = [aiNodes[i].position.clone(), aiNodes[j].position.clone()];
+      const lGeo = new THREE.BufferGeometry().setFromPoints(pts);
+      const lMat = new THREE.LineBasicMaterial({ color:ACCENT_HEX, transparent:true, opacity:0.08 });
+      const line = new THREE.Line(lGeo, lMat);
+      aiGroup.add(line);
+      aiConnections.push({ line, i, j, dataParticle:{t:Math.random()} });
+    }
+  }
+}
+const aiDataParticles = [];
+aiConnections.forEach(c => {
+  const dpGeo = new THREE.SphereGeometry(Math.max(0.001,0.03), 4, 4);
+  const dpMat = new THREE.MeshBasicMaterial({ color:ACCENT_HEX, transparent:true, opacity:0.9 });
+  const dp = new THREE.Mesh(dpGeo, dpMat);
+  aiGroup.add(dp);
+  c.dataParticle.mesh = dp;
+  aiDataParticles.push(dp);
+});
+
+/* ========== ANILLOS INSTITUCIONALES ========== */
+const instLevels = [
+  { r:3.5, y:0.1, color:0x69F0AE, opacity:0.12 },
+  { r:5.5, y:0.05, color:ACCENT_HEX, opacity:0.1 },
+  { r:8.5, y:0.0, color:ACCENT3_HEX, opacity:0.08 }
+];
+instLevels.forEach(lv => {
+  const rGeo = new THREE.TorusGeometry(Math.max(0.01,lv.r), Math.max(0.001,0.025), 4, 64);
+  const rMat = new THREE.MeshBasicMaterial({ color:lv.color, transparent:true, opacity:lv.opacity });
+  const ring = new THREE.Mesh(rGeo, rMat);
+  ring.rotation.x = Math.PI/2;
+  ring.position.y = lv.y;
+  ringsGroup.add(ring);
+});
+
+/* ========== ESTRELLAS DE FONDO ========== */
+const starCount = 500;
+const starPos = new Float32Array(starCount*3);
+for(let i=0; i<starCount; i++){
+  const theta = Math.random()*Math.PI*2;
+  const phi = Math.acos(2*Math.random()-1);
+  const r = 80+Math.random()*40;
+  starPos[i*3] = r*Math.sin(phi)*Math.cos(theta);
+  starPos[i*3+1] = r*Math.sin(phi)*Math.sin(theta);
+  starPos[i*3+2] = r*Math.cos(phi);
+}
+const starGeo = new THREE.BufferGeometry();
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+const starMat = new THREE.PointsMaterial({ color:0xffffff, size:0.3, transparent:true, opacity:0.5 });
+scene.add(new THREE.Points(starGeo, starMat));
+
+/* ========== RAYCASTER ========== */
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let hoveredPhase = -1;
+renderer.domElement.addEventListener('mousemove', (e) => {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+renderer.domElement.addEventListener('click', () => {
+  if(hoveredPhase >= 0) showPhaseInfo(hoveredPhase);
+});
+
+/* ========== PANEL DE INFORMACION ========== */
+function showPhaseInfo(idx){
+  const panel = document.getElementById('info-panel');
+  const keys = ['ph1','ph2','ph3','ph4','ph5'];
+  const descKeys = ['desc_ph1','desc_ph2','desc_ph3','desc_ph4','desc_ph5'];
+  document.getElementById('info-title').textContent = t(keys[idx]);
+  document.getElementById('info-subtitle').textContent = 'SNAPI — ' + t('fases_operativas');
+  document.getElementById('info-desc').textContent = t(descKeys[idx]);
+  const stats = [
+    {v:['1,247','847','2,103','1,891','923'][idx], l:t('stat_beneficiarios')},
+    {v:['2','2','7','8','15'][idx], l:t('stat_dias')},
+    {v:['$42','$38','$55','$120','$500'][idx], l:t('stat_ingreso')},
+    {v:['—','—','—','78%','94%'][idx], l:t('stat_escalamiento')}
+  ];
+  document.getElementById('info-stats').innerHTML = stats.map(s =>
+    `<div class="stat-box"><div class="sv">${s.v}</div><div class="sl">${s.l}</div></div>`
+  ).join('');
+  panel.classList.add('show');
+}
+document.getElementById('info-close').addEventListener('click', () => {
+  document.getElementById('info-panel').classList.remove('show');
+});
+
+/* ========== FOCO EN MODULO ========== */
+function focusPhase(idx){
+  const pos = phaseModules[idx].position;
+  const target = pos.clone().add(new THREE.Vector3(0, 1.5, 0));
+  const camPos = target.clone().add(new THREE.Vector3(2, 2, 3));
+  animateCamera(camPos, target);
+  showPhaseInfo(idx);
+}
+function animateCamera(targetPos, targetLookAt){
+  const startPos = camera.position.clone();
+  const startTarget = controls.target.clone();
+  const duration = 1200;
+  const startTime = Date.now();
+  function step(){
+    const elapsed = Date.now() - startTime;
+    const tt = Math.min(1, elapsed/duration);
+    const ease = tt<0.5 ? 4*tt*tt*tt : 1-Math.pow(-2*tt+2,3)/2;
+    camera.position.lerpVectors(startPos, targetPos, ease);
+    controls.target.lerpVectors(startTarget, targetLookAt, ease);
+    if(tt<1) requestAnimationFrame(step);
+  }
+  step();
+}
+
+/* ========== CONTROL DE ESTADOS ========== */
+function setMode(mode){
+  currentMode = mode;
+  const cfg = modeConfigs[mode];
+  document.getElementById('state-label').textContent = t('states')[mode];
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode===mode));
+  bloomPass.strength = cfg.bloom;
+  document.getElementById('alert-bar').classList.toggle('show', cfg.alert);
+  if(cfg.alert) document.getElementById('alert-bar').textContent = t('alert_emergency');
+  const accentCol = new THREE.Color(cfg.accentColor);
+  matCyan.color.copy(accentCol);
+  matCyan.emissive.copy(accentCol);
+  matCyanBright.color.copy(accentCol);
+  matCyanBright.emissive.copy(accentCol);
+  matEmissive.color.copy(accentCol);
+  matEmissive.emissive.copy(accentCol);
+  coreSphereMat.color.copy(accentCol);
+  coreSphereMat.emissive.copy(accentCol);
+  accentLight1.color.copy(accentCol);
+  ambientLight.intensity = cfg.ambientInt;
+  const phaseDots = document.querySelectorAll('.phase-dot');
+  phaseDots.forEach((dot) => {
+    dot.className = 'phase-dot';
+    if(mode==='emergency') dot.classList.add('error');
+    else if(mode==='maintenance') dot.classList.add('warning');
+    else if(mode==='operation'||mode==='simulation') dot.classList.add('complete');
+    else dot.classList.add('active');
+  });
+  toast(t('toast_state') + t('states')[mode], mode==='emergency'?'err':'');
+}
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => setMode(btn.dataset.mode));
+});
+
+/* ========== CONTROLES DE CAMARA ========== */
+let camMode = 'free';
+let autoRotate = false;
+let xrayMode = false;
+let sectionMode = false;
+const clippingPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+
+document.querySelectorAll('.cam-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const mode = btn.dataset.cam;
+    document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    camMode = mode;
+    autoRotate = false;
+    xrayMode = false;
+    sectionMode = false;
+    switch(mode){
+      case 'free': controls.enabled = true; resetModulePositions(); resetMaterials(); break;
+      case 'auto': autoRotate = true; controls.enabled = true; resetModulePositions(); resetMaterials(); break;
+      case 'explode': explodeModules(); resetMaterials(); break;
+      case 'xray': xrayMode = true; resetModulePositions(); applyXRay(); break;
+      case 'section': sectionMode = true; resetModulePositions(); resetMaterials(); break;
+      case 'top': animateCamera(new THREE.Vector3(0, 25, 0.1), new THREE.Vector3(0,0,0)); resetModulePositions(); resetMaterials(); break;
+    }
+  });
+});
+
+function explodeModules(){
+  phaseModules.forEach((m) => {
+    const dir = m.userData.basePos.clone().normalize();
+    const target = m.userData.basePos.clone().add(dir.multiplyScalar(4));
+    const start = m.position.clone();
+    const st = Date.now();
+    function step(){
+      const el = Date.now()-st;
+      const p = Math.min(1, el/800);
+      const e = p<0.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;
+      m.position.lerpVectors(start, target, e);
+      if(p<1) requestAnimationFrame(step);
+    }
+    step();
+  });
+}
+function resetModulePositions(){
+  phaseModules.forEach(m => {
+    const start = m.position.clone();
+    const target = m.userData.basePos.clone();
+    const st = Date.now();
+    function step(){
+      const el = Date.now()-st;
+      const p = Math.min(1, el/800);
+      const e = p<0.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;
+      m.position.lerpVectors(start, target, e);
+      if(p<1) requestAnimationFrame(step);
+    }
+    step();
+  });
+}
+function applyXRay(){
+  allMaterials.forEach(m => {
+    if(m === matEmissive) return;
+    m.transparent = true;
+    m.opacity = 0.15;
+    m.wireframe = true;
+  });
+  coreSphereMat.opacity = 0.1;
+}
+function resetMaterials(){
+  allMaterials.forEach(m => {
+    m.opacity = origOpacity.get(m) || 1;
+    m.wireframe = false;
+    m.transparent = origOpacity.get(m) < 1;
+  });
+  coreSphereMat.opacity = 0.5;
+}
+
+/* ========== MODO AR ========== */
+document.getElementById('btn-ar').addEventListener('click', async () => {
+  if(navigator.xr){
+    try {
+      const supported = await navigator.xr.isSessionSupported('immersive-ar');
+      if(supported){
+        await navigator.xr.requestSession('immersive-ar', {requiredFeatures:['local-floor']});
+        toast('AR iniciando...', 'ok');
+      } else { toast(t('toast_ar'), 'warn'); }
+    } catch(e){ toast(t('toast_ar'), 'warn'); }
+  } else { toast(t('toast_ar'), 'warn'); }
+});
+
+/* ========== PANTALLA COMPLETA ========== */
+document.getElementById('btn-fullscreen').addEventListener('click', () => {
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+  else document.exitFullscreen();
+});
+
+/* ========== BUCLE DE ANIMACION ========== */
+const clock = new THREE.Clock();
+let simTime = 0;
+let diagPhase = 0;
+let diagTimer = 0;
+
+function animate(){
+  requestAnimationFrame(animate);
+  const delta = Math.min(clock.getDelta(), 0.05);
+  const elapsed = clock.getElapsedTime();
+  const cfg = modeConfigs[currentMode];
+  const speed = cfg.speed;
+  simTime += delta * speed;
+
+  if(autoRotate){
+    const r = camera.position.length();
+    const a = elapsed * 0.15;
+    camera.position.x = Math.cos(a)*r*0.7;
+    camera.position.z = Math.sin(a)*r*0.7;
+    camera.position.y = 8 + Math.sin(elapsed*0.1)*2;
+    controls.target.set(0, 1.5, 0);
+  }
+
+  coreSphere.rotation.y = elapsed * 0.3 * speed;
+  coreSphere.rotation.x = Math.sin(elapsed * 0.2) * 0.2;
+  coreRings.forEach((r, i) => {
+    r.rotation.y = elapsed * (0.2+i*0.15) * speed;
+    r.rotation.z += delta * 0.1 * (i+1) * speed;
+  });
+  const pulse = 1 + Math.sin(elapsed*2*speed)*0.05;
+  coreSphere.scale.setScalar(pulse);
+
+  phaseModules.forEach((m, i) => {
+    const children = m.children;
+    children.forEach(c => {
+      if(c.geometry && c.geometry.type.includes('Icosahedron') && i===0){
+        c.rotation.y = elapsed * 0.5 * speed;
+        if(c.userData.rings) c.userData.rings.forEach((r,ri) => { r.rotation.z = elapsed*(0.3+ri*0.2)*speed; r.rotation.x = Math.PI/3*ri + elapsed*0.1*speed; });
+      }
+      if(c.geometry && c.geometry.type.includes('Octahedron') && i===1){
+        c.rotation.y = elapsed * 0.8 * speed;
+        c.rotation.x = elapsed * 0.3 * speed;
+        if(c.userData.orbitals) c.userData.orbitals.forEach((o,oi) => {
+          const oa = elapsed*(1+oi*0.3)*speed + oi*Math.PI/2;
+          o.position.x = Math.cos(oa)*0.8;
+          o.position.z = Math.sin(oa)*0.8;
+          o.position.y = 1.2 + Math.sin(oa*2)*0.2;
+          o.rotation.x = elapsed*2*speed;
+          o.rotation.y = elapsed*3*speed;
+        });
+      }
+      if(c.geometry && c.geometry.type.includes('Cylinder') && i===2 && c.userData.segs){
+        c.rotation.y = elapsed * 0.6 * speed;
+        c.userData.segs.forEach((s,si) => { s.rotation.z = elapsed*(0.5+si*0.3)*speed; });
+      }
+      if(c.geometry && c.geometry.type.includes('Octahedron') && i===3){
+        c.rotation.y = elapsed * 1.2 * speed;
+        const dp = 1 + Math.sin(elapsed*3*speed)*0.1;
+        c.scale.setScalar(dp);
+      }
+    });
+    if(i===4){
+      const coreGrp = children.find(c => c.isGroup);
+      if(coreGrp) coreGrp.rotation.y = elapsed * 0.4 * speed;
+    }
+    const isHovered = hoveredPhase === i;
+    const targetScaleY = isHovered ? 1.05 : 1;
+    m.scale.y += (targetScaleY - m.scale.y) * 0.1;
+  });
+
+  flowParticles.forEach(p => {
+    p.userData.offset = (p.userData.offset + delta * p.userData.speed * cfg.particleSpeed) % 1;
+    const pos = p.userData.curve.getPoint(p.userData.offset);
+    p.position.copy(pos);
+    p.material.opacity = 0.3 + Math.sin(p.userData.offset * Math.PI) * 0.7;
+  });
+
+  const pArr = ambientParticles.geometry.attributes.position.array;
+  for(let i=0; i<particleCount; i++){
+    pArr[i*3] += pVelocities[i*3] * cfg.particleSpeed;
+    pArr[i*3+1] += pVelocities[i*3+1] * cfg.particleSpeed;
+    pArr[i*3+2] += pVelocities[i*3+2] * cfg.particleSpeed;
+    if(pArr[i*3+1] > 12){ pArr[i*3+1] = 0; pArr[i*3] = (Math.random()-0.5)*30; pArr[i*3+2] = (Math.random()-0.5)*30; }
+  }
+  ambientParticles.geometry.attributes.position.needsUpdate = true;
+  ambientParticles.material.opacity = 0.2 + cfg.particleSpeed * 0.2;
+
+  aiNodes.forEach(n => {
+    const ud = n.userData;
+    if(ud.active){
+      const fire = ((elapsed * speed) % (ud.fireTime + ud.fireDuration));
+      if(fire < ud.fireDuration){
+        n.material.opacity = 0.6 + Math.sin(fire/ud.fireDuration*Math.PI)*0.4;
+        n.scale.setScalar(1 + Math.sin(fire/ud.fireDuration*Math.PI)*0.5);
+      } else {
+        n.material.opacity = 0.3;
+        n.scale.setScalar(1);
+      }
+    }
+  });
+  aiDataParticles.forEach(dp => {
+    dp.material.opacity = 0.6 + Math.sin(elapsed*4*speed)*0.4;
+  });
+  aiConnections.forEach(c => {
+    c.dataParticle.t = (c.dataParticle.t + delta * 0.3 * cfg.particleSpeed) % 1;
+    const a = aiNodes[c.i].position;
+    const b = aiNodes[c.j].position;
+    c.dataParticle.mesh.position.lerpVectors(a, b, c.dataParticle.t);
+    c.line.material.opacity = 0.05 + Math.sin(elapsed*2 + c.i)*0.05;
+  });
+  aiGroup.rotation.y = elapsed * 0.05 * speed;
+
+  if(currentMode === 'diagnostic'){
+    diagTimer += delta;
+    if(diagTimer > 1.5){ diagTimer = 0; diagPhase = (diagPhase+1)%5; }
+    phaseModules.forEach((m, i) => {
+      const isDiag = i === diagPhase;
+      m.children.forEach(c => {
+        if(c.material && c.material.emissiveIntensity !== undefined && c !== m.userData.label){
+          const target = isDiag ? 1.0 : 0.15;
+          c.material.emissiveIntensity += (target - c.material.emissiveIntensity) * 0.1;
+        }
+      });
+    });
+  }
+
+  if(currentMode === 'simulation'){
+    const simPhase = Math.floor((simTime * 0.3) % 5);
+    phaseModules.forEach((m, i) => {
+      const active = i <= simPhase;
+      m.children.forEach(c => {
+        if(c.material && c.material.emissiveIntensity !== undefined && c !== m.userData.label){
+          const target = active ? 0.8 : 0.1;
+          c.material.emissiveIntensity += (target - c.material.emissiveIntensity) * 0.08;
+        }
+      });
+    });
+  }
+
+  if(currentMode === 'emergency'){
+    const ep = Math.sin(elapsed * 6);
+    accentLight1.intensity = 2.5 + ep * 2;
+    accentLight1.color.setHex(ep > 0 ? 0xFF5252 : 0x440000);
+  } else {
+    accentLight1.intensity += (2.5 - accentLight1.intensity) * 0.05;
+  }
+
+  if(currentMode === 'energy'){
+    pMat.size = 0.08 + Math.sin(elapsed*3)*0.04;
+    accentLight1.intensity = 3.5 + Math.sin(elapsed*2)*1.5;
+  } else {
+    pMat.size += (0.06 - pMat.size) * 0.05;
+  }
+
+  if(currentMode === 'ai'){
+    aiGroup.position.y = 3 + Math.sin(elapsed*0.5)*0.5;
+    aiNodes.forEach(n => { n.userData.active = true; });
+    aiGroup.children.forEach(c => {
+      if(c.material && c.material.opacity !== undefined) c.material.opacity = Math.min(1, (c.material.opacity||0) + 0.02);
+    });
+  } else {
+    aiGroup.position.y += (0 - aiGroup.position.y) * 0.05;
+  }
+
+  if(sectionMode){
+    renderer.clippingPlanes = [clippingPlane];
+    clippingPlane.constant = Math.sin(elapsed*0.5)*5;
+  } else {
+    renderer.clippingPlanes = [];
+  }
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(phasesGroup.children, true);
+  let newHovered = -1;
+  if(intersects.length > 0){
+    let obj = intersects[0].object;
+    while(obj.parent && obj.parent !== phasesGroup) obj = obj.parent;
+    if(obj.userData && obj.userData.index !== undefined) newHovered = obj.userData.index;
+  }
+  if(newHovered !== hoveredPhase){
+    hoveredPhase = newHovered;
+    renderer.domElement.style.cursor = hoveredPhase >= 0 ? 'pointer' : 'default';
+  }
+
+  if(Math.floor(elapsed*2) % 2 === 0){
+    const coreE = 90+Math.sin(elapsed)*8;
+    const aiE = 70+Math.sin(elapsed*0.7)*15;
+    const phE = 85+Math.sin(elapsed*1.3)*10;
+    document.getElementById('nrg-core').textContent = Math.round(coreE)+'%';
+    document.getElementById('nrg-core-bar').style.width = coreE+'%';
+    document.getElementById('nrg-ai').textContent = Math.round(aiE)+'%';
+    document.getElementById('nrg-ai-bar').style.width = aiE+'%';
+    document.getElementById('nrg-phases').textContent = Math.round(phE)+'%';
+    document.getElementById('nrg-phases-bar').style.width = phE+'%';
+  }
+
+  controls.update();
+  composer.render();
+}
+
+/* ========== RESIZE ========== */
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/* ========== INICIO ========== */
+animate();
+toast(t('toast_click'), 'ok');
+
+</script>
+</body>
+</html>
