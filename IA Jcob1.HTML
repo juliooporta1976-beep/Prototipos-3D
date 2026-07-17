@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JCOB — IA de Vanguardia 2050 | Prototipo Interactivo 3D</title>
+<style>
+  :root {
+    --bg: #04080f;
+    --fg: #e8edf4;
+    --muted: #7a8da2;
+    --accent: #00FFD1;
+    --accent-dim: rgba(0,255,209,0.13);
+    --card: rgba(6,12,22,0.9);
+    --border: rgba(0,255,209,0.2);
+    --danger: #ff4757;
+    --success: #2ed573;
+    --warning: #ffa502;
+    --font-ui: 'Segoe UI','SF Pro Display',-apple-system,system-ui,sans-serif;
+    --font-mono: 'Cascadia Code','Fira Code','Consolas','Courier New',monospace;
+    --radius: 8px;
+    --glow: 0 0 20px rgba(0,255,209,0.35);
+    --hud-text: #d0fff0;
+    --hud-text-dim: #8ab8ac;
+  }
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);font-family:var(--font-ui)}
+  canvas{display:block}
+
+  #loading-screen{
+    position:fixed;inset:0;z-index:9999;background:var(--bg);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    transition:opacity 0.25s ease;
+  }
+  #loading-screen.hidden{opacity:0;visibility:hidden;pointer-events:none}
+  #loading-screen h1{font-size:3.2rem;font-weight:200;letter-spacing:0.4em;color:var(--accent);margin-bottom:1.2rem}
+  .loader-ring{width:50px;height:50px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #loading-screen p{margin-top:1rem;color:var(--muted);font-size:0.95rem;letter-spacing:0.1em}
+
+  #author-badge{
+    position:fixed;top:16px;left:16px;z-index:100;
+    background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+    padding:12px 20px;font-size:1.05rem;font-weight:600;color:var(--accent);
+    backdrop-filter:blur(14px);letter-spacing:0.03em;box-shadow:var(--glow);
+  }
+  #author-badge span{color:var(--muted);font-weight:400;font-size:0.85rem;display:block;margin-top:3px}
+
+  #lang-selector{
+    position:fixed;top:16px;right:16px;z-index:100;
+    display:flex;gap:5px;background:var(--card);border:1px solid var(--border);
+    border-radius:var(--radius);padding:5px;backdrop-filter:blur(14px);
+  }
+  .lang-btn{
+    background:transparent;border:1px solid transparent;color:var(--muted);
+    padding:7px 16px;border-radius:5px;cursor:pointer;font-size:0.9rem;
+    font-family:var(--font-ui);transition:all 0.3s;letter-spacing:0.04em;
+  }
+  .lang-btn:hover{color:var(--fg)}
+  .lang-btn.active{background:var(--accent-dim);color:var(--accent);border-color:var(--border)}
+
+  #left-panel{
+    position:fixed;top:90px;left:16px;z-index:90;width:275px;
+    background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+    padding:16px;backdrop-filter:blur(14px);font-size:0.9rem;
+  }
+  .panel-title{
+    font-size:0.85rem;text-transform:uppercase;letter-spacing:0.18em;color:var(--accent);
+    margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);font-weight:700;
+  }
+  .status-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0}
+  .status-label{color:var(--muted);font-size:0.88rem}
+  .status-value{color:var(--fg);font-family:var(--font-mono);font-size:0.88rem}
+  .status-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px}
+  .dot-green{background:var(--success);box-shadow:0 0 6px var(--success)}
+  .dot-cyan{background:var(--accent);box-shadow:0 0 6px var(--accent)}
+  .dot-yellow{background:var(--warning);box-shadow:0 0 6px var(--warning)}
+  .dot-red{background:var(--danger);box-shadow:0 0 6px var(--danger)}
+  .module-list{margin-top:12px}
+  .module-item{
+    display:flex;align-items:center;padding:5px 8px;margin:3px 0;
+    border-radius:5px;cursor:pointer;transition:background 0.2s;font-size:0.88rem;
+  }
+  .module-item:hover{background:var(--accent-dim)}
+  .module-icon{width:10px;height:10px;border-radius:3px;margin-right:10px;background:var(--accent);opacity:0.5}
+  .module-item.active .module-icon{opacity:1;box-shadow:0 0 10px var(--accent)}
+
+  #right-panel{
+    position:fixed;top:90px;right:16px;z-index:90;width:255px;
+    background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+    padding:16px;backdrop-filter:blur(14px);font-size:0.9rem;
+  }
+  .telemetry-value{font-family:var(--font-mono);font-size:1.4rem;color:var(--accent)}
+  .telemetry-unit{font-size:0.78rem;color:var(--muted);margin-left:5px}
+  .mini-chart{width:100%;height:55px;margin-top:6px;border-radius:4px}
+  .telemetry-block{margin-bottom:14px}
+
+  #sim-panel{
+    position:fixed;top:445px;right:16px;z-index:90;width:255px;
+    background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+    padding:14px;backdrop-filter:blur(14px);font-size:0.85rem;
+  }
+  .sim-btn{
+    width:100%;background:transparent;border:1px solid var(--border);color:var(--fg);
+    padding:8px 12px;border-radius:5px;cursor:pointer;font-size:0.82rem;
+    font-family:var(--font-ui);margin-top:7px;transition:all 0.3s;text-align:left;
+  }
+  .sim-btn:hover{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+  .sim-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+
+  #bottom-bar{
+    position:fixed;bottom:16px;left:16px;z-index:90;
+    display:flex;flex-wrap:wrap;gap:4px;background:var(--card);border:1px solid var(--border);
+    border-radius:var(--radius);padding:7px;backdrop-filter:blur(14px);
+    max-width:520px;
+  }
+  .state-btn{
+    background:transparent;border:1px solid transparent;
+    color:var(--hud-text-dim);
+    padding:6px 13px;border-radius:5px;cursor:pointer;font-size:0.8rem;
+    font-family:var(--font-ui);transition:all 0.3s;white-space:nowrap;
+    text-shadow:0 0 6px rgba(0,255,209,0.12);
+  }
+  .state-btn:hover{color:var(--hud-text);background:rgba(255,255,255,0.04)}
+  .state-btn.active{
+    background:var(--accent-dim);color:var(--hud-text);border-color:var(--border);
+    text-shadow:0 0 8px rgba(0,255,209,0.3);
+  }
+
+  #view-controls{
+    position:fixed;bottom:16px;right:16px;z-index:90;
+    display:flex;gap:4px;background:var(--card);border:1px solid var(--border);
+    border-radius:var(--radius);padding:5px;backdrop-filter:blur(14px);
+  }
+  .view-btn{
+    background:transparent;border:none;
+    color:var(--hud-text-dim);
+    padding:6px 12px;border-radius:4px;cursor:pointer;font-size:0.8rem;
+    font-family:var(--font-ui);transition:all 0.3s;
+    text-shadow:0 0 6px rgba(0,255,209,0.08);
+  }
+  .view-btn:hover{color:var(--hud-text)}
+  .view-btn.active{
+    color:var(--hud-text);background:var(--accent-dim);
+    text-shadow:0 0 8px rgba(0,255,209,0.3);
+  }
+
+  #center-hud{
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    z-index:80;pointer-events:none;text-align:center;
+  }
+  #center-hud .state-label{
+    font-size:0.85rem;text-transform:uppercase;letter-spacing:0.3em;
+    color:var(--hud-text);opacity:0.92;margin-top:110px;
+    text-shadow:0 0 12px rgba(0,255,209,0.4), 0 0 25px rgba(0,255,209,0.15);
+  }
+  .crosshair{width:44px;height:44px;position:relative;opacity:0.2}
+  .crosshair::before,.crosshair::after{content:'';position:absolute;background:var(--hud-text)}
+  .crosshair::before{width:1px;height:100%;left:50%;transform:translateX(-50%)}
+  .crosshair::after{height:1px;width:100%;top:50%;transform:translateY(-50%)}
+
+  #toast-container{
+    position:fixed;top:75px;left:50%;transform:translateX(-50%);z-index:200;
+    display:flex;flex-direction:column;align-items:center;gap:8px;
+  }
+  .toast{
+    background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+    padding:10px 24px;font-size:0.9rem;color:var(--hud-text);backdrop-filter:blur(14px);
+    box-shadow:var(--glow);animation:toastIn 0.3s ease,toastOut 0.3s ease 2.7s forwards;
+    text-shadow:0 0 6px rgba(0,255,209,0.2);
+  }
+  @keyframes toastIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes toastOut{from{opacity:1}to{opacity:0;transform:translateY(-10px)}}
+
+  #utility-btns{
+    position:fixed;top:60px;right:16px;z-index:100;display:flex;gap:7px;
+  }
+  .util-btn{
+    background:var(--card);border:1px solid var(--border);color:var(--muted);
+    padding:7px 14px;border-radius:var(--radius);cursor:pointer;font-size:0.82rem;
+    font-family:var(--font-ui);transition:all 0.3s;backdrop-filter:blur(14px);
+  }
+  .util-btn:hover{color:var(--accent);border-color:var(--accent)}
+
+  .alert-bar{position:fixed;top:0;left:0;right:0;z-index:150;height:3px;background:transparent;transition:background 0.3s}
+  .alert-bar.danger{background:var(--danger);box-shadow:0 0 10px rgba(255,71,87,0.5)}
+  .alert-bar.warning{background:var(--warning);box-shadow:0 0 10px rgba(255,165,2,0.4)}
+  .alert-bar.success{background:var(--success);box-shadow:0 0 10px rgba(46,213,115,0.4)}
+
+  @media(max-width:1050px){
+    #left-panel{display:none}
+    #right-panel{width:210px;font-size:0.82rem}
+    #sim-panel{width:210px;top:400px;font-size:0.78rem}
+    #bottom-bar{max-width:320px}
+  }
+  @media(max-width:700px){
+    #right-panel,#sim-panel{display:none}
+    #bottom-bar{max-width:260px}
+    .state-btn{padding:5px 8px;font-size:0.7rem}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .loader-ring{animation-duration:3s}
+    .toast{animation:none;opacity:1}
+  }
+</style>
+</head>
+<body>
+
+<div class="alert-bar" id="alert-bar"></div>
+
+<div id="loading-screen">
+  <h1>JCOB</h1>
+  <div class="loader-ring"></div>
+  <p id="load-text" data-i18n="loading">Inicializando sistema cognitivo...</p>
+</div>
+
+<div id="author-badge">
+  Dr. Julio Cesar Oporta Barrera
+  <span data-i18n="authorRole">Arquitecto — IA Jcob de Vanguardia 2050</span>
+</div>
+
+<div id="lang-selector">
+  <button class="lang-btn active" data-lang="es" aria-label="Espanol">ES</button>
+  <button class="lang-btn" data-lang="en" aria-label="English">EN</button>
+  <button class="lang-btn" data-lang="zh" aria-label="Chinese">ZH</button>
+</div>
+
+<div id="utility-btns">
+  <button class="util-btn" id="btn-ar" aria-label="Realidad Aumentada">AR</button>
+  <button class="util-btn" id="btn-info" aria-label="Info">INFO</button>
+</div>
+
+<div id="left-panel">
+  <div class="panel-title" data-i18n="systemStatus">ESTADO DEL SISTEMA</div>
+  <div class="status-row"><span class="status-label" data-i18n="coreStatus">Nucleo Cognitivo</span><span><span class="status-dot dot-green" id="dot-core"></span><span class="status-value" id="val-core">ONLINE</span></span></div>
+  <div class="status-row"><span class="status-label" data-i18n="quantumProc">Procesador Cuantico</span><span><span class="status-dot dot-cyan" id="dot-quantum"></span><span class="status-value" id="val-quantum">98.7%</span></span></div>
+  <div class="status-row"><span class="status-label" data-i18n="neuroChip">Chip Neuromorfico</span><span><span class="status-dot dot-cyan" id="dot-neuro"></span><span class="status-value" id="val-neuro">ACTIVE</span></span></div>
+  <div class="status-row"><span class="status-label" data-i18n="bciStatus">Interfaz BCI</span><span><span class="status-dot dot-green" id="dot-bci"></span><span class="status-value" id="val-bci">STANDBY</span></span></div>
+  <div class="status-row"><span class="status-label" data-i18n="netStatus">Red Global</span><span><span class="status-dot dot-green" id="dot-net"></span><span class="status-value" id="val-net">8 NODOS</span></span></div>
+  <div class="status-row"><span class="status-label" data-i18n="govStatus">Gobernanza Etica</span><span><span class="status-dot dot-green" id="dot-gov"></span><span class="status-value" id="val-gov">NOMINAL</span></span></div>
+  <div class="panel-title" style="margin-top:14px" data-i18n="cognitiveModules">MODULOS COGNITIVOS</div>
+  <div class="module-list" id="module-list"></div>
+</div>
+
+<div id="right-panel">
+  <div class="panel-title" data-i18n="telemetry">TELEMETRIA</div>
+  <div class="telemetry-block">
+    <div class="status-label" data-i18n="procPower">Poder de Procesamiento</div>
+    <div><span class="telemetry-value" id="tel-power">847</span><span class="telemetry-unit">PFLOPS</span></div>
+    <canvas class="mini-chart" id="chart-power" width="223" height="55"></canvas>
+  </div>
+  <div class="telemetry-block">
+    <div class="status-label" data-i18n="energyEff">Eficiencia Energetica</div>
+    <div><span class="telemetry-value" id="tel-energy">94.2</span><span class="telemetry-unit">%</span></div>
+    <canvas class="mini-chart" id="chart-energy" width="223" height="55"></canvas>
+  </div>
+  <div class="telemetry-block">
+    <div class="status-label" data-i18n="sysIntegrity">Integridad del Sistema</div>
+    <div><span class="telemetry-value" id="tel-integrity">99.8</span><span class="telemetry-unit">%</span></div>
+  </div>
+  <div class="telemetry-block">
+    <div class="status-label" data-i18n="latency">Latencia Global</div>
+    <div><span class="telemetry-value" id="tel-latency">0.3</span><span class="telemetry-unit">ms</span></div>
+  </div>
+</div>
+
+<div id="sim-panel">
+  <div class="panel-title" data-i18n="simulations">SIMULACIONES</div>
+  <button class="sim-btn" data-sim="eu" data-i18n="simEU">Union Europea — Despliegue Etico-Regulatorio</button>
+  <button class="sim-btn" data-sim="latam" data-i18n="simLatam">America Latina — Despliegue Inclusivo</button>
+  <button class="sim-btn" data-sim="asia" data-i18n="simAsia">Sudeste Asiatico — Despliegue Multicultural</button>
+  <button class="sim-btn" data-sim="none" data-i18n="simNone">Detener Simulacion</button>
+</div>
+
+<div id="view-controls">
+  <button class="view-btn active" data-view="free" data-i18n="vFree">LIBRE</button>
+  <button class="view-btn" data-view="auto" data-i18n="vAuto">AUTO</button>
+  <button class="view-btn" data-view="exploded" data-i18n="vExploded">EXPLOTADO</button>
+  <button class="view-btn" data-view="xray" data-i18n="vXray">X-RAY</button>
+  <button class="view-btn" data-view="section" data-i18n="vSection">SECCION</button>
+  <button class="view-btn" data-view="top" data-i18n="vTop">SUPERIOR</button>
+</div>
+
+<div id="bottom-bar"></div>
+
+<div id="center-hud">
+  <div class="crosshair"></div>
+  <div class="state-label" id="state-label" data-i18n="stateRest">MODO REPOSO</div>
+</div>
+
+<div id="toast-container"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+const AC = 0x00FFD1;
+const ACS = '#00FFD1';
+
+const T = {
+  es: {
+    loading:'Inicializando sistema cognitivo...', authorRole:'Arquitecto — IA Jcob de Vanguardia 2050',
+    systemStatus:'ESTADO DEL SISTEMA', coreStatus:'Nucleo Cognitivo', quantumProc:'Procesador Cuantico',
+    neuroChip:'Chip Neuromorfico', bciStatus:'Interfaz BCI', netStatus:'Red Global', govStatus:'Gobernanza Etica',
+    cognitiveModules:'MODULOS COGNITIVOS', telemetry:'TELEMETRIA', procPower:'Poder de Procesamiento',
+    energyEff:'Eficiencia Energetica', sysIntegrity:'Integridad del Sistema', latency:'Latencia Global',
+    vFree:'LIBRE', vAuto:'AUTO', vExploded:'EXPLOTADO', vXray:'X-RAY', vSection:'SECCION', vTop:'SUPERIOR',
+    simulations:'SIMULACIONES', simEU:'Union Europea — Despliegue Etico-Regulatorio',
+    simLatam:'America Latina — Despliegue Inclusivo', simAsia:'Sudeste Asiatico — Despliegue Multicultural',
+    simNone:'Detener Simulacion',
+    stateRest:'MODO REPOSO', stateAnalysis:'MODO ANALISIS', stateDiagnostic:'MODO DIAGNOSTICO',
+    stateSimulation:'MODO SIMULACION', stateOperation:'MODO OPERACION', stateMaintenance:'MANTENIMIENTO',
+    stateEmergency:'EMERGENCIA', stateEnergy:'MODO ENERGETICO', stateAI:'MODO IA', stateHybrid:'MODO HIBRIDO',
+    modReasoning:'Razonamiento Estrategico', modCreativity:'Creatividad Generativa',
+    modNegotiation:'Negociacion y Colaboracion', modLearning:'Aprendizaje Adaptativo',
+    modConsciousness:'Conciencia Contextual',
+    arNote:'La realidad aumentada requiere HTTPS. Abra el archivo via un servidor local seguro.',
+    infoText:'JCOB — IA de Vanguardia 2050. Prototipo 3D interactivo basado en el Manual IA Jcob del Dr. Julio Cesar Oporta Barrera.',
+    toastState:'Estado cambiado a', toastSim:'Simulacion activada:', toastView:'Vista cambiada a'
+  },
+  en: {
+    loading:'Initializing cognitive system...', authorRole:'Architect — JCOB AI Vanguard 2050',
+    systemStatus:'SYSTEM STATUS', coreStatus:'Cognitive Core', quantumProc:'Quantum Processor',
+    neuroChip:'Neuromorphic Chip', bciStatus:'BCI Interface', netStatus:'Global Network', govStatus:'Ethical Governance',
+    cognitiveModules:'COGNITIVE MODULES', telemetry:'TELEMETRY', procPower:'Processing Power',
+    energyEff:'Energy Efficiency', sysIntegrity:'System Integrity', latency:'Global Latency',
+    vFree:'FREE', vAuto:'AUTO', vExploded:'EXPLODED', vXray:'X-RAY', vSection:'SECTION', vTop:'TOP',
+    simulations:'SIMULATIONS', simEU:'European Union — Ethical-Regulatory Deployment',
+    simLatam:'Latin America — Inclusive Deployment', simAsia:'Southeast Asia — Multicultural Deployment',
+    simNone:'Stop Simulation',
+    stateRest:'REST MODE', stateAnalysis:'ANALYSIS MODE', stateDiagnostic:'DIAGNOSTIC MODE',
+    stateSimulation:'SIMULATION MODE', stateOperation:'OPERATION MODE', stateMaintenance:'MAINTENANCE',
+    stateEmergency:'EMERGENCY', stateEnergy:'ENERGY MODE', stateAI:'AI MODE', stateHybrid:'HYBRID MODE',
+    modReasoning:'Strategic Reasoning', modCreativity:'Generative Creativity',
+    modNegotiation:'Negotiation & Collaboration', modLearning:'Adaptive Learning',
+    modConsciousness:'Contextual Consciousness',
+    arNote:'Augmented Reality requires HTTPS. Open via a secure local server.',
+    infoText:'JCOB — AI Vanguard 2050. Interactive 3D prototype based on the JCOB AI Manual by Dr. Julio Cesar Oporta Barrera.',
+    toastState:'State changed to', toastSim:'Simulation activated:', toastView:'View changed to'
+  },
+  zh: {
+    loading:'正在初始化认知系统...', authorRole:'架构师 — JCOB 先锋人工智能 2050',
+    systemStatus:'系统状态', coreStatus:'认知核心', quantumProc:'量子处理器',
+    neuroChip:'神经形态芯片', bciStatus:'脑机接口', netStatus:'全球网络', govStatus:'伦理治理',
+    cognitiveModules:'认知模块', telemetry:'遥测数据', procPower:'处理能力',
+    energyEff:'能源效率', sysIntegrity:'系统完整性', latency:'全球延迟',
+    vFree:'自由', vAuto:'自动', vExploded:'分解', vXray:'透视', vSection:'剖面', vTop:'俯视',
+    simulations:'模拟场景', simEU:'欧盟 — 伦理监管部署',
+    simLatam:'拉丁美洲 — 包容性部署', simAsia:'东南亚 — 多文化部署',
+    simNone:'停止模拟',
+    stateRest:'休息模式', stateAnalysis:'分析模式', stateDiagnostic:'诊断模式',
+    stateSimulation:'模拟模式', stateOperation:'运行模式', stateMaintenance:'维护模式',
+    stateEmergency:'紧急模式', stateEnergy:'能源模式', stateAI:'AI模式', stateHybrid:'混合模式',
+    modReasoning:'战略推理', modCreativity:'生成创造力',
+    modNegotiation:'谈判与协作', modLearning:'自适应学习',
+    modConsciousness:'情境意识',
+    arNote:'增强现实需要HTTPS。请通过安全本地服务器打开此文件。',
+    infoText:'JCOB — 先锋人工智能2050。基于Julio Cesar Oporta Barrera博士的JCOB AI手册制作的交互式3D原型。',
+    toastState:'状态已更改为', toastSim:'模拟已激活：', toastView:'视图已更改为'
+  }
+};
+let currentLang = 'es';
+function t(k){ return T[currentLang][k] || T['es'][k] || k; }
+function applyLang(){
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.getAttribute('data-i18n');
+    if(T[currentLang][k]) el.textContent = T[currentLang][k];
+  });
+  buildStateButtons(); buildModuleList();
+}
+
+const PR = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const AS = PR ? 0.15 : 1.0;
+function lerp(a,b,t){ return a+(b-a)*t; }
+function showToast(msg){
+  const c = document.getElementById('toast-container');
+  const d = document.createElement('div');
+  d.className='toast'; d.textContent=msg; c.appendChild(d);
+  setTimeout(()=>d.remove(), 3000);
+}
+
+const STATES = [
+  { id:'rest', key:'stateRest', color:ACS, bloom:0.5, intensity:0.3, particleSpd:0.15, alertClass:'' },
+  { id:'analysis', key:'stateAnalysis', color:ACS, bloom:0.8, intensity:0.7, particleSpd:0.5, alertClass:'success' },
+  { id:'diagnostic', key:'stateDiagnostic', color:'#ffa502', bloom:0.65, intensity:0.6, particleSpd:0.3, alertClass:'warning' },
+  { id:'simulation', key:'stateSimulation', color:'#2ed573', bloom:1.0, intensity:0.9, particleSpd:0.8, alertClass:'success' },
+  { id:'operation', key:'stateOperation', color:'#2ed573', bloom:0.9, intensity:1.0, particleSpd:0.7, alertClass:'success' },
+  { id:'maintenance', key:'stateMaintenance', color:'#ffa502', bloom:0.3, intensity:0.2, particleSpd:0.1, alertClass:'warning' },
+  { id:'emergency', key:'stateEmergency', color:'#ff4757', bloom:1.4, intensity:1.2, particleSpd:1.0, alertClass:'danger' },
+  { id:'energy', key:'stateEnergy', color:ACS, bloom:0.9, intensity:0.8, particleSpd:0.6, alertClass:'' },
+  { id:'ai', key:'stateAI', color:'#e056fd', bloom:1.2, intensity:1.0, particleSpd:0.9, alertClass:'' },
+  { id:'hybrid', key:'stateHybrid', color:ACS, bloom:1.0, intensity:0.9, particleSpd:0.7, alertClass:'success' }
+];
+const MODULES = [
+  { id:'reasoning', key:'modReasoning', angle:0, geoType:'octahedron' },
+  { id:'creativity', key:'modCreativity', angle:Math.PI*2/5, geoType:'torusKnot' },
+  { id:'negotiation', key:'modNegotiation', angle:Math.PI*4/5, geoType:'dodecahedron' },
+  { id:'learning', key:'modLearning', angle:Math.PI*6/5, geoType:'sphere' },
+  { id:'consciousness', key:'modConsciousness', angle:Math.PI*8/5, geoType:'icosahedron' }
+];
+const NETWORK_NODES = [
+  { name:'Tokio', lat:35.6, lon:139.7, color:ACS },
+  { name:'Frankfurt', lat:50.1, lon:8.7, color:ACS },
+  { name:'Sao Paulo', lat:-23.5, lon:-46.6, color:'#2ed573' },
+  { name:'Nairobi', lat:-1.3, lon:36.8, color:'#ffa502' },
+  { name:'Ciudad de Mexico', lat:19.4, lon:-99.1, color:'#2ed573' },
+  { name:'Bangalore', lat:12.9, lon:77.6, color:ACS },
+  { name:'Bruselas', lat:50.8, lon:4.3, color:ACS },
+  { name:'Washington DC', lat:38.9, lon:-77.0, color:ACS }
+];
+const SIM_REGIONS = {
+  eu:{ nodes:['Frankfurt','Bruselas'], color:ACS, label:'EU' },
+  latam:{ nodes:['Sao Paulo','Ciudad de Mexico'], color:'#2ed573', label:'LATAM' },
+  asia:{ nodes:['Tokio','Bangalore'], color:'#ffa502', label:'ASIA' }
+};
+
+function buildStateButtons(){
+  const bar = document.getElementById('bottom-bar'); bar.innerHTML = '';
+  STATES.forEach(s => {
+    const b = document.createElement('button');
+    b.className = 'state-btn' + (s.id === currentState ? ' active' : '');
+    b.textContent = t(s.key); b.dataset.state = s.id;
+    b.setAttribute('aria-label', t(s.key));
+    b.addEventListener('click', () => setState(s.id));
+    bar.appendChild(b);
+  });
+}
+function buildModuleList(){
+  const list = document.getElementById('module-list'); list.innerHTML = '';
+  MODULES.forEach(m => {
+    const d = document.createElement('div');
+    d.className = 'module-item active';
+    d.innerHTML = `<span class="module-icon"></span><span class="status-label">${t(m.key)}</span>`;
+    d.addEventListener('click', () => focusModule(m.id));
+    list.appendChild(d);
+  });
+}
+
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+document.getElementById('loading-screen').classList.add('hidden');
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x04080f, 0.015);
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 200);
+camera.position.set(8, 5, 10);
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false, powerPreference:'high-performance' });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.25;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.localClippingEnabled = true;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 4; controls.maxDistance = 35;
+controls.maxPolarAngle = Math.PI * 0.85;
+controls.target.set(0, 0.5, 0);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.6, 0.35, 0.55);
+composer.addPass(bloomPass);
+composer.addPass(new OutputPass());
+
+scene.add(new THREE.AmbientLight(0x0e1e2e, 0.55));
+const keyLight = new THREE.DirectionalLight(0xd0eaff, 1.3);
+keyLight.position.set(8, 12, 6); keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.camera.near = 1; keyLight.shadow.camera.far = 40;
+keyLight.shadow.camera.left = -12; keyLight.shadow.camera.right = 12;
+keyLight.shadow.camera.top = 12; keyLight.shadow.camera.bottom = -12;
+keyLight.shadow.bias = -0.001;
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(AC, 0.4);
+fillLight.position.set(-6, 4, -4); scene.add(fillLight);
+const rimLight = new THREE.PointLight(AC, 1.2, 30);
+rimLight.position.set(-5, 8, -8); scene.add(rimLight);
+const bottomGlow = new THREE.PointLight(0x081820, 0.8, 16);
+bottomGlow.position.set(0, -3, 0); scene.add(bottomGlow);
+const coreLight = new THREE.PointLight(AC, 2.2, 14);
+coreLight.position.set(0, 0.5, 0); scene.add(coreLight);
+
+const simplexNoise = `
+vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
+vec4 mod289(vec4 x){return x-floor(x*(1.0/289.0))*289.0;}
+vec4 permute(vec4 x){return mod289(((x*34.0)+1.0)*x);}
+vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
+float snoise(vec3 v){
+  const vec2 C=vec2(1.0/6.0,1.0/3.0);const vec4 D=vec4(0.0,0.5,1.0,2.0);
+  vec3 i=floor(v+dot(v,C.yyy));vec3 x0=v-i+dot(i,C.xxx);
+  vec3 g=step(x0.yzx,x0.xyz);vec3 l=1.0-g;
+  vec3 i1=min(g.xyz,l.zxy);vec3 i2=max(g.xyz,l.zxy);
+  vec3 x1=x0-i1+C.xxx;vec3 x2=x0-i2+C.yyy;vec3 x3=x0-D.yyy;
+  i=mod289(i);
+  vec4 p=permute(permute(permute(i.z+vec4(0.0,i1.z,i2.z,1.0))+i.y+vec4(0.0,i1.y,i2.y,1.0))+i.x+vec4(0.0,i1.x,i2.x,1.0));
+  float n_=1.0/7.0;vec3 ns=n_*D.wyz-D.xzx;
+  vec4 j=p-49.0*floor(p*ns.z*ns.z);
+  vec4 x_=floor(j*ns.z);vec4 y_=floor(j-7.0*x_);
+  vec4 x=x_*ns.x+ns.yyyy;vec4 y=y_*ns.x+ns.yyyy;
+  vec4 h=1.0-abs(x)-abs(y);vec4 b0=vec4(x.xy,y.xy);vec4 b1=vec4(x.zw,y.zw);
+  vec4 s0=floor(b0)*2.0+1.0;vec4 s1=floor(b1)*2.0+1.0;
+  vec4 sh=-step(h,vec4(0.0));
+  vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+  vec3 p0=vec3(a0.xy,h.x);vec3 p1=vec3(a0.zw,h.y);vec3 p2=vec3(a1.xy,h.z);vec3 p3=vec3(a1.zw,h.w);
+  vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+  p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
+  vec4 m=max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0);
+  m=m*m;return 42.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+}`;
+
+const coreVert = `
+ ${simplexNoise}
+varying vec3 vNorm; varying vec3 vWorldPos; varying float vDisp;
+uniform float uTime; uniform float uIntensity;
+void main(){
+  vNorm = normalize(normalMatrix * normal);
+  float n = snoise(position * 2.5 + uTime * 0.4 * ${AS.toFixed(2)});
+  vDisp = n * 0.14 * uIntensity;
+  vec3 newPos = position + normal * vDisp;
+  vec4 wp = modelMatrix * vec4(newPos, 1.0);
+  vWorldPos = wp.xyz;
+  gl_Position = projectionMatrix * viewMatrix * wp;
+}`;
+const coreFrag = `
+ ${simplexNoise}
+varying vec3 vNorm; varying vec3 vWorldPos; varying float vDisp;
+uniform float uTime; uniform float uIntensity; uniform vec3 uColor;
+void main(){
+  vec3 viewDir = normalize(cameraPosition - vWorldPos);
+  float fresnel = pow(1.0 - max(dot(viewDir, vNorm), 0.0), 3.0);
+  float n1 = snoise(vWorldPos * 4.0 + uTime * 0.3 * ${AS.toFixed(2)});
+  float n2 = snoise(vWorldPos * 8.0 - uTime * 0.2 * ${AS.toFixed(2)});
+  float pathways = abs(n1 - n2);
+  pathways = 1.0 - smoothstep(0.0, 0.12, pathways);
+  float pulse = sin(uTime * 2.5 * ${AS.toFixed(2)} + vDisp * 12.0) * 0.5 + 0.5;
+  vec3 baseColor = mix(vec3(0.04, 0.06, 0.10), uColor, 0.2 + vDisp * 2.5);
+  vec3 pathColor = uColor * pathways * 0.95 * uIntensity;
+  vec3 fresnelColor = uColor * fresnel * 1.1 * uIntensity;
+  vec3 pulseColor = uColor * pulse * 0.2 * uIntensity;
+  vec3 finalColor = baseColor + pathColor + fresnelColor + pulseColor;
+  float alpha = 0.88 + fresnel * 0.12;
+  gl_FragColor = vec4(finalColor, alpha);
+}`;
+
+const coreGeo = new THREE.IcosahedronGeometry(1.5, 4);
+const coreMat = new THREE.ShaderMaterial({
+  vertexShader: coreVert, fragmentShader: coreFrag,
+  uniforms: { uTime:{value:0}, uIntensity:{value:0.3}, uColor:{value:new THREE.Color(AC)} },
+  transparent: true, side: THREE.DoubleSide, depthWrite: false
+});
+const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+coreMesh.position.set(0, 0.5, 0); coreMesh.castShadow = true; scene.add(coreMesh);
+
+const innerCoreMat = new THREE.MeshStandardMaterial({
+  color: AC, emissive: AC, emissiveIntensity: 0.75,
+  metalness: 0.5, roughness: 0.3, transparent: true, opacity: 0.55
+});
+const innerCore = new THREE.Mesh(new THREE.IcosahedronGeometry(0.7, 2), innerCoreMat);
+innerCore.position.set(0, 0.5, 0); scene.add(innerCore);
+
+const moduleGroup = new THREE.Group(); scene.add(moduleGroup);
+const moduleMeshes = [], moduleOriginalPos = [], moduleExplodedPos = [];
+const moduleMat = new THREE.MeshPhysicalMaterial({
+  color: 0x22272f, metalness: 0.95, roughness: 0.08,
+  clearcoat: 0.7, clearcoatRoughness: 0.05, emissive: AC, emissiveIntensity: 0.12
+});
+const moduleWireMat = new THREE.MeshBasicMaterial({ color: AC, wireframe: true, transparent: true, opacity: 0.2 });
+
+MODULES.forEach((m, i) => {
+  const radius = 3.2;
+  const x = Math.cos(m.angle) * radius;
+  const z = Math.sin(m.angle) * radius;
+  const y = 0.5 + Math.sin(m.angle * 2) * 0.3;
+  let geo;
+  switch(m.geoType) {
+    case 'octahedron': geo = new THREE.OctahedronGeometry(0.38, 0); break;
+    case 'torusKnot': geo = new THREE.TorusKnotGeometry(0.22, 0.07, 64, 8, 2, 3); break;
+    case 'dodecahedron': geo = new THREE.DodecahedronGeometry(0.35, 0); break;
+    case 'sphere': geo = new THREE.SphereGeometry(0.3, 16, 12); break;
+    case 'icosahedron': geo = new THREE.IcosahedronGeometry(0.35, 1); break;
+    default: geo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+  }
+  const mesh = new THREE.Mesh(geo, moduleMat.clone());
+  mesh.position.set(x, y, z); mesh.castShadow = true;
+  mesh.userData = { moduleId: m.id, baseY: y, angle: m.angle, index: i };
+  const wire = new THREE.Mesh(geo.clone(), moduleWireMat.clone());
+  wire.scale.setScalar(1.08); mesh.add(wire);
+  moduleGroup.add(mesh);
+  moduleMeshes.push(mesh);
+  moduleOriginalPos.push(new THREE.Vector3(x, y, z));
+  moduleExplodedPos.push(new THREE.Vector3(x * 1.8, y + 0.5, z * 1.8));
+});
+
+const connectionGroup = new THREE.Group(); scene.add(connectionGroup);
+const connectionCurves = [];
+MODULES.forEach((m, i) => {
+  const start = new THREE.Vector3(0, 0.5, 0);
+  const end = moduleOriginalPos[i].clone();
+  const mid = start.clone().lerp(end, 0.5);
+  mid.y += 0.8 + Math.random() * 0.5;
+  const curve = new THREE.CatmullRomCurve3([start, mid, end]);
+  connectionCurves.push(curve);
+  const tubeGeo = new THREE.TubeGeometry(curve, 48, 0.02, 6, false);
+  const tubeMat = new THREE.MeshStandardMaterial({
+    color: AC, emissive: AC, emissiveIntensity: 0.55,
+    metalness: 0.8, roughness: 0.2, transparent: true, opacity: 0.5
+  });
+  const tube = new THREE.Mesh(tubeGeo, tubeMat);
+  tube.userData.isConnection = true; connectionGroup.add(tube);
+});
+
+const PC = 280;
+const pPos = new Float32Array(PC * 3);
+const pSpd = new Float32Array(PC);
+const pPath = new Uint8Array(PC);
+const pT = new Float32Array(PC);
+for (let i = 0; i < PC; i++) {
+  pPath[i] = Math.floor(Math.random() * connectionCurves.length);
+  pT[i] = Math.random();
+  pSpd[i] = 0.15 + Math.random() * 0.35;
+  const p = connectionCurves[pPath[i]].getPointAt(pT[i]);
+  pPos[i*3]=p.x; pPos[i*3+1]=p.y; pPos[i*3+2]=p.z;
+}
+const particleGeo = new THREE.BufferGeometry();
+particleGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+const particleMat = new THREE.ShaderMaterial({
+  vertexShader:`varying float vA;void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);gl_PointSize=max(3.5,95.0/-mv.z);gl_Position=projectionMatrix*mv;vA=1.0;}`,
+  fragmentShader:`varying float vA;uniform vec3 uP;void main(){float d=length(gl_PointCoord-vec2(0.5));if(d>0.5)discard;float g=exp(-d*5.0);gl_FragColor=vec4(uP,g*vA*0.95);}`,
+  uniforms:{ uP:{value:new THREE.Color(AC)} },
+  transparent:true, depthWrite:false, blending:THREE.AdditiveBlending
+});
+scene.add(new THREE.Points(particleGeo, particleMat));
+
+const hardwareGroup = new THREE.Group(); scene.add(hardwareGroup);
+const platMat = new THREE.MeshStandardMaterial({ color: 0x0e1218, metalness: 0.97, roughness: 0.15 });
+const platform = new THREE.Mesh(new THREE.CylinderGeometry(6, 6.5, 0.12, 64), platMat);
+platform.position.y = -2; platform.receiveShadow = true; hardwareGroup.add(platform);
+
+const platRing = new THREE.Mesh(new THREE.TorusGeometry(6.2, 0.04, 8, 128),
+  new THREE.MeshStandardMaterial({ color: AC, emissive: AC, emissiveIntensity: 0.7 }));
+platRing.rotation.x = Math.PI/2; platRing.position.y = -1.93; hardwareGroup.add(platRing);
+
+const qProcMat = new THREE.MeshPhysicalMaterial({
+  color: 0x161a22, metalness: 0.97, roughness: 0.06,
+  clearcoat: 1.0, emissive: AC, emissiveIntensity: 0.2
+});
+for (let i = 0; i < 3; i++) {
+  const a = (i/3)*Math.PI*2 - Math.PI/2;
+  const qm = new THREE.Mesh(new THREE.OctahedronGeometry(0.28, 0), qProcMat.clone());
+  qm.position.set(Math.cos(a)*2, -1.7, Math.sin(a)*2);
+  qm.castShadow = true; qm.userData = { type:'quantum', baseAngle:a };
+  hardwareGroup.add(qm);
+  const qr = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.012, 6, 32),
+    new THREE.MeshBasicMaterial({ color: AC, transparent: true, opacity: 0.5 }));
+  qr.rotation.x = Math.PI/2; qr.position.copy(qm.position);
+  qr.userData.parentProc = qm; hardwareGroup.add(qr);
+}
+
+const chipMat = new THREE.MeshStandardMaterial({ color: 0x10141a, metalness: 0.93, roughness: 0.15, emissive: 0x0a2a3a, emissiveIntensity: 0.1 });
+for (let i = 0; i < 4; i++) {
+  const a = (i/4)*Math.PI*2 + 0.4;
+  const cm = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.08, 0.35), chipMat.clone());
+  cm.position.set(Math.cos(a)*3.8, -1.92, Math.sin(a)*3.8);
+  cm.rotation.y = -a; cm.userData = { type:'neuromorphic' }; hardwareGroup.add(cm);
+}
+
+const bciMat = new THREE.MeshPhysicalMaterial({
+  color: 0x22272f, metalness: 0.9, roughness: 0.1,
+  clearcoat: 0.8, emissive: AC, emissiveIntensity: 0.3, transparent: true, opacity: 0.8
+});
+const bciMesh = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.1, 16, 32), bciMat);
+bciMesh.position.set(0, -1.5, 0); bciMesh.rotation.x = Math.PI/3;
+bciMesh.userData = { type:'bci' }; hardwareGroup.add(bciMesh);
+
+const networkGroup = new THREE.Group(); scene.add(networkGroup);
+const nodeMeshes = [];
+NETWORK_NODES.forEach((nd) => {
+  const phi = (90 - nd.lat) * Math.PI / 180;
+  const theta = (nd.lon + 180) * Math.PI / 180;
+  const r = 9;
+  const x = -(r * Math.sin(phi) * Math.cos(theta));
+  const y = r * Math.cos(phi);
+  const z = r * Math.sin(phi) * Math.sin(theta);
+  const nm = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 8),
+    new THREE.MeshStandardMaterial({ color: AC, emissive: new THREE.Color(nd.color), emissiveIntensity: 0.65, metalness: 0.7, roughness: 0.3 }));
+  nm.position.set(x, y, z);
+  nm.userData = { nodeName: nd.name, baseEmissive: 0.65, region: nd.color };
+  networkGroup.add(nm); nodeMeshes.push(nm);
+  const lg = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0.5,0), new THREE.Vector3(x,y,z)]);
+  networkGroup.add(new THREE.Line(lg, new THREE.LineBasicMaterial({ color: AC, transparent: true, opacity: 0.07 })));
+});
+
+const govMat = new THREE.MeshBasicMaterial({ color: AC, wireframe: true, transparent: true, opacity: 0.03 });
+const govShell = new THREE.Mesh(new THREE.IcosahedronGeometry(11, 1), govMat);
+govShell.position.y = 0.5; scene.add(govShell);
+
+const aiGroup = new THREE.Group(); aiGroup.visible = false; scene.add(aiGroup);
+const aiNodes = [], aiConnections = [];
+for (let i = 0; i < 30; i++) {
+  const r = 1.2 + Math.random() * 0.8;
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  const s = 0.04 + Math.random() * 0.06;
+  const nm = new THREE.Mesh(new THREE.BoxGeometry(s,s,s),
+    new THREE.MeshStandardMaterial({ color: AC, emissive: 0xe056fd, emissiveIntensity: 0.3, metalness: 0.5, roughness: 0.4 }));
+  nm.position.set(r*Math.sin(phi)*Math.cos(theta), r*Math.sin(phi)*Math.sin(theta)+0.5, r*Math.cos(phi));
+  nm.userData = { baseIntensity: 0.3, phase: Math.random() * Math.PI * 2 };
+  aiGroup.add(nm); aiNodes.push(nm);
+}
+for (let i = 0; i < aiNodes.length; i++) {
+  for (let j = i+1; j < aiNodes.length; j++) {
+    if (aiNodes[i].position.distanceTo(aiNodes[j].position) < 1.0) {
+      const lg = new THREE.BufferGeometry().setFromPoints([aiNodes[i].position, aiNodes[j].position]);
+      const ln = new THREE.Line(lg, new THREE.LineBasicMaterial({ color: 0xe056fd, transparent: true, opacity: 0.15 }));
+      aiGroup.add(ln); aiConnections.push({ line:ln, i, j });
+    }
+  }
+}
+
+const bgN = 700, bgP = new Float32Array(bgN*3);
+for (let i = 0; i < bgN; i++) { bgP[i*3]=(Math.random()-0.5)*50; bgP[i*3+1]=(Math.random()-0.5)*30; bgP[i*3+2]=(Math.random()-0.5)*50; }
+const bgGeo = new THREE.BufferGeometry(); bgGeo.setAttribute('position', new THREE.BufferAttribute(bgP, 3));
+scene.add(new THREE.Points(bgGeo, new THREE.PointsMaterial({ color: AC, size: 0.05, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false })));
+
+let currentState = 'rest', targetState = STATES[0];
+let stateLerp = { bloom:0.5, intensity:0.3, particleSpd:0.15 };
+let currentView = 'free', activeSim = null, explodedAmount = 0, xrayMode = false;
+const clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+
+function setState(id) {
+  const s = STATES.find(s => s.id === id); if (!s) return;
+  currentState = id; targetState = s;
+  document.getElementById('state-label').textContent = t(s.key);
+  document.getElementById('alert-bar').className = 'alert-bar ' + (s.alertClass || '');
+  document.querySelectorAll('.state-btn').forEach(b => b.classList.toggle('active', b.dataset.state === id));
+  const sc = new THREE.Color(s.color);
+  coreMat.uniforms.uColor.value.copy(sc);
+  coreLight.color.copy(sc);
+  particleMat.uniforms.uP.value.copy(sc);
+  aiGroup.visible = (id === 'ai' || id === 'hybrid');
+  if (id === 'emergency') { fillLight.color.set(0xff4757); fillLight.intensity = 0.7; }
+  else { fillLight.color.set(AC); fillLight.intensity = 0.4; }
+  showToast(`${t('toastState')} ${t(s.key)}`);
+}
+
+function setView(view) {
+  currentView = view;
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  xrayMode = false; renderer.clippingPlanes = [];
+  switch(view) {
+    case 'free': controls.enabled=true; controls.autoRotate=false; break;
+    case 'auto': controls.enabled=true; controls.autoRotate=true; controls.autoRotateSpeed=1.2; break;
+    case 'exploded': explodedAmount=1; break;
+    case 'xray': xrayMode=true; break;
+    case 'section': renderer.clippingPlanes=[clipPlane]; break;
+    case 'top': camera.position.set(0,18,0.01); controls.target.set(0,0,0); controls.update(); break;
+  }
+  if (view !== 'auto') controls.autoRotate = false;
+  if (view !== 'exploded') explodedAmount = 0;
+  showToast(`${t('toastView')} ${t('v' + view.charAt(0).toUpperCase() + view.slice(1))}`);
+}
+
+function focusModule(id) {
+  const mesh = moduleMeshes.find(m => m.userData.moduleId === id); if (!mesh) return;
+  const pos = mesh.position.clone();
+  const ct = pos.clone().add(new THREE.Vector3(2, 1.5, 2));
+  const sp = camera.position.clone(), st = controls.target.clone();
+  let pr = 0;
+  (function af(){ pr += 0.025; if (pr >= 1) { controls.target.copy(pos); return; }
+    const f = pr*pr*(3-2*pr); camera.position.lerpVectors(sp, ct, f);
+    controls.target.lerpVectors(st, pos, f); controls.update(); requestAnimationFrame(af); })();
+}
+
+function setSim(region) {
+  activeSim = region;
+  document.querySelectorAll('.sim-btn').forEach(b => b.classList.toggle('active', b.dataset.sim === region));
+  /* Restablecer todos los nodos a su estado base */
+  nodeMeshes.forEach(nm => { nm.material.emissiveIntensity = nm.userData.baseEmissive; nm.scale.setScalar(1); });
+  if (region && SIM_REGIONS[region]) {
+    const sim = SIM_REGIONS[region];
+    showToast(`${t('toastSim')} ${t('sim' + region.charAt(0).toUpperCase() + region.slice(1))}`);
+    nodeMeshes.forEach(nm => {
+      if (sim.nodes.includes(nm.userData.nodeName)) {
+        /* Nodos activos: visibles y legibles, sin deslumbrar */
+        nm.material.emissiveIntensity = 0.95;
+        nm.scale.setScalar(1.6);
+      } else {
+        /* Nodos inactivos: atenuados pero no invisibles */
+        nm.material.emissiveIntensity = 0.18;
+        nm.scale.setScalar(0.6);
+      }
+    });
+  }
+}
+
+const cDP = Array(40).fill(0).map(() => 0.5+Math.random()*0.4);
+const cDE = Array(40).fill(0).map(() => 0.85+Math.random()*0.12);
+function drawChart(cid, data, col) {
+  const cv = document.getElementById(cid); if (!cv) return;
+  const ctx = cv.getContext('2d'); const w = cv.width, h = cv.height;
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = 'rgba(2,6,12,0.93)'; ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle = 'rgba(0,255,209,0.06)'; ctx.lineWidth = 0.5;
+  for (let i = 0; i < 5; i++) { const y = (h/5)*i; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+  ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath();
+  data.forEach((v,i) => { const x = (w/(data.length-1))*i; const y = h-v*h*0.85-h*0.05; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+  ctx.stroke(); ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+  const gr = ctx.createLinearGradient(0,0,0,h);
+  gr.addColorStop(0,'rgba(0,255,209,0.18)'); gr.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle = gr; ctx.fill();
+}
+setInterval(() => {
+  cDP.shift(); cDP.push(Math.max(0.1,Math.min(1,targetState.intensity*(0.7+Math.random()*0.3))));
+  cDE.shift(); cDE.push(Math.max(0.5,Math.min(1,0.85+Math.random()*0.12)));
+  drawChart('chart-power', cDP, 'rgba(0,255,209,1)');
+  drawChart('chart-energy', cDE, 'rgba(46,213,115,1)');
+}, 150);
+
+function updateHUD(time) {
+  const si = stateLerp.intensity;
+  document.getElementById('tel-power').textContent = Math.round(400+si*600);
+  document.getElementById('tel-energy').textContent = (88+si*10).toFixed(1);
+  document.getElementById('tel-integrity').textContent = (97+si*2.5).toFixed(1);
+  document.getElementById('tel-latency').textContent = (2.0-si*1.5).toFixed(1);
+  document.getElementById('val-quantum').textContent = (85+si*14).toFixed(1)+'%';
+  document.querySelectorAll('.module-item').forEach((item,i) => {
+    item.classList.toggle('active', si>0.2 || currentState==='rest' || i%2===Math.floor(time)%2);
+  });
+  const dc = document.getElementById('dot-core'), dq = document.getElementById('dot-quantum');
+  if (currentState==='emergency') { dc.className='status-dot dot-red'; dq.className='status-dot dot-red'; }
+  else if (currentState==='maintenance') { dc.className='status-dot dot-yellow'; dq.className='status-dot dot-yellow'; }
+  else { dc.className='status-dot dot-green'; dq.className='dot-cyan'; }
+}
+
+const clock = new THREE.Clock(); let fc = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+  const time = clock.getElapsedTime() * AS;
+  fc++;
+  stateLerp.bloom = lerp(stateLerp.bloom, targetState.bloom, 0.04);
+  stateLerp.intensity = lerp(stateLerp.intensity, targetState.intensity, 0.04);
+  stateLerp.particleSpd = lerp(stateLerp.particleSpd, targetState.particleSpd, 0.04);
+  bloomPass.strength = stateLerp.bloom;
+
+  coreMat.uniforms.uTime.value = time;
+  coreMat.uniforms.uIntensity.value = stateLerp.intensity;
+  coreMesh.rotation.y = time * 0.08;
+  coreMesh.rotation.x = Math.sin(time * 0.05) * 0.1;
+  innerCore.rotation.y = -time * 0.15;
+  innerCore.rotation.z = time * 0.1;
+  innerCoreMat.emissiveIntensity = 0.5 + stateLerp.intensity * 0.7 + Math.sin(time * 3) * 0.12;
+  coreLight.intensity = 1.5 + stateLerp.intensity * 2.0 + Math.sin(time * 2) * 0.3;
+
+  moduleMeshes.forEach((m, i) => {
+    m.position.y = m.userData.baseY + Math.sin(time*0.8+i*1.3)*0.15;
+    m.rotation.y = time*0.3+i; m.rotation.x = Math.sin(time*0.5+i)*0.2;
+    m.scale.setScalar(1 + Math.sin(time*2+i*0.8)*0.06*stateLerp.intensity);
+    m.material.emissiveIntensity = 0.08 + stateLerp.intensity * 0.2;
+    if (explodedAmount > 0.01) {
+      const tg = moduleExplodedPos[i].clone(); tg.y += Math.sin(time*0.8+i*1.3)*0.15;
+      m.position.lerp(tg, explodedAmount*0.05);
+    } else if (currentView !== 'exploded') {
+      const og = moduleOriginalPos[i].clone(); og.y += Math.sin(time*0.8+i*1.3)*0.15;
+      m.position.lerp(og, 0.05);
+    }
+    if (xrayMode) { m.material.wireframe=true; m.material.opacity=0.3; m.material.transparent=true; }
+    else { m.material.wireframe=false; m.material.opacity=1; m.material.transparent=false; }
+  });
+
+  if (xrayMode) { coreMat.uniforms.uIntensity.value=Math.max(0.1,stateLerp.intensity*0.5); coreMat.transparent=true; govMat.opacity=0.15; }
+  else { govMat.opacity=0.03; }
+
+  const pa = particleGeo.attributes.position.array;
+  for (let i = 0; i < PC; i++) {
+    pT[i] += delta * stateLerp.particleSpd * pSpd[i];
+    if (pT[i] > 1) { pT[i] -= 1; pPath[i] = Math.floor(Math.random() * connectionCurves.length); }
+    const p = connectionCurves[pPath[i]].getPointAt(Math.max(0, Math.min(1, pT[i])));
+    if (explodedAmount > 0.01 && pPath[i] < moduleExplodedPos.length) {
+      const adj = p.clone().lerp(p.clone().add(moduleExplodedPos[pPath[i]].clone().sub(moduleOriginalPos[pPath[i]])), explodedAmount);
+      pa[i*3]=adj.x; pa[i*3+1]=adj.y; pa[i*3+2]=adj.z;
+    } else { pa[i*3]=p.x; pa[i*3+1]=p.y; pa[i*3+2]=p.z; }
+  }
+  particleGeo.attributes.position.needsUpdate = true;
+
+  hardwareGroup.children.forEach(c => {
+    if (c.userData.type==='quantum') {
+      c.rotation.y=time*0.5; c.rotation.x=time*0.3;
+      c.position.y=-1.7+Math.sin(time+c.userData.baseAngle)*0.08;
+      if(xrayMode){c.material.wireframe=true;c.material.transparent=true;c.material.opacity=0.3;}
+      else{c.material.wireframe=false;c.material.opacity=1;c.material.transparent=false;}
+    }
+    if (c.userData.type==='bci') { c.rotation.z=time*0.2; c.rotation.x=Math.PI/3+Math.sin(time*0.5)*0.1; }
+    if (c.userData.parentProc) c.rotation.z = time*0.8;
+  });
+  if (xrayMode) { platMat.wireframe=true; platMat.transparent=true; platMat.opacity=0.2; bciMat.wireframe=true; bciMat.opacity=0.3; }
+  else { platMat.wireframe=false; platMat.transparent=false; platMat.opacity=1; bciMat.wireframe=false; bciMat.opacity=0.8; }
+
+  nodeMeshes.forEach((nm, i) => {
+    nm.rotation.y = time*0.3;
+    if (!activeSim || !SIM_REGIONS[activeSim] || !SIM_REGIONS[activeSim].nodes.includes(nm.userData.nodeName)) {
+      if (!activeSim) nm.scale.setScalar(1+Math.sin(time*1.5+i*0.7)*0.15);
+    }
+  });
+  govShell.rotation.y = time*0.02; govShell.rotation.x = Math.sin(time*0.01)*0.05;
+
+  if (aiGroup.visible) {
+    aiNodes.forEach((n,i) => {
+      const ph = n.userData.phase;
+      n.material.emissiveIntensity = 0.2+Math.sin(time*3+ph)*0.5;
+      n.rotation.x=time*0.5+ph; n.rotation.y=time*0.3+ph;
+      const pr = Math.sin(time*0.7+ph);
+      n.material.emissive.set(pr>0.5?0xe056fd:pr>0?AC:0xffa502);
+    });
+    aiConnections.forEach(c => { c.line.material.opacity=0.05+Math.sin(time*2+c.i)*0.13; });
+  }
+  if (currentView==='section') clipPlane.normal.set(Math.sin(time*0.3),0,Math.cos(time*0.3));
+
+  controls.update();
+  if (fc%6===0) updateHUD(time);
+  composer.render();
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
+});
+document.querySelectorAll('.view-btn').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+document.querySelectorAll('.sim-btn').forEach(b => b.addEventListener('click', () => { b.dataset.sim==='none'?setSim(null):setSim(b.dataset.sim); }));
+document.querySelectorAll('.lang-btn').forEach(b => b.addEventListener('click', () => {
+  currentLang = b.dataset.lang;
+  document.querySelectorAll('.lang-btn').forEach(bb => bb.classList.remove('active'));
+  b.classList.add('active'); applyLang(); setState(currentState);
+}));
+document.getElementById('btn-ar').addEventListener('click', () => {
+  if (location.protocol!=='https:'&&location.hostname!=='localhost') { showToast(t('arNote')); return; }
+  if (navigator.xr) {
+    navigator.xr.isSessionSupported('immersive-ar').then(s => {
+      if(s) navigator.xr.requestSession('immersive-ar',{requiredFeatures:['local-floor'],optionalFeatures:['dom-overlay']})
+        .then(session=>{renderer.xr.enabled=true;renderer.xr.setSession(session);showToast('AR activado');})
+        .catch(()=>showToast(t('arNote')));
+      else showToast(t('arNote'));
+    });
+  } else showToast(t('arNote'));
+});
+document.getElementById('btn-info').addEventListener('click', () => showToast(t('infoText')));
+document.addEventListener('keydown', e => {
+  const k = e.key;
+  if(k>='1'&&k<='9'){const idx=parseInt(k)-1;if(idx<STATES.length)setState(STATES[idx].id);}
+  if(k==='0')setState(STATES[9].id);
+  if(k===' '){e.preventDefault();setState('rest');}
+  if(k==='r'||k==='R'){camera.position.set(8,5,10);controls.target.set(0,0.5,0);setView('free');}
+});
+
+buildStateButtons(); buildModuleList(); applyLang(); setState('rest'); animate();
+</script>
+</body>
+</html>
