@@ -1,0 +1,1745 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HIDRO-HIMALAYA BUTÁN · Prototipo 3D</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            overflow: hidden;
+            font-family: 'Segoe UI', 'Roboto', sans-serif;
+            background-color: #0a0e17;
+            color: #e8f0fe;
+        }
+        #canvasContainer {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        /* Título centrado superior */
+        #titleCenter {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            pointer-events: none;
+            text-align: center;
+            text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+            max-width: 90%;
+        }
+        #titleCenter h1 {
+            font-size: 1.5rem;
+            font-weight: 400;
+            letter-spacing: 2px;
+            color: #f0c27a;
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+        #titleCenter h1 span { font-weight: 300; color: #b8d4e3; }
+
+        /* Info superior izquierda: modos + estado (sin título) */
+        #topLeft {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            z-index: 100;
+            pointer-events: none;
+            text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 320px;
+        }
+        .autor {
+            font-size: 0.95rem;
+            opacity: 0.9;
+            color: #c8dbe9;
+            letter-spacing: 1px;
+            pointer-events: none;
+        }
+        /* Modos operativos */
+        #modeControls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            pointer-events: auto;
+            margin-top: 4px;
+        }
+        #modeControls button {
+            background: rgba(10,14,23,0.7);
+            border: 1px solid rgba(240,194,122,0.2);
+            color: #aab9d0;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.2s;
+            letter-spacing: 0.5px;
+            backdrop-filter: blur(4px);
+        }
+        #modeControls button:hover {
+            background: rgba(240,194,122,0.15);
+            color: #fff;
+        }
+        #modeControls button.active {
+            background: rgba(240,194,122,0.25);
+            border-color: #f0c27a;
+            color: #f0c27a;
+        }
+
+        /* Estado + botones AR/Crecida/Reset */
+        #statusAndActions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            pointer-events: auto;
+            margin-top: 4px;
+            background: rgba(10,14,23,0.5);
+            padding: 6px 12px;
+            border-radius: 30px;
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(240,194,122,0.15);
+            align-self: flex-start;
+        }
+        #statusIndicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+            color: #cfddee;
+        }
+        #statusDot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #f0c27a;
+            box-shadow: 0 0 20px #f0c27a;
+            transition: background 0.5s, box-shadow 0.5s;
+        }
+        #actionButtons {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .btn-action {
+            background: rgba(10,14,23,0.6);
+            border: 1px solid rgba(240,194,122,0.25);
+            color: #f0c27a;
+            padding: 3px 10px;
+            border-radius: 20px;
+            backdrop-filter: blur(4px);
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.6rem;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        .btn-action:hover {
+            background: rgba(240,194,122,0.15);
+            box-shadow: 0 0 20px rgba(240,194,122,0.2);
+        }
+
+        /* Panel derecho: idiomas + módulos */
+        #rightPanels {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 220px;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            pointer-events: auto;
+        }
+        #langPanel {
+            display: flex;
+            gap: 8px;
+            background: rgba(10,14,23,0.75);
+            padding: 6px 14px;
+            border-radius: 30px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(240,194,122,0.3);
+            flex-shrink: 0;
+            align-self: flex-end;
+        }
+        #langPanel button {
+            background: transparent;
+            border: none;
+            color: #aab9d0;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 4px 10px;
+            border-radius: 20px;
+            transition: 0.2s;
+        }
+        #langPanel button:hover { color: #fff; background: rgba(240,194,122,0.15); }
+        #langPanel button.active {
+            color: #f0c27a;
+            background: rgba(240,194,122,0.2);
+            box-shadow: 0 0 16px rgba(240,194,122,0.2);
+        }
+        #moduloPanel {
+            background: rgba(10,14,23,0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(240,194,122,0.2);
+            border-radius: 16px;
+            padding: 14px 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+            overflow-y: auto;
+            flex: 1;
+            min-width: 200px;
+        }
+        #moduloPanel h3 {
+            color: #f0c27a;
+            font-weight: 400;
+            letter-spacing: 1.5px;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(240,194,122,0.15);
+            padding-bottom: 6px;
+        }
+        #moduloPanel .modulo-btn {
+            display: block;
+            width: 100%;
+            background: rgba(240,194,122,0.05);
+            border: 1px solid rgba(240,194,122,0.08);
+            color: #cfddee;
+            padding: 4px 10px;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            text-align: left;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.15s;
+            letter-spacing: 0.3px;
+        }
+        #moduloPanel .modulo-btn:hover {
+            background: rgba(240,194,122,0.15);
+            border-color: #f0c27a;
+        }
+        #moduloPanel .modulo-btn.active {
+            background: rgba(240,194,122,0.2);
+            border-color: #f0c27a;
+            color: #f0c27a;
+        }
+        #moduloPanel .modulo-data {
+            margin-top: 10px;
+            font-size: 0.7rem;
+            line-height: 1.6;
+            color: #a0b4c8;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding-top: 8px;
+        }
+        #moduloPanel .modulo-data .data-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 0;
+        }
+        #moduloPanel .modulo-data .data-row .label { color: #8aa3c0; }
+        #moduloPanel .modulo-data .data-row .value { color: #e8f0fe; font-weight: 500; }
+
+        /* HUD inferior ampliado */
+        #hud {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            z-index: 100;
+            display: flex;
+            gap: 14px;
+            background: rgba(10,14,23,0.7);
+            padding: 12px 20px;
+            border-radius: 18px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(240,194,122,0.2);
+            pointer-events: none;
+            flex-wrap: wrap;
+            max-width: 92%;
+        }
+        #hud .hud-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 50px;
+        }
+        #hud .hud-item .label {
+            font-size: 0.45rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #8aa3c0;
+        }
+        #hud .hud-item .value {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #e8f0fe;
+        }
+        #hud .hud-item .value.gold { color: #f0c27a; }
+        #hud .hud-item .value.cyan { color: #6fc3df; }
+        #hud .hud-item .value.green { color: #8bcb9a; }
+        #hud .hud-item .value.orange { color: #f5b06b; }
+        #hud .hud-item .value.purple { color: #c084fc; }
+        #hud .hud-item .value.teal { color: #5fc3b0; }
+        #hud .hud-item .value.pink { color: #f7a1b0; }
+
+        #arOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+            display: none;
+            pointer-events: none;
+            background: rgba(0,0,0,0.2);
+        }
+        #arOverlay video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: brightness(0.7) contrast(1.1);
+        }
+
+        @media (max-width: 700px) {
+            #titleCenter { top: 10px; }
+            #titleCenter h1 { font-size: 1rem; }
+            #topLeft { top: 70px; left: 10px; max-width: 200px; }
+            .autor { font-size: 0.8rem; }
+            #modeControls button { font-size: 0.6rem; padding: 2px 8px; }
+            #statusAndActions { padding: 4px 8px; gap: 6px; }
+            #statusIndicator { font-size: 0.65rem; gap: 6px; }
+            #statusDot { width: 10px; height: 10px; }
+            .btn-action { font-size: 0.55rem; padding: 2px 8px; }
+            #rightPanels { top: 10px; right: 10px; max-width: 170px; max-height: calc(100vh - 100px); }
+            #langPanel { gap: 4px; padding: 4px 8px; }
+            #langPanel button { font-size: 0.6rem; padding: 2px 6px; }
+            #moduloPanel { padding: 8px 10px; }
+            #moduloPanel h3 { font-size: 0.7rem; }
+            #moduloPanel .modulo-btn { font-size: 0.6rem; padding: 2px 6px; }
+            #moduloPanel .modulo-data { font-size: 0.6rem; }
+            #hud { gap: 8px; padding: 8px 12px; bottom: 70px; left: 10px; flex-wrap: wrap; }
+            #hud .hud-item { min-width: 40px; }
+            #hud .hud-item .value { font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Título centrado superior -->
+    <div id="titleCenter">
+        <h1 id="mainTitle">
+            <span>Hidro-Himalaya Bután</span>
+            <span>Neuro-Hidrología Predictiva</span>
+            <span>para la Soberanía Sustentable</span>
+        </h1>
+    </div>
+
+    <!-- Info superior izquierda (modos + estado) sin título -->
+    <div id="topLeft">
+        <div class="autor">Dr. Julio César Oporta Barrera</div>
+        <div id="modeControls">
+            <button class="active" data-mode="0">Operacional</button>
+            <button data-mode="1">Eco-Stealth</button>
+            <button data-mode="2">Emergencia</button>
+            <button data-mode="3">Simulador libre</button>
+        </div>
+        <!-- Nuevo bloque: estado + botones AR/Crecida/Reset -->
+        <div id="statusAndActions">
+            <div id="statusIndicator">
+                <div id="statusDot"></div>
+                <span id="statusText">SISTEMA OPERATIVO</span>
+            </div>
+            <div id="actionButtons">
+                <button class="btn-action" id="arToggle">📷 AR</button>
+                <button class="btn-action" id="simCrecida">🌊 Crecida</button>
+                <button class="btn-action" id="resetView">🔄 Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel derecho: idiomas + módulos -->
+    <div id="rightPanels">
+        <div id="langPanel">
+            <button class="active" data-lang="es">🇪🇸 ES</button>
+            <button data-lang="en">🇬🇧 EN</button>
+            <button data-lang="zh">🇨🇳 中文</button>
+        </div>
+        <div id="moduloPanel">
+            <h3 id="panelTitle">Módulos del Sistema</h3>
+            <div id="moduloList">
+                <button class="modulo-btn" data-mod="0">Centro Neurohidrológico</button>
+                <button class="modulo-btn" data-mod="1">Monitoreo Glaciar</button>
+                <button class="modulo-btn" data-mod="2">Micro-Redes Híbridas</button>
+                <button class="modulo-btn" data-mod="3">Agricultura Alpina</button>
+                <button class="modulo-btn" data-mod="4">Turismo de Conservación</button>
+                <button class="modulo-btn" data-mod="5">Banco Genético Digital</button>
+                <button class="modulo-btn" data-mod="6">Sensores IoT</button>
+                <button class="modulo-btn" data-mod="7">Red IA de Enjambre</button>
+                <button class="modulo-btn" data-mod="8">Calidad del Agua</button>
+                <button class="modulo-btn" data-mod="9">Predicción de Riesgos</button>
+                <button class="modulo-btn" data-mod="10">Gestión de Residuos</button>
+                <button class="modulo-btn" data-mod="11">Calidad del Aire</button>
+                <button class="modulo-btn" data-mod="12">Eficiencia Energética</button>
+                <button class="modulo-btn" data-mod="13">Meteorología Avanzada</button>
+                <!-- Nuevos módulos -->
+                <button class="modulo-btn" data-mod="14">Monitoreo de Fauna</button>
+                <button class="modulo-btn" data-mod="15">Calidad del Suelo</button>
+                <button class="modulo-btn" data-mod="16">Balance Hídrico</button>
+                <button class="modulo-btn" data-mod="17">Energía Geotérmica</button>
+            </div>
+            <div id="moduloData" class="modulo-data">
+                <div class="data-row"><span class="label">Estado:</span><span class="value" id="modStatus">Activo</span></div>
+                <div class="data-row"><span class="label">Simulación:</span><span class="value" id="modSimVal">—</span></div>
+                <div class="data-row"><span class="label">Parámetro 1:</span><span class="value" id="modP1">—</span></div>
+                <div class="data-row"><span class="label">Parámetro 2:</span><span class="value" id="modP2">—</span></div>
+                <div class="data-row"><span class="label">Parámetro 3:</span><span class="value" id="modP3">—</span></div>
+                <div class="data-row"><span class="label">Parámetro 4:</span><span class="value" id="modP4">—</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HUD ampliado con nuevos indicadores -->
+    <div id="hud">
+        <div class="hud-item"><span class="label">MODO</span><span class="value gold" id="hudMode">NEURO-HÍBRIDO</span></div>
+        <div class="hud-item"><span class="label">ENERGÍA</span><span class="value green" id="hudEnergy">94%</span></div>
+        <div class="hud-item"><span class="label">CAUDAL</span><span class="value orange" id="hudFlow">1.42 m³/s</span></div>
+        <div class="hud-item"><span class="label">NODOS IA</span><span class="value cyan" id="hudNodes">128</span></div>
+        <div class="hud-item"><span class="label">MÓDULO</span><span class="value gold" id="hudModulo">—</span></div>
+        <div class="hud-item"><span class="label">GLACIAR</span><span class="value teal" id="hudGlaciar">-2.3 °C</span></div>
+        <div class="hud-item"><span class="label">CALIDAD AGUA</span><span class="value green" id="hudWaterQ">98%</span></div>
+        <div class="hud-item"><span class="label">BIODIVERSIDAD</span><span class="value purple" id="hudBio">87%</span></div>
+        <!-- Nuevos HUD -->
+        <div class="hud-item"><span class="label">TEMPERATURA</span><span class="value pink" id="hudTemp">12.4 °C</span></div>
+        <div class="hud-item"><span class="label">HUMEDAD</span><span class="value cyan" id="hudHum">68%</span></div>
+        <div class="hud-item"><span class="label">PRESIÓN</span><span class="value orange" id="hudPress">1013 hPa</span></div>
+        <div class="hud-item"><span class="label">VIENTO</span><span class="value teal" id="hudWind">5.2 km/h</span></div>
+        <!-- HUD adicionales -->
+        <div class="hud-item"><span class="label">RADIACIÓN SOLAR</span><span class="value pink" id="hudSolar">782 W/m²</span></div>
+        <div class="hud-item"><span class="label">NIVEL EMBALSE</span><span class="value green" id="hudReservoir">67%</span></div>
+    </div>
+
+    <!-- AR overlay -->
+    <div id="arOverlay"><video id="arVideo" autoplay playsinline muted></video></div>
+
+    <!-- Contenedor Three.js -->
+    <div id="canvasContainer"></div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+        // --- INICIALIZACIÓN ---
+        const container = document.getElementById('canvasContainer');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0e17);
+        scene.fog = new THREE.Fog(0x0a0e17, 30, 80);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
+        camera.position.set(22, 14, 28);
+        camera.lookAt(0, 0, 0);
+        const defaultCameraPos = camera.position.clone();
+        const defaultTarget = new THREE.Vector3(0, 0.5, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        container.appendChild(renderer.domElement);
+
+        const labelRenderer = new CSS2DRenderer();
+        labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        labelRenderer.domElement.style.position = 'absolute';
+        labelRenderer.domElement.style.top = '0';
+        labelRenderer.domElement.style.left = '0';
+        labelRenderer.domElement.style.pointerEvents = 'none';
+        container.appendChild(labelRenderer.domElement);
+
+        // Controles
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 8;
+        controls.maxDistance = 60;
+        controls.maxPolarAngle = Math.PI / 2.1;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.5;
+        controls.target.copy(defaultTarget);
+
+        // --- ILUMINACIÓN ---
+        const ambient = new THREE.AmbientLight(0x404060, 0.4);
+        scene.add(ambient);
+        const sunLight = new THREE.DirectionalLight(0xffeedd, 1.4);
+        sunLight.position.set(15, 25, 10);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 1024;
+        sunLight.shadow.mapSize.height = 1024;
+        sunLight.shadow.camera.near = 0.5;
+        sunLight.shadow.camera.far = 60;
+        sunLight.shadow.camera.left = -20;
+        sunLight.shadow.camera.right = 20;
+        sunLight.shadow.camera.top = 20;
+        sunLight.shadow.camera.bottom = -20;
+        scene.add(sunLight);
+        const fillLight = new THREE.DirectionalLight(0x88bbff, 0.5);
+        fillLight.position.set(-20, 5, -15);
+        scene.add(fillLight);
+        const accentLight = new THREE.DirectionalLight(0xf0c27a, 0.6);
+        accentLight.position.set(0, -5, 10);
+        scene.add(accentLight);
+        const pointLight = new THREE.PointLight(0xf0c27a, 0.9, 30);
+        pointLight.position.set(0, 5, 5);
+        scene.add(pointLight);
+        const backLight = new THREE.DirectionalLight(0x6688aa, 0.3);
+        backLight.position.set(-5, 0, -20);
+        scene.add(backLight);
+
+        // --- SUELO ---
+        const groundGeometry = new THREE.CircleGeometry(30, 64);
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            color: 0x141c2a,
+            roughness: 0.8,
+            metalness: 0.2,
+            transparent: true,
+            opacity: 0.8
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.5;
+        ground.receiveShadow = true;
+        scene.add(ground);
+        const gridHelper = new THREE.GridHelper(40, 30, 0xf0c27a, 0x2a3a5a);
+        gridHelper.position.y = -0.45;
+        scene.add(gridHelper);
+
+        // --- OBJETOS 3D ---
+        const clickables = [];
+        const objectsByType = {
+            noc: [], glaciar: [], turbina: [], solar: [], invernadero: [],
+            turismo: [], genbank: [], iot: [], ia: []
+        };
+
+        // Referencias para animaciones
+        let glaciers = [];
+        let greenhouses = [];
+        let iotStations = [];
+        let genBankObj = null;
+        let nocObj = null;
+
+        // 1. Montañas / Glaciares
+        function createMountain(posX, posZ, scale) {
+            const group = new THREE.Group();
+            const baseColor = new THREE.Color(0x5a7a9a);
+            const snowColor = new THREE.Color(0xd8e8f5);
+            const body = new THREE.Mesh(
+                new THREE.ConeGeometry(1.8 * scale, 2.2 * scale, 8),
+                new THREE.MeshStandardMaterial({ color: baseColor, roughness: 0.6, metalness: 0.15 })
+            );
+            body.position.y = 1.1 * scale;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            group.add(body);
+            const snow = new THREE.Mesh(
+                new THREE.ConeGeometry(1.2 * scale, 0.8 * scale, 8),
+                new THREE.MeshStandardMaterial({ color: snowColor, roughness: 0.9 })
+            );
+            snow.position.y = 2.2 * scale + 0.4 * scale;
+            snow.castShadow = true;
+            snow.receiveShadow = true;
+            group.add(snow);
+            for (let i = 0; i < 3; i++) {
+                const small = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.4 * scale, 0.6 * scale, 6),
+                    new THREE.MeshStandardMaterial({ color: snowColor, roughness: 0.9 })
+                );
+                small.position.set((i-1)*0.8*scale, 1.8*scale+0.2*scale, (i%2===0?0.6:-0.6)*scale);
+                small.castShadow = true;
+                group.add(small);
+            }
+            group.position.set(posX, -0.5, posZ);
+            group.userData = { tipo: 'glaciar', nombre: 'Glaciar' };
+            clickables.push(group);
+            objectsByType.glaciar.push(group);
+            glaciers.push(group);
+            return group;
+        }
+        scene.add(createMountain(-8, -6, 1.8));
+        scene.add(createMountain(6, -7, 2.2));
+        scene.add(createMountain(-7, 7, 2.0));
+        scene.add(createMountain(9, 5, 1.5));
+        scene.add(createMountain(-3, -10, 1.2));
+        scene.add(createMountain(12, -2, 1.6));
+
+        // 2. Estaciones IoT
+        function createStation(posX, posZ) {
+            const group = new THREE.Group();
+            const base = new THREE.Mesh(
+                new THREE.BoxGeometry(0.6, 0.2, 0.6),
+                new THREE.MeshStandardMaterial({ color: 0x7a8a9e, roughness: 0.5, metalness: 0.4 })
+            );
+            base.position.y = 0.1;
+            base.castShadow = true;
+            base.receiveShadow = true;
+            group.add(base);
+            const pole = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.08, 0.10, 1.2, 8),
+                new THREE.MeshStandardMaterial({ color: 0xb0c4d8, roughness: 0.3, metalness: 0.7 })
+            );
+            pole.position.y = 0.7;
+            pole.castShadow = true;
+            group.add(pole);
+            const cabin = new THREE.Mesh(
+                new THREE.BoxGeometry(0.5, 0.3, 0.4),
+                new THREE.MeshStandardMaterial({ color: 0x2a3a5a, roughness: 0.4, metalness: 0.3 })
+            );
+            cabin.position.set(0, 1.0, 0);
+            cabin.castShadow = true;
+            group.add(cabin);
+            const ant = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.02, 0.02, 0.3, 6),
+                new THREE.MeshStandardMaterial({ color: 0xf0c27a, emissive: 0xf0c27a, emissiveIntensity: 0.4 })
+            );
+            ant.position.set(0, 1.3, 0);
+            group.add(ant);
+            const dot = new THREE.Mesh(
+                new THREE.SphereGeometry(0.05, 8, 8),
+                new THREE.MeshStandardMaterial({ color: 0xf0c27a, emissive: 0xf0c27a, emissiveIntensity: 0.9 })
+            );
+            dot.position.set(0, 1.5, 0);
+            group.add(dot);
+            group.position.set(posX, -0.4, posZ);
+            group.userData = { tipo: 'iot', nombre: 'Sensor IoT' };
+            clickables.push(group);
+            objectsByType.iot.push(group);
+            iotStations.push(group);
+            return group;
+        }
+        const stationPositions = [[-5,-3],[3,-2],[-4,4],[5,3],[-2,-6],[7,-1],[-6,1],[0,5]];
+        stationPositions.forEach(p => scene.add(createStation(p[0], p[1])));
+
+        // 3. Paneles solares
+        function createSolarPanel(posX, posZ, angle) {
+            const group = new THREE.Group();
+            const panelMat = new THREE.MeshStandardMaterial({ color: 0x1a2a4a, roughness: 0.3, metalness: 0.6, emissive: 0x0a1a3a, emissiveIntensity: 0.1 });
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x7a8a9e, roughness: 0.5, metalness: 0.7 });
+            const panel = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.04, 0.6), panelMat);
+            panel.position.y = 0.02;
+            panel.castShadow = true;
+            panel.receiveShadow = true;
+            group.add(panel);
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(1.04, 0.02, 0.64), frameMat);
+            frame.position.y = 0.04;
+            group.add(frame);
+            const legMat = new THREE.MeshStandardMaterial({ color: 0x6a7a8e, roughness: 0.4, metalness: 0.5 });
+            for (let i = -1; i <= 1; i+=2) for (let j = -1; j <= 1; j+=2) {
+                const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.2, 6), legMat);
+                leg.position.set(i*0.4, -0.1, j*0.25);
+                group.add(leg);
+            }
+            const accent = new THREE.Mesh(
+                new THREE.BoxGeometry(0.8, 0.01, 0.4),
+                new THREE.MeshStandardMaterial({ color: 0xf0c27a, emissive: 0xf0c27a, emissiveIntensity: 0.15 })
+            );
+            accent.position.y = 0.06;
+            group.add(accent);
+            group.position.set(posX, -0.4, posZ);
+            group.rotation.y = angle;
+            group.userData = { tipo: 'solar', nombre: 'Panel Solar' };
+            clickables.push(group);
+            objectsByType.solar.push(group);
+            return group;
+        }
+        const solarPos = [[-3,-4,0.2],[3,-5,-0.3],[-5,2,0.5],[4,4,-0.4],[0,-7,0.0]];
+        solarPos.forEach(p => scene.add(createSolarPanel(p[0], p[1], p[2])));
+
+        // 4. Turbinas hidráulicas
+        function createTurbine(posX, posZ) {
+            const group = new THREE.Group();
+            const base = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.4, 0.5, 0.2, 12),
+                new THREE.MeshStandardMaterial({ color: 0x6a7a8e, roughness: 0.5, metalness: 0.6 })
+            );
+            base.position.y = 0.1;
+            base.castShadow = true;
+            group.add(base);
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.3, 0.3, 0.6, 12),
+                new THREE.MeshStandardMaterial({ color: 0x8a9aae, roughness: 0.3, metalness: 0.8 })
+            );
+            body.position.y = 0.5;
+            body.castShadow = true;
+            group.add(body);
+            const rotorGroup = new THREE.Group();
+            const bladeMat = new THREE.MeshStandardMaterial({ color: 0xf0c27a, emissive: 0xf0c27a, emissiveIntensity: 0.2, roughness: 0.3, metalness: 0.5 });
+            for (let i = 0; i < 6; i++) {
+                const blade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.5, 0.1), bladeMat);
+                blade.position.set(0, 0, 0.3);
+                blade.rotation.x = Math.PI/2;
+                blade.rotation.z = (i/6)*Math.PI*2;
+                rotorGroup.add(blade);
+            }
+            rotorGroup.position.y = 0.8;
+            group.add(rotorGroup);
+            const shaft = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8),
+                new THREE.MeshStandardMaterial({ color: 0xb0c4d8, metalness: 0.9, roughness: 0.2 })
+            );
+            shaft.position.y = 0.8;
+            group.add(shaft);
+            group.position.set(posX, -0.4, posZ);
+            group.userData = { tipo: 'turbina', nombre: 'Micro-Turbina' };
+            group.userData.rotor = rotorGroup;
+            clickables.push(group);
+            objectsByType.turbina.push(group);
+            return group;
+        }
+        const turbinePos = [[-6,-5],[4,-6],[-2,3],[6,2]];
+        const turbines = [];
+        turbinePos.forEach(p => {
+            const t = createTurbine(p[0], p[1]);
+            scene.add(t);
+            turbines.push(t);
+        });
+
+        // 5. Invernaderos
+        function createGreenhouse(posX, posZ) {
+            const group = new THREE.Group();
+            const glassMat = new THREE.MeshStandardMaterial({ color: 0x8ab4d0, transparent: true, opacity: 0.3, roughness: 0.1, metalness: 0.1, emissive: 0x2a5a7a, emissiveIntensity: 0.05 });
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x7a8a9e, roughness: 0.4, metalness: 0.6 });
+            const arch = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.04, 8, 16, Math.PI), frameMat);
+            arch.rotation.x = Math.PI/2;
+            arch.position.y = 0.8;
+            arch.castShadow = true;
+            group.add(arch);
+            const glass = new THREE.Mesh(new THREE.SphereGeometry(0.78, 16, 8, 0, Math.PI*2, 0, Math.PI/2), glassMat);
+            glass.position.y = 0.8;
+            glass.scale.set(1, 0.5, 0.8);
+            glass.castShadow = true;
+            glass.receiveShadow = true;
+            group.add(glass);
+            const base = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.85, 0.9, 0.1, 16),
+                new THREE.MeshStandardMaterial({ color: 0x3a4a5a, roughness: 0.6, metalness: 0.2 })
+            );
+            base.position.y = 0.05;
+            base.receiveShadow = true;
+            group.add(base);
+            const tableMat = new THREE.MeshStandardMaterial({ color: 0x4a6a4a, roughness: 0.8 });
+            for (let i = -1; i <= 1; i+=2) {
+                const table = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.04, 0.6), tableMat);
+                table.position.set(i*0.3, 0.2, 0);
+                group.add(table);
+            }
+            const ring = new THREE.Mesh(
+                new THREE.TorusGeometry(0.82, 0.02, 8, 24),
+                new THREE.MeshStandardMaterial({ color: 0xf0c27a, emissive: 0xf0c27a, emissiveIntensity: 0.25 })
+            );
+            ring.position.y = 0.1;
+            group.add(ring);
+            group.position.set(posX, -0.4, posZ);
+            group.userData = { tipo: 'invernadero', nombre: 'Invernadero Alpino' };
+            clickables.push(group);
+            objectsByType.invernadero.push(group);
+            greenhouses.push(group);
+            return group;
+        }
+        const ghPos = [[-2,-2],[4,0],[-4,-1],[1,6]];
+        ghPos.forEach(p => scene.add(createGreenhouse(p[0], p[1])));
+
+        // 6. Banco Genético Digital
+        function createGenBank(posX, posZ) {
+            const group = new THREE.Group();
+            const base = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.8, 0.9, 0.2, 12),
+                new THREE.MeshStandardMaterial({ color: 0x3a4a6a, roughness: 0.4, metalness: 0.5 })
+            );
+            base.position.y = 0.1;
+            base.castShadow = true;
+            base.receiveShadow = true;
+            group.add(base);
+            const pillar = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.1, 0.12, 1.0, 8),
+                new THREE.MeshStandardMaterial({ color: 0x8a9aae, roughness: 0.3, metalness: 0.7 })
+            );
+            pillar.position.y = 0.6;
+            pillar.castShadow = true;
+            group.add(pillar);
+            const helixMat = new THREE.MeshStandardMaterial({ color: 0xf0c27a, emissive: 0xf0c27a, emissiveIntensity: 0.25 });
+            for (let i = 0; i < 10; i++) {
+                const t = i / 10 * Math.PI * 2;
+                const radius = 0.3;
+                const x = Math.cos(t) * radius;
+                const z = Math.sin(t) * radius;
+                const y = 0.4 + i * 0.08;
+                const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), helixMat);
+                sphere.position.set(x, y, z);
+                group.add(sphere);
+                const x2 = Math.cos(t + 0.5) * radius;
+                const z2 = Math.sin(t + 0.5) * radius;
+                const sphere2 = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), helixMat);
+                sphere2.position.set(x2, y, z2);
+                group.add(sphere2);
+            }
+            const domeMat = new THREE.MeshStandardMaterial({
+                color: 0x8ab4d0,
+                transparent: true,
+                opacity: 0.15,
+                roughness: 0.1,
+                metalness: 0.1,
+                emissive: 0x2a5a7a,
+                emissiveIntensity: 0.05
+            });
+            const dome = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 8, 0, Math.PI*2, 0, Math.PI/2), domeMat);
+            dome.position.y = 0.9;
+            dome.castShadow = true;
+            group.add(dome);
+            group.position.set(posX, -0.4, posZ);
+            group.userData = { tipo: 'genbank', nombre: 'Banco Genético' };
+            clickables.push(group);
+            objectsByType.genbank.push(group);
+            genBankObj = group;
+            return group;
+        }
+        scene.add(createGenBank(-1, -3));
+
+        // 7. Señalización turística
+        const markerMat = new THREE.MeshStandardMaterial({ color: 0xf0c27a, emissive: 0xf0c27a, emissiveIntensity: 0.5 });
+        const markerPos = [[-4,-3],[5,-2],[-3,5],[6,4],[0,-5], [-6,0], [3,6]];
+        markerPos.forEach(p => {
+            const m = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), markerMat);
+            m.position.set(p[0], 0.1, p[1]);
+            m.userData = { tipo: 'turismo', nombre: 'Punto Turístico' };
+            scene.add(m);
+            clickables.push(m);
+            objectsByType.turismo.push(m);
+        });
+
+        // 8. Nodos IA (enjambre)
+        const nodeCount = 128;
+        const nodeGroup = new THREE.Group();
+        const nodeMat = new THREE.MeshStandardMaterial({
+            color: 0xf0c27a,
+            emissive: 0xf0c27a,
+            emissiveIntensity: 0.6,
+            roughness: 0.2,
+            metalness: 0.3
+        });
+        for (let i = 0; i < nodeCount; i++) {
+            const radius = 6 + Math.random() * 8;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.random() * Math.PI * 2;
+            const x = Math.cos(theta) * Math.sin(phi) * radius;
+            const z = Math.sin(theta) * Math.sin(phi) * radius;
+            const y = 0.5 + Math.cos(phi) * 2 + Math.random() * 2;
+            const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.08 + Math.random()*0.06, 6, 6), nodeMat);
+            sphere.position.set(x, y, z);
+            sphere.userData = { tipo: 'ia', nombre: 'Nodo IA' };
+            nodeGroup.add(sphere);
+            clickables.push(sphere);
+            objectsByType.ia.push(sphere);
+        }
+        scene.add(nodeGroup);
+        // Líneas de conexión
+        const lineMat = new THREE.LineBasicMaterial({ color: 0xf0c27a, transparent: true, opacity: 0.12 });
+        const lineGeometry = new THREE.BufferGeometry();
+        const linePositions = new Float32Array(nodeCount * 3);
+        lineGeometry.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+        const line = new THREE.LineSegments(lineGeometry, lineMat);
+        scene.add(line);
+
+        // 9. Centro Neurohidrológico (NOC)
+        function createNOC() {
+            const group = new THREE.Group();
+            const baseMat = new THREE.MeshStandardMaterial({ color: 0x2a3a5a, roughness: 0.4, metalness: 0.5 });
+            const base = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, 0.4, 12), baseMat);
+            base.position.y = 0.2;
+            base.castShadow = true;
+            base.receiveShadow = true;
+            group.add(base);
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.8, 0.9, 1.0, 12),
+                new THREE.MeshStandardMaterial({ color: 0x3a4a6a, roughness: 0.3, metalness: 0.6 })
+            );
+            body.position.y = 0.8;
+            body.castShadow = true;
+            group.add(body);
+            const dome = new THREE.Mesh(
+                new THREE.SphereGeometry(0.6, 12, 8, 0, Math.PI*2, 0, Math.PI/2),
+                new THREE.MeshStandardMaterial({ color: 0xf0c27a, emissive: 0xf0c27a, emissiveIntensity: 0.25, transparent: true, opacity: 0.4 })
+            );
+            dome.position.y = 1.3;
+            dome.castShadow = true;
+            group.add(dome);
+            const ringMat = new THREE.MeshStandardMaterial({ color: 0xf0c27a, emissive: 0xf0c27a, emissiveIntensity: 0.15 });
+            for (let i = 0; i < 3; i++) {
+                const ring = new THREE.Mesh(new THREE.TorusGeometry(0.9 - i*0.1, 0.02, 8, 24), ringMat);
+                ring.position.y = 0.4 + i*0.35;
+                ring.rotation.x = Math.PI/2;
+                group.add(ring);
+            }
+            group.position.set(0, -0.4, 0);
+            group.userData = { tipo: 'noc', nombre: 'Centro Neurohidrológico' };
+            clickables.push(group);
+            objectsByType.noc.push(group);
+            nocObj = group;
+            return group;
+        }
+        scene.add(createNOC());
+
+        // 10. Agua (río)
+        const waterGeo = new THREE.PlaneGeometry(12, 1.5, 20, 10);
+        const waterMat = new THREE.MeshStandardMaterial({
+            color: 0x1a4a6a,
+            transparent: true,
+            opacity: 0.6,
+            roughness: 0.2,
+            metalness: 0.8,
+            emissive: 0x0a2a4a,
+            emissiveIntensity: 0.15
+        });
+        const water = new THREE.Mesh(waterGeo, waterMat);
+        water.rotation.x = -Math.PI/2;
+        water.position.set(-1, -0.3, -1.5);
+        water.receiveShadow = true;
+        scene.add(water);
+
+        // --- FUNCIONES DE SIMULACIÓN VISUAL PARA CADA MÓDULO ---
+        function simularModulo(idx) {
+            // Restaurar efectos anteriores
+            resetEfectosVisuales();
+            const data = moduloDataMap[idx];
+            // Actualizar panel
+            actualizarPanel(idx);
+            moduloBtns.forEach(b => b.classList.remove('active'));
+            moduloBtns[idx].classList.add('active');
+            hudModulo.textContent = data.nombre;
+
+            // Efectos visuales según el módulo
+            switch(idx) {
+                case 0: // Centro Neurohidrológico
+                    if (nocObj) {
+                        nocObj.children.forEach(child => {
+                            if (child.isMesh && child.material) {
+                                child.material.emissiveIntensity = 1.0;
+                                child.material.color.setHex(0xffd700);
+                            }
+                        });
+                        createParticleBurst(new THREE.Vector3(0, 0.5, 0));
+                    }
+                    break;
+                case 1: // Monitoreo Glaciar
+                    glaciers.forEach(g => {
+                        g.children.forEach(child => {
+                            if (child.isMesh && child.material) {
+                                if (child.material.color.getHex() === 0x5a7a9a) {
+                                    child.material.color.setHex(0x88ccff);
+                                    child.material.emissive = new THREE.Color(0x88ccff);
+                                    child.material.emissiveIntensity = 0.5;
+                                }
+                            }
+                        });
+                    });
+                    createParticleBurst(new THREE.Vector3(-8, 1, -6));
+                    break;
+                case 2: // Micro-Redes Híbridas
+                    turbines.forEach(t => {
+                        t.userData.rotor.rotation.y += 0.5;
+                        t.children.forEach(c => {
+                            if (c.isMesh && c.material) {
+                                c.material.emissiveIntensity = 0.8;
+                                c.material.color.setHex(0x00ffaa);
+                            }
+                        });
+                    });
+                    createParticleBurst(new THREE.Vector3(-6, 0.5, -5));
+                    break;
+                case 3: // Agricultura Alpina
+                    greenhouses.forEach(g => {
+                        g.children.forEach(c => {
+                            if (c.isMesh && c.material) {
+                                if (c.material.color.getHex() === 0x4a6a4a) {
+                                    c.material.color.setHex(0x66ff66);
+                                    c.material.emissive = new THREE.Color(0x66ff66);
+                                    c.material.emissiveIntensity = 0.5;
+                                }
+                            }
+                        });
+                    });
+                    createParticleBurst(new THREE.Vector3(-2, 0.5, -2));
+                    break;
+                case 4: // Turismo de Conservación
+                    objectsByType.turismo.forEach(m => {
+                        m.material.color.setHex(0xffaa00);
+                        m.material.emissiveIntensity = 1.0;
+                    });
+                    createParticleBurst(new THREE.Vector3(-4, 0.5, -3));
+                    break;
+                case 5: // Banco Genético Digital
+                    if (genBankObj) {
+                        genBankObj.children.forEach(c => {
+                            if (c.isMesh && c.material) {
+                                c.material.emissiveIntensity = 1.0;
+                                c.material.color.setHex(0xff66aa);
+                            }
+                        });
+                        createParticleBurst(new THREE.Vector3(-1, 0.5, -3));
+                    }
+                    break;
+                case 6: // Sensores IoT
+                    iotStations.forEach(s => {
+                        s.children.forEach(c => {
+                            if (c.isMesh && c.material) {
+                                if (c.material.color && c.material.color.getHex() === 0x2a3a5a) {
+                                    c.material.color.setHex(0x00ccff);
+                                    c.material.emissive = new THREE.Color(0x00ccff);
+                                    c.material.emissiveIntensity = 0.8;
+                                }
+                            }
+                        });
+                    });
+                    createParticleBurst(new THREE.Vector3(-5, 0.5, -3));
+                    break;
+                case 7: // Red IA de Enjambre
+                    nodeMat.color.setHex(0xff6600);
+                    nodeMat.emissive.setHex(0xff6600);
+                    nodeMat.emissiveIntensity = 1.0;
+                    createParticleBurst(new THREE.Vector3(0, 2, 0));
+                    break;
+                case 8: // Calidad del Agua
+                    waterMat.color.setHex(0x00aaff);
+                    waterMat.emissive.setHex(0x00aaff);
+                    waterMat.emissiveIntensity = 0.5;
+                    createParticleBurst(new THREE.Vector3(-1, -0.2, -1.5));
+                    break;
+                case 9: // Predicción de Riesgos
+                    scene.background.setHex(0x331100);
+                    ambient.intensity = 0.8;
+                    sunLight.intensity = 2.0;
+                    pointLight.intensity = 2.0;
+                    createParticleBurst(new THREE.Vector3(0, 0.5, 0));
+                    break;
+                case 10: // Gestión de Residuos
+                    createParticleBurst(new THREE.Vector3(0, 0, 0));
+                    break;
+                case 11: // Calidad del Aire
+                    // Cambiar color de fondo a un tono azul claro
+                    scene.background.setHex(0x1a2a3a);
+                    createParticleBurst(new THREE.Vector3(0, 0.5, 0));
+                    break;
+                case 12: // Eficiencia Energética
+                    // Resaltar paneles solares y turbinas
+                    solarPos.forEach((p, i) => {
+                        const idx = i;
+                        const panel = scene.children.find(c => c.position.x === p[0] && c.position.z === p[1]);
+                        if (panel) {
+                            panel.children.forEach(child => {
+                                if (child.isMesh && child.material) {
+                                    child.material.emissiveIntensity = 1.0;
+                                    child.material.color.setHex(0x00ff88);
+                                }
+                            });
+                        }
+                    });
+                    createParticleBurst(new THREE.Vector3(0, 0.5, 0));
+                    break;
+                case 13: // Meteorología Avanzada
+                    // Simular viento moviendo partículas
+                    nodeMat.color.setHex(0x88ccff);
+                    nodeMat.emissive.setHex(0x88ccff);
+                    createParticleBurst(new THREE.Vector3(0, 0.5, 0));
+                    break;
+                case 14: // Monitoreo de Fauna
+                    // Crear esferas verdes alrededor
+                    for (let i = 0; i < 20; i++) {
+                        const sphere = new THREE.Mesh(
+                            new THREE.SphereGeometry(0.1, 6, 6),
+                            new THREE.MeshStandardMaterial({ color: 0x66ff66, emissive: 0x66ff66, emissiveIntensity: 0.5 })
+                        );
+                        sphere.position.set(
+                            (Math.random() - 0.5) * 20,
+                            0.5 + Math.random() * 3,
+                            (Math.random() - 0.5) * 20
+                        );
+                        scene.add(sphere);
+                        setTimeout(() => scene.remove(sphere), 5000);
+                    }
+                    createParticleBurst(new THREE.Vector3(0, 0.5, 0));
+                    break;
+                case 15: // Calidad del Suelo
+                    // Cambiar color del suelo
+                    groundMaterial.color.setHex(0x5a4a3a);
+                    createParticleBurst(new THREE.Vector3(0, 0.5, 0));
+                    break;
+                case 16: // Balance Hídrico
+                    // Simular nivel de agua subiendo
+                    waterMat.color.setHex(0x0066ff);
+                    waterMat.emissiveIntensity = 0.5;
+                    createParticleBurst(new THREE.Vector3(0, 0.5, 0));
+                    break;
+                case 17: // Energía Geotérmica
+                    // Simular calor con partículas naranjas
+                    const heatMat = new THREE.PointsMaterial({ color: 0xff6600, size: 0.2, transparent: true, opacity: 0.6 });
+                    const heatGeo = new THREE.BufferGeometry();
+                    const heatPos = new Float32Array(100 * 3);
+                    for (let i = 0; i < 100; i++) {
+                        heatPos[i*3] = (Math.random() - 0.5) * 20;
+                        heatPos[i*3+1] = Math.random() * 5;
+                        heatPos[i*3+2] = (Math.random() - 0.5) * 20;
+                    }
+                    heatGeo.setAttribute('position', new THREE.BufferAttribute(heatPos, 3));
+                    const heatPoints = new THREE.Points(heatGeo, heatMat);
+                    scene.add(heatPoints);
+                    setTimeout(() => scene.remove(heatPoints), 5000);
+                    createParticleBurst(new THREE.Vector3(0, 0.5, 0));
+                    break;
+                default:
+                    createParticleBurst(new THREE.Vector3(0, 0.5, 0));
+                    break;
+            }
+        }
+
+        function resetEfectosVisuales() {
+            // Restaurar colores y efectos
+            glaciers.forEach(g => {
+                g.children.forEach(child => {
+                    if (child.isMesh && child.material) {
+                        if (child.material.color.getHex() === 0x88ccff) {
+                            child.material.color.setHex(0x5a7a9a);
+                            child.material.emissive = new THREE.Color(0x000000);
+                            child.material.emissiveIntensity = 0;
+                        }
+                    }
+                });
+            });
+            turbines.forEach(t => {
+                t.children.forEach(c => {
+                    if (c.isMesh && c.material) {
+                        if (c.material.color.getHex() === 0x00ffaa) {
+                            c.material.color.setHex(0x8a9aae);
+                            c.material.emissiveIntensity = 0.2;
+                        }
+                    }
+                });
+            });
+            greenhouses.forEach(g => {
+                g.children.forEach(c => {
+                    if (c.isMesh && c.material) {
+                        if (c.material.color.getHex() === 0x66ff66) {
+                            c.material.color.setHex(0x4a6a4a);
+                            c.material.emissive = new THREE.Color(0x000000);
+                            c.material.emissiveIntensity = 0;
+                        }
+                    }
+                });
+            });
+            objectsByType.turismo.forEach(m => {
+                m.material.color.setHex(0xf0c27a);
+                m.material.emissiveIntensity = 0.5;
+            });
+            if (genBankObj) {
+                genBankObj.children.forEach(c => {
+                    if (c.isMesh && c.material) {
+                        if (c.material.color.getHex() === 0xff66aa) {
+                            c.material.color.setHex(0xf0c27a);
+                            c.material.emissiveIntensity = 0.25;
+                        }
+                    }
+                });
+            }
+            iotStations.forEach(s => {
+                s.children.forEach(c => {
+                    if (c.isMesh && c.material) {
+                        if (c.material.color && c.material.color.getHex() === 0x00ccff) {
+                            c.material.color.setHex(0x2a3a5a);
+                            c.material.emissive = new THREE.Color(0x000000);
+                            c.material.emissiveIntensity = 0;
+                        }
+                    }
+                });
+            });
+            nodeMat.color.setHex(0xf0c27a);
+            nodeMat.emissive.setHex(0xf0c27a);
+            nodeMat.emissiveIntensity = 0.6;
+            waterMat.color.setHex(0x1a4a6a);
+            waterMat.emissive.setHex(0x0a2a4a);
+            waterMat.emissiveIntensity = 0.15;
+            scene.background.setHex(0x0a0e17);
+            ambient.intensity = 0.4;
+            sunLight.intensity = 1.4;
+            pointLight.intensity = 0.9;
+            groundMaterial.color.setHex(0x141c2a);
+            if (nocObj) {
+                nocObj.children.forEach(child => {
+                    if (child.isMesh && child.material) {
+                        child.material.emissiveIntensity = 0.25;
+                        child.material.color.setHex(0xf0c27a);
+                    }
+                });
+            }
+            // Restaurar paneles solares
+            solarPos.forEach((p, i) => {
+                const panel = scene.children.find(c => c.position.x === p[0] && c.position.z === p[1]);
+                if (panel) {
+                    panel.children.forEach(child => {
+                        if (child.isMesh && child.material) {
+                            child.material.emissiveIntensity = 0.1;
+                            child.material.color.setHex(0x1a2a4a);
+                        }
+                    });
+                }
+            });
+        }
+
+        // --- INTERACCIÓN AVANZADA: hover + clic + doble clic ---
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let hoveredObject = null;
+        let selectedObject = null;
+        let labelObject = null;
+
+        // Crear un elemento CSS2D para etiqueta flotante
+        const labelDiv = document.createElement('div');
+        labelDiv.style.color = '#f0c27a';
+        labelDiv.style.fontSize = '14px';
+        labelDiv.style.fontWeight = 'bold';
+        labelDiv.style.textShadow = '0 0 10px rgba(0,0,0,0.8)';
+        labelDiv.style.padding = '4px 10px';
+        labelDiv.style.borderRadius = '12px';
+        labelDiv.style.backgroundColor = 'rgba(10,14,23,0.7)';
+        labelDiv.style.backdropFilter = 'blur(4px)';
+        labelDiv.style.border = '1px solid #f0c27a';
+        labelDiv.style.pointerEvents = 'none';
+        labelDiv.style.display = 'none';
+        const label = new CSS2DObject(labelDiv);
+        scene.add(label);
+
+        renderer.domElement.addEventListener('mousemove', (event) => {
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(clickables, true);
+            if (intersects.length > 0) {
+                let obj = intersects[0].object;
+                while (obj.parent && !obj.userData?.tipo) obj = obj.parent;
+                if (obj.userData?.tipo) {
+                    if (hoveredObject !== obj) {
+                        if (hoveredObject) hoveredObject.scale.set(1,1,1);
+                        hoveredObject = obj;
+                        hoveredObject.scale.set(1.05, 1.05, 1.05);
+                        renderer.domElement.style.cursor = 'pointer';
+                        // Mostrar etiqueta
+                        labelDiv.textContent = obj.userData.nombre || 'Módulo';
+                        labelDiv.style.display = 'block';
+                        // Posicionar etiqueta encima del objeto
+                        const pos = obj.position.clone();
+                        pos.y += 2;
+                        label.position.copy(pos);
+                    }
+                    return;
+                }
+            }
+            if (hoveredObject) {
+                hoveredObject.scale.set(1,1,1);
+                hoveredObject = null;
+                renderer.domElement.style.cursor = 'default';
+                labelDiv.style.display = 'none';
+            }
+        });
+
+        // Click para seleccionar
+        renderer.domElement.addEventListener('click', (event) => {
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(clickables, true);
+            if (intersects.length > 0) {
+                let obj = intersects[0].object;
+                while (obj.parent && !obj.userData?.tipo) obj = obj.parent;
+                if (obj.userData?.tipo) {
+                    if (selectedObject && selectedObject !== obj) {
+                        selectedObject.scale.set(1,1,1);
+                    }
+                    selectedObject = obj;
+                    selectedObject.scale.set(1.1, 1.1, 1.1);
+                    const mapTipo = {
+                        'noc':0,'glaciar':1,'turbina':2,'solar':2,'invernadero':3,
+                        'turismo':4,'genbank':5,'iot':6,'ia':7,'agua':8,'riesgo':9
+                    };
+                    const idx = mapTipo[obj.userData.tipo] !== undefined ? mapTipo[obj.userData.tipo] : 0;
+                    simularModulo(idx);
+                }
+            }
+        });
+
+        // Doble click para zoom
+        renderer.domElement.addEventListener('dblclick', (event) => {
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(clickables, true);
+            if (intersects.length > 0) {
+                let obj = intersects[0].object;
+                while (obj.parent && !obj.userData?.tipo) obj = obj.parent;
+                if (obj.userData?.tipo) {
+                    // Zoom a la posición del objeto
+                    const pos = obj.position.clone();
+                    camera.position.set(pos.x + 3, pos.y + 2, pos.z + 5);
+                    controls.target.copy(pos);
+                    controls.update();
+                }
+            } else {
+                // Reset view
+                camera.position.copy(defaultCameraPos);
+                controls.target.copy(defaultTarget);
+                controls.update();
+            }
+        });
+
+        // Teclas 1-4 para cambiar modos
+        document.addEventListener('keydown', (e) => {
+            if (e.key >= '1' && e.key <= '4') {
+                const idx = parseInt(e.key) - 1;
+                const btns = document.querySelectorAll('#modeControls button');
+                if (btns[idx]) btns[idx].click();
+            }
+        });
+
+        // Función para partículas
+        function createParticleBurst(position) {
+            const particleCount = 30;
+            const particleGeo = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            const color = new THREE.Color(0xf0c27a);
+            for (let i = 0; i < particleCount; i++) {
+                positions[i*3] = position.x + (Math.random()-0.5)*2;
+                positions[i*3+1] = position.y + (Math.random()-0.5)*2;
+                positions[i*3+2] = position.z + (Math.random()-0.5)*2;
+                colors[i*3] = color.r;
+                colors[i*3+1] = color.g;
+                colors[i*3+2] = color.b;
+            }
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particleGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            const particleMat = new THREE.PointsMaterial({
+                size: 0.15,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+            const particles = new THREE.Points(particleGeo, particleMat);
+            scene.add(particles);
+            let life = 1.0;
+            const fadeInterval = setInterval(() => {
+                life -= 0.02;
+                if (life <= 0) {
+                    clearInterval(fadeInterval);
+                    scene.remove(particles);
+                } else {
+                    particles.material.opacity = life;
+                    const pos = particles.geometry.attributes.position.array;
+                    for (let i = 0; i < pos.length; i+=3) {
+                        pos[i] += (Math.random()-0.5)*0.02;
+                        pos[i+1] += (Math.random()-0.5)*0.02;
+                        pos[i+2] += (Math.random()-0.5)*0.02;
+                    }
+                    particles.geometry.attributes.position.needsUpdate = true;
+                }
+            }, 30);
+        }
+
+        // --- ESTADOS DINÁMICOS (7 estados) ---
+        let currentState = 0;
+        const stateColors = [
+            { bg: 0xf0c27a, text: 'SISTEMA OPERATIVO' },
+            { bg: 0xff6b6b, text: 'ALERTA HIDROLÓGICA' },
+            { bg: 0xffd93d, text: 'OPTIMIZACIÓN ENERGÉTICA' },
+            { bg: 0x7bdb9a, text: 'CONSERVACIÓN ACTIVA' },
+            { bg: 0xc084fc, text: 'MANTENIMIENTO PROGRAMADO' },
+            { bg: 0x6fc3df, text: 'MODO INVESTIGACIÓN' },
+            { bg: 0xff8c42, text: 'SIMULACIÓN DE ESCENARIO' } // nuevo
+        ];
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+
+        function setState(stateIndex) {
+            currentState = stateIndex;
+            const s = stateColors[stateIndex];
+            statusDot.style.background = '#' + s.bg.toString(16).padStart(6, '0');
+            statusDot.style.boxShadow = `0 0 30px #${s.bg.toString(16).padStart(6, '0')}`;
+            statusText.textContent = s.text;
+            nodeMat.emissiveIntensity = 0.3 + stateIndex * 0.15;
+            const accentColor = stateIndex === 0 ? 0xf0c27a : (stateIndex === 1 ? 0xff6b6b : (stateIndex === 2 ? 0xffd93d : (stateIndex === 3 ? 0x7bdb9a : (stateIndex === 4 ? 0xc084fc : (stateIndex === 5 ? 0x6fc3df : 0xff8c42)))));
+            scene.children.forEach(child => {
+                if (child.userData?.tipo === 'iot') {
+                    child.children.forEach(c => {
+                        if (c.isMesh && c.material && c.material.emissive) {
+                            if (c.geometry.type === 'CylinderGeometry' && c.geometry.parameters.radiusTop === 0.02) {
+                                c.material.color.setHex(accentColor);
+                                c.material.emissive.setHex(accentColor);
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        // --- MODOS OPERATIVOS (con simulación visual) ---
+        const modes = ['NEURO-HÍBRIDO', 'ECO-STEALTH', 'EMERGENCIA', 'SIMULADOR LIBRE'];
+        let currentMode = 0;
+        const hudMode = document.getElementById('hudMode');
+
+        function aplicarModo(modeIndex) {
+            currentMode = modeIndex;
+            hudMode.textContent = modes[modeIndex];
+            const stateMap = [0, 3, 1, 6]; // mapeo a estados (6 = simulación de escenario)
+            setState(stateMap[modeIndex]);
+            switch(modeIndex) {
+                case 0:
+                    scene.background.setHex(0x0a0e17);
+                    ambient.intensity = 0.4;
+                    sunLight.intensity = 1.4;
+                    pointLight.intensity = 0.9;
+                    waterMat.color.setHex(0x1a4a6a);
+                    break;
+                case 1:
+                    scene.background.setHex(0x0a1a12);
+                    ambient.intensity = 0.3;
+                    sunLight.intensity = 0.8;
+                    pointLight.intensity = 0.5;
+                    waterMat.color.setHex(0x1a5a4a);
+                    break;
+                case 2:
+                    scene.background.setHex(0x1a0a0a);
+                    ambient.intensity = 0.6;
+                    sunLight.intensity = 1.8;
+                    pointLight.intensity = 1.5;
+                    waterMat.color.setHex(0x6a2a2a);
+                    break;
+                case 3:
+                    scene.background.setHex(0x1a1a1a);
+                    ambient.intensity = 0.5;
+                    sunLight.intensity = 1.0;
+                    pointLight.intensity = 0.7;
+                    waterMat.color.setHex(0x3a4a5a);
+                    break;
+            }
+            document.querySelectorAll('#modeControls button').forEach((btn, idx) => {
+                btn.classList.toggle('active', idx === modeIndex);
+            });
+            createParticleBurst(new THREE.Vector3(0, 0.5, 0));
+        }
+
+        document.querySelectorAll('#modeControls button').forEach((btn, idx) => {
+            btn.addEventListener('click', () => aplicarModo(idx));
+        });
+
+        // --- FUNCIONES DE SIMULACIÓN (crecida, reset) ---
+        let crecidaActiva = false;
+        document.getElementById('simCrecida').addEventListener('click', () => {
+            crecidaActiva = !crecidaActiva;
+            if (crecidaActiva) {
+                document.getElementById('simCrecida').textContent = '🌊 Detener';
+                setState(1);
+                waterMat.color.setHex(0x8b5a3a);
+                waterMat.emissive.setHex(0x4a2a1a);
+                waterMat.emissiveIntensity = 0.3;
+                document.getElementById('modStatus').textContent = '⚠️ CRECIDA';
+                document.getElementById('modSimVal').textContent = 'Nivel elevado';
+                document.getElementById('modP1').textContent = 'Caudal: 4.2 m³/s';
+                document.getElementById('modP2').textContent = 'Alerta: Naranja';
+                document.getElementById('modP3').textContent = 'Riesgo: Alto';
+                document.getElementById('modP4').textContent = 'Evacuación preventiva';
+            } else {
+                document.getElementById('simCrecida').textContent = '🌊 Crecida';
+                setState(0);
+                waterMat.color.setHex(0x1a4a6a);
+                waterMat.emissive.setHex(0x0a2a4a);
+                waterMat.emissiveIntensity = 0.15;
+                document.getElementById('modStatus').textContent = 'Activo';
+                document.getElementById('modSimVal').textContent = '—';
+                document.getElementById('modP1').textContent = '—';
+                document.getElementById('modP2').textContent = '—';
+                document.getElementById('modP3').textContent = '—';
+                document.getElementById('modP4').textContent = '—';
+            }
+        });
+
+        document.getElementById('resetView').addEventListener('click', () => {
+            camera.position.copy(defaultCameraPos);
+            controls.target.copy(defaultTarget);
+            controls.update();
+            if (crecidaActiva) {
+                crecidaActiva = false;
+                document.getElementById('simCrecida').textContent = '🌊 Crecida';
+                waterMat.color.setHex(0x1a4a6a);
+                waterMat.emissive.setHex(0x0a2a4a);
+                waterMat.emissiveIntensity = 0.15;
+                setState(0);
+                document.getElementById('modStatus').textContent = 'Activo';
+                document.getElementById('modSimVal').textContent = '—';
+                document.getElementById('modP1').textContent = '—';
+                document.getElementById('modP2').textContent = '—';
+                document.getElementById('modP3').textContent = '—';
+                document.getElementById('modP4').textContent = '—';
+            }
+            resetEfectosVisuales();
+            actualizarPanel(0);
+            moduloBtns.forEach(b => b.classList.remove('active'));
+            moduloBtns[0].classList.add('active');
+            hudModulo.textContent = moduloDataMap[0].nombre;
+        });
+
+        // --- PANEL DE MÓDULOS (18 módulos) ---
+        const moduloBtns = document.querySelectorAll('.modulo-btn');
+        const modStatus = document.getElementById('modStatus');
+        const modSimVal = document.getElementById('modSimVal');
+        const modP1 = document.getElementById('modP1');
+        const modP2 = document.getElementById('modP2');
+        const modP3 = document.getElementById('modP3');
+        const modP4 = document.getElementById('modP4');
+        const hudModulo = document.getElementById('hudModulo');
+
+        const moduloDataMap = {
+            0: { nombre: 'Centro Neurohidrológico', sim: 'Flujo de datos', p1: 'Latencia: 12ms', p2: 'Uptime: 99.8%', p3: 'Alertas: 0', p4: 'Carga: 42%' },
+            1: { nombre: 'Monitoreo Glaciar', sim: 'Ablación simulada', p1: 'Temp. hielo: -2.3°C', p2: 'Balance: -0.12 m/año', p3: 'Riesgo: Bajo', p4: 'Fisuras: 3' },
+            2: { nombre: 'Micro-Redes Híbridas', sim: 'Despacho energético', p1: 'Potencia: 1.2 MW', p2: 'SOC: 78%', p3: 'Eficiencia: 92%', p4: 'THD: 2.1%' },
+            3: { nombre: 'Agricultura Alpina', sim: 'Ciclo de cultivo', p1: 'pH: 6.2', p2: 'EC: 1.8 mS/cm', p3: 'Producción: 22 kg/m²', p4: 'Humedad: 68%' },
+            4: { nombre: 'Turismo de Conservación', sim: 'Capacidad de carga', p1: 'Ocupación: 64%', p2: 'Incidencias: 0', p3: 'Satisfacción: 89%', p4: 'Visitantes: 142' },
+            5: { nombre: 'Banco Genético Digital', sim: 'Secuenciación', p1: 'Especies: 128', p2: 'Muestras: 342', p3: 'Integridad: 100%', p4: 'Accesos: 23' },
+            6: { nombre: 'Sensores IoT', sim: 'Red de sensores', p1: 'Conectividad: 98%', p2: 'Batería: 87%', p3: 'Datos/s: 1.4 MB', p4: 'Nodos: 128' },
+            7: { nombre: 'Red IA de Enjambre', sim: 'Optimización de rutas', p1: 'Nodos activos: 128', p2: 'Conexiones: 512', p3: 'Drift: 0.02', p4: 'Latencia: 8ms' },
+            8: { nombre: 'Calidad del Agua', sim: 'Monitoreo de parámetros', p1: 'pH: 7.2', p2: 'OD: 8.4 mg/L', p3: 'Turbidez: 1.2 NTU', p4: 'Temp: 4°C' },
+            9: { nombre: 'Predicción de Riesgos', sim: 'Análisis de escenarios', p1: 'Inundación: Bajo', p2: 'Sequía: Moderado', p3: 'Deslizamiento: Bajo', p4: 'Alerta: 0' },
+            10: { nombre: 'Gestión de Residuos', sim: 'Reciclaje y compostaje', p1: 'Residuos: 2.4 t/día', p2: 'Reciclaje: 68%', p3: 'Compost: 22%', p4: 'Emisiones: 0.8 tCO2' },
+            11: { nombre: 'Calidad del Aire', sim: 'Monitoreo de partículas', p1: 'PM2.5: 12 µg/m³', p2: 'PM10: 24 µg/m³', p3: 'NO2: 8 ppb', p4: 'O3: 32 ppb' },
+            12: { nombre: 'Eficiencia Energética', sim: 'Optimización de consumo', p1: 'Consumo: 4.2 MWh', p2: 'Ahorro: 18%', p3: 'Factor potencia: 0.92', p4: 'Pico: 2.1 MW' },
+            13: { nombre: 'Meteorología Avanzada', sim: 'Pronóstico climático', p1: 'Temp: 12.4°C', p2: 'Humedad: 68%', p3: 'Presión: 1013 hPa', p4: 'Viento: 5.2 km/h' },
+            14: { nombre: 'Monitoreo de Fauna', sim: 'Seguimiento de especies', p1: 'Especies avistadas: 42', p2: 'Movimientos: 3.2 km', p3: 'Densidad: 2.1 ind/km²', p4: 'Riesgo: Bajo' },
+            15: { nombre: 'Calidad del Suelo', sim: 'Análisis de nutrientes', p1: 'pH: 6.5', p2: 'Materia orgánica: 3.8%', p3: 'Nitrógeno: 24 ppm', p4: 'Fósforo: 12 ppm' },
+            16: { nombre: 'Balance Hídrico', sim: 'Modelo de disponibilidad', p1: 'Entradas: 1420 mm/año', p2: 'Salidas: 1080 mm/año', p3: 'Almacenamiento: 340 mm', p4: 'Déficit: 0' },
+            17: { nombre: 'Energía Geotérmica', sim: 'Potencial térmico', p1: 'Gradiente: 3.2 °C/100m', p2: 'Flujo: 85 mW/m²', p3: 'Temperatura a 2km: 78°C', p4: 'Capacidad: 4.5 MW' }
+        };
+
+        function actualizarPanel(idx) {
+            const data = moduloDataMap[idx];
+            modStatus.textContent = 'Activo';
+            modSimVal.textContent = data.sim;
+            modP1.textContent = data.p1;
+            modP2.textContent = data.p2;
+            modP3.textContent = data.p3;
+            modP4.textContent = data.p4 || '—';
+            hudModulo.textContent = data.nombre;
+        }
+
+        moduloBtns.forEach((btn, idx) => {
+            btn.addEventListener('click', () => {
+                simularModulo(idx);
+            });
+        });
+
+        actualizarPanel(0);
+
+        // --- REALIDAD AUMENTADA ---
+        let arActive = false;
+        const arOverlay = document.getElementById('arOverlay');
+        const arVideo = document.getElementById('arVideo');
+        const arToggleBtn = document.getElementById('arToggle');
+
+        arToggleBtn.addEventListener('click', async () => {
+            arActive = !arActive;
+            if (arActive) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                    arVideo.srcObject = stream;
+                    arOverlay.style.display = 'block';
+                    renderer.setClearColor(0x000000, 0);
+                    scene.background = null;
+                } catch (e) {
+                    alert('No se pudo acceder a la cámara.');
+                    arActive = false;
+                    arOverlay.style.display = 'none';
+                    renderer.setClearColor(0x0a0e17, 1);
+                    scene.background = new THREE.Color(0x0a0e17);
+                }
+            } else {
+                arOverlay.style.display = 'none';
+                if (arVideo.srcObject) arVideo.srcObject.getTracks().forEach(t => t.stop());
+                renderer.setClearColor(0x0a0e17, 1);
+                scene.background = new THREE.Color(0x0a0e17);
+            }
+        });
+
+        // --- MULTILENGUAJE ---
+        const translations = {
+            es: {
+                title: 'Hidro-Himalaya Bután<br>Neuro-Hidrología Predictiva<br>para la Soberanía Sustentable',
+                autor: 'Dr. Julio César Oporta Barrera',
+                mode: 'MODO', energy: 'ENERGÍA', flow: 'CAUDAL', nodes: 'NODOS IA',
+                modulo: 'MÓDULO', glaciar: 'GLACIAR', waterq: 'CALIDAD AGUA', bio: 'BIODIVERSIDAD',
+                temp: 'TEMPERATURA', hum: 'HUMEDAD', press: 'PRESIÓN', wind: 'VIENTO',
+                solar: 'RADIACIÓN SOLAR', reservoir: 'NIVEL EMBALSE',
+                status: ['SISTEMA OPERATIVO','ALERTA HIDROLÓGICA','OPTIMIZACIÓN ENERGÉTICA','CONSERVACIÓN ACTIVA','MANTENIMIENTO PROGRAMADO','MODO INVESTIGACIÓN','SIMULACIÓN DE ESCENARIO'],
+                ar: 'AR', panelTitle: 'Módulos del Sistema',
+                modNames: ['Centro Neurohidrológico','Monitoreo Glaciar','Micro-Redes Híbridas','Agricultura Alpina','Turismo de Conservación','Banco Genético Digital','Sensores IoT','Red IA de Enjambre','Calidad del Agua','Predicción de Riesgos','Gestión de Residuos','Calidad del Aire','Eficiencia Energética','Meteorología Avanzada','Monitoreo de Fauna','Calidad del Suelo','Balance Hídrico','Energía Geotérmica']
+            },
+            en: {
+                title: 'HYDRO-HIMALAYA BHUTAN<br>Predictive Neuro-Hydrology<br>for Sustainable Sovereignty',
+                autor: 'Dr. Julio César Oporta Barrera',
+                mode: 'MODE', energy: 'ENERGY', flow: 'FLOW', nodes: 'AI NODES',
+                modulo: 'MODULE', glaciar: 'GLACIER', waterq: 'WATER QUALITY', bio: 'BIODIVERSITY',
+                temp: 'TEMP', hum: 'HUMIDITY', press: 'PRESSURE', wind: 'WIND',
+                solar: 'SOLAR RADIATION', reservoir: 'RESERVOIR LEVEL',
+                status: ['SYSTEM OPERATIONAL','HYDROLOGICAL ALERT','ENERGY OPTIMIZATION','ACTIVE CONSERVATION','SCHEDULED MAINTENANCE','RESEARCH MODE','SCENARIO SIMULATION'],
+                ar: 'AR', panelTitle: 'System Modules',
+                modNames: ['Neurohydrological Center','Glacier Monitoring','Hybrid Microgrids','Alpine Agriculture','Conservation Tourism','Digital Gene Bank','IoT Sensors','Swarm AI Network','Water Quality','Risk Prediction','Waste Management','Air Quality','Energy Efficiency','Advanced Meteorology','Wildlife Monitoring','Soil Quality','Water Balance','Geothermal Energy']
+            },
+            zh: {
+                title: '喜马拉雅不丹水文<br>神经水文预测<br>可持续主权',
+                autor: 'Julio César Oporta Barrera 博士',
+                mode: '模式', energy: '能源', flow: '流量', nodes: 'AI 节点',
+                modulo: '模块', glaciar: '冰川', waterq: '水质', bio: '生物多样性',
+                temp: '温度', hum: '湿度', press: '气压', wind: '风速',
+                solar: '太阳辐射', reservoir: '水库水位',
+                status: ['系统运行中','水文警报','能源优化','积极保护','计划维护','研究模式','场景模拟'],
+                ar: 'AR', panelTitle: '系统模块',
+                modNames: ['神经水文中心','冰川监测','混合微电网','高海拔农业','保护旅游','数字基因库','物联网传感器','群体AI网络','水质监测','风险预测','废物管理','空气质量','能源效率','高级气象','野生动物监测','土壤质量','水平衡','地热能']
+            }
+        };
+
+        let currentLang = 'es';
+        function updateLanguage(lang) {
+            currentLang = lang;
+            const t = translations[lang];
+            document.querySelector('#mainTitle').innerHTML = t.title;
+            document.querySelector('#topLeft .autor').textContent = t.autor;
+            const labels = ['MODO','ENERGÍA','CAUDAL','NODOS IA','MÓDULO','GLACIAR','CALIDAD AGUA','BIODIVERSIDAD','TEMPERATURA','HUMEDAD','PRESIÓN','VIENTO','RADIACIÓN SOLAR','NIVEL EMBALSE'];
+            const newLabels = [t.mode, t.energy, t.flow, t.nodes, t.modulo, t.glaciar, t.waterq, t.bio, t.temp, t.hum, t.press, t.wind, t.solar, t.reservoir];
+            document.querySelectorAll('#hud .hud-item .label').forEach((el, i) => {
+                if (i < newLabels.length) el.textContent = newLabels[i];
+            });
+            const s = t.status[currentState % 7];
+            statusText.textContent = s;
+            document.querySelector('#arToggle').textContent = '📷 ' + t.ar;
+            document.querySelector('#panelTitle').textContent = t.panelTitle;
+            moduloBtns.forEach((btn, i) => {
+                btn.textContent = t.modNames[i] || btn.textContent;
+            });
+            document.querySelectorAll('#langPanel button').forEach(b => {
+                b.classList.toggle('active', b.dataset.lang === lang);
+            });
+        }
+
+        document.querySelectorAll('#langPanel button').forEach(btn => {
+            btn.addEventListener('click', () => updateLanguage(btn.dataset.lang));
+        });
+        updateLanguage('es');
+
+        // --- ANIMACIÓN PRINCIPAL ---
+        let time = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.01;
+            controls.update();
+
+            turbines.forEach((t, i) => {
+                if (t.userData.rotor) {
+                    t.userData.rotor.rotation.y += 0.03 * (1 + i * 0.1);
+                }
+            });
+
+            const positions = nodeGroup.children.map(c => c.position);
+            const speed = 0.008;
+            const radius = 8;
+            positions.forEach((p, i) => {
+                const idx = i;
+                p.x += Math.sin(time * 0.5 + idx) * speed;
+                p.y += Math.cos(time * 0.7 + idx * 1.3) * speed * 0.5;
+                p.z += Math.sin(time * 0.6 + idx * 0.9) * speed;
+                const dist = Math.sqrt(p.x*p.x + p.z*p.z);
+                if (dist > radius) { p.x *= 0.99; p.z *= 0.99; }
+                if (p.y < -1) p.y = -1;
+                if (p.y > 4) p.y = 4;
+            });
+
+            const linePos = line.geometry.attributes.position.array;
+            const nodePos = nodeGroup.children.map(c => c.position);
+            const pairs = 60;
+            for (let i = 0; i < pairs; i++) {
+                const a = Math.floor(Math.random() * nodePos.length);
+                let b = Math.floor(Math.random() * nodePos.length);
+                while (b === a) b = Math.floor(Math.random() * nodePos.length);
+                const p1 = nodePos[a], p2 = nodePos[b];
+                const idx = i * 6;
+                linePos[idx] = p1.x; linePos[idx+1] = p1.y; linePos[idx+2] = p1.z;
+                linePos[idx+3] = p2.x; linePos[idx+4] = p2.y; linePos[idx+5] = p2.z;
+            }
+            line.geometry.attributes.position.needsUpdate = true;
+
+            if (crecidaActiva) {
+                water.position.y = -0.1 + Math.sin(time * 0.5) * 0.1;
+                nodeMat.emissiveIntensity = 0.8 + Math.sin(time * 2) * 0.3;
+            } else {
+                water.position.y = -0.3 + Math.sin(time * 0.5) * 0.05;
+            }
+
+            // HUD dinámico
+            document.getElementById('hudEnergy').textContent = (85 + Math.sin(time*0.2)*10).toFixed(0) + '%';
+            document.getElementById('hudFlow').textContent = (1.2 + Math.sin(time*0.3)*0.4).toFixed(2) + ' m³/s';
+            document.getElementById('hudNodes').textContent = nodeCount + Math.floor(Math.sin(time*0.1)*5);
+            document.getElementById('hudGlaciar').textContent = (-2.0 + Math.sin(time*0.15)*0.8).toFixed(1) + ' °C';
+            document.getElementById('hudWaterQ').textContent = (95 + Math.sin(time*0.2)*3).toFixed(0) + '%';
+            document.getElementById('hudBio').textContent = (85 + Math.sin(time*0.25)*5).toFixed(0) + '%';
+            document.getElementById('hudTemp').textContent = (12.4 + Math.sin(time*0.1)*1.2).toFixed(1) + ' °C';
+            document.getElementById('hudHum').textContent = (68 + Math.sin(time*0.15)*6).toFixed(0) + '%';
+            document.getElementById('hudPress').textContent = (1013 + Math.sin(time*0.08)*5).toFixed(0) + ' hPa';
+            document.getElementById('hudWind').textContent = (5.2 + Math.sin(time*0.2)*1.5).toFixed(1) + ' km/h';
+            // Nuevos HUD
+            document.getElementById('hudSolar').textContent = (782 + Math.sin(time*0.3)*120).toFixed(0) + ' W/m²';
+            document.getElementById('hudReservoir').textContent = (67 + Math.sin(time*0.1)*8).toFixed(0) + '%';
+
+            pointLight.position.x = Math.sin(time * 0.15) * 8;
+            pointLight.position.z = Math.cos(time * 0.15) * 8;
+
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            const w = window.innerWidth, h = window.innerHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+            labelRenderer.setSize(w, h);
+        });
+
+        console.log('Prototipo HIDRO-HIMALAYA BUTÁN - Con módulos nuevos, HUD extra, estado dinámico y mejores interacciones.');
+        console.log('Dr. Julio César Oporta Barrera');
+    </script>
+</body>
+</html>
