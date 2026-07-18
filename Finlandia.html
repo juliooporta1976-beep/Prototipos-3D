@@ -1,0 +1,1710 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Sisu Wellness Network - Prototipo 3D (Finlandia)</title>
+    <style>
+        /* RESET & BASE */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #0a1a2a; font-family: 'Segoe UI', 'Roboto', system-ui, sans-serif; color: #d0e8f0; }
+        #canvas-container { width: 100vw; height: 100vh; display: block; position: fixed; top: 0; left: 0; z-index: 0; }
+
+        /* HUD - estilo táctico nórdico */
+        #hud-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;
+            font-size: 14px; letter-spacing: 0.02em;
+        }
+        #hud-container > * { pointer-events: auto; }
+
+        /* Autor - top izquierda */
+        #author {
+            position: absolute; top: 18px; left: 22px;
+            font-size: 18px; font-weight: 600;
+            color: #b0ddf0; text-shadow: 0 0 12px rgba(100, 200, 255, 0.3);
+            background: rgba(10, 20, 30, 0.7);
+            padding: 8px 18px;
+            border-left: 3px solid #6fc8ff;
+            border-radius: 0 8px 8px 0;
+            backdrop-filter: blur(6px);
+            letter-spacing: 0.04em;
+        }
+
+        /* Título principal - centro superior */
+        #main-title {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            font-size: 22px; font-weight: 700;
+            color: #d0ecff; text-shadow: 0 0 20px rgba(100, 200, 255, 0.25);
+            background: rgba(10, 20, 30, 0.5);
+            padding: 6px 24px;
+            border-radius: 30px;
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(100, 200, 255, 0.15);
+            letter-spacing: 0.06em;
+            white-space: nowrap;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        /* Botón AR - movido a la izquierda debajo del autor */
+        #ar-button {
+            position: absolute; top: 65px; left: 22px;
+            background: rgba(10, 20, 30, 0.8); backdrop-filter: blur(8px);
+            border: 1px solid #6fc8ff; color: #6fc8ff;
+            padding: 8px 16px; border-radius: 30px;
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+        }
+        #ar-button:hover { background: rgba(100,200,255,0.15); box-shadow: 0 0 30px rgba(100,200,255,0.2); }
+
+        /* Idioma selector - top derecha */
+        #language-selector {
+            position: absolute; top: 18px; right: 24px;
+            background: rgba(10, 20, 30, 0.75);
+            backdrop-filter: blur(8px);
+            padding: 6px 12px;
+            border-radius: 24px;
+            border: 1px solid #3a5a6a;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        #language-selector select {
+            background: transparent; border: none; color: #c0d8e8;
+            font-size: 13px; font-weight: 500; outline: none; cursor: pointer;
+            padding: 4px 8px;
+        }
+        #language-selector select option { background: #1a2a3a; color: #d0e8f0; }
+
+        /* Controles de estado - movido más abajo */
+        #state-controls {
+            position: absolute; bottom: 12px; left: 24px;
+            display: flex; gap: 6px;
+            background: rgba(10, 20, 30, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 8px 12px;
+            border-radius: 30px;
+            border: 1px solid #3a5a6a;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            max-width: calc(100% - 300px);
+        }
+        #state-controls button {
+            background: transparent; border: 1px solid #4a6a7a; color: #a0c0d0;
+            padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;
+            cursor: pointer; transition: all 0.25s ease;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            background: rgba(30, 50, 60, 0.3);
+            backdrop-filter: blur(4px);
+            white-space: nowrap;
+        }
+        #state-controls button:hover { background: rgba(100, 200, 255, 0.15); border-color: #6fc8ff; color: #d0ecff; }
+        #state-controls button.active { background: rgba(100, 200, 255, 0.25); border-color: #6fc8ff; color: #ffffff; box-shadow: 0 0 20px rgba(100,200,255,0.2); }
+
+        /* Paneles de información - lateral derecho */
+        #info-panels {
+            position: absolute; top: 80px; right: 20px;
+            width: 290px;
+            display: flex; flex-direction: column; gap: 10px;
+            max-height: calc(100% - 180px);
+            overflow-y: auto;
+        }
+        #info-panels::-webkit-scrollbar { width: 4px; }
+        #info-panels::-webkit-scrollbar-track { background: transparent; }
+        #info-panels::-webkit-scrollbar-thumb { background: #6fc8ff; border-radius: 8px; }
+
+        .panel {
+            background: rgba(10, 20, 30, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid #3a5a6a;
+            border-radius: 12px;
+            padding: 12px 14px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            transition: border-color 0.4s;
+        }
+        .panel h3 {
+            font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em;
+            color: #8ab8d0; margin-bottom: 4px; border-bottom: 1px solid #1a2a3a; padding-bottom: 4px;
+            font-weight: 400;
+        }
+        .panel-content {
+            font-size: 12px; line-height: 1.5; color: #c8dce8;
+        }
+        .panel-content .label { color: #8aa8b8; margin-right: 4px; }
+        .panel-content .value { color: #e0f4ff; font-weight: 500; }
+        .panel-content .value.highlight { color: #6fc8ff; }
+        .panel-content .kpi-row { display: flex; justify-content: space-between; padding: 1px 0; }
+        .panel-content .kpi-row .label { flex: 1; }
+        .panel-content .kpi-row .value { font-weight: 600; }
+
+        /* Gráficos pequeños */
+        .mini-chart {
+            width: 100%; height: 36px; margin-top: 4px;
+            background: rgba(0,0,0,0.3); border-radius: 6px;
+        }
+        .bar-chart {
+            display: flex; gap: 4px; margin-top: 4px; height: 26px; align-items: flex-end;
+        }
+        .bar {
+            flex: 1; background: #6fc8ff; border-radius: 3px 3px 0 0; transition: height 0.5s;
+            min-height: 4px;
+        }
+        /* Barras de cronograma */
+        .gantt-bar {
+            display: flex; gap: 2px; margin-top: 4px; height: 14px; align-items: center;
+            width: 100%; background: rgba(0,0,0,0.3); border-radius: 4px; overflow: hidden;
+        }
+        .gantt-segment {
+            height: 100%; border-radius: 2px; transition: width 0.8s;
+        }
+
+        /* Control deslizante de intensidad - permanece abajo a la derecha */
+        #intensity-control {
+            position: absolute; bottom: 40px; right: 24px;
+            background: rgba(10,20,30,0.8); backdrop-filter: blur(8px);
+            border: 1px solid #3a5a6a; border-radius: 30px;
+            padding: 8px 14px;
+            display: flex; align-items: center; gap: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        #intensity-control label {
+            color: #a0c0d0; font-size: 12px; font-weight: 500;
+        }
+        #intensity-slider {
+            width: 80px; accent-color: #6fc8ff;
+            background: transparent; cursor: pointer;
+        }
+
+        /* Tooltip para interacciones */
+        #tooltip {
+            position: absolute; display: none;
+            background: rgba(10,20,30,0.9); backdrop-filter: blur(10px);
+            border: 1px solid #6fc8ff; border-radius: 8px;
+            padding: 10px 14px; color: #d0e8f0;
+            font-size: 13px; max-width: 220px;
+            pointer-events: none; z-index: 20;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+        }
+        #tooltip h4 { color: #6fc8ff; margin-bottom: 4px; font-weight: 500; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            #info-panels { width: 200px; right: 12px; top: 70px; max-height: calc(100% - 160px); }
+            #author { font-size: 14px; padding: 4px 12px; }
+            #main-title { font-size: 16px; padding: 4px 16px; top: 16px; white-space: normal; max-width: 80%; }
+            #ar-button { top: 55px; left: 12px; padding: 6px 12px; font-size: 12px; }
+            #language-selector { top: 12px; right: 12px; padding: 4px 10px; }
+            #language-selector select { font-size: 11px; }
+            #state-controls { bottom: 10px; left: 12px; padding: 6px 10px; gap: 4px; max-width: calc(100% - 160px); }
+            #state-controls button { font-size: 10px; padding: 3px 8px; }
+            #intensity-control { bottom: 35px; right: 12px; padding: 6px 12px; }
+            #intensity-slider { width: 60px; }
+        }
+        @media (max-width: 480px) {
+            #info-panels { display: none; }
+            #author { font-size: 12px; top: 10px; left: 12px; padding: 4px 10px; }
+            #main-title { font-size: 13px; padding: 3px 12px; top: 12px; max-width: 90%; }
+            #ar-button { top: 45px; left: 12px; padding: 4px 10px; font-size: 10px; }
+            #language-selector { top: 10px; right: 10px; padding: 3px 8px; }
+            #language-selector select { font-size: 10px; }
+            #state-controls { bottom: 8px; left: 8px; padding: 4px 8px; gap: 3px; max-width: calc(100% - 80px); }
+            #state-controls button { font-size: 9px; padding: 2px 6px; }
+            #intensity-control { bottom: 30px; right: 12px; padding: 4px 10px; }
+            #intensity-slider { width: 50px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div id="hud-container">
+        <!-- Autor -->
+        <div id="author">Dr. Julio César Oporta Barrera</div>
+
+        <!-- Título principal -->
+        <div id="main-title">Finlandia Líder Mundial en Bienestar Nórdico</div>
+
+        <!-- Botón AR -->
+        <button id="ar-button" data-i18n="ar-button">Modo AR</button>
+
+        <!-- Idioma -->
+        <div id="language-selector">
+            <select id="lang-select">
+                <option value="es">Español</option>
+                <option value="en">English</option>
+                <option value="zh">中文</option>
+            </select>
+        </div>
+
+        <!-- Paneles HUD adicionales -->
+        <div id="info-panels">
+            <!-- Panel KPIs -->
+            <div class="panel" id="panel-kpi">
+                <h3 data-i18n="kpi-title">Indicadores Clave</h3>
+                <div class="panel-content" id="kpi-content">
+                    <div class="kpi-row"><span class="label" data-i18n="phq9">PHQ-9</span><span class="value" id="phq9-val">--</span></div>
+                    <div class="kpi-row"><span class="label" data-i18n="gad7">GAD-7</span><span class="value" id="gad7-val">--</span></div>
+                    <div class="kpi-row"><span class="label" data-i18n="participacion">Participación</span><span class="value" id="participacion-val">--</span></div>
+                    <div class="kpi-row"><span class="label" data-i18n="funcionales">Días funcionales</span><span class="value" id="funcionales-val">--</span></div>
+                </div>
+            </div>
+            <!-- Panel Estado -->
+            <div class="panel" id="panel-estado">
+                <h3 data-i18n="estado-title">Estado del Sistema</h3>
+                <div class="panel-content" id="estado-content">
+                    <div><span class="label" data-i18n="modo">Modo:</span> <span class="value highlight" id="modo-actual">Reposo</span></div>
+                    <div><span class="label" data-i18n="sesiones">Sesiones activas:</span> <span class="value" id="sesiones-val">0</span></div>
+                    <div><span class="label" data-i18n="ocupacion">Ocupación:</span> <span class="value" id="ocupacion-val">0%</span></div>
+                </div>
+            </div>
+            <!-- Panel Simulación -->
+            <div class="panel" id="panel-simulacion">
+                <h3 data-i18n="sim-title">Simulación de Flujo</h3>
+                <div class="panel-content">
+                    <canvas class="mini-chart" id="chart-flujo" width="200" height="36"></canvas>
+                    <div style="margin-top:4px; font-size:11px; color:#8aa8b8;">
+                        <span data-i18n="flujo-energia">Flujo de energía</span> <span id="flujo-energia-val" style="color:#6fc8ff;">▸▸▸</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Panel Ocupación -->
+            <div class="panel" id="panel-ocupacion">
+                <h3 data-i18n="ocupacion-modulos">Ocupación por Módulo</h3>
+                <div class="panel-content">
+                    <div class="bar-chart" id="bar-chart">
+                        <div class="bar" style="height:60%"></div>
+                        <div class="bar" style="height:80%"></div>
+                        <div class="bar" style="height:45%"></div>
+                        <div class="bar" style="height:90%"></div>
+                        <div class="bar" style="height:30%"></div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:9px; color:#8aa8b8; margin-top:2px;">
+                        <span>Luz</span><span>Sisu</span><span>Sauna</span><span>Van</span><span>Otros</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Panel Telemetría -->
+            <div class="panel" id="panel-telemetria">
+                <h3 data-i18n="telemetria-title">Telemetría</h3>
+                <div class="panel-content">
+                    <div class="kpi-row"><span class="label" data-i18n="temp-ambiente">Temp. ambiente</span><span class="value" id="temp-ambiente-val">--</span></div>
+                    <div class="kpi-row"><span class="label" data-i18n="flujo-particulas">Flujo partículas</span><span class="value" id="flujo-particulas-val">--</span></div>
+                    <div class="kpi-row"><span class="label" data-i18n="energia-red">Energía red</span><span class="value" id="energia-red-val">--</span></div>
+                    <div class="kpi-row"><span class="label" data-i18n="latencia">Latencia</span><span class="value" id="latencia-val">--</span></div>
+                </div>
+            </div>
+            <!-- Panel Rendimiento -->
+            <div class="panel" id="panel-rendimiento">
+                <h3 data-i18n="rendimiento-title">Rendimiento</h3>
+                <div class="panel-content">
+                    <div class="kpi-row"><span class="label" data-i18n="eficiencia">Eficiencia</span><span class="value" id="eficiencia-val">--</span></div>
+                    <div class="kpi-row"><span class="label" data-i18n="uptime">Uptime</span><span class="value" id="uptime-val">--</span></div>
+                    <div class="kpi-row"><span class="label" data-i18n="respuesta">Respuesta</span><span class="value" id="respuesta-val">--</span></div>
+                </div>
+            </div>
+            <!-- Panel Impacto Clínico -->
+            <div class="panel" id="panel-impacto">
+                <h3 data-i18n="impacto-title">Impacto Clínico</h3>
+                <div class="panel-content">
+                    <div class="kpi-row"><span class="label" data-i18n="phq9-mejora">Mejora PHQ-9</span><span class="value highlight" id="phq9-mejora-val">--</span></div>
+                    <div class="kpi-row"><span class="label" data-i18n="gad7-mejora">Mejora GAD-7</span><span class="value highlight" id="gad7-mejora-val">--</span></div>
+                    <canvas class="mini-chart" id="chart-impacto" width="200" height="36"></canvas>
+                </div>
+            </div>
+            <!-- Panel KPIs Pagaderos -->
+            <div class="panel" id="panel-pagos">
+                <h3 data-i18n="pagos-title">KPIs Pagaderos</h3>
+                <div class="panel-content">
+                    <div class="kpi-row"><span class="label" data-i18n="tramo-a">Tramo A (40%)</span><span class="value" id="tramo-a-val">--</span></div>
+                    <div class="kpi-row"><span class="label" data-i18n="tramo-b">Tramo B (30%)</span><span class="value" id="tramo-b-val">--</span></div>
+                    <div class="kpi-row"><span class="label" data-i18n="tramo-c">Tramo C (30%)</span><span class="value" id="tramo-c-val">--</span></div>
+                </div>
+            </div>
+            <!-- Panel Cobertura -->
+            <div class="panel" id="panel-cobertura">
+                <h3 data-i18n="cobertura-title">Cobertura Territorial</h3>
+                <div class="panel-content">
+                    <canvas class="mini-chart" id="chart-cobertura" width="200" height="36"></canvas>
+                    <div style="display:flex; justify-content:space-between; font-size:10px; color:#8aa8b8; margin-top:2px;">
+                        <span data-i18n="urbano">Urbano</span><span data-i18n="rural">Rural</span>
+                    </div>
+                </div>
+            </div>
+            <!-- NUEVO: Panel Cronograma de Implementación -->
+            <div class="panel" id="panel-cronograma">
+                <h3 data-i18n="cronograma-title">Cronograma de Implementación</h3>
+                <div class="panel-content">
+                    <div style="font-size:11px; margin-bottom:2px;">Fase 0: Preparación</div>
+                    <div class="gantt-bar"><div class="gantt-segment" id="gantt-fase0" style="width:20%; background:#4FC3F7;"></div></div>
+                    <div style="font-size:11px; margin-bottom:2px;">Fase 1: Instalación</div>
+                    <div class="gantt-bar"><div class="gantt-segment" id="gantt-fase1" style="width:40%; background:#6FC8FF;"></div></div>
+                    <div style="font-size:11px; margin-bottom:2px;">Fase 2: Piloto</div>
+                    <div class="gantt-bar"><div class="gantt-segment" id="gantt-fase2" style="width:60%; background:#4DD0E1;"></div></div>
+                    <div style="font-size:11px; margin-bottom:2px;">Fase 3: Evaluación/Expansión</div>
+                    <div class="gantt-bar"><div class="gantt-segment" id="gantt-fase3" style="width:80%; background:#80DEEA;"></div></div>
+                </div>
+            </div>
+            <!-- NUEVO: Panel Sesiones Activas -->
+            <div class="panel" id="panel-sesiones">
+                <h3 data-i18n="sesiones-title">Sesiones Activas</h3>
+                <div class="panel-content">
+                    <div class="kpi-row"><span class="label" data-i18n="sisu-circles">Sisu Circles</span><span class="value" id="sisu-estado">Inactivo</span></div>
+                    <div class="kpi-row"><span class="label" data-i18n="sauna-bloque">Sauna</span><span class="value" id="sauna-estado">Inactivo</span></div>
+                    <div class="kpi-row"><span class="label" data-i18n="van-ruta">Van ruta</span><span class="value" id="van-estado">Inactivo</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controles de estado -->
+        <div id="state-controls">
+            <button data-state="reposo" class="active" data-i18n="est-reposo">Reposo</button>
+            <button data-state="analisis" data-i18n="est-analisis">Análisis</button>
+            <button data-state="simulacion" data-i18n="est-simulacion">Simulación</button>
+            <button data-state="operacion" data-i18n="est-operacion">Operación</button>
+            <button data-state="emergencia" data-i18n="est-emergencia">Emergencia</button>
+            <button data-state="ia" data-i18n="est-ia">IA</button>
+            <button data-state="polar" data-i18n="est-polar">Noche Polar</button>
+            <button data-state="carga" data-i18n="est-carga">Carga</button>
+            <button data-state="descarga" data-i18n="est-descarga">Descarga</button>
+            <button data-state="presentacion" data-i18n="est-presentacion">Presentación</button>
+            <button data-state="pdca" data-i18n="est-pdca">PDCA</button>
+        </div>
+
+        <!-- Control de intensidad -->
+        <div id="intensity-control">
+            <label for="intensity-slider" data-i18n="intensidad">Luz</label>
+            <input type="range" id="intensity-slider" min="0.1" max="2.0" step="0.05" value="1.0">
+        </div>
+
+        <div id="tooltip"></div>
+    </div>
+
+    <!-- Three.js y OrbitControls desde CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        (function() {
+            "use strict";
+
+            // ---------- TRADUCCIONES (extendidas) ----------
+            const i18n = {
+                es: {
+                    'kpi-title': 'Indicadores Clave',
+                    'phq9': 'PHQ-9',
+                    'gad7': 'GAD-7',
+                    'participacion': 'Participación',
+                    'funcionales': 'Días funcionales',
+                    'estado-title': 'Estado del Sistema',
+                    'modo': 'Modo:',
+                    'sesiones': 'Sesiones activas:',
+                    'ocupacion': 'Ocupación:',
+                    'sim-title': 'Simulación de Flujo',
+                    'flujo-energia': 'Flujo de energía',
+                    'ocupacion-modulos': 'Ocupación por Módulo',
+                    'telemetria-title': 'Telemetría',
+                    'temp-ambiente': 'Temp. ambiente',
+                    'flujo-particulas': 'Flujo partículas',
+                    'energia-red': 'Energía red',
+                    'latencia': 'Latencia',
+                    'rendimiento-title': 'Rendimiento',
+                    'eficiencia': 'Eficiencia',
+                    'uptime': 'Uptime',
+                    'respuesta': 'Respuesta',
+                    'impacto-title': 'Impacto Clínico',
+                    'phq9-mejora': 'Mejora PHQ-9',
+                    'gad7-mejora': 'Mejora GAD-7',
+                    'pagos-title': 'KPIs Pagaderos',
+                    'tramo-a': 'Tramo A (40%)',
+                    'tramo-b': 'Tramo B (30%)',
+                    'tramo-c': 'Tramo C (30%)',
+                    'cobertura-title': 'Cobertura Territorial',
+                    'urbano': 'Urbano',
+                    'rural': 'Rural',
+                    'cronograma-title': 'Cronograma de Implementación',
+                    'sesiones-title': 'Sesiones Activas',
+                    'sisu-circles': 'Sisu Circles',
+                    'sauna-bloque': 'Sauna',
+                    'van-ruta': 'Van ruta',
+                    'intensidad': 'Intensidad',
+                    'est-reposo': 'Reposo',
+                    'est-analisis': 'Análisis',
+                    'est-simulacion': 'Simulación',
+                    'est-operacion': 'Operación',
+                    'est-emergencia': 'Emergencia',
+                    'est-ia': 'IA',
+                    'est-polar': 'Noche Polar',
+                    'est-carga': 'Carga',
+                    'est-descarga': 'Descarga',
+                    'est-presentacion': 'Presentación',
+                    'est-pdca': 'PDCA',
+                    'ar-button': 'Modo AR',
+                    'estados': {
+                        'reposo': 'Reposo',
+                        'analisis': 'Análisis',
+                        'simulacion': 'Simulación',
+                        'operacion': 'Operación',
+                        'emergencia': 'Emergencia',
+                        'ia': 'IA',
+                        'polar': 'Noche Polar',
+                        'carga': 'Carga',
+                        'descarga': 'Descarga',
+                        'presentacion': 'Presentación',
+                        'pdca': 'PDCA'
+                    }
+                },
+                en: {
+                    'kpi-title': 'Key Indicators',
+                    'phq9': 'PHQ-9',
+                    'gad7': 'GAD-7',
+                    'participacion': 'Participation',
+                    'funcionales': 'Functional days',
+                    'estado-title': 'System State',
+                    'modo': 'Mode:',
+                    'sesiones': 'Active sessions:',
+                    'ocupacion': 'Occupancy:',
+                    'sim-title': 'Flow Simulation',
+                    'flujo-energia': 'Energy flow',
+                    'ocupacion-modulos': 'Occupancy by Module',
+                    'telemetria-title': 'Telemetry',
+                    'temp-ambiente': 'Ambient temp',
+                    'flujo-particulas': 'Particle flow',
+                    'energia-red': 'Grid energy',
+                    'latencia': 'Latency',
+                    'rendimiento-title': 'Performance',
+                    'eficiencia': 'Efficiency',
+                    'uptime': 'Uptime',
+                    'respuesta': 'Response',
+                    'impacto-title': 'Clinical Impact',
+                    'phq9-mejora': 'PHQ-9 Improvement',
+                    'gad7-mejora': 'GAD-7 Improvement',
+                    'pagos-title': 'Payable KPIs',
+                    'tramo-a': 'Tranche A (40%)',
+                    'tramo-b': 'Tranche B (30%)',
+                    'tramo-c': 'Tranche C (30%)',
+                    'cobertura-title': 'Territorial Coverage',
+                    'urbano': 'Urban',
+                    'rural': 'Rural',
+                    'cronograma-title': 'Implementation Timeline',
+                    'sesiones-title': 'Active Sessions',
+                    'sisu-circles': 'Sisu Circles',
+                    'sauna-bloque': 'Sauna',
+                    'van-ruta': 'Van route',
+                    'intensidad': 'Intensity',
+                    'est-reposo': 'Idle',
+                    'est-analisis': 'Analysis',
+                    'est-simulacion': 'Simulation',
+                    'est-operacion': 'Operation',
+                    'est-emergencia': 'Emergency',
+                    'est-ia': 'AI',
+                    'est-polar': 'Polar Night',
+                    'est-carga': 'Charging',
+                    'est-descarga': 'Discharging',
+                    'est-presentacion': 'Presentation',
+                    'est-pdca': 'PDCA',
+                    'ar-button': 'AR Mode',
+                    'estados': {
+                        'reposo': 'Idle',
+                        'analisis': 'Analysis',
+                        'simulacion': 'Simulation',
+                        'operacion': 'Operation',
+                        'emergencia': 'Emergency',
+                        'ia': 'AI',
+                        'polar': 'Polar Night',
+                        'carga': 'Charging',
+                        'descarga': 'Discharging',
+                        'presentacion': 'Presentation',
+                        'pdca': 'PDCA'
+                    }
+                },
+                zh: {
+                    'kpi-title': '关键指标',
+                    'phq9': 'PHQ-9',
+                    'gad7': 'GAD-7',
+                    'participacion': '参与度',
+                    'funcionales': '功能日',
+                    'estado-title': '系统状态',
+                    'modo': '模式:',
+                    'sesiones': '活跃会话:',
+                    'ocupacion': '占用率:',
+                    'sim-title': '流量模拟',
+                    'flujo-energia': '能量流',
+                    'ocupacion-modulos': '模块占用率',
+                    'telemetria-title': '遥测',
+                    'temp-ambiente': '环境温度',
+                    'flujo-particulas': '粒子流',
+                    'energia-red': '电网能量',
+                    'latencia': '延迟',
+                    'rendimiento-title': '性能',
+                    'eficiencia': '效率',
+                    'uptime': '正常运行时间',
+                    'respuesta': '响应时间',
+                    'impacto-title': '临床影响',
+                    'phq9-mejora': 'PHQ-9 改善',
+                    'gad7-mejora': 'GAD-7 改善',
+                    'pagos-title': '可支付 KPI',
+                    'tramo-a': '批次 A (40%)',
+                    'tramo-b': '批次 B (30%)',
+                    'tramo-c': '批次 C (30%)',
+                    'cobertura-title': '领土覆盖',
+                    'urbano': '城市',
+                    'rural': '农村',
+                    'cronograma-title': '实施时间表',
+                    'sesiones-title': '活跃会话',
+                    'sisu-circles': 'Sisu 圈子',
+                    'sauna-bloque': '桑拿',
+                    'van-ruta': '面包车路线',
+                    'intensidad': '强度',
+                    'est-reposo': '空闲',
+                    'est-analisis': '分析',
+                    'est-simulacion': '模拟',
+                    'est-operacion': '运行',
+                    'est-emergencia': '紧急',
+                    'est-ia': '人工智能',
+                    'est-polar': '极夜',
+                    'est-carga': '充电',
+                    'est-descarga': '放电',
+                    'est-presentacion': '演示',
+                    'est-pdca': 'PDCA',
+                    'ar-button': '增强现实',
+                    'estados': {
+                        'reposo': '空闲',
+                        'analisis': '分析',
+                        'simulacion': '模拟',
+                        'operacion': '运行',
+                        'emergencia': '紧急',
+                        'ia': '人工智能',
+                        'polar': '极夜',
+                        'carga': '充电',
+                        'descarga': '放电',
+                        'presentacion': '演示',
+                        'pdca': 'PDCA'
+                    }
+                }
+            };
+
+            let currentLang = 'es';
+            const langSelect = document.getElementById('lang-select');
+            langSelect.addEventListener('change', () => {
+                currentLang = langSelect.value;
+                updateI18n();
+            });
+
+            function updateI18n() {
+                const dict = i18n[currentLang];
+                document.querySelectorAll('[data-i18n]').forEach(el => {
+                    const key = el.dataset.i18n;
+                    if (dict[key] !== undefined) {
+                        if (el.tagName === 'BUTTON' || el.tagName === 'OPTION' || el.tagName === 'LABEL') {
+                            el.textContent = dict[key];
+                        } else {
+                            el.textContent = dict[key];
+                        }
+                    }
+                });
+                const estadoActual = document.getElementById('modo-actual');
+                const estadoKey = estadoActual.dataset.estadoKey || 'reposo';
+                if (dict.estados && dict.estados[estadoKey]) {
+                    estadoActual.textContent = dict.estados[estadoKey];
+                }
+            }
+            function setModoTexto(key) {
+                const el = document.getElementById('modo-actual');
+                el.dataset.estadoKey = key;
+                const dict = i18n[currentLang];
+                if (dict.estados && dict.estados[key]) {
+                    el.textContent = dict.estados[key];
+                } else {
+                    el.textContent = key;
+                }
+            }
+
+            // ---------- THREE.JS ESCENA ----------
+            const container = document.getElementById('canvas-container');
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a1a2a);
+            scene.fog = new THREE.Fog(0x0a1a2a, 40, 80);
+
+            const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 200);
+            camera.position.set(18, 12, 22);
+            camera.lookAt(0, 1, 0);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            container.appendChild(renderer.domElement);
+
+            // Controles
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.08;
+            controls.rotateSpeed = 0.8;
+            controls.autoRotate = false;
+            controls.maxPolarAngle = Math.PI / 2.1;
+            controls.minDistance = 4;
+            controls.maxDistance = 50;
+            controls.target.set(0, 1.5, 0);
+
+            // ---------- ILUMINACIÓN CINEMATOGRÁFICA ----------
+            const ambientLight = new THREE.AmbientLight(0x2a4a6a, 0.5);
+            scene.add(ambientLight);
+
+            const mainLight = new THREE.DirectionalLight(0xffeedd, 0.9);
+            mainLight.position.set(15, 25, 10);
+            mainLight.castShadow = true;
+            mainLight.shadow.mapSize.width = 1024;
+            mainLight.shadow.mapSize.height = 1024;
+            mainLight.shadow.camera.near = 0.1;
+            mainLight.shadow.camera.far = 50;
+            mainLight.shadow.camera.left = -20;
+            mainLight.shadow.camera.right = 20;
+            mainLight.shadow.camera.top = 20;
+            mainLight.shadow.camera.bottom = -20;
+            scene.add(mainLight);
+
+            const fillLight = new THREE.DirectionalLight(0x88ddff, 0.3);
+            fillLight.position.set(-10, 5, -10);
+            scene.add(fillLight);
+
+            const rimLight = new THREE.DirectionalLight(0x88aaff, 0.5);
+            rimLight.position.set(-5, 0, 20);
+            scene.add(rimLight);
+
+            const pointLight = new THREE.PointLight(0x6fc8ff, 0.8, 30);
+            pointLight.position.set(0, 8, 0);
+            scene.add(pointLight);
+
+            // ---------- FONDO CON AURORA Y ESTRELLAS ----------
+            function createSky() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1024; canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+                const grad = ctx.createLinearGradient(0, 0, 0, 512);
+                grad.addColorStop(0, '#0a1a2a');
+                grad.addColorStop(0.3, '#1a3a5a');
+                grad.addColorStop(0.6, '#3a6a8a');
+                grad.addColorStop(1, '#8ab8d0');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, 1024, 512);
+                for (let i=0; i<800; i++) {
+                    const x = Math.random()*1024;
+                    const y = Math.random()*400;
+                    const r = Math.random()*1.8 + 0.3;
+                    const alpha = Math.random()*0.8 + 0.2;
+                    ctx.beginPath();
+                    ctx.arc(x, y, r, 0, Math.PI*2);
+                    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+                    ctx.fill();
+                }
+                const auroraColors = ['#4FC3F7', '#81D4FA', '#B3E5FC', '#E1F5FE', '#80DEEA', '#4DD0E1'];
+                for (let i=0; i<40; i++) {
+                    const x = Math.random()*1024;
+                    const y = 30 + Math.random()*250;
+                    const rad = 100 + Math.random()*200;
+                    const gradAurora = ctx.createRadialGradient(x, y, 20, x, y, rad);
+                    const color = auroraColors[Math.floor(Math.random()*auroraColors.length)];
+                    gradAurora.addColorStop(0, color + '40');
+                    gradAurora.addColorStop(0.5, color + '20');
+                    gradAurora.addColorStop(1, 'rgba(255,255,255,0)');
+                    ctx.fillStyle = gradAurora;
+                    ctx.fillRect(x-rad, y-rad, rad*2, rad*2);
+                }
+                const texture = new THREE.CanvasTexture(canvas);
+                const skyMat = new THREE.MeshStandardMaterial({
+                    map: texture,
+                    side: THREE.BackSide,
+                    roughness: 0.8,
+                    metalness: 0.1
+                });
+                const sky = new THREE.Mesh(new THREE.SphereGeometry(100, 32, 16), skyMat);
+                sky.name = 'sky';
+                return sky;
+            }
+            const sky = createSky();
+            scene.add(sky);
+
+            // ---------- NIEVE ----------
+            const snowCount = 2000;
+            const snowGeo = new THREE.BufferGeometry();
+            const snowPos = new Float32Array(snowCount * 3);
+            const snowSpeeds = new Float32Array(snowCount);
+            for (let i=0; i<snowCount; i++) {
+                snowPos[i*3] = (Math.random() - 0.5) * 80;
+                snowPos[i*3+1] = Math.random() * 30 + 2;
+                snowPos[i*3+2] = (Math.random() - 0.5) * 80;
+                snowSpeeds[i] = 0.005 + Math.random() * 0.025;
+            }
+            snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+            const snowMat = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 0.15,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                map: (() => {
+                    const c = document.createElement('canvas');
+                    c.width = 16; c.height = 16;
+                    const ctx = c.getContext('2d');
+                    ctx.beginPath();
+                    ctx.arc(8, 8, 6, 0, Math.PI*2);
+                    ctx.fillStyle = 'white';
+                    ctx.fill();
+                    return new THREE.CanvasTexture(c);
+                })()
+            });
+            const snowParticles = new THREE.Points(snowGeo, snowMat);
+            snowParticles.name = 'snow';
+            scene.add(snowParticles);
+
+            // ---------- SUELO ----------
+            function createGround() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512; canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#d0e8f0';
+                ctx.fillRect(0, 0, 512, 512);
+                for (let i=0; i<300; i++) {
+                    const x = Math.random()*512;
+                    const y = Math.random()*512;
+                    const r = 2 + Math.random()*10;
+                    const alpha = 0.1 + Math.random()*0.3;
+                    ctx.beginPath();
+                    ctx.arc(x, y, r, 0, Math.PI*2);
+                    ctx.fillStyle = `rgba(200,230,240,${alpha})`;
+                    ctx.fill();
+                }
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                texture.repeat.set(6, 6);
+                const mat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.9, metalness: 0.0 });
+                const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), mat);
+                ground.rotation.x = -Math.PI / 2;
+                ground.position.y = -0.05;
+                ground.receiveShadow = true;
+                return ground;
+            }
+            scene.add(createGround());
+
+            // ---------- MARCAS DE COBERTURA (sedes urbanas y rurales) ----------
+            function createCoverageMarkers() {
+                const group = new THREE.Group();
+                // Marcadores urbanos (azul)
+                const urbanPositions = [
+                    [-8, 2], [-4, -6], [6, -2], [3, 4], [-2, -8], [9, 0], [-6, 6]
+                ];
+                urbanPositions.forEach(pos => {
+                    const marker = new THREE.Mesh(
+                        new THREE.CircleGeometry(0.15, 8),
+                        new THREE.MeshStandardMaterial({ color: 0x4FC3F7, emissive: 0x4FC3F7, emissiveIntensity: 0.3 })
+                    );
+                    marker.rotation.x = -Math.PI/2;
+                    marker.position.set(pos[0], 0.02, pos[1]);
+                    group.add(marker);
+                    // Anillo alrededor
+                    const ring = new THREE.Mesh(
+                        new THREE.RingGeometry(0.2, 0.25, 16),
+                        new THREE.MeshStandardMaterial({ color: 0x4FC3F7, emissive: 0x4FC3F7, emissiveIntensity: 0.2, transparent: true, opacity: 0.4, side: THREE.DoubleSide })
+                    );
+                    ring.rotation.x = -Math.PI/2;
+                    ring.position.set(pos[0], 0.02, pos[1]);
+                    group.add(ring);
+                });
+                // Marcadores rurales (verde)
+                const ruralPositions = [
+                    [-10, -4], [-7, 8], [5, 8], [10, -3], [8, -7], [-8, -9], [12, 4]
+                ];
+                ruralPositions.forEach(pos => {
+                    const marker = new THREE.Mesh(
+                        new THREE.CircleGeometry(0.15, 8),
+                        new THREE.MeshStandardMaterial({ color: 0x66BB6A, emissive: 0x66BB6A, emissiveIntensity: 0.3 })
+                    );
+                    marker.rotation.x = -Math.PI/2;
+                    marker.position.set(pos[0], 0.02, pos[1]);
+                    group.add(marker);
+                    const ring = new THREE.Mesh(
+                        new THREE.RingGeometry(0.2, 0.25, 16),
+                        new THREE.MeshStandardMaterial({ color: 0x66BB6A, emissive: 0x66BB6A, emissiveIntensity: 0.2, transparent: true, opacity: 0.4, side: THREE.DoubleSide })
+                    );
+                    ring.rotation.x = -Math.PI/2;
+                    ring.position.set(pos[0], 0.02, pos[1]);
+                    group.add(ring);
+                });
+                return group;
+            }
+            const coverageMarkers = createCoverageMarkers();
+            scene.add(coverageMarkers);
+
+            // ---------- MODELADO DE EDIFICIOS NÓRDICOS ----------
+            function createNordicBuilding(w, h, d, color, pos, name) {
+                const group = new THREE.Group();
+                const mat = new THREE.MeshStandardMaterial({
+                    color: color,
+                    roughness: 0.7,
+                    metalness: 0.1,
+                    envMapIntensity: 0.3
+                });
+                const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+                body.position.y = h/2;
+                body.castShadow = true;
+                body.receiveShadow = true;
+                group.add(body);
+
+                const roofMat = new THREE.MeshStandardMaterial({
+                    color: 0x6a4a3a,
+                    roughness: 0.8,
+                    metalness: 0.0
+                });
+                const roofShape = new THREE.Shape();
+                const roofW = w * 0.9;
+                const roofH = 0.6;
+                roofShape.moveTo(-roofW/2, 0);
+                roofShape.lineTo(0, roofH);
+                roofShape.lineTo(roofW/2, 0);
+                roofShape.lineTo(-roofW/2, 0);
+                const extrudeSettings = { depth: d * 0.95, bevelEnabled: false };
+                const roofGeo = new THREE.ExtrudeGeometry(roofShape, extrudeSettings);
+                const roof = new THREE.Mesh(roofGeo, roofMat);
+                roof.position.set(0, h, -d*0.475);
+                roof.castShadow = true;
+                roof.receiveShadow = true;
+                group.add(roof);
+
+                const winMat = new THREE.MeshStandardMaterial({
+                    color: 0xffddaa,
+                    emissive: 0xffaa44,
+                    emissiveIntensity: 0.2,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                for (let i=0; i<4; i++) {
+                    const win = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 0.35), winMat);
+                    win.position.set(-0.6 + i*0.4, 0.6 + 0.5, d/2 + 0.01);
+                    group.add(win);
+                    const win2 = win.clone();
+                    win2.position.set(-0.6 + i*0.4, 0.6 + 0.5, -d/2 - 0.01);
+                    win2.rotation.y = Math.PI;
+                    group.add(win2);
+                }
+
+                group.position.set(pos.x, 0, pos.z);
+                group.rotation.y = pos.rot || 0;
+                group.userData = { name: name, desc: name === 'Biblioteca' ? 'Rincón circadiano + Sisu Circles' :
+                                              name === 'Centro de Salud' ? 'Rincón circadiano en sala de espera' :
+                                              name === 'Sauna Municipal' ? 'Sauna Sisu Salud' : '' };
+                return group;
+            }
+
+            // Árboles
+            function createTree(x, z) {
+                const group = new THREE.Group();
+                const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2a, roughness: 0.9 });
+                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.15, 0.6, 6), trunkMat);
+                trunk.position.y = 0.3;
+                trunk.castShadow = true;
+                group.add(trunk);
+
+                const leafMat = new THREE.MeshStandardMaterial({ color: 0x2a5a3a, roughness: 0.8 });
+                const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.4, 0.8, 6), leafMat);
+                leaf.position.y = 0.8;
+                leaf.castShadow = true;
+                group.add(leaf);
+
+                const snowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
+                const snowCone = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.15, 6), snowMat);
+                snowCone.position.y = 1.1;
+                snowCone.castShadow = true;
+                group.add(snowCone);
+
+                group.position.set(x, 0, z);
+                group.rotation.y = Math.random() * Math.PI * 2;
+                return group;
+            }
+
+            // ---------- CONSTRUCCIÓN DE LA ESCENA ----------
+            const sceneObjects = {
+                buildings: [],
+                panels: [],
+                persons: [],
+                van: null,
+                networkNodes: [],
+                networkLines: [],
+                particleSystem: null,
+                trees: [],
+                clickables: [],
+                saunaText: null,
+                sisuTimer: null
+            };
+
+            // Edificios
+            const b1 = createNordicBuilding(2.8, 2.5, 2.8, 0x4a6a7a, { x: -5, z: -4, rot: 0.2 }, 'Biblioteca');
+            scene.add(b1);
+            sceneObjects.buildings.push(b1);
+            sceneObjects.clickables.push({ mesh: b1, name: 'Biblioteca', desc: 'Rincón circadiano + Sisu Circles' });
+
+            const b2 = createNordicBuilding(2.4, 2.2, 2.4, 0x5a7a7a, { x: 4.5, z: -3.5, rot: -0.3 }, 'Centro de Salud');
+            scene.add(b2);
+            sceneObjects.buildings.push(b2);
+            sceneObjects.clickables.push({ mesh: b2, name: 'Centro de Salud', desc: 'Rincón circadiano en sala de espera' });
+
+            const b3 = createNordicBuilding(3.2, 1.8, 3.2, 0x6a4a3a, { x: -3, z: 5, rot: 0.1 }, 'Sauna Municipal');
+            scene.add(b3);
+            sceneObjects.buildings.push(b3);
+            sceneObjects.clickables.push({ mesh: b3, name: 'Sauna Municipal', desc: 'Sauna Sisu Salud' });
+
+            // Van mejorada
+            const van = (function() {
+                const group = new THREE.Group();
+                const bodyMat = new THREE.MeshStandardMaterial({
+                    color: 0x2a4a5a,
+                    roughness: 0.3,
+                    metalness: 0.6,
+                    envMapIntensity: 0.5
+                });
+                const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.3, 4.6), bodyMat);
+                body.position.y = 0.8;
+                body.castShadow = true;
+                group.add(body);
+                const cabMat = new THREE.MeshStandardMaterial({ color: 0x1a2a3a, roughness: 0.4, metalness: 0.5 });
+                const cab = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.8, 1.0), cabMat);
+                cab.position.set(0, 1.4, 1.8);
+                cab.castShadow = true;
+                group.add(cab);
+                const lightMat = new THREE.MeshStandardMaterial({
+                    color: 0x6fc8ff,
+                    emissive: 0x6fc8ff,
+                    emissiveIntensity: 0.5
+                });
+                const lightBar = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.8), lightMat);
+                lightBar.position.set(0, 1.3, -2.3);
+                group.add(lightBar);
+                // Luces laterales
+                const sideLight = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), lightMat);
+                sideLight.position.set(-1.1, 0.6, -2.0);
+                group.add(sideLight);
+                const sideLight2 = sideLight.clone();
+                sideLight2.position.set(1.1, 0.6, -2.0);
+                group.add(sideLight2);
+                // Ruedas
+                const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+                const wheelPos = [[-1.0, 0.2, 1.2], [1.0, 0.2, 1.2], [-1.0, 0.2, -1.2], [1.0, 0.2, -1.2]];
+                wheelPos.forEach(p => {
+                    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.15, 12), wheelMat);
+                    wheel.rotation.z = Math.PI/2;
+                    wheel.position.set(p[0], p[1], p[2]);
+                    wheel.castShadow = true;
+                    group.add(wheel);
+                });
+                group.position.set(7, 0, 5);
+                group.rotation.y = -0.3;
+                group.userData = { name: 'Nordic Light Van' };
+                sceneObjects.clickables.push({ mesh: group, name: 'Nordic Light Van', desc: 'Unidad móvil rural' });
+                return group;
+            })();
+            scene.add(van);
+            sceneObjects.van = van;
+
+            // Texto flotante para micro-charla en sauna
+            const saunaTextCanvas = document.createElement('canvas');
+            saunaTextCanvas.width = 256;
+            saunaTextCanvas.height = 64;
+            const ctxST = saunaTextCanvas.getContext('2d');
+            ctxST.fillStyle = 'rgba(10,20,30,0.7)';
+            ctxST.roundRect(0, 0, 256, 64, 12);
+            ctxST.fill();
+            ctxST.fillStyle = '#6fc8ff';
+            ctxST.font = 'bold 20px sans-serif';
+            ctxST.textAlign = 'center';
+            ctxST.textBaseline = 'middle';
+            ctxST.fillText('Micro-charla: hábitos saludables', 128, 32);
+            const saunaTexture = new THREE.CanvasTexture(saunaTextCanvas);
+            const saunaTextMat = new THREE.MeshStandardMaterial({
+                map: saunaTexture,
+                transparent: true,
+                opacity: 0,
+                side: THREE.DoubleSide
+            });
+            const saunaTextMesh = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 0.6), saunaTextMat);
+            saunaTextMesh.position.set(-3, 2.2, 5.8);
+            saunaTextMesh.rotation.x = -0.2;
+            saunaTextMesh.rotation.y = 0.1;
+            scene.add(saunaTextMesh);
+            sceneObjects.saunaText = saunaTextMesh;
+
+            // Timer para Sisu Circles (contador visual)
+            const timerCanvas = document.createElement('canvas');
+            timerCanvas.width = 128;
+            timerCanvas.height = 64;
+            const ctxT = timerCanvas.getContext('2d');
+            ctxT.fillStyle = 'rgba(10,20,30,0.7)';
+            ctxT.roundRect(0, 0, 128, 64, 12);
+            ctxT.fill();
+            ctxT.fillStyle = '#6fc8ff';
+            ctxT.font = 'bold 24px sans-serif';
+            ctxT.textAlign = 'center';
+            ctxT.textBaseline = 'middle';
+            ctxT.fillText('45:00', 64, 32);
+            const timerTexture = new THREE.CanvasTexture(timerCanvas);
+            const timerMat = new THREE.MeshStandardMaterial({
+                map: timerTexture,
+                transparent: true,
+                opacity: 0,
+                side: THREE.DoubleSide
+            });
+            const timerMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.6), timerMat);
+            timerMesh.position.set(-5, 2.0, -4.2);
+            timerMesh.rotation.x = -0.1;
+            timerMesh.rotation.y = 0.2;
+            scene.add(timerMesh);
+            sceneObjects.sisuTimer = timerMesh;
+
+            // Árboles
+            const treePositions = [
+                [-7, -6], [-6, -7], [-8, -5], [6, -6], [7, -7], [5, -8],
+                [-5, 7], [-6, 8], [-4, 9], [8, 7], [9, 6], [10, 8]
+            ];
+            treePositions.forEach(p => {
+                const tree = createTree(p[0], p[1]);
+                scene.add(tree);
+                sceneObjects.trees.push(tree);
+            });
+
+            // Paneles de luz
+            const panelPositions = [
+                { x: -3.5, y: 1.2, z: -4.5, rot: { x: 0, y: 0.2, z: -0.1 } },
+                { x: -4.5, y: 1.2, z: -2.5, rot: { x: 0, y: -0.1, z: 0 } },
+                { x: 3.5, y: 1.2, z: -3.0, rot: { x: 0, y: -0.3, z: 0 } },
+                { x: 5.5, y: 1.2, z: -2.0, rot: { x: 0, y: 0.3, z: 0 } },
+                { x: -2.0, y: 1.2, z: 5.5, rot: { x: 0, y: 0.5, z: 0 } },
+                { x: -4.0, y: 1.2, z: 4.0, rot: { x: 0, y: -0.4, z: 0 } }
+            ];
+            panelPositions.forEach(p => {
+                const mat = new THREE.MeshStandardMaterial({
+                    color: 0x6fc8ff,
+                    emissive: 0x6fc8ff,
+                    emissiveIntensity: 0.6,
+                    roughness: 0.1,
+                    metalness: 0.2,
+                    transparent: true,
+                    opacity: 0.9,
+                    side: THREE.DoubleSide
+                });
+                const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.6), mat);
+                panel.position.set(p.x, p.y, p.z);
+                panel.rotation.x = p.rot.x || 0;
+                panel.rotation.y = p.rot.y || 0;
+                panel.rotation.z = p.rot.z || 0;
+                panel.castShadow = false;
+                const edgeMat = new THREE.MeshStandardMaterial({ color: 0x2a4a5a, roughness: 0.5, metalness: 0.6 });
+                const edge = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.65, 0.03), edgeMat);
+                edge.position.copy(panel.position);
+                edge.position.z += 0.02;
+                edge.rotation.copy(panel.rotation);
+                const g = new THREE.Group();
+                g.add(edge);
+                g.add(panel);
+                scene.add(g);
+                sceneObjects.panels.push(g);
+                sceneObjects.clickables.push({ mesh: g, name: 'Rincón circadiano', desc: 'Exposición a luz segura 15-20 min' });
+            });
+
+            // Personas
+            const personColors = [0x4a7a9a, 0x6a8a6a, 0x9a7a5a, 0x7a5a7a, 0x5a8a8a, 0x8a6a4a, 0x4a6a8a, 0x8a8a5a];
+            function createPerson(x, z, color) {
+                const group = new THREE.Group();
+                const skinMat = new THREE.MeshStandardMaterial({ color: 0xe0c8a0, roughness: 0.6 });
+                const bodyMat = new THREE.MeshStandardMaterial({ color: color || 0x3a6a8a, roughness: 0.7 });
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 0.5, 8), bodyMat);
+                body.position.y = 0.35;
+                body.castShadow = true;
+                group.add(body);
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 8), skinMat);
+                head.position.y = 0.7;
+                head.castShadow = true;
+                group.add(head);
+                const hatMat = new THREE.MeshStandardMaterial({ color: 0xcc6644 });
+                const hat = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.1, 6), hatMat);
+                hat.position.y = 0.78;
+                group.add(hat);
+                const armMat = new THREE.MeshStandardMaterial({ color: 0x4a6a7a });
+                const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.35, 6), armMat);
+                armL.position.set(-0.3, 0.45, 0);
+                armL.rotation.z = 0.3;
+                group.add(armL);
+                const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.35, 6), armMat);
+                armR.position.set(0.3, 0.45, 0);
+                armR.rotation.z = -0.3;
+                group.add(armR);
+                group.position.set(x, 0, z);
+                group.rotation.y = Math.random() * Math.PI * 2;
+                return group;
+            }
+
+            // Círculo Sisu cerca de biblioteca
+            const sisuGroup = [];
+            for (let i=0; i<8; i++) {
+                const angle = (i/8)*Math.PI*2;
+                const r = 1.6;
+                const x = -5 + Math.cos(angle)*r;
+                const z = -4 + Math.sin(angle)*r;
+                const person = createPerson(x, z, personColors[i%personColors.length]);
+                scene.add(person);
+                sceneObjects.persons.push(person);
+                sisuGroup.push(person);
+            }
+            // Personas cerca de centro salud
+            for (let i=0; i<4; i++) {
+                const angle = (i/4)*Math.PI*2 + 0.5;
+                const r = 1.2;
+                const x = 4.5 + Math.cos(angle)*r;
+                const z = -3.5 + Math.sin(angle)*r;
+                const person = createPerson(x, z, personColors[(i+3)%personColors.length]);
+                scene.add(person);
+                sceneObjects.persons.push(person);
+            }
+            // Personas cerca de sauna
+            for (let i=0; i<5; i++) {
+                const angle = (i/5)*Math.PI*2 + 0.2;
+                const r = 1.8;
+                const x = -3 + Math.cos(angle)*r;
+                const z = 5 + Math.sin(angle)*r;
+                const person = createPerson(x, z, personColors[(i+5)%personColors.length]);
+                scene.add(person);
+                sceneObjects.persons.push(person);
+            }
+            // Personas cerca de van
+            for (let i=0; i<3; i++) {
+                const angle = (i/3)*Math.PI*2 + 0.8;
+                const r = 1.0;
+                const x = 7 + Math.cos(angle)*r;
+                const z = 5 + Math.sin(angle)*r;
+                const person = createPerson(x, z, personColors[(i+7)%personColors.length]);
+                scene.add(person);
+                sceneObjects.persons.push(person);
+            }
+
+            // ---------- SISTEMA DE NODOS IA (RED) ----------
+            const networkGroup = new THREE.Group();
+            scene.add(networkGroup);
+            const nodePositions = [];
+            const nodeMeshes = [];
+            const nodeCount = 16;
+            for (let i=0; i<nodeCount; i++) {
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                const r = 5 + Math.random() * 5;
+                const x = Math.sin(phi) * Math.cos(theta) * r;
+                const y = Math.sin(phi) * Math.sin(theta) * r * 0.6 + 3;
+                const z = Math.cos(phi) * r * 0.8;
+                nodePositions.push({x,y,z});
+                const sphere = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.2, 12, 12),
+                    new THREE.MeshStandardMaterial({ color: 0x6fc8ff, emissive: 0x6fc8ff, emissiveIntensity: 0.3 })
+                );
+                sphere.position.set(x, y, z);
+                sphere.castShadow = false;
+                sphere.userData = { index: i, name: 'Nodo IA ' + (i+1) };
+                networkGroup.add(sphere);
+                nodeMeshes.push(sphere);
+                sceneObjects.networkNodes.push(sphere);
+                sceneObjects.clickables.push({ mesh: sphere, name: 'Nodo IA ' + (i+1), desc: 'Procesamiento distribuido' });
+            }
+            const lineMat = new THREE.LineBasicMaterial({ color: 0x6fc8ff, transparent: true, opacity: 0.15 });
+            for (let i=0; i<nodeCount; i++) {
+                for (let j=i+1; j<nodeCount; j++) {
+                    const p1 = nodePositions[i];
+                    const p2 = nodePositions[j];
+                    const dist = Math.sqrt((p1.x-p2.x)**2 + (p1.y-p2.y)**2 + (p1.z-p2.z)**2);
+                    if (dist < 6) {
+                        const geo = new THREE.BufferGeometry().setFromPoints([
+                            new THREE.Vector3(p1.x, p1.y, p1.z),
+                            new THREE.Vector3(p2.x, p2.y, p2.z)
+                        ]);
+                        const line = new THREE.Line(geo, lineMat);
+                        networkGroup.add(line);
+                        sceneObjects.networkLines.push(line);
+                    }
+                }
+            }
+            // Partículas de flujo
+            const particleCount = 60;
+            const particleGeo = new THREE.BufferGeometry();
+            const particlePos = new Float32Array(particleCount * 3);
+            const particleTargets = [];
+            const particleProgress = new Float32Array(particleCount);
+            const particleSpeed = new Float32Array(particleCount);
+            const lines = sceneObjects.networkLines;
+            for (let i=0; i<particleCount; i++) {
+                const idx = Math.floor(Math.random() * lines.length);
+                const line = lines[idx];
+                const positions = line.geometry.attributes.position.array;
+                const p1 = new THREE.Vector3(positions[0], positions[1], positions[2]);
+                const p2 = new THREE.Vector3(positions[3], positions[4], positions[5]);
+                particleTargets.push({ p1, p2, line });
+                particleProgress[i] = Math.random();
+                particleSpeed[i] = 0.005 + Math.random() * 0.02;
+                const t = particleProgress[i];
+                particlePos[i*3] = p1.x + (p2.x - p1.x) * t;
+                particlePos[i*3+1] = p1.y + (p2.y - p1.y) * t;
+                particlePos[i*3+2] = p1.z + (p2.z - p1.z) * t;
+            }
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+            const particleMat = new THREE.PointsMaterial({
+                color: 0x6fc8ff,
+                size: 0.15,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const particleSystem = new THREE.Points(particleGeo, particleMat);
+            networkGroup.add(particleSystem);
+            sceneObjects.particleSystem = particleSystem;
+            sceneObjects.particleData = { targets: particleTargets, progress: particleProgress, speed: particleSpeed };
+
+            // ---------- ESTADOS Y VARIABLES (extendidos) ----------
+            let currentState = 'reposo';
+            let stateTime = 0;
+            let intensityValue = 1.0;
+            let sesionTimer = 0; // segundos simulados
+            let saunaBlock = 0;
+            let vanRoute = 0;
+
+            const stateColors = {
+                reposo: { ambient: 0x2a4a6a, main: 0xffeedd, point: 0x6fc8ff, emissive: 0.4, bg: 0x0a1a2a, fog: 0x0a1a2a, snow: 0.6 },
+                analisis: { ambient: 0x1a3a5a, main: 0x88ddff, point: 0x88ffaa, emissive: 0.7, bg: 0x0a1a2a, fog: 0x0a1a2a, snow: 0.6 },
+                simulacion: { ambient: 0x1a3a5a, main: 0x88ddff, point: 0x44ffcc, emissive: 0.9, bg: 0x0a1a2a, fog: 0x0a1a2a, snow: 0.6 },
+                operacion: { ambient: 0x2a4a6a, main: 0xffeedd, point: 0x6fc8ff, emissive: 0.6, bg: 0x0a1a2a, fog: 0x0a1a2a, snow: 0.6 },
+                emergencia: { ambient: 0x401010, main: 0xff4444, point: 0xff0000, emissive: 1.5, bg: 0x140a0a, fog: 0x140a0a, snow: 0.3 },
+                ia: { ambient: 0x101a30, main: 0x44aaff, point: 0xaa88ff, emissive: 1.0, bg: 0x0a0a14, fog: 0x0a0a14, snow: 0.4 },
+                polar: { ambient: 0x0a1a2a, main: 0x88aacc, point: 0x88ddff, emissive: 0.3, bg: 0x050a10, fog: 0x050a10, snow: 0.9 },
+                carga: { ambient: 0x2a4a2a, main: 0x88ff88, point: 0x44ff44, emissive: 1.2, bg: 0x0a1a0a, fog: 0x0a1a0a, snow: 0.5 },
+                descarga: { ambient: 0x2a2a4a, main: 0xff8844, point: 0xff6600, emissive: 1.2, bg: 0x1a0a0a, fog: 0x1a0a0a, snow: 0.5 },
+                presentacion: { ambient: 0x1a2a3a, main: 0xffffff, point: 0x6fc8ff, emissive: 0.8, bg: 0x0a0e18, fog: 0x0a0e18, snow: 0.4 },
+                pdca: { ambient: 0x2a3a2a, main: 0x88ff88, point: 0x44ff88, emissive: 0.7, bg: 0x0a1a0a, fog: 0x0a1a0a, snow: 0.5 }
+            };
+
+            function setState(state) {
+                currentState = state;
+                stateTime = 0;
+                document.querySelectorAll('#state-controls button').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.state === state);
+                });
+                setModoTexto(state);
+                const colors = stateColors[state];
+                if (colors) {
+                    ambientLight.color.setHex(colors.ambient);
+                    mainLight.color.setHex(colors.main);
+                    pointLight.color.setHex(colors.point);
+                    scene.background.setHex(colors.bg);
+                    scene.fog.color.setHex(colors.fog || colors.bg);
+                    snowParticles.material.opacity = colors.snow;
+                    sceneObjects.panels.forEach(p => {
+                        const panel = p.children[1];
+                        if (panel && panel.material) {
+                            panel.material.emissiveIntensity = colors.emissive * intensityValue;
+                        }
+                    });
+                    sceneObjects.networkNodes.forEach(n => {
+                        n.material.emissiveIntensity = colors.emissive * 0.6;
+                    });
+                }
+                // Mostrar/ocultar elementos según estado
+                const isOperational = (state === 'operacion' || state === 'simulacion' || state === 'presentacion');
+                sceneObjects.saunaText.material.opacity = isOperational ? 0.9 : 0;
+                sceneObjects.sisuTimer.material.opacity = isOperational ? 0.9 : 0;
+                updateHUD(state);
+            }
+
+            // ---------- HUD DINÁMICO (extendido) ----------
+            function updateHUD(state) {
+                // KPIs existentes
+                const phq9 = (3 + Math.random() * 4).toFixed(1);
+                const gad7 = (2 + Math.random() * 3).toFixed(1);
+                const participacion = (60 + Math.random() * 35).toFixed(0) + '%';
+                const funcionales = (5 + Math.random() * 5).toFixed(0);
+                const sesiones = Math.floor(12 + Math.random() * 20);
+                const ocupacion = (55 + Math.random() * 40).toFixed(0) + '%';
+                document.getElementById('phq9-val').textContent = phq9;
+                document.getElementById('gad7-val').textContent = gad7;
+                document.getElementById('participacion-val').textContent = participacion;
+                document.getElementById('funcionales-val').textContent = funcionales;
+                document.getElementById('sesiones-val').textContent = sesiones;
+                document.getElementById('ocupacion-val').textContent = ocupacion;
+
+                // Telemetría
+                const temp = (-5 + Math.random() * 20).toFixed(1) + '°C';
+                const flujo = (Math.random() * 100).toFixed(0) + ' u/s';
+                const energia = (Math.random() * 50 + 50).toFixed(0) + '%';
+                const latencia = (Math.random() * 20 + 5).toFixed(0) + ' ms';
+                document.getElementById('temp-ambiente-val').textContent = temp;
+                document.getElementById('flujo-particulas-val').textContent = flujo;
+                document.getElementById('energia-red-val').textContent = energia;
+                document.getElementById('latencia-val').textContent = latencia;
+
+                // Rendimiento
+                const eficiencia = (70 + Math.random() * 25).toFixed(0) + '%';
+                const uptime = (98 + Math.random() * 2).toFixed(2) + '%';
+                const respuesta = (Math.random() * 10 + 1).toFixed(1) + ' s';
+                document.getElementById('eficiencia-val').textContent = eficiencia;
+                document.getElementById('uptime-val').textContent = uptime;
+                document.getElementById('respuesta-val').textContent = respuesta;
+
+                // Impacto clínico
+                const phq9Mejora = (2 + Math.random() * 3).toFixed(1);
+                const gad7Mejora = (1.5 + Math.random() * 2).toFixed(1);
+                document.getElementById('phq9-mejora-val').textContent = phq9Mejora + ' pts';
+                document.getElementById('gad7-mejora-val').textContent = gad7Mejora + ' pts';
+
+                // Gráfico de impacto
+                const canvasImpacto = document.getElementById('chart-impacto');
+                if (canvasImpacto) {
+                    const ctx = canvasImpacto.getContext('2d');
+                    const w = canvasImpacto.width, h = canvasImpacto.height;
+                    ctx.clearRect(0, 0, w, h);
+                    ctx.strokeStyle = '#6fc8ff';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    for (let i=0; i<12; i++) {
+                        const x = (i/11)*w;
+                        const y = h - (0.2 + 0.7 * (i/11) + Math.sin(i*0.5+stateTime)*0.03) * h;
+                        if (i===0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.stroke();
+                    ctx.lineTo(w, h);
+                    ctx.lineTo(0, h);
+                    ctx.closePath();
+                    ctx.fillStyle = 'rgba(79,195,247,0.15)';
+                    ctx.fill();
+                }
+
+                // KPIs Pagaderos
+                const tramoA = (80 + Math.random() * 15).toFixed(0) + '%';
+                const tramoB = (70 + Math.random() * 20).toFixed(0) + '%';
+                const tramoC = (60 + Math.random() * 30).toFixed(0) + '%';
+                document.getElementById('tramo-a-val').textContent = tramoA;
+                document.getElementById('tramo-b-val').textContent = tramoB;
+                document.getElementById('tramo-c-val').textContent = tramoC;
+
+                // Gráfico de cobertura
+                const canvasCobertura = document.getElementById('chart-cobertura');
+                if (canvasCobertura) {
+                    const ctx = canvasCobertura.getContext('2d');
+                    const w = canvasCobertura.width, h = canvasCobertura.height;
+                    ctx.clearRect(0, 0, w, h);
+                    const urbano = 0.65 + Math.random()*0.15;
+                    const rural = 0.45 + Math.random()*0.15;
+                    ctx.fillStyle = '#6fc8ff';
+                    ctx.fillRect(10, h*(1-urbano), 40, h*urbano);
+                    ctx.fillStyle = '#4FC3F7';
+                    ctx.fillRect(60, h*(1-rural), 40, h*rural);
+                    ctx.fillStyle = '#8aa8b8';
+                    ctx.font = '10px sans-serif';
+                    ctx.fillText('U', 20, h-4);
+                    ctx.fillText('R', 70, h-4);
+                }
+
+                // Gráfico de flujo
+                const canvas = document.getElementById('chart-flujo');
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    const w = canvas.width, h = canvas.height;
+                    ctx.clearRect(0, 0, w, h);
+                    ctx.strokeStyle = '#6fc8ff';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    for (let i=0; i<20; i++) {
+                        const x = (i/19)*w;
+                        const y = h/2 + (Math.sin(i*0.8 + stateTime*0.5)*0.4 + Math.sin(i*0.3+stateTime)*0.2) * h/2;
+                        if (i===0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.stroke();
+                }
+
+                // Barras
+                const bars = document.querySelectorAll('.bar');
+                if (bars.length) {
+                    const heights = [60, 80, 45, 90, 30].map(v => v + (Math.random()-0.5)*10);
+                    bars.forEach((bar, i) => {
+                        bar.style.height = Math.max(10, heights[i % heights.length]) + '%';
+                    });
+                }
+
+                const flow = document.getElementById('flujo-energia-val');
+                if (flow) {
+                    const bars2 = ['▸','▸▸','▸▸▸','▸▸▸▸'];
+                    const idx = Math.floor((stateTime * 1.5) % bars2.length);
+                    flow.textContent = bars2[idx] + (currentState === 'simulacion' ? ' ⚡' : '');
+                }
+
+                // Actualizar cronograma de implementación (barras Gantt)
+                const fases = ['gantt-fase0', 'gantt-fase1', 'gantt-fase2', 'gantt-fase3'];
+                const progresos = [20, 40, 60, 80];
+                fases.forEach((id, idx) => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        const p = progresos[idx] + Math.sin(stateTime * 0.1 + idx) * 2;
+                        el.style.width = Math.min(100, Math.max(5, p)) + '%';
+                    }
+                });
+
+                // Sesiones activas
+                const isOp = (currentState === 'operacion' || currentState === 'simulacion' || currentState === 'presentacion');
+                document.getElementById('sisu-estado').textContent = isOp ? 'Activo (45 min)' : 'Inactivo';
+                document.getElementById('sauna-estado').textContent = isOp ? 'Bloque 60 min' : 'Inactivo';
+                document.getElementById('van-estado').textContent = isOp ? 'Ruta activa' : 'Inactivo';
+                if (isOp) {
+                    document.getElementById('sisu-estado').style.color = '#6fc8ff';
+                    document.getElementById('sauna-estado').style.color = '#6fc8ff';
+                    document.getElementById('van-estado').style.color = '#6fc8ff';
+                } else {
+                    document.getElementById('sisu-estado').style.color = '#8aa8b8';
+                    document.getElementById('sauna-estado').style.color = '#8aa8b8';
+                    document.getElementById('van-estado').style.color = '#8aa8b8';
+                }
+            }
+
+            // ---------- ANIMACIÓN ----------
+            let clock = new THREE.Clock();
+
+            function animate() {
+                const delta = clock.getDelta();
+                stateTime += delta;
+                sesionTimer += delta;
+
+                // Partículas de red
+                const pData = sceneObjects.particleData;
+                if (pData) {
+                    const positions = sceneObjects.particleSystem.geometry.attributes.position.array;
+                    for (let i=0; i<pData.progress.length; i++) {
+                        pData.progress[i] += pData.speed[i] * delta * 20;
+                        if (pData.progress[i] > 1) pData.progress[i] = 0;
+                        const t = pData.progress[i];
+                        const target = pData.targets[i];
+                        if (target) {
+                            const p1 = target.p1, p2 = target.p2;
+                            positions[i*3] = p1.x + (p2.x - p1.x) * t;
+                            positions[i*3+1] = p1.y + (p2.y - p1.y) * t;
+                            positions[i*3+2] = p1.z + (p2.z - p1.z) * t;
+                        }
+                    }
+                    sceneObjects.particleSystem.geometry.attributes.position.needsUpdate = true;
+                }
+
+                // Nieve
+                const snowPosAttr = snowParticles.geometry.attributes.position;
+                const snowPosArray = snowPosAttr.array;
+                for (let i=0; i<snowCount; i++) {
+                    snowPosArray[i*3+1] -= snowSpeeds[i] * delta * 30;
+                    if (snowPosArray[i*3+1] < -2) {
+                        snowPosArray[i*3+1] = 25 + Math.random() * 5;
+                        snowPosArray[i*3] = (Math.random() - 0.5) * 80;
+                        snowPosArray[i*3+2] = (Math.random() - 0.5) * 80;
+                    }
+                }
+                snowPosAttr.needsUpdate = true;
+
+                // Personas (balanceo)
+                sceneObjects.persons.forEach((p, idx) => {
+                    const offset = idx * 1.2;
+                    p.rotation.z = Math.sin(stateTime * 0.8 + offset) * 0.02;
+                    p.position.y = Math.sin(stateTime * 1.2 + offset) * 0.02;
+                });
+
+                // Paneles
+                sceneObjects.panels.forEach((p, idx) => {
+                    const panel = p.children[1];
+                    if (panel && panel.material) {
+                        const intensity = 0.3 + Math.sin(stateTime * 0.6 + idx) * 0.15;
+                        const base = stateColors[currentState]?.emissive || 0.4;
+                        panel.material.emissiveIntensity = Math.max(0.1, intensity * base * intensityValue);
+                    }
+                });
+
+                // Van
+                if (sceneObjects.van) {
+                    sceneObjects.van.position.y = Math.sin(stateTime * 0.5) * 0.02;
+                }
+
+                // Nodos IA
+                sceneObjects.networkNodes.forEach((n, idx) => {
+                    const scale = 1 + Math.sin(stateTime * 1.5 + idx * 0.7) * 0.1;
+                    n.scale.set(scale, scale, scale);
+                    n.rotation.y += delta * 0.2;
+                });
+
+                // Aurora dinámica
+                if (currentState === 'polar' || currentState === 'presentacion') {
+                    fillLight.color.setHSL(0.6 + Math.sin(stateTime*0.05)*0.15, 0.8, 0.5);
+                } else if (currentState === 'carga') {
+                    fillLight.color.setHSL(0.3 + Math.sin(stateTime*0.2)*0.05, 0.8, 0.5);
+                } else if (currentState === 'descarga') {
+                    fillLight.color.setHSL(0.08 + Math.sin(stateTime*0.15)*0.05, 0.9, 0.5);
+                } else if (currentState === 'pdca') {
+                    fillLight.color.setHSL(0.4 + Math.sin(stateTime*0.1)*0.1, 0.8, 0.5);
+                } else {
+                    fillLight.color.setHex(0x88ddff);
+                }
+
+                // Actualizar timer de Sisu Circles (textura)
+                const isOp = (currentState === 'operacion' || currentState === 'simulacion' || currentState === 'presentacion');
+                if (sceneObjects.sisuTimer) {
+                    const canvas = timerCanvas;
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, 128, 64);
+                    ctx.fillStyle = 'rgba(10,20,30,0.7)';
+                    ctx.roundRect(0, 0, 128, 64, 12);
+                    ctx.fill();
+                    ctx.fillStyle = '#6fc8ff';
+                    ctx.font = 'bold 24px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    if (isOp) {
+                        const mins = Math.floor((45 - sesionTimer % 45));
+                        const secs = Math.floor((45 - sesionTimer % 45) * 60 % 60);
+                        const timeStr = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+                        ctx.fillText(timeStr, 64, 32);
+                    } else {
+                        ctx.fillText('--:--', 64, 32);
+                    }
+                    timerTexture.needsUpdate = true;
+                }
+
+                // Actualizar micro-charla en sauna
+                if (sceneObjects.saunaText) {
+                    const canvas = saunaTextCanvas;
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, 256, 64);
+                    ctx.fillStyle = 'rgba(10,20,30,0.7)';
+                    ctx.roundRect(0, 0, 256, 64, 12);
+                    ctx.fill();
+                    ctx.fillStyle = '#6fc8ff';
+                    ctx.font = 'bold 18px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const msg = isOp ? 'Micro-charla: hábitos saludables' : 'Sauna Sisu Salud';
+                    ctx.fillText(msg, 128, 32);
+                    saunaTexture.needsUpdate = true;
+                }
+
+                controls.update();
+                renderer.render(scene, camera);
+                requestAnimationFrame(animate);
+            }
+
+            // ---------- INTERACCIONES AVANZADAS ----------
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            const tooltip = document.getElementById('tooltip');
+
+            function onPointerDown(event) {
+                const rect = renderer.domElement.getBoundingClientRect();
+                mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+
+                const meshes = [];
+                sceneObjects.clickables.forEach(item => {
+                    if (item.mesh.children) {
+                        item.mesh.children.forEach(child => {
+                            if (child.isMesh) {
+                                child.userData.parentInfo = item;
+                                meshes.push(child);
+                            }
+                        });
+                    } else if (item.mesh.isMesh) {
+                        item.mesh.userData.parentInfo = item;
+                        meshes.push(item.mesh);
+                    }
+                });
+                const intersects = raycaster.intersectObjects(meshes, false);
+                if (intersects.length > 0) {
+                    const hit = intersects[0].object;
+                    const info = hit.userData.parentInfo || hit.userData.info;
+                    if (info) {
+                        tooltip.style.display = 'block';
+                        tooltip.style.left = Math.min(event.clientX + 20, window.innerWidth - 240) + 'px';
+                        tooltip.style.top = Math.min(event.clientY - 20, window.innerHeight - 100) + 'px';
+                        tooltip.innerHTML = `<h4>${info.name}</h4><div>${info.desc}</div>`;
+                        if (hit.material) {
+                            const originalEmissive = hit.material.emissiveIntensity || 0;
+                            hit.material.emissiveIntensity = 2.0;
+                            setTimeout(() => {
+                                hit.material.emissiveIntensity = originalEmissive;
+                            }, 800);
+                        }
+                        setTimeout(() => {
+                            tooltip.style.display = 'none';
+                        }, 3000);
+                    }
+                } else {
+                    tooltip.style.display = 'none';
+                }
+            }
+
+            renderer.domElement.addEventListener('click', onPointerDown);
+            renderer.domElement.addEventListener('mousemove', (e) => {});
+
+            // Control deslizante
+            const slider = document.getElementById('intensity-slider');
+            slider.addEventListener('input', () => {
+                intensityValue = parseFloat(slider.value);
+                const base = stateColors[currentState]?.emissive || 0.4;
+                sceneObjects.panels.forEach(p => {
+                    const panel = p.children[1];
+                    if (panel && panel.material) {
+                        panel.material.emissiveIntensity = base * intensityValue;
+                    }
+                });
+            });
+
+            // ---------- EVENTOS ----------
+            document.querySelectorAll('#state-controls button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const state = btn.dataset.state;
+                    if (state) setState(state);
+                });
+            });
+
+            document.getElementById('ar-button').addEventListener('click', () => {
+                if (navigator.xr) {
+                    navigator.xr.isSessionSupported('immersive-ar').then(supported => {
+                        if (supported) {
+                            alert('Modo AR activado (simulación). En un entorno real, se mostraría el modelo sobre la mesa.');
+                        } else {
+                            alert('Su navegador no soporta WebXR para AR.');
+                        }
+                    });
+                } else {
+                    alert('WebXR no está disponible. Use un navegador compatible (Edge/Chrome en Android).');
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                const w = window.innerWidth, h = window.innerHeight;
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+                renderer.setSize(w, h);
+            });
+
+            // ---------- INICIO ----------
+            setState('reposo');
+            updateHUD('reposo');
+            animate();
+            updateI18n();
+
+            console.log('Sisu Wellness Network - Prototipo Nórdico 3D (versión mejorada) iniciado.');
+
+        })();
+    </script>
+</body>
+</html>
