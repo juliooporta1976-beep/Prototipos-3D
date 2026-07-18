@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Neural Sports Fabric · ESPN</title>
+    <style>
+        /* Reset y base */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #0b0e14; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #e8edf5; user-select: none; }
+        canvas { display: block; }
+
+        /* HUD overlay */
+        #hud {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #hud * { pointer-events: auto; }
+
+        /* Barra superior */
+        #top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 20px;
+            background: linear-gradient(180deg, rgba(11,14,20,0.9) 0%, rgba(11,14,20,0.3) 80%, transparent 100%);
+            border-bottom: 1px solid rgba(79,195,247,0.12);
+        }
+        #top-left .author { font-size: 12px; font-weight: 300; color: #a0b4c8; }
+        #top-left .author strong { font-weight: 500; color: #c8dae8; }
+        #top-left .title { font-size: 20px; font-weight: 600; background: linear-gradient(90deg, #4FC3F7, #81D4FA); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        #top-right { display: flex; align-items: center; gap: 14px; }
+        #top-right .status-badge { font-size: 11px; padding: 3px 12px; border-radius: 30px; background: rgba(79,195,247,0.12); border: 1px solid rgba(79,195,247,0.2); color: #4FC3F7; text-transform: uppercase; font-weight: 500; }
+        #lang-selector { display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 3px 5px; border-radius: 30px; }
+        #lang-selector button { background: transparent; border: none; color: #8899aa; font-size: 11px; padding: 3px 8px; border-radius: 20px; cursor: pointer; transition: 0.2s; text-transform: uppercase; }
+        #lang-selector button:hover { color: #c8dae8; }
+        #lang-selector button.active { background: rgba(79,195,247,0.2); color: #4FC3F7; }
+
+        /* Paneles HUD adicionales */
+        .hud-panel {
+            position: absolute;
+            background: rgba(11,14,20,0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(79,195,247,0.08);
+            border-radius: 14px;
+            padding: 12px 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+            pointer-events: auto;
+            font-size: 12px;
+            min-width: 160px;
+        }
+        .hud-panel h5 {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #4FC3F7;
+            opacity: 0.6;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            padding-bottom: 4px;
+        }
+        .hud-panel .item {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.02);
+            font-size: 11px;
+        }
+        .hud-panel .item .label { color: #8899aa; }
+        .hud-panel .item .value { color: #c8dae8; font-weight: 500; }
+        .hud-panel .item .value.highlight { color: #4FC3F7; }
+        .hud-panel .item .value.warn { color: #FFA726; }
+        .hud-panel .item .value.crit { color: #EF5350; }
+
+        #rules-panel { top: 90px; left: 24px; width: 200px; }
+        #alerts-panel { top: 90px; left: 50%; transform: translateX(-50%); width: 280px; text-align: center; background: rgba(11,14,20,0.8); border-color: rgba(255,167,38,0.15); display: none; }
+        #alerts-panel .alert-msg { color: #FFA726; font-weight: 400; font-size: 13px; }
+        #sim-panel { bottom: 110px; right: 24px; width: 200px; }
+
+        /* Control deslizante */
+        input[type="range"] {
+            width: 100%;
+            height: 3px;
+            -webkit-appearance: none;
+            background: rgba(79,195,247,0.2);
+            border-radius: 10px;
+            outline: none;
+            margin: 6px 0;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4FC3F7;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(79,195,247,0.3);
+        }
+
+        .toggle-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+        .toggle-group button {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            color: #b0c4d8;
+            font-size: 10px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .toggle-group button.active {
+            background: rgba(79,195,247,0.15);
+            border-color: #4FC3F7;
+            color: #4FC3F7;
+        }
+
+        /* Panel de control inferior */
+        #control-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: rgba(11,14,20,0.8);
+            backdrop-filter: blur(14px);
+            padding: 10px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(79,195,247,0.1);
+            box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+            pointer-events: auto;
+            max-width: 96%;
+            align-items: center;
+        }
+        .control-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+        }
+        .control-row .group-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #4FC3F7;
+            opacity: 0.4;
+            padding: 0 8px;
+            align-self: center;
+            font-weight: 600;
+        }
+        .control-row button {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            color: #b0c4d8;
+            font-size: 10px;
+            font-weight: 500;
+            padding: 4px 12px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: 0.25s;
+            letter-spacing: 0.2px;
+            white-space: nowrap;
+        }
+        .control-row button:hover { background: rgba(79,195,247,0.12); border-color: rgba(79,195,247,0.3); color: #e8edf5; }
+        .control-row button.active { background: rgba(79,195,247,0.18); border-color: #4FC3F7; color: #4FC3F7; }
+        .control-row button.sport-active { background: rgba(255,167,38,0.18); border-color: #FFA726; color: #FFA726; }
+        .control-row button.profile-active { background: rgba(171,71,188,0.18); border-color: #AB47BC; color: #AB47BC; }
+        .control-row button.audit-active { background: rgba(239,83,80,0.18); border-color: #EF5350; color: #EF5350; }
+
+        /* Telemetría */
+        #telemetry {
+            position: absolute;
+            top: 90px;
+            right: 24px;
+            width: 200px;
+            background: rgba(11,14,20,0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(79,195,247,0.08);
+            border-radius: 14px;
+            padding: 12px 16px;
+            pointer-events: auto;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+        }
+        #telemetry h5 {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #4FC3F7;
+            margin-bottom: 8px;
+            opacity: 0.7;
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+        .metric .label { color: #8899aa; }
+        .metric .value {
+            color: #c8dae8;
+            font-weight: 500;
+            font-variant-numeric: tabular-nums;
+        }
+        .metric .value.highlight { color: #4FC3F7; }
+        .metric .value.sport-highlight { color: #FFA726; }
+        .metric .value.profile-highlight { color: #AB47BC; }
+
+        /* Panel IA */
+        #ai-info {
+            position: absolute;
+            bottom: 120px;
+            left: 24px;
+            background: rgba(11,14,20,0.5);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(79,195,247,0.08);
+            border-radius: 12px;
+            padding: 10px 14px;
+            pointer-events: none;
+            max-width: 180px;
+        }
+        #ai-info .label {
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #4FC3F7;
+            letter-spacing: 1px;
+            opacity: 0.6;
+        }
+        #ai-info .status {
+            font-size: 12px;
+            color: #b0c4d8;
+            margin-top: 3px;
+        }
+        #ai-info .status span { color: #4FC3F7; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            #rules-panel, #sim-panel { display: none; }
+            #alerts-panel { width: 90%; left: 5%; transform: none; top: 80px; }
+            #top-left .title { font-size: 16px; }
+            #top-left .author { font-size: 10px; }
+            #telemetry { width: 160px; right: 12px; top: 80px; padding: 10px 12px; }
+            #control-panel { padding: 8px 12px; }
+            .control-row button { font-size: 8px; padding: 3px 8px; }
+        }
+        @media (max-width: 480px) {
+            #top-left .title { font-size: 13px; }
+            #lang-selector button { font-size: 9px; padding: 2px 5px; }
+            .control-row button { font-size: 7px; padding: 2px 6px; }
+            .control-row .group-label { font-size: 7px; }
+            #telemetry { display: none; }
+        }
+        ::-webkit-scrollbar { width: 0; }
+    </style>
+</head>
+<body>
+
+    <div id="hud">
+        <!-- Barra superior -->
+        <div id="top-bar">
+            <div id="top-left">
+                <div class="author"><strong>Dr. Julio César Oporta Barrera</strong> · Neural Sports Fabric</div>
+                <div class="title" data-i18n="title">ESPN · NEURAL SPORTS FABRIC</div>
+            </div>
+            <div id="top-right">
+                <div class="status-badge" id="statusBadge" data-i18n="status.idle">● REPOSO</div>
+                <div id="lang-selector">
+                    <button class="active" data-lang="es">ES</button>
+                    <button data-lang="en">EN</button>
+                    <button data-lang="zh">中文</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de reglas activas -->
+        <div id="rules-panel" class="hud-panel">
+            <h5 data-i18n="rules.title">REGLAS ACTIVAS</h5>
+            <div id="rules-list">
+                <div class="item"><span class="label">RUN</span><span class="value highlight">●</span></div>
+                <div class="item"><span class="label">Clutch</span><span class="value">○</span></div>
+                <div class="item"><span class="label">Presión alta</span><span class="value">○</span></div>
+                <div class="item"><span class="label">Leverage</span><span class="value">○</span></div>
+                <div class="item"><span class="label">Ajuste defensivo</span><span class="value">○</span></div>
+            </div>
+        </div>
+
+        <!-- Panel de alertas -->
+        <div id="alerts-panel" class="hud-panel">
+            <h5 data-i18n="alerts.title">ALERTAS</h5>
+            <div class="alert-msg" id="alertMsg">● Evento crítico: Clutch activado</div>
+        </div>
+
+        <!-- Panel de simulación -->
+        <div id="sim-panel" class="hud-panel">
+            <h5 data-i18n="sim.title">SIMULACIÓN</h5>
+            <div class="item"><span class="label">Velocidad</span><span class="value" id="simSpeed">1.0x</span></div>
+            <input type="range" id="speedSlider" min="0.1" max="2.0" step="0.1" value="1.0">
+            <div class="toggle-group">
+                <button class="active" data-layer="normal">Normal</button>
+                <button data-layer="xray">Rayos X</button>
+                <button data-layer="wire">Alambre</button>
+            </div>
+        </div>
+
+        <!-- Telemetría -->
+        <div id="telemetry">
+            <h5>TELEMETRÍA</h5>
+            <div class="metric"><span class="label">Latencia</span><span class="value highlight" id="latencyVal">12.4 ms</span></div>
+            <div class="metric"><span class="label">Throughput</span><span class="value" id="throughputVal">847 Mbps</span></div>
+            <div class="metric"><span class="label">Integridad</span><span class="value highlight" id="integrityVal">99.7%</span></div>
+            <div class="metric"><span class="label">Reglas activas</span><span class="value" id="rulesVal">14</span></div>
+            <div class="metric"><span class="label">Overlay/s</span><span class="value" id="overlayFreqVal">0.32</span></div>
+            <div class="metric"><span class="label">Estado</span><span class="value highlight" id="stateVal">REPOSO</span></div>
+            <div class="metric"><span class="label">Deporte</span><span class="value sport-highlight" id="sportDisplay">Baloncesto</span></div>
+            <div class="metric"><span class="label">Perfil</span><span class="value profile-highlight" id="profileDisplay">Intermedio</span></div>
+        </div>
+
+        <!-- Panel IA -->
+        <div id="ai-info">
+            <div class="label">SISTEMA IA · NODOS</div>
+            <div class="status">Procesando <span id="aiNodeCount">42</span> nodos activos</div>
+        </div>
+
+        <!-- Panel de control inferior -->
+        <div id="control-panel">
+            <!-- Fila 1: Estados -->
+            <div class="control-row">
+                <span class="group-label">Estado</span>
+                <button class="active" data-state="idle">Reposo</button>
+                <button data-state="analysis">Análisis</button>
+                <button data-state="simulation">Simulación</button>
+                <button data-state="operation">Operación</button>
+                <button data-state="diagnostic">Diagnóstico</button>
+                <button data-state="maintenance">Mantenimiento</button>
+                <button data-state="emergency">Emergencia</button>
+                <button data-state="ai">IA</button>
+                <button data-state="hybrid">Híbrido</button>
+                <button data-state="audit" class="audit-active" style="border-color:#EF5350; color:#EF5350;">Auditoría</button>
+            </div>
+            <div style="width:100%; height:1px; background:rgba(255,255,255,0.04); margin:2px 0;"></div>
+            <!-- Fila 2: Deportes -->
+            <div class="control-row">
+                <span class="group-label">Deporte</span>
+                <button class="sport-active" data-sport="basketball">Baloncesto</button>
+                <button data-sport="football">Fútbol</button>
+                <button data-sport="baseball">Béisbol</button>
+            </div>
+            <div style="width:100%; height:1px; background:rgba(255,255,255,0.04); margin:2px 0;"></div>
+            <!-- Fila 3: Perfiles -->
+            <div class="control-row">
+                <span class="group-label">Perfil</span>
+                <button data-profile="novato">Novato</button>
+                <button class="profile-active" data-profile="intermedio">Intermedio</button>
+                <button data-profile="experto">Experto</button>
+                <button data-profile="tactico">Táctico</button>
+                <button data-profile="historico">Histórico</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Importmap -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.163.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.163.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        // --------------------------------------------------------------
+        // MÓDULO PRINCIPAL CON MEJORAS: NUEVOS MÓDULOS, HUD, ESTADO AUDITORÍA, INTERACCIONES
+        // --------------------------------------------------------------
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+        // --------------------------------------------------------------
+        // 1. TRADUCCIONES
+        // --------------------------------------------------------------
+        const i18n = {
+            es: {
+                title: 'ESPN · NEURAL SPORTS FABRIC',
+                'status.idle': '● REPOSO',
+                'status.analysis': '● ANÁLISIS',
+                'status.simulation': '● SIMULACIÓN',
+                'status.operation': '● OPERACIÓN',
+                'status.diagnostic': '● DIAGNÓSTICO',
+                'status.maintenance': '● MANTENIMIENTO',
+                'status.emergency': '● EMERGENCIA',
+                'status.ai': '● IA ACTIVA',
+                'status.hybrid': '● HÍBRIDO',
+                'status.audit': '● AUDITORÍA',
+                'rules.title': 'REGLAS ACTIVAS',
+                'alerts.title': 'ALERTAS',
+                'sim.title': 'SIMULACIÓN',
+                'module.ingestion': 'Ingesta',
+                'module.orchestration': 'Orquestación',
+                'module.presentation': 'Presentación',
+                'module.governance': 'Gobernanza',
+                'module.fan': 'Experiencia Fan',
+                'module.dataflow': 'Flujo de Datos',
+                'module.editorial': 'Reglas Editoriales',
+                'module.omnia': 'OMNIA-5000'
+            },
+            en: {
+                title: 'ESPN · NEURAL SPORTS FABRIC',
+                'status.idle': '● IDLE',
+                'status.analysis': '● ANALYSIS',
+                'status.simulation': '● SIMULATION',
+                'status.operation': '● OPERATION',
+                'status.diagnostic': '● DIAGNOSTIC',
+                'status.maintenance': '● MAINTENANCE',
+                'status.emergency': '● EMERGENCY',
+                'status.ai': '● AI ACTIVE',
+                'status.hybrid': '● HYBRID',
+                'status.audit': '● AUDIT',
+                'rules.title': 'ACTIVE RULES',
+                'alerts.title': 'ALERTS',
+                'sim.title': 'SIMULATION',
+                'module.ingestion': 'Ingestion',
+                'module.orchestration': 'Orchestration',
+                'module.presentation': 'Presentation',
+                'module.governance': 'Governance',
+                'module.fan': 'Fan Experience',
+                'module.dataflow': 'Data Flow',
+                'module.editorial': 'Editorial Rules',
+                'module.omnia': 'OMNIA-5000'
+            },
+            zh: {
+                title: 'ESPN · 神经运动织物',
+                'status.idle': '● 待机',
+                'status.analysis': '● 分析',
+                'status.simulation': '● 模拟',
+                'status.operation': '● 操作',
+                'status.diagnostic': '● 诊断',
+                'status.maintenance': '● 维护',
+                'status.emergency': '● 紧急',
+                'status.ai': '● 人工智能激活',
+                'status.hybrid': '● 混合',
+                'status.audit': '● 审计',
+                'rules.title': '活动规则',
+                'alerts.title': '警报',
+                'sim.title': '模拟',
+                'module.ingestion': '数据采集',
+                'module.orchestration': '编排',
+                'module.presentation': '呈现',
+                'module.governance': '治理',
+                'module.fan': '球迷体验',
+                'module.dataflow': '数据流',
+                'module.editorial': '编辑规则',
+                'module.omnia': 'OMNIA-5000'
+            }
+        };
+
+        let currentLang = 'es';
+        function t(key) {
+            const langData = i18n[currentLang] || i18n.es;
+            return langData[key] || key;
+        }
+
+        function updateUI() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (key) el.textContent = t(key);
+            });
+            const badge = document.getElementById('statusBadge');
+            const state = currentState || 'idle';
+            badge.textContent = t(`status.${state}`);
+            document.getElementById('stateVal').textContent = t(`status.${state}`).replace('● ', '');
+            // Actualizar etiquetas de módulos
+            modules.forEach(mod => {
+                const data = mod.userData;
+                if (data && data.label) data.label.element.textContent = t(data.nameKey);
+            });
+            // Actualizar títulos de paneles
+            document.querySelector('#rules-panel h5').textContent = t('rules.title');
+            document.querySelector('#alerts-panel h5').textContent = t('alerts.title');
+            document.querySelector('#sim-panel h5').textContent = t('sim.title');
+        }
+
+        // --------------------------------------------------------------
+        // 2. ESCENA 3D
+        // --------------------------------------------------------------
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0b0e14);
+        scene.fog = new THREE.FogExp2(0x0b0e14, 0.006);
+
+        const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(14, 9, 18);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        document.body.prepend(renderer.domElement);
+
+        const labelRenderer = new CSS2DRenderer();
+        labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        labelRenderer.domElement.style.position = 'absolute';
+        labelRenderer.domElement.style.top = '0';
+        labelRenderer.domElement.style.left = '0';
+        labelRenderer.domElement.style.pointerEvents = 'none';
+        document.body.appendChild(labelRenderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.autoRotate = false;
+        controls.minDistance = 5;
+        controls.maxDistance = 40;
+        controls.target.set(0, 0.5, 0);
+
+        // --------------------------------------------------------------
+        // 3. ILUMINACIÓN
+        // --------------------------------------------------------------
+        const ambient = new THREE.AmbientLight(0x446688, 0.6);
+        scene.add(ambient);
+        const mainLight = new THREE.DirectionalLight(0xffeedd, 2.8);
+        mainLight.position.set(8, 18, 6);
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.width = 1024;
+        mainLight.shadow.mapSize.height = 1024;
+        mainLight.shadow.camera.near = 0.1;
+        mainLight.shadow.camera.far = 35;
+        mainLight.shadow.camera.left = -15;
+        mainLight.shadow.camera.right = 15;
+        mainLight.shadow.camera.top = 15;
+        mainLight.shadow.camera.bottom = -15;
+        scene.add(mainLight);
+        const fillLight = new THREE.DirectionalLight(0x88bbff, 0.9);
+        fillLight.position.set(-6, 4, -8);
+        scene.add(fillLight);
+        const accentLight = new THREE.DirectionalLight(0x4FC3F7, 0.7);
+        accentLight.position.set(-3, 6, 10);
+        scene.add(accentLight);
+        const centerLight = new THREE.PointLight(0x4FC3F7, 0.9, 25);
+        centerLight.position.set(0, 3, 0);
+        scene.add(centerLight);
+        const backLight = new THREE.PointLight(0x4466aa, 0.5, 25);
+        backLight.position.set(-4, 1, -8);
+        scene.add(backLight);
+        // Luz de auditoría
+        const auditLight = new THREE.PointLight(0xEF5350, 0, 20);
+        auditLight.position.set(0, 4, 0);
+        scene.add(auditLight);
+
+        // --------------------------------------------------------------
+        // 4. SUELO Y GRID
+        // --------------------------------------------------------------
+        const groundGeometry = new THREE.CircleGeometry(20, 64);
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            color: 0x11161e,
+            metalness: 0.3,
+            roughness: 0.6,
+            transparent: true,
+            opacity: 0.85,
+            side: THREE.DoubleSide
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.1;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        const gridHelper = new THREE.GridHelper(22, 30, 0x4FC3F7, 0x1a2a3a);
+        gridHelper.position.y = 0.01;
+        gridHelper.material.transparent = true;
+        gridHelper.material.opacity = 0.12;
+        scene.add(gridHelper);
+
+        // Partículas de fondo
+        const starsGeo = new THREE.BufferGeometry();
+        const starCount = 900;
+        const starPos = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount * 3; i++) {
+            starPos[i] = (Math.random() - 0.5) * 130;
+            if (i % 3 === 1) starPos[i] = Math.random() * 25 - 2;
+        }
+        starsGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({
+            color: 0x4FC3F7,
+            size: 0.07,
+            transparent: true,
+            opacity: 0.4,
+            blending: THREE.AdditiveBlending
+        });
+        const stars = new THREE.Points(starsGeo, starMat);
+        scene.add(stars);
+
+        // --------------------------------------------------------------
+        // 5. MÓDULOS PRINCIPALES (8 módulos)
+        // --------------------------------------------------------------
+        const modules = [];
+        function createModule({ nameKey, position, color = 0x4FC3F7, size = 1.2, shape = 'box', emissive = 0x0, emissiveIntensity = 0.2 }) {
+            const group = new THREE.Group();
+            group.position.copy(position);
+            let geometry;
+            switch (shape) {
+                case 'box': geometry = new THREE.BoxGeometry(size, size * 0.7, size); break;
+                case 'cylinder': geometry = new THREE.CylinderGeometry(size * 0.6, size * 0.6, size * 0.8, 24); break;
+                case 'sphere': geometry = new THREE.SphereGeometry(size * 0.6, 24, 24); break;
+                case 'torus': geometry = new THREE.TorusGeometry(size * 0.6, size * 0.25, 16, 32); break;
+                case 'octa': geometry = new THREE.OctahedronGeometry(size * 0.6); break;
+                default: geometry = new THREE.BoxGeometry(size, size * 0.7, size);
+            }
+            const material = new THREE.MeshStandardMaterial({
+                color: color,
+                metalness: 0.7,
+                roughness: 0.25,
+                emissive: emissive,
+                emissiveIntensity: emissiveIntensity,
+                envMapIntensity: 1.0,
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            group.add(mesh);
+            const edgeGeo = new THREE.EdgesGeometry(geometry);
+            const edgeMat = new THREE.LineBasicMaterial({ color: 0x4FC3F7, transparent: true, opacity: 0.2 });
+            const edgeLine = new THREE.LineSegments(edgeGeo, edgeMat);
+            group.add(edgeLine);
+            const ringGeo = new THREE.TorusGeometry(size * 0.85, 0.03, 12, 48);
+            const ringMat = new THREE.MeshStandardMaterial({
+                color: 0x4FC3F7,
+                emissive: 0x4FC3F7,
+                emissiveIntensity: 0.3,
+                transparent: true,
+                opacity: 0.35
+            });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = Math.PI / 3;
+            ring.rotation.z = 0.4;
+            group.add(ring);
+            // Etiqueta CSS2D
+            const labelDiv = document.createElement('div');
+            labelDiv.textContent = t(nameKey);
+            labelDiv.style.color = '#e8edf5';
+            labelDiv.style.fontSize = '12px';
+            labelDiv.style.fontWeight = '500';
+            labelDiv.style.textShadow = '0 0 20px rgba(0,0,0,0.9)';
+            labelDiv.style.background = 'rgba(11,14,20,0.6)';
+            labelDiv.style.padding = '3px 12px';
+            labelDiv.style.borderRadius = '20px';
+            labelDiv.style.border = '1px solid rgba(79,195,247,0.12)';
+            labelDiv.style.backdropFilter = 'blur(4px)';
+            labelDiv.style.letterSpacing = '0.2px';
+            labelDiv.style.pointerEvents = 'none';
+            const label = new CSS2DObject(labelDiv);
+            label.position.set(0, size * 0.8 + 0.5, 0);
+            group.add(label);
+            group.userData = { mesh, material, edgeLine, ring, label, nameKey, baseColor: color, emissive, emissiveIntensity, size, shape, ringMat };
+            scene.add(group);
+            modules.push(group);
+            return group;
+        }
+
+        // Posiciones originales (5 módulos)
+        const posOrig = [
+            { x: -6.0, z: -4.0, name: 'module.ingestion' },
+            { x: -3.0, z: -6.0, name: 'module.orchestration' },
+            { x: 3.0, z: -6.0, name: 'module.presentation' },
+            { x: 6.0, z: -4.0, name: 'module.governance' },
+            { x: 0, z: 3.0, name: 'module.fan' }
+        ];
+        const colorsOrig = [0x4FC3F7, 0x7E57C2, 0x42A5F5, 0x26A69A, 0xFFA726];
+        const shapesOrig = ['box', 'cylinder', 'sphere', 'torus', 'octa'];
+        posOrig.forEach((p, i) => {
+            const pos = new THREE.Vector3(p.x, 0.8, p.z);
+            createModule({
+                nameKey: p.name,
+                position: pos,
+                color: colorsOrig[i % colorsOrig.length],
+                size: 1.2,
+                shape: shapesOrig[i % shapesOrig.length],
+                emissive: colorsOrig[i % colorsOrig.length],
+                emissiveIntensity: 0.12
+            });
+        });
+
+        // NUEVOS MÓDULOS DE SIMULACIÓN (3 adicionales)
+        const newPos = [
+            { x: -3.5, z: 4.5, name: 'module.dataflow', color: 0x26C6DA, shape: 'sphere' },
+            { x: 3.5, z: 4.5, name: 'module.editorial', color: 0xAB47BC, shape: 'torus' },
+            { x: 0, z: 6.5, name: 'module.omnia', color: 0xEF5350, shape: 'octa' }
+        ];
+        newPos.forEach((p) => {
+            const pos = new THREE.Vector3(p.x, 0.8, p.z);
+            createModule({
+                nameKey: p.name,
+                position: pos,
+                color: p.color,
+                size: 1.0,
+                shape: p.shape,
+                emissive: p.color,
+                emissiveIntensity: 0.2
+            });
+        });
+
+        // Núcleo central
+        const coreGroup = new THREE.Group();
+        coreGroup.position.set(0, 0.8, 0);
+        const coreGeo = new THREE.IcosahedronGeometry(1.2, 1);
+        const coreMat = new THREE.MeshStandardMaterial({
+            color: 0x0b0e14,
+            metalness: 0.9,
+            roughness: 0.1,
+            emissive: 0x4FC3F7,
+            emissiveIntensity: 0.25,
+            wireframe: false
+        });
+        const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+        coreMesh.castShadow = true;
+        coreGroup.add(coreMesh);
+        const wireMat = new THREE.MeshStandardMaterial({
+            color: 0x4FC3F7,
+            emissive: 0x4FC3F7,
+            emissiveIntensity: 0.2,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.15
+        });
+        const wireMesh = new THREE.Mesh(coreGeo.clone(), wireMat);
+        wireMesh.scale.set(1.05, 1.05, 1.05);
+        coreGroup.add(wireMesh);
+        scene.add(coreGroup);
+        const coreData = { group: coreGroup, mesh: coreMesh, wire: wireMesh, mat: coreMat, wireMat };
+
+        // --------------------------------------------------------------
+        // 6. FLUJO DE PARTÍCULAS
+        // --------------------------------------------------------------
+        const flowParticles = [];
+        function createFlowPath(start, end, color = 0x4FC3F7) {
+            const mid = new THREE.Vector3(
+                (start.x + end.x) / 2,
+                (start.y + end.y) / 2 + 1.2 + Math.random() * 0.5,
+                (start.z + end.z) / 2
+            );
+            const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+            const points = curve.getPoints(30);
+            const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+            const lineMat = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.08 });
+            const line = new THREE.Line(lineGeo, lineMat);
+            scene.add(line);
+            const count = 12;
+            const particlePositions = new Float32Array(count * 3);
+            const particleSpeeds = new Float32Array(count);
+            for (let i = 0; i < count; i++) {
+                const t = i / count;
+                const p = curve.getPoint(t);
+                particlePositions[i * 3] = p.x;
+                particlePositions[i * 3 + 1] = p.y;
+                particlePositions[i * 3 + 2] = p.z;
+                particleSpeeds[i] = 0.002 + Math.random() * 0.003;
+            }
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+            const mat = new THREE.PointsMaterial({
+                color: color,
+                size: 0.1,
+                transparent: true,
+                opacity: 0.6,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const pointsObj = new THREE.Points(geo, mat);
+            scene.add(pointsObj);
+            flowParticles.push({
+                points: pointsObj,
+                curve: curve,
+                speeds: particleSpeeds,
+                count: count,
+                progress: new Float32Array(count).map(() => Math.random())
+            });
+            return { line, pointsObj };
+        }
+
+        const modulePositions = modules.map(m => m.position.clone());
+        // Conexiones entre módulos (reducidas)
+        for (let i = 0; i < modulePositions.length; i++) {
+            for (let j = i + 1; j < modulePositions.length; j++) {
+                if (Math.random() < 0.3) continue;
+                const p1 = modulePositions[i];
+                const p2 = modulePositions[j];
+                if (p1 && p2) {
+                    const col = new THREE.Color(0x4FC3F7).offsetHSL(Math.random() * 0.1, 0.1, 0.1);
+                    createFlowPath(p1, p2, col.getHex());
+                }
+            }
+        }
+        const corePos = new THREE.Vector3(0, 0.8, 0);
+        modulePositions.forEach(p => {
+            createFlowPath(corePos, p, 0x7E57C2);
+        });
+
+        // --------------------------------------------------------------
+        // 7. SISTEMA DE NODOS IA
+        // --------------------------------------------------------------
+        const aiNodes = [];
+        const aiConnections = [];
+        const aiGroup = new THREE.Group();
+        aiGroup.position.set(4.5, 2.0, 5.5);
+        scene.add(aiGroup);
+        const numNodes = 50;
+        const nodePositions = [];
+        for (let i = 0; i < numNodes; i++) {
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            const r = 0.6 + Math.random() * 1.4;
+            const x = Math.sin(phi) * Math.cos(theta) * r;
+            const y = Math.sin(phi) * Math.sin(theta) * r * 0.8;
+            const z = Math.cos(phi) * r * 0.7;
+            nodePositions.push(new THREE.Vector3(x, y, z));
+        }
+        nodePositions.forEach(pos => {
+            const size = 0.06 + Math.random() * 0.1;
+            const geo = new THREE.SphereGeometry(size, 6, 6);
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0x4FC3F7,
+                emissive: 0x4FC3F7,
+                emissiveIntensity: 0.3,
+                metalness: 0.3,
+                roughness: 0.4
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(pos);
+            aiGroup.add(mesh);
+            aiNodes.push({ mesh, pos, baseSize: size, speed: 0.4 + Math.random() * 1.8 });
+        });
+        const connectionDistance = 0.8;
+        for (let i = 0; i < numNodes; i++) {
+            for (let j = i + 1; j < numNodes; j++) {
+                const dist = nodePositions[i].distanceTo(nodePositions[j]);
+                if (dist < connectionDistance) {
+                    const points = [nodePositions[i], nodePositions[j]];
+                    const geo = new THREE.BufferGeometry().setFromPoints(points);
+                    const mat = new THREE.LineBasicMaterial({
+                        color: 0x4FC3F7,
+                        transparent: true,
+                        opacity: 0.1 + 0.25 * (1 - dist / connectionDistance)
+                    });
+                    const line = new THREE.Line(geo, mat);
+                    aiGroup.add(line);
+                    aiConnections.push({ line, mat, i, j, baseOpacity: mat.opacity });
+                }
+            }
+        }
+        document.getElementById('aiNodeCount').textContent = numNodes;
+
+        // --------------------------------------------------------------
+        // 8. OBJETOS POR DEPORTE
+        // --------------------------------------------------------------
+        const sportObjects = { basketball: [], football: [], baseball: [] };
+        // Baloncesto
+        const hoopGroup = new THREE.Group();
+        const hoopMat = new THREE.MeshStandardMaterial({ color: 0xff6600, metalness: 0.8, roughness: 0.3 });
+        const hoopRing = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.05, 8, 24), hoopMat);
+        hoopRing.rotation.x = Math.PI / 2;
+        hoopRing.position.y = 0.2;
+        hoopGroup.add(hoopRing);
+        const backboardMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.2, roughness: 0.5 });
+        const backboard = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.05), backboardMat);
+        backboard.position.set(0, 0.5, -0.4);
+        hoopGroup.add(backboard);
+        const ballMat = new THREE.MeshStandardMaterial({ color: 0xff8c00, roughness: 0.6, metalness: 0.1 });
+        const ball = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 16), ballMat);
+        ball.position.set(0, 0.8, 0);
+        hoopGroup.add(ball);
+        hoopGroup.position.set(-2.0, 0.2, -1.5);
+        scene.add(hoopGroup);
+        sportObjects.basketball.push(hoopGroup);
+        const basketballBall = ball;
+        // Fútbol
+        const fieldGroup = new THREE.Group();
+        const fieldMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.9, metalness: 0 });
+        const field = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 1.8), fieldMat);
+        field.rotation.x = -Math.PI / 2;
+        field.position.y = 0.01;
+        fieldGroup.add(field);
+        const lineMatField = new THREE.LineBasicMaterial({ color: 0xffffff });
+        const linePoints = [[-1.2,0,-0.8],[1.2,0,-0.8],[1.2,0,0.8],[-1.2,0,0.8],[-1.2,0,-0.8]];
+        const lineGeoField = new THREE.BufferGeometry().setFromPoints(linePoints.map(p => new THREE.Vector3(p[0], p[1], p[2])));
+        const fieldLine = new THREE.Line(lineGeoField, lineMatField);
+        fieldGroup.add(fieldLine);
+        const ballFootMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, metalness: 0.1 });
+        const ballFoot = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 1), ballFootMat);
+        ballFoot.position.set(0, 0.2, 0);
+        fieldGroup.add(ballFoot);
+        fieldGroup.position.set(3.0, 0.2, -1.5);
+        scene.add(fieldGroup);
+        sportObjects.football.push(fieldGroup);
+        const footballBall = ballFoot;
+        // Béisbol
+        const diamondGroup = new THREE.Group();
+        const diamondMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+        const diamondPoints = [[0,0,0.8],[0.8,0,0],[0,0,-0.8],[-0.8,0,0],[0,0,0.8]];
+        const diamondGeo = new THREE.BufferGeometry().setFromPoints(diamondPoints.map(p => new THREE.Vector3(p[0], p[1], p[2])));
+        const diamondLine = new THREE.Line(diamondGeo, diamondMat);
+        diamondGroup.add(diamondLine);
+        const ballBaseMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
+        const ballBase = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 12), ballBaseMat);
+        ballBase.position.set(0, 0.15, 0);
+        diamondGroup.add(ballBase);
+        diamondGroup.position.set(-3.0, 0.2, 2.5);
+        scene.add(diamondGroup);
+        sportObjects.baseball.push(diamondGroup);
+        const baseballBall = ballBase;
+        const allSportGroups = [...sportObjects.basketball, ...sportObjects.football, ...sportObjects.baseball];
+        allSportGroups.forEach(g => g.visible = false);
+
+        // --------------------------------------------------------------
+        // 9. ETIQUETAS DE PERFIL (flotantes) - POSICIONES AJUSTADAS
+        //    Movemos la etiqueta "Intermedio" para que no obstruya "Flujo de Datos"
+        // --------------------------------------------------------------
+        const profileLabelObjects = {};
+        const profileTexts = {
+            novato: '📖 Novato',
+            intermedio: '📊 Intermedio',
+            experto: '⚡ Experto',
+            tactico: '🧠 Táctico',
+            historico: '📜 Histórico'
+        };
+        const profileColors = {
+            novato: '#4FC3F7',
+            intermedio: '#AB47BC',
+            experto: '#FFA726',
+            tactico: '#26A69A',
+            historico: '#EF5350'
+        };
+        // Nuevas posiciones: intermedio se mueve a (-5.5, 2.8, 3.0) para alejarlo del módulo dataflow (-3.5, 0.8, 4.5)
+        const labelPositions = [
+            new THREE.Vector3(-4.5, 2.8, 3.0),  // novato
+            new THREE.Vector3(-5.5, 2.8, 3.0), // intermedio (movido a la izquierda)
+            new THREE.Vector3(2.5, 2.8, 4.5),  // experto
+            new THREE.Vector3(5.0, 2.8, 3.5),  // tactico
+            new THREE.Vector3(0, 3.0, 5.5)     // historico
+        ];
+        Object.keys(profileTexts).forEach((key, i) => {
+            const div = document.createElement('div');
+            div.textContent = profileTexts[key];
+            div.style.color = '#e8edf5';
+            div.style.fontSize = '13px';
+            div.style.fontWeight = '500';
+            div.style.textShadow = '0 0 20px rgba(0,0,0,0.9)';
+            div.style.background = 'rgba(11,14,20,0.7)';
+            div.style.padding = '4px 14px';
+            div.style.borderRadius = '30px';
+            div.style.border = `1px solid ${profileColors[key]}`;
+            div.style.backdropFilter = 'blur(6px)';
+            div.style.letterSpacing = '0.3px';
+            div.style.pointerEvents = 'none';
+            const label = new CSS2DObject(div);
+            label.position.copy(labelPositions[i]);
+            scene.add(label);
+            profileLabelObjects[key] = label;
+            label.visible = false;
+        });
+
+        // --------------------------------------------------------------
+        // 10. ESTADOS Y SELECCIÓN
+        // --------------------------------------------------------------
+        let currentState = 'idle';
+        let currentSport = 'basketball';
+        let currentProfile = 'intermedio';
+        let simSpeed = 1.0;
+        let layerMode = 'normal';
+
+        const stateColors = {
+            idle: { primary: 0x4FC3F7, emissive: 0x1a3a4a, bg: 0x0b0e14 },
+            analysis: { primary: 0x7E57C2, emissive: 0x3a1a5a, bg: 0x0d0a14 },
+            simulation: { primary: 0x42A5F5, emissive: 0x1a2a5a, bg: 0x0a0e1a },
+            operation: { primary: 0x26A69A, emissive: 0x1a3a3a, bg: 0x0a1414 },
+            diagnostic: { primary: 0xFFA726, emissive: 0x3a2a1a, bg: 0x14100a },
+            maintenance: { primary: 0x78909C, emissive: 0x1a2a2a, bg: 0x0a1014 },
+            emergency: { primary: 0xEF5350, emissive: 0x3a1a1a, bg: 0x140a0a },
+            ai: { primary: 0x4FC3F7, emissive: 0x2a4a6a, bg: 0x0a0e1a },
+            hybrid: { primary: 0xAB47BC, emissive: 0x2a1a4a, bg: 0x0a0a14 },
+            audit: { primary: 0xEF5350, emissive: 0x3a1a1a, bg: 0x140a0a }
+        };
+
+        function setState(state) {
+            currentState = state;
+            const colors = stateColors[state] || stateColors.idle;
+            modules.forEach((mod, idx) => {
+                const data = mod.userData;
+                if (data && data.material) {
+                    const c = new THREE.Color(colors.primary);
+                    c.offsetHSL((idx / modules.length) * 0.15, 0.1, 0.1);
+                    data.material.color.set(c);
+                    data.material.emissive.set(colors.emissive);
+                    data.material.emissiveIntensity = 0.3 + 0.15 * Math.sin(idx);
+                    if (data.edgeLine) data.edgeLine.material.color.set(colors.primary);
+                    if (data.ringMat) {
+                        data.ringMat.color.set(colors.primary);
+                        data.ringMat.emissive.set(colors.primary);
+                    }
+                }
+            });
+            if (coreData) {
+                coreData.mat.color.set(colors.primary);
+                coreData.mat.emissive.set(colors.primary);
+                coreData.mat.emissiveIntensity = 0.3;
+                coreData.wireMat.color.set(colors.primary);
+            }
+            scene.background = new THREE.Color(colors.bg);
+            const badge = document.getElementById('statusBadge');
+            badge.textContent = t(`status.${state}`);
+            document.getElementById('stateVal').textContent = t(`status.${state}`).replace('● ', '');
+            document.querySelectorAll('#control-panel .control-row:first-child button').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.state === state);
+            });
+            if (state === 'audit') {
+                auditLight.intensity = 1.2;
+                document.getElementById('alerts-panel').style.display = 'block';
+                document.getElementById('alertMsg').textContent = '🔍 Modo Auditoría activo: Trazabilidad completa';
+            } else {
+                auditLight.intensity = 0;
+                document.getElementById('alerts-panel').style.display = 'none';
+            }
+        }
+
+        function setSport(sport) {
+            currentSport = sport;
+            allSportGroups.forEach(g => g.visible = false);
+            if (sportObjects[sport]) sportObjects[sport].forEach(g => g.visible = true);
+            document.querySelectorAll('[data-sport]').forEach(btn => {
+                btn.classList.toggle('sport-active', btn.dataset.sport === sport);
+            });
+            const sportNames = { basketball: 'Baloncesto', football: 'Fútbol', baseball: 'Béisbol' };
+            document.getElementById('sportDisplay').textContent = sportNames[sport] || sport;
+            const sportColors = { basketball: 0x4FC3F7, football: 0x66BB6A, baseball: 0xFFA726 };
+            const col = sportColors[sport] || 0x4FC3F7;
+            flowParticles.forEach(fp => fp.points.material.color.setHex(col));
+            if (coreData) {
+                coreData.mat.color.setHex(col);
+                coreData.mat.emissive.setHex(col);
+                coreData.wireMat.color.setHex(col);
+            }
+            if (sport === 'basketball') basketballBall.position.set(0, 0.8, 0);
+            else if (sport === 'football') footballBall.position.set(0, 0.2, 0);
+            else if (sport === 'baseball') baseballBall.position.set(0, 0.15, 0);
+            updateRules();
+        }
+
+        function setProfile(profile) {
+            currentProfile = profile;
+            Object.keys(profileLabelObjects).forEach(key => {
+                profileLabelObjects[key].visible = (key === profile);
+            });
+            document.querySelectorAll('[data-profile]').forEach(btn => {
+                btn.classList.toggle('profile-active', btn.dataset.profile === profile);
+            });
+            const profileNames = {
+                novato: 'Novato', intermedio: 'Intermedio', experto: 'Experto',
+                tactico: 'Táctico', historico: 'Histórico'
+            };
+            document.getElementById('profileDisplay').textContent = profileNames[profile] || profile;
+            const profileColorsMap = {
+                novato: 0x4FC3F7, intermedio: 0xAB47BC, experto: 0xFFA726,
+                tactico: 0x26A69A, historico: 0xEF5350
+            };
+            const col = profileColorsMap[profile] || 0xAB47BC;
+            aiConnections.forEach(conn => conn.mat.color.setHex(col));
+            aiNodes.forEach(node => {
+                node.mesh.material.color.setHex(col);
+                node.mesh.material.emissive.setHex(col);
+            });
+            updateRules();
+        }
+
+        function updateRules() {
+            const list = document.getElementById('rules-list');
+            const items = list.querySelectorAll('.item');
+            const sportRules = {
+                basketball: ['RUN', 'Clutch', 'Ajuste defensivo', 'Rebote ofensivo', 'Eficiencia'],
+                football: ['Presión alta', 'Transición', 'Offside', 'Pases clave', 'Posesión'],
+                baseball: ['Leverage', 'Tendencia pitcheo', 'Cuenta', 'Bases', 'Velocidad']
+            };
+            const profileRules = {
+                novato: [1,0,0,0,0],
+                intermedio: [1,1,0,1,0],
+                experto: [1,1,1,1,1],
+                tactico: [0,1,1,0,1],
+                historico: [0,0,1,0,1]
+            };
+            const rules = sportRules[currentSport] || sportRules.basketball;
+            const active = profileRules[currentProfile] || profileRules.intermedio;
+            items.forEach((el, idx) => {
+                const label = el.querySelector('.label');
+                const val = el.querySelector('.value');
+                if (label && idx < rules.length) {
+                    label.textContent = rules[idx];
+                    const isActive = active[idx % active.length] === 1;
+                    val.textContent = isActive ? '●' : '○';
+                    val.className = 'value' + (isActive ? ' highlight' : '');
+                }
+            });
+            const alertDiv = document.getElementById('alertMsg');
+            if (currentState === 'audit') {
+                alertDiv.textContent = '🔍 Auditoría: Hash verificado · Traza completa';
+            } else if (currentProfile === 'novato') {
+                alertDiv.textContent = '📖 Glosario activo: Explicaciones simplificadas';
+            } else if (currentProfile === 'experto') {
+                alertDiv.textContent = '⚡ Eficiencia en tiempo real: Datos avanzados';
+            } else if (currentProfile === 'tactico') {
+                alertDiv.textContent = '🧠 Estructuras tácticas detectadas';
+            } else if (currentProfile === 'historico') {
+                alertDiv.textContent = '📜 Comparativo histórico: Temporada 2024';
+            } else {
+                alertDiv.textContent = '● Sistema operativo nominal';
+            }
+        }
+
+        // --------------------------------------------------------------
+        // 11. EVENTOS UI
+        // --------------------------------------------------------------
+        document.querySelectorAll('#control-panel .control-row:first-child button').forEach(btn => {
+            btn.addEventListener('click', () => setState(btn.dataset.state));
+        });
+        document.querySelectorAll('[data-sport]').forEach(btn => {
+            btn.addEventListener('click', () => setSport(btn.dataset.sport));
+        });
+        document.querySelectorAll('[data-profile]').forEach(btn => {
+            btn.addEventListener('click', () => setProfile(btn.dataset.profile));
+        });
+
+        document.getElementById('speedSlider').addEventListener('input', (e) => {
+            simSpeed = parseFloat(e.target.value);
+            document.getElementById('simSpeed').textContent = simSpeed.toFixed(1) + 'x';
+        });
+
+        document.querySelectorAll('#sim-panel .toggle-group button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#sim-panel .toggle-group button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                layerMode = btn.dataset.layer;
+                applyLayerMode(layerMode);
+            });
+        });
+
+        function applyLayerMode(mode) {
+            modules.forEach(mod => {
+                const data = mod.userData;
+                if (data && data.material) {
+                    if (mode === 'xray') {
+                        data.material.transparent = true;
+                        data.material.opacity = 0.3;
+                        data.material.wireframe = false;
+                        data.material.color.setHex(0x4FC3F7);
+                    } else if (mode === 'wire') {
+                        data.material.wireframe = true;
+                        data.material.transparent = false;
+                        data.material.opacity = 1.0;
+                    } else {
+                        data.material.transparent = false;
+                        data.material.opacity = 1.0;
+                        data.material.wireframe = false;
+                        data.material.color.setHex(data.baseColor);
+                    }
+                    data.material.needsUpdate = true;
+                }
+            });
+        }
+
+        document.querySelectorAll('#lang-selector button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#lang-selector button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentLang = btn.dataset.lang;
+                updateUI();
+                modules.forEach(mod => {
+                    const data = mod.userData;
+                    if (data && data.label) data.label.element.textContent = t(data.nameKey);
+                });
+                document.querySelector('#rules-panel h5').textContent = t('rules.title');
+                document.querySelector('#alerts-panel h5').textContent = t('alerts.title');
+                document.querySelector('#sim-panel h5').textContent = t('sim.title');
+            });
+        });
+
+        // Interacción: clic en módulos
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        renderer.domElement.addEventListener('click', (event) => {
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const meshes = modules.map(mod => mod.userData.mesh).filter(Boolean);
+            const intersects = raycaster.intersectObjects(meshes);
+            if (intersects.length > 0) {
+                const hitMesh = intersects[0].object;
+                let found = null;
+                for (const mod of modules) {
+                    if (mod.userData.mesh === hitMesh) {
+                        found = mod;
+                        break;
+                    }
+                }
+                if (found) {
+                    const data = found.userData;
+                    const name = t(data.nameKey);
+                    document.getElementById('alertMsg').textContent = `🔍 Módulo: ${name} · Versión ${data.size.toFixed(1)}`;
+                    document.getElementById('alerts-panel').style.display = 'block';
+                    setTimeout(() => {
+                        if (currentState !== 'audit') {
+                            document.getElementById('alerts-panel').style.display = 'none';
+                        }
+                    }, 3000);
+                    if (data.material) {
+                        data.material.emissiveIntensity = 0.8;
+                        setTimeout(() => {
+                            data.material.emissiveIntensity = 0.3;
+                        }, 500);
+                    }
+                }
+            }
+        });
+
+        // Inicializar
+        setSport('basketball');
+        setProfile('intermedio');
+        setState('idle');
+        updateUI();
+        updateRules();
+
+        // --------------------------------------------------------------
+        // 12. BUCLE DE ANIMACIÓN
+        // --------------------------------------------------------------
+        const clock = new THREE.Clock();
+
+        function animate() {
+            const delta = clock.getDelta() * simSpeed;
+            const time = clock.getElapsedTime() * simSpeed;
+
+            controls.update();
+
+            modules.forEach((mod, idx) => {
+                const data = mod.userData;
+                if (data && data.ring) {
+                    data.ring.rotation.y += delta * 0.3;
+                    data.ring.rotation.x += delta * 0.1;
+                }
+                mod.position.y = 0.8 + Math.sin(time * 0.5 + idx * 1.5) * 0.08;
+            });
+
+            if (coreData) {
+                coreData.group.rotation.y += delta * 0.2;
+                coreData.group.rotation.x = Math.sin(time * 0.1) * 0.05;
+                coreData.mesh.scale.setScalar(1 + Math.sin(time * 0.8) * 0.02);
+            }
+
+            flowParticles.forEach(fp => {
+                const positions = fp.points.geometry.attributes.position.array;
+                for (let i = 0; i < fp.count; i++) {
+                    fp.progress[i] += fp.speeds[i] * delta * 2.0 * simSpeed;
+                    if (fp.progress[i] > 1) fp.progress[i] -= 1;
+                    const t = fp.progress[i];
+                    const pt = fp.curve.getPoint(t);
+                    positions[i * 3] = pt.x;
+                    positions[i * 3 + 1] = pt.y;
+                    positions[i * 3 + 2] = pt.z;
+                }
+                fp.points.geometry.attributes.position.needsUpdate = true;
+            });
+
+            aiNodes.forEach((node, i) => {
+                const s = node.baseSize * (1 + 0.3 * Math.sin(time * node.speed + i));
+                node.mesh.scale.setScalar(s / node.baseSize);
+            });
+            aiConnections.forEach((conn, i) => {
+                const op = conn.baseOpacity * (0.6 + 0.4 * Math.sin(time * 0.5 + i * 0.3));
+                conn.mat.opacity = op;
+            });
+
+            stars.rotation.y += delta * 0.015 * simSpeed;
+
+            if (currentSport === 'basketball') {
+                const yOff = Math.abs(Math.sin(time * 2.5)) * 0.8 + 0.2;
+                basketballBall.position.y = yOff;
+                basketballBall.position.x = Math.sin(time * 1.2) * 0.3;
+                basketballBall.position.z = Math.cos(time * 0.9) * 0.2;
+                basketballBall.rotation.x += delta * 3 * simSpeed;
+                basketballBall.rotation.z += delta * 2 * simSpeed;
+            } else if (currentSport === 'football') {
+                const t = time * 0.8;
+                footballBall.position.x = Math.sin(t) * 0.6;
+                footballBall.position.z = Math.cos(t * 0.7) * 0.4;
+                footballBall.position.y = 0.2 + Math.sin(t * 1.5) * 0.08;
+                footballBall.rotation.x += delta * 2 * simSpeed;
+                footballBall.rotation.z += delta * 1.5 * simSpeed;
+            } else if (currentSport === 'baseball') {
+                const t = time * 1.2;
+                baseballBall.position.x = Math.sin(t) * 0.8;
+                baseballBall.position.z = Math.cos(t) * 0.5;
+                baseballBall.position.y = 0.15 + Math.abs(Math.sin(t * 0.5)) * 0.4;
+                baseballBall.rotation.x += delta * 4 * simSpeed;
+                baseballBall.rotation.y += delta * 3 * simSpeed;
+            }
+
+            const lat = 8 + 6 * Math.sin(time * 0.3 + 1.2) + 2 * Math.sin(time * 0.7);
+            document.getElementById('latencyVal').textContent = lat.toFixed(1) + ' ms';
+            const th = 720 + 180 * Math.sin(time * 0.2 + 0.5);
+            document.getElementById('throughputVal').textContent = Math.round(th) + ' Mbps';
+            const intg = 99.2 + 0.8 * Math.sin(time * 0.15 + 0.3);
+            document.getElementById('integrityVal').textContent = intg.toFixed(1) + '%';
+            const rules = 12 + Math.floor(4 * Math.sin(time * 0.1 + 0.8)) + 4;
+            document.getElementById('rulesVal').textContent = rules;
+            const freq = 0.2 + 0.3 * Math.sin(time * 0.25 + 1.1);
+            document.getElementById('overlayFreqVal').textContent = freq.toFixed(2);
+
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // --------------------------------------------------------------
+        // 13. REDIMENSIONAMIENTO
+        // --------------------------------------------------------------
+        window.addEventListener('resize', () => {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+            labelRenderer.setSize(w, h);
+        });
+
+        // --------------------------------------------------------------
+        // 14. AR (simplificado)
+        // --------------------------------------------------------------
+        window.activateAR = async () => {
+            if (!navigator.xr) {
+                alert('WebXR no está disponible.');
+                return;
+            }
+            try {
+                await navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['hit-test'] });
+                scene.background = new THREE.Color(0x000000);
+                camera.position.set(0, 1, 3);
+                controls.target.set(0, 0.5, 0);
+                controls.update();
+                alert('Modo AR activado (simulación).');
+            } catch (e) {
+                alert('Error AR: ' + e.message);
+            }
+        };
+        const arBtn = document.createElement('button');
+        arBtn.textContent = 'AR';
+        arBtn.style.display = navigator.xr ? 'inline-block' : 'none';
+        arBtn.addEventListener('click', window.activateAR);
+        document.querySelector('.control-row:last-child').appendChild(arBtn);
+
+        console.log('Neural Sports Fabric 3D con ajuste de posición de etiqueta "Intermedio" para no obstruir "Flujo de Datos".');
+    </script>
+</body>
+</html>
