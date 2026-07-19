@@ -1,0 +1,3096 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CUIDA NICARAGUA™ - Prototipo 3D Autónomo</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ThreeJS & OrbitControls CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #040508;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .scanlines {
+            background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%),
+                        linear-gradient(90deg, rgba(0,240,255,0.04), rgba(0,0,0,0), rgba(240,0,255,0.03));
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+        
+        .mode-btn-active {
+            background-color: rgba(6, 182, 212, 0.15);
+            border-color: rgba(6, 182, 212, 0.5);
+            color: #06b6d4;
+        }
+        .mode-btn-active:hover { background-color: rgba(6, 182, 212, 0.25); }
+        
+        .territory-tag {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 20px;
+            padding: 0.1rem 0.8rem;
+            font-size: 0.55rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #4fc3f7;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 120px;
+        }
+        .ia-metric {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.6rem;
+            padding: 0.15rem 0;
+            border-bottom: 1px solid rgba(30, 41, 59, 0.2);
+        }
+        .ia-metric:last-child { border-bottom: none; }
+        .ia-value {
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+        }
+        .validation-btn {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            color: #4fc3f7;
+            padding: 0.05rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.55rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .validation-btn:hover { background: rgba(6, 182, 212, 0.2); }
+        .validation-btn.approved {
+            background: rgba(52, 211, 153, 0.15);
+            border-color: #34d399;
+            color: #34d399;
+        }
+        .validation-btn.approved:hover { background: rgba(52, 211, 153, 0.25); }
+        .validation-btn.rejected {
+            background: rgba(251, 113, 133, 0.15);
+            border-color: #fb7185;
+            color: #fb7185;
+        }
+        .validation-btn.rejected:hover { background: rgba(251, 113, 133, 0.25); }
+        
+        .node-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: rgba(6, 182, 212, 0.04);
+            border: 1px solid rgba(6, 182, 212, 0.1);
+            border-radius: 14px;
+            padding: 0.05rem 0.5rem;
+            font-size: 0.5rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+        .node-indicator .dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .node-indicator .dot.active { background: #34d399; }
+        .node-indicator .dot.resilient { background: #facc15; }
+        .node-indicator .dot.scaling { background: #60a5fa; }
+        
+        .card-hover {
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .card-hover:hover {
+            border-color: rgba(6, 182, 212, 0.3);
+            box-shadow: 0 0 30px rgba(6, 182, 212, 0.03);
+        }
+        
+        .incident-item {
+            transition: all 0.3s;
+            border-left: 2px solid transparent;
+        }
+        .incident-item:hover { background: rgba(15, 23, 42, 0.6); }
+        .incident-item.frustracion { border-left-color: #f87171; }
+        .incident-item.esperanza { border-left-color: #22d3ee; }
+        .incident-item.orgullo { border-left-color: #34d399; }
+        .incident-item.abandono { border-left-color: #a78bfa; }
+        
+        @media (max-width: 640px) {
+            .territory-tag { max-width: 80px; font-size: 0.45rem; }
+            .ia-metric { font-size: 0.5rem; }
+            .ia-value { font-size: 0.6rem; }
+        }
+        @keyframes glow-pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+        }
+        .glow-pulse { animation: glow-pulse 2s ease-in-out infinite; }
+        input[type="range"] {
+            height: 4px;
+            background: #1e293b;
+            border-radius: 2px;
+            -webkit-appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #06b6d4;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #06b6d4;
+            cursor: pointer;
+            border: none;
+        }
+
+        .notif-tab-active {
+            background-color: rgba(6, 182, 212, 0.12);
+            border-color: rgba(6, 182, 212, 0.4);
+            color: #4fc3f7;
+        }
+        .notif-tab {
+            transition: all 0.2s;
+        }
+        .notif-tab:hover { color: #e2e8f0; }
+        .whatsapp-bubble-self {
+            background-color: #dcf8c6;
+            color: #1e293b;
+        }
+        .whatsapp-bubble-other {
+            background-color: #ffffff;
+            color: #1e293b;
+        }
+        .whatsapp-header {
+            background-color: #075e54;
+            color: white;
+        }
+        .email-preview {
+            background-color: #0b0e16;
+            border: 1px solid #1e293b;
+            border-radius: 0.75rem;
+            padding: 0.75rem;
+        }
+        .institutional-card {
+            background: #0b0e16;
+            border: 1px solid rgba(168, 85, 247, 0.2);
+        }
+        .node-card {
+            background: #080b12;
+            border: 1px solid #1e293b;
+            border-radius: 8px;
+            padding: 8px 10px;
+            transition: all .3s;
+        }
+        .node-card:hover {
+            border-color: rgba(6,182,212,0.4);
+            background: #0a0e18;
+        }
+        .node-bar {
+            height: 4px;
+            border-radius: 2px;
+            background: #111827;
+            overflow: hidden;
+        }
+        .node-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width .6s ease;
+        }
+        .modal-overlay {
+            background: rgba(2,3,5,0.92);
+            backdrop-filter: blur(8px);
+        }
+        .anim-slide-up {
+            animation: slideUp .4s ease forwards;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .validation-check {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all .3s;
+            flex-shrink: 0;
+        }
+        .validation-check.done {
+            border-color: #22c55e;
+            background: rgba(34,197,94,0.15);
+        }
+        .validation-check.done svg { display: block; }
+        .validation-check svg { display: none; width: 12px; height: 12px; color: #22c55e; }
+
+        .mode-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: rgba(6, 182, 212, 0.04);
+            border: 1px solid rgba(6, 182, 212, 0.1);
+            border-radius: 14px;
+            padding: 0.05rem 0.5rem;
+            font-size: 0.5rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+        .mode-indicator .dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .mode-indicator .dot.reposo { background: #06b6d4; }
+        .mode-indicator .dot.analisis { background: #a855f7; }
+        .mode-indicator .dot.simulacion { background: #facc15; }
+        .mode-indicator .dot.emergencia { background: #ef4444; }
+        .mode-indicator .dot.blockchain { background: #34d399; }
+
+        .simulate-btn {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            color: #4fc3f7;
+            padding: 0.05rem 0.4rem;
+            border-radius: 10px;
+            font-size: 0.5rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            line-height: 1.2;
+        }
+        .simulate-btn:hover { background: rgba(6, 182, 212, 0.2); }
+    </style>
+</head>
+<body class="bg-[#040508] text-slate-200 min-h-screen flex flex-col relative select-none">
+
+    <!-- Ambient Grid Background -->
+    <div class="fixed inset-0 scanlines opacity-40 z-0"></div>
+
+    <!-- Header Section -->
+    <header class="relative z-10 border-b border-[#111622] bg-[#06080d]/90 backdrop-blur-md px-4 sm:px-6 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div class="flex-1 min-w-0">
+            <div class="text-[9px] sm:text-[10px] font-mono text-cyan-400 font-bold tracking-widest uppercase flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+                <span class="truncate">DR. JULIO CÉSAR OPORTA BARRERA</span>
+            </div>
+            <h1 class="text-lg sm:text-xl font-black tracking-wider text-white font-mono flex items-center gap-2">
+                CUIDA NICARAGUA<span class="text-cyan-400 font-bold">™</span>
+            </h1>
+            <p class="text-[10px] sm:text-xs text-slate-400 tracking-tight font-medium truncate" id="hdr-tagline">
+                De la emoción ciudadana a la acción institucional sin fricción.
+            </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 flex-shrink-0">
+            <button onclick="toggleAudio()" id="btn-sound" class="p-1.5 sm:p-2 rounded border bg-[#4fc3f7]/10 border-[#4fc3f7]/30 text-cyan-400 transition-all duration-300 hover:bg-[#4fc3f7]/20">
+                <i data-lucide="volume-2" class="w-4 h-4"></i>
+            </button>
+            <div class="flex items-center bg-[#090c12] border border-slate-800 rounded p-0.5">
+                <button onclick="switchLanguage('es')" id="btn-lang-es" class="px-2 py-0.5 text-[9px] sm:text-[10px] font-mono font-bold rounded uppercase transition-all duration-300 mode-btn-active">ESP</button>
+                <button onclick="switchLanguage('en')" id="btn-lang-en" class="px-2 py-0.5 text-[9px] sm:text-[10px] font-mono font-bold rounded uppercase transition-all duration-300 text-slate-400 hover:text-slate-200">ENG</button>
+                <button onclick="switchLanguage('zh')" id="btn-lang-zh" class="px-2 py-0.5 text-[9px] sm:text-[10px] font-mono font-bold rounded uppercase transition-all duration-300 text-slate-400 hover:text-slate-200">中文</button>
+            </div>
+            <div class="flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded bg-cyan-950/40 border border-cyan-800/40 text-[9px] sm:text-[11px] font-mono text-cyan-400 font-bold whitespace-nowrap">
+                <i data-lucide="globe" class="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-spin"></i>
+                <span>OFFLINE</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Dashboard -->
+    <main class="relative z-10 flex-grow p-3 sm:p-4 md:p-6 grid grid-cols-1 xl:grid-cols-12 gap-4 sm:gap-6">
+        
+        <!-- LEFT COLUMN (xl:col-span-4) -->
+        <section class="xl:col-span-4 flex flex-col gap-4 sm:gap-6">
+            
+            <!-- Vision Card -->
+            <div class="bg-[#0a0c10]/95 border border-[#1e293b]/70 rounded-xl p-4 shadow-lg card-hover relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-[1px] bg-cyan-500/25 animate-pulse"></div>
+                <div class="flex items-center gap-2 border-b border-[#1e293b]/50 pb-2 mb-3">
+                    <i data-lucide="brain-circuit" class="w-4 h-4 text-cyan-400"></i>
+                    <h2 class="text-[10px] sm:text-xs font-mono font-bold text-slate-300 tracking-widest uppercase" id="lbl-vision">VISIÓN CIVILIZATORIA</h2>
+                </div>
+                <ul class="flex flex-col gap-2 text-[11px] sm:text-xs text-slate-300">
+                    <li class="flex gap-2 items-start leading-relaxed"><span class="text-cyan-400 font-mono font-bold">[Ⅰ]</span><span id="vis-1">El territorio se concibe como un cuerpo vivo con memoria, dolor y esperanza.</span></li>
+                    <li class="flex gap-2 items-start leading-relaxed"><span class="text-cyan-400 font-mono font-bold">[Ⅱ]</span><span id="vis-2">La ciudadanía actúa como una red neuronal que percibe, reporta y transforma.</span></li>
+                    <li class="flex gap-2 items-start leading-relaxed"><span class="text-cyan-400 font-mono font-bold">[Ⅲ]</span><span id="vis-3">Las instituciones responden por urgencia emocional, no por rígidas jerarquías.</span></li>
+                    <li class="flex gap-2 items-start leading-relaxed"><span class="text-cyan-400 font-mono font-bold">[Ⅳ]</span><span id="vis-4">Tecnología Sostenible: Despliegue seguro 100% offline, sin dependencias externas.</span></li>
+                </ul>
+            </div>
+
+            <!-- Emotional SLA Matrix -->
+            <div class="bg-[#0a0c10]/95 border border-[#1e293b]/70 rounded-xl p-4 shadow-lg card-hover flex flex-col gap-3">
+                <div class="flex items-center gap-2 border-b border-[#1e293b]/50 pb-2">
+                    <i data-lucide="sliders" class="w-4 h-4 text-cyan-400"></i>
+                    <h2 class="text-[10px] sm:text-xs font-mono font-bold text-slate-300 tracking-widest uppercase" id="lbl-sla-title">SLA EMOCIONAL (CAPÍTULO 2.5)</h2>
+                </div>
+                <p class="text-[10px] sm:text-[11px] text-slate-400 font-sans leading-relaxed" id="lbl-sla-desc">Tiempos de respuesta definidos estrictamente por el impacto humano y el sentir colectivo.</p>
+                <div class="flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between border-l-2 border-red-500 bg-red-950/10 px-2 py-1 rounded">
+                        <div><div class="text-[11px] sm:text-xs font-bold text-red-400" id="sla-1-name">Frustración Crítica</div><div class="text-[9px] sm:text-[10px] text-slate-400" id="sla-1-ex">Robos, Daño Vial Urgente</div></div>
+                        <span class="text-[9px] sm:text-[10px] font-mono font-bold text-white bg-red-950 border border-red-800 px-2 py-0.5 rounded">&le; 2h</span>
+                    </div>
+                    <div class="flex items-center justify-between border-l-2 border-cyan-500 bg-cyan-950/10 px-2 py-1 rounded">
+                        <div><div class="text-[11px] sm:text-xs font-bold text-cyan-400" id="sla-2-name">Esperanza Activa</div><div class="text-[9px] sm:text-[10px] text-slate-400" id="sla-2-ex">Propuestas, Parques, Viveros</div></div>
+                        <span class="text-[9px] sm:text-[10px] font-mono font-bold text-white bg-cyan-950 border border-cyan-800 px-2 py-0.5 rounded">&le; 24h</span>
+                    </div>
+                    <div class="flex items-center justify-between border-l-2 border-emerald-500 bg-emerald-950/10 px-2 py-1 rounded">
+                        <div><div class="text-[11px] sm:text-xs font-bold text-emerald-400" id="sla-3-name">Orgullo Territorial</div><div class="text-[9px] sm:text-[10px] text-slate-400" id="sla-3-ex">Brigadas, Cultura</div></div>
+                        <span class="text-[9px] sm:text-[10px] font-mono font-bold text-white bg-emerald-950 border border-emerald-800 px-2 py-0.5 rounded">&le; 72h</span>
+                    </div>
+                    <div class="flex items-center justify-between border-l-2 border-purple-500 bg-purple-950/10 px-2 py-1 rounded">
+                        <div><div class="text-[11px] sm:text-xs font-bold text-purple-400" id="sla-4-name">Abandono Acumulado</div><div class="text-[9px] sm:text-[10px] text-slate-400" id="sla-4-ex">Basura, Servicios Deficientes</div></div>
+                        <span class="text-[9px] sm:text-[10px] font-mono font-bold text-white bg-purple-950 border border-purple-800 px-2 py-0.5 rounded">&le; 7d</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Author Compensation -->
+            <div class="bg-[#0b0e16] border border-cyan-500/20 rounded-xl p-3 flex gap-3 items-center relative overflow-hidden card-hover">
+                <div class="p-2 rounded bg-cyan-950/40 border border-cyan-800/30 text-[#4fc3f7] flex-shrink-0">
+                    <i data-lucide="award" class="w-5 h-5"></i>
+                </div>
+                <div class="flex flex-col font-mono text-[9px] sm:text-[9.5px] text-slate-400 leading-normal min-w-0">
+                    <div class="text-slate-200 font-bold uppercase tracking-wider text-[9px] sm:text-[10px] flex items-center gap-1.5">
+                        <i data-lucide="heart-handshake" class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-cyan-400"></i>
+                        <span id="lbl-author-comp">COMPENSACIÓN INTELECTUAL</span>
+                    </div>
+                    <p class="mt-1" id="vis-comp-desc">Se contempla una compensación de C$ 20.00 córdobas netos por cada usuario activo registrado, como legítimo reconocimiento por la investigación y autoría conceptual del Dr. Julio César Oporta Barrera.</p>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- CENTER COLUMN (xl:col-span-5) -->
+        <section class="xl:col-span-5 flex flex-col gap-4 sm:gap-6">
+            
+            <!-- Territorial Navigation -->
+            <div class="bg-[#0a0c10]/95 border border-[#1e293b]/70 rounded-xl p-4 shadow-lg card-hover relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-[1px] bg-cyan-500/35"></div>
+                <div class="flex items-center gap-2 border-b border-[#1e293b]/50 pb-2 mb-3">
+                    <i data-lucide="map-pin" class="w-4 h-4 text-cyan-400"></i>
+                    <h2 class="text-[10px] sm:text-xs font-mono font-bold text-slate-200 tracking-wider uppercase" id="lbl-sovereign-nav">NAVEGACIÓN TERRITORIAL SOBERANA</h2>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+                    <div class="flex flex-col gap-0.5">
+                        <label class="text-[9px] sm:text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest">Departamento / Región</label>
+                        <select id="sel-dept" onchange="onDeptChange()" class="bg-[#06080d] border border-slate-800 text-slate-300 p-1.5 sm:p-2 rounded focus:border-cyan-500 outline-none font-mono text-[10px] sm:text-[11px] font-semibold cursor-pointer">
+                            <option value="todos">República de Nicaragua</option>
+                            <option value="boaco">Boaco</option><option value="carazo">Carazo</option>
+                            <option value="chinandega">Chinandega</option><option value="chontales">Chontales</option>
+                            <option value="esteli">Estelí</option><option value="granada">Granada</option>
+                            <option value="jinotega">Jinotega</option><option value="leon">León</option>
+                            <option value="madriz">Madriz</option><option value="managua">Managua</option>
+                            <option value="masaya">Masaya</option><option value="matagalpa">Matagalpa</option>
+                            <option value="nueva_segovia">Nueva Segovia</option><option value="rivas">Rivas</option>
+                            <option value="rio_san_juan">Río San Juan</option>
+                            <option value="raan">Costa Caribe Norte (RAAN)</option>
+                            <option value="raas">Costa Caribe Sur (RAAS)</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col gap-0.5">
+                        <label class="text-[9px] sm:text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest">Municipio</label>
+                        <select id="sel-muni" onchange="onMuniChange()" disabled class="bg-[#06080d] border border-slate-800 text-slate-300 p-1.5 sm:p-2 rounded focus:border-cyan-500 outline-none font-mono text-[10px] sm:text-[11px] font-semibold disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">
+                            <option value="todos">Todos los Municipios</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col gap-0.5">
+                        <label class="text-[9px] sm:text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest">Comunidad</label>
+                        <select id="sel-comm" onchange="onCommChange()" disabled class="bg-[#06080d] border border-slate-800 text-slate-300 p-1.5 sm:p-2 rounded focus:border-cyan-500 outline-none font-mono text-[10px] sm:text-[11px] font-semibold disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">
+                            <option value="todos">Todas las Comunidades</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-3 pt-2 border-t border-slate-800/50 flex flex-wrap gap-2 items-center">
+                    <span class="text-[7px] sm:text-[8px] font-mono text-slate-500 uppercase tracking-wider">Nodos autónomos:</span>
+                    <span class="node-indicator"><span class="dot active"></span> Activo</span>
+                    <span class="node-indicator"><span class="dot resilient"></span> Resiliente</span>
+                    <span class="node-indicator"><span class="dot scaling"></span> Escalando</span>
+                    <span id="node-status-label" class="text-[7px] sm:text-[8px] font-mono text-cyan-400 ml-auto truncate max-w-[140px] sm:max-w-none">República · Nodo Central</span>
+                </div>
+            </div>
+
+            <!-- NODOS TERRITORIALES AUTONOMOS (Feature #4 desde v4) -->
+            <div id="territorial-nodes-section" class="bg-[#0a0c10]/95 border border-[#1e293b]/70 rounded-xl p-3.5 hidden">
+                <div class="flex items-center justify-between border-b border-[#1e293b]/50 pb-2 mb-2.5">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="network" class="w-4 h-4 text-cyan-400"></i>
+                        <h2 class="text-[10px] sm:text-xs font-mono font-bold text-slate-200 tracking-widest uppercase">NODOS TERRITORIALES AUTÓNOMOS</h2>
+                    </div>
+                    <span class="territory-tag" id="nodes-dept-tag">--</span>
+                </div>
+                <p class="text-[9px] sm:text-[10px] text-slate-400 mb-2">Cada municipio opera como nodo con capacidad de adaptación, resiliencia y escalamiento independiente.</p>
+                <div id="nodes-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[200px] overflow-y-auto pr-1"></div>
+                <div class="flex items-center gap-4 mt-2 pt-2 border-t border-slate-800/50 text-[8px] font-mono text-slate-500">
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Activo</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-yellow-500"></span>Alerta</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span>Crisis</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span>Escalando</span>
+                </div>
+            </div>
+
+            <!-- 3D View (NUEVA REPRESENTACIÓN URBANA) -->
+            <div class="flex flex-col gap-2">
+                <div class="flex justify-between items-center px-1">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="eye" class="w-4 h-4 text-[#4fc3f7]"></i>
+                        <span class="text-[10px] sm:text-xs font-mono text-slate-400 font-bold uppercase tracking-wider" id="lbl-3d-hologram">SISTEMA NERVIOSO CÍVICO 3D</span>
+                    </div>
+                    <span class="text-[9px] sm:text-[10px] font-mono text-slate-500">CAMERA: <span class="text-cyan-400 font-bold uppercase" id="camera-state-txt">ORBITAL</span></span>
+                </div>
+                <div id="canvas-container" class="relative w-full h-[300px] sm:h-[400px] lg:h-[450px] bg-[#06080d] border border-slate-800/80 rounded-xl overflow-hidden">
+                    <canvas id="canvas-3d" class="w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+                    <div class="absolute top-3 left-3 pointer-events-none font-mono flex flex-col gap-0.5 z-10">
+                        <div class="text-[9px] sm:text-[10px] text-cyan-400 font-bold bg-cyan-950/50 border border-cyan-800/40 px-2 py-0.5 rounded">NUCLEO COGNITIVO</div>
+                        <div class="text-[8px] sm:text-[9px] text-slate-500" id="lbl-offline-note">100% local · sin servidores</div>
+                    </div>
+                    <div class="absolute bottom-3 left-3 pointer-events-none font-mono text-[9px] sm:text-[10px] text-slate-400 bg-black/70 px-2 py-1 rounded border border-slate-800/80 z-10" id="lbl-drag-inst">Arrastra para rotar</div>
+                    <div id="sim-active-overlay" class="absolute top-12 left-3 right-3 bg-cyan-950/90 border border-cyan-500/40 p-2 rounded-lg text-[10px] sm:text-xs font-mono text-cyan-300 flex justify-between items-center hidden animate-pulse z-10">
+                        <div><span class="font-bold text-[9px] sm:text-[10px] text-cyan-400 block mb-0.5 uppercase" id="lbl-sim-proc">PROCESANDO:</span><div id="sim-active-text" class="text-white font-bold text-[10px] sm:text-xs truncate">Inundación detectada</div></div>
+                        <span class="text-[8px] sm:text-[9px] bg-cyan-800 px-2 py-0.5 rounded font-extrabold border border-cyan-600 flex-shrink-0">SINAPSIS OK</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Camera Views -->
+            <div class="grid grid-cols-4 gap-1 sm:gap-2 bg-[#090c12] border border-slate-800 rounded-lg p-1">
+                <button onclick="changeCamera('orbital')" id="cam-orbital" class="py-1 text-[8px] sm:text-[10px] font-mono font-bold rounded uppercase transition-all duration-300 mode-btn-active">Orbital</button>
+                <button onclick="changeCamera('exploded')" id="cam-exploded" class="py-1 text-[8px] sm:text-[10px] font-mono font-bold rounded uppercase transition-all duration-300 text-slate-400 hover:text-slate-200">Capas</button>
+                <button onclick="changeCamera('xray')" id="cam-xray" class="py-1 text-[8px] sm:text-[10px] font-mono font-bold rounded uppercase transition-all duration-300 text-slate-400 hover:text-slate-200">Rayos X</button>
+                <button onclick="changeCamera('internal')" id="cam-internal" class="py-1 text-[8px] sm:text-[10px] font-mono font-bold rounded uppercase transition-all duration-300 text-slate-400 hover:text-slate-200">Core</button>
+            </div>
+
+            <!-- Blockchain Ledger mejorado (ejecución trazable) -->
+            <div class="bg-[#0a0c10]/95 border border-[#1e293b]/70 rounded-xl p-4 shadow-lg card-hover flex flex-col gap-3">
+                <div class="flex items-center gap-2 border-b border-[#1e293b]/50 pb-2">
+                    <i data-lucide="shield-check" class="w-4 h-4 text-cyan-400"></i>
+                    <h2 class="text-[10px] sm:text-xs font-mono font-bold text-slate-300 tracking-widest uppercase" id="lbl-ai">REGISTRO BLOCKCHAIN SOBERANO (TRAZABLE)</h2>
+                    <span class="ml-auto text-[7px] sm:text-[8px] font-mono text-emerald-400 bg-emerald-950/30 px-1.5 py-0.5 rounded border border-emerald-800/30">LIVE</span>
+                </div>
+                <div class="flex flex-col gap-1.5 overflow-y-auto h-[120px] sm:h-[160px] pr-1" id="block-feed">
+                    <!-- Se llena desde JS -->
+                </div>
+            </div>
+
+        </section>
+
+        <!-- RIGHT COLUMN (xl:col-span-3) -->
+        <section class="xl:col-span-3 flex flex-col gap-4 sm:gap-6">
+            
+            <!-- Operating Modes (mejorado con indicador territorial) -->
+            <div class="bg-[#0a0c10]/95 border border-[#1e293b]/70 rounded-xl p-4 shadow-lg card-hover flex flex-col gap-3">
+                <div class="flex items-center gap-2 border-b border-[#1e293b]/50 pb-2">
+                    <i data-lucide="sliders" class="w-4 h-4 text-cyan-400"></i>
+                    <h3 class="text-[10px] sm:text-xs font-mono font-bold text-slate-300 tracking-widest uppercase" id="lbl-sys-modes-title">MODOS OPERATIVOS</h3>
+                </div>
+                <div class="grid grid-cols-2 gap-1">
+                    <button onclick="changeMode('reposo')" id="mode-reposo" class="py-1 text-[8px] sm:text-[9px] font-mono font-bold rounded border uppercase transition-all duration-300 mode-btn-active">REPOSO</button>
+                    <button onclick="changeMode('analisis')" id="mode-analisis" class="py-1 text-[8px] sm:text-[9px] font-mono font-bold rounded border uppercase transition-all duration-300 text-slate-400 border-slate-900 bg-black/40 hover:border-slate-700">ANÁLISIS</button>
+                    <button onclick="changeMode('simulacion')" id="mode-simulacion" class="py-1 text-[8px] sm:text-[9px] font-mono font-bold rounded border uppercase transition-all duration-300 text-slate-400 border-slate-900 bg-black/40 hover:border-slate-700">SIMULACIÓN</button>
+                    <button onclick="changeMode('emergencia')" id="mode-emergencia" class="py-1 text-[8px] sm:text-[9px] font-mono font-bold rounded border uppercase transition-all duration-300 text-slate-400 border-slate-900 bg-black/40 hover:border-slate-700">CRISIS</button>
+                </div>
+                <button onclick="changeMode('blockchain')" id="mode-blockchain" class="w-full py-1 text-[8px] sm:text-[9px] font-mono font-bold rounded border uppercase transition-all duration-300 text-slate-400 border-slate-900 bg-black/40 hover:border-slate-700">NODO BLOCKCHAIN</button>
+                <p class="text-[9px] sm:text-[10px] font-mono text-slate-400 leading-normal bg-[#0b0f19] p-2 rounded border border-slate-900" id="mode-desc-text">REPOSO: Monitoreo civil pasivo en tiempo real. Neuronas territoriales estables.</p>
+                <div class="flex items-center gap-2 mt-0.5 pt-1 border-t border-slate-800/50 text-[8px] sm:text-[9px] text-slate-500 font-mono">
+                    <i data-lucide="map-pin" class="w-3 h-3 text-cyan-400"></i>
+                    <span>Territorio activo:</span>
+                    <span id="active-territory-label" class="text-cyan-300 font-bold truncate max-w-[120px] sm:max-w-none">República de Nicaragua</span>
+                </div>
+                <div class="flex items-center gap-2 text-[8px] font-mono text-slate-500">
+                    <span class="mode-indicator"><span class="dot reposo" id="mode-dot"></span> Modo: <span id="mode-label" class="text-cyan-300 font-bold">REPOSO</span></span>
+                </div>
+            </div>
+
+            <!-- Incident Simulator (mejorado: usa el territorio seleccionado) -->
+            <div class="bg-[#0a0c10]/95 border border-[#1e293b]/70 rounded-xl p-4 shadow-lg card-hover flex flex-col gap-3">
+                <div class="flex justify-between items-center border-b border-[#1e293b]/50 pb-2">
+                    <div class="flex items-center gap-1.5">
+                        <i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i>
+                        <h3 class="text-[10px] sm:text-xs font-mono font-bold text-slate-300 tracking-widest uppercase" id="lbl-sim-ctl">SIMULADOR</h3>
+                    </div>
+                    <button onclick="toggleForm()" class="flex items-center gap-1 bg-cyan-950/30 hover:bg-cyan-900/30 text-[#4fc3f7] text-[8px] sm:text-[9px] font-mono border border-cyan-800/40 py-0.5 px-2 rounded transition-all duration-300 font-bold">
+                        <span id="btn-toggle-form">NUEVO REPORTE</span>
+                    </button>
+                </div>
+                <p class="text-[9px] sm:text-[10px] text-slate-400 font-sans leading-normal" id="lbl-sim-desc">Inyecta reportes ciudadanos simulados para evaluar derivación automática y registro en blockchain.</p>
+
+                <form id="report-form" onsubmit="submitCustomReport(event)" class="bg-[#0b0e16] border border-slate-900 p-3 rounded-lg flex flex-col gap-2 hidden">
+                    <div class="grid grid-cols-2 gap-2 text-[9px] sm:text-[10px] font-mono">
+                        <div class="flex flex-col gap-0.5">
+                            <label class="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase" id="lbl-form-city">MUNICIPIO</label>
+                            <select id="form-city" class="bg-[#06080d] border border-slate-800 text-slate-300 p-1 rounded focus:border-cyan-500 outline-none"></select>
+                        </div>
+                        <div class="flex flex-col gap-0.5">
+                            <label class="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase" id="lbl-form-emotion">SENTIMIENTO</label>
+                            <select id="form-emotion" class="bg-[#06080d] border border-slate-800 text-slate-300 p-1 rounded focus:border-cyan-500 outline-none">
+                                <option value="frustracion">Frustración</option>
+                                <option value="esperanza">Esperanza</option>
+                                <option value="orgullo">Orgullo</option>
+                                <option value="abandono">Abandono</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-0.5 text-[9px] sm:text-[10px] font-mono">
+                        <label class="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase" id="lbl-form-title">TÍTULO DEL INCIDENTE</label>
+                        <input type="text" id="form-title" placeholder="Ej. Fuga de agua..." required class="bg-[#06080d] border border-slate-800 text-slate-200 p-1 rounded focus:border-cyan-500 outline-none text-[9px] sm:text-[10px]" />
+                    </div>
+                    <div class="flex flex-col gap-0.5 text-[9px] sm:text-[10px] font-mono">
+                        <label class="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase" id="lbl-form-severity">GRAVEDAD (1-10): <span id="severity-label" class="text-cyan-400">7</span></label>
+                        <input type="range" id="form-severity" min="1" max="10" value="7" oninput="document.getElementById('severity-label').textContent=this.value" class="accent-cyan-400 w-full" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-[9px] sm:text-[10px] font-mono">
+                        <div class="flex flex-col gap-0.5">
+                            <label class="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase">NOMBRE</label>
+                            <input type="text" id="form-citizen-name" placeholder="Ej. Juan" class="bg-[#06080d] border border-slate-800 text-slate-200 p-1 rounded focus:border-cyan-500 outline-none text-[9px] sm:text-[10px]" />
+                        </div>
+                        <div class="flex flex-col gap-0.5">
+                            <label class="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase">APELLIDO</label>
+                            <input type="text" id="form-citizen-lastname" placeholder="Ej. Pérez" class="bg-[#06080d] border border-slate-800 text-slate-200 p-1 rounded focus:border-cyan-500 outline-none text-[9px] sm:text-[10px]" />
+                        </div>
+                    </div>
+                    <input type="hidden" id="form-community" value="todos" />
+                    <button type="submit" class="w-full bg-[#101524] hover:bg-[#1a2138] border border-cyan-800/50 text-[#4fc3f7] font-mono py-1.5 rounded text-[9px] sm:text-[10px] font-bold transition-all duration-300" id="btn-submit-report">ENVIAR REPORTE AL CORE</button>
+                </form>
+
+                <div id="quick-presets" class="flex flex-col gap-1.5">
+                    <div class="grid grid-cols-2 gap-1">
+                        <button onclick="triggerPreset('frustracion')" class="bg-red-950/20 hover:bg-red-900/35 border border-red-500/30 text-red-400 text-[9px] sm:text-[10px] font-mono font-bold rounded py-1.5 transition-all duration-300">⚡ FRUSTRA</button>
+                        <button onclick="triggerPreset('esperanza')" class="bg-cyan-950/20 hover:bg-cyan-900/35 border border-cyan-500/30 text-cyan-400 text-[9px] sm:text-[10px] font-mono font-bold rounded py-1.5 transition-all duration-300">⚡ ESPERANZA</button>
+                        <button onclick="triggerPreset('orgullo')" class="bg-emerald-950/20 hover:bg-emerald-900/35 border border-emerald-500/30 text-emerald-400 text-[9px] sm:text-[10px] font-mono font-bold rounded py-1.5 transition-all duration-300">⚡ ORGULLO</button>
+                        <button onclick="triggerPreset('abandono')" class="bg-purple-950/20 hover:bg-purple-900/35 border border-purple-500/30 text-purple-400 text-[9px] sm:text-[10px] font-mono font-bold rounded py-1.5 transition-all duration-300">⚡ ABANDONO</button>
+                    </div>
+                    <button onclick="resetSim()" class="w-full bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded py-1 text-[8px] sm:text-[9px] font-mono font-bold uppercase transition-all duration-300 mt-0.5" id="btn-reset">RECALIBRAR RED CÍVICA</button>
+                </div>
+            </div>
+
+            <!-- IMPULSOS + VALIDACIÓN (transmisión filtrada por territorio) -->
+            <div class="bg-[#0a0c10]/95 border border-[#1e293b]/70 rounded-xl p-4 shadow-lg card-hover flex-grow flex flex-col gap-2">
+                <div class="flex items-center justify-between border-b border-[#1e293b]/50 pb-1.5">
+                    <h3 class="text-[10px] sm:text-xs font-mono font-bold text-slate-400 tracking-wider" id="lbl-incidents-title">IMPULSOS + VALIDACIÓN</h3>
+                    <span class="territory-tag" id="feed-territory-tag">TODOS</span>
+                </div>
+                <div class="flex flex-col gap-1.5 overflow-y-auto max-h-[160px] sm:max-h-[190px] pr-1" id="incidents-feed">
+                    <!-- Se llena desde JS -->
+                </div>
+                <!-- Indicadores de notificaciones simplificados -->
+                <div class="mt-1 pt-1.5 border-t border-slate-800/50 flex flex-wrap gap-1.5">
+                    <span class="text-[7px] sm:text-[8px] font-mono text-slate-500 uppercase">Notificaciones:</span>
+                    <span id="notif-push" class="text-[7px] sm:text-[8px] font-mono bg-cyan-950/30 px-1.5 py-0.5 rounded border border-cyan-800/30 text-cyan-400">📱 Push</span>
+                    <span id="notif-email" class="text-[7px] sm:text-[8px] font-mono bg-slate-800/30 px-1.5 py-0.5 rounded border border-slate-700/30 text-slate-300">✉️ Correo</span>
+                    <span id="notif-whatsapp" class="text-[7px] sm:text-[8px] font-mono bg-emerald-950/30 px-1.5 py-0.5 rounded border border-emerald-800/30 text-emerald-400">💬 WhatsApp</span>
+                    <span id="notif-inst" class="text-[7px] sm:text-[8px] font-mono bg-purple-950/30 px-1.5 py-0.5 rounded border border-purple-800/30 text-purple-400">🏛️ Inst.</span>
+                </div>
+            </div>
+
+            <!-- NOTIFICACIONES MULTICANAL (simulación contextualizada) -->
+            <div class="bg-[#07090f] border border-slate-900 rounded-xl p-4 shadow-lg flex flex-col gap-3 relative overflow-hidden card-hover">
+                <div class="absolute top-0 left-0 right-0 h-[1px] bg-cyan-500/15"></div>
+                <div class="flex items-center gap-2 border-b border-slate-900 pb-2 mb-1">
+                    <i data-lucide="bell" class="w-4.5 h-4.5 text-cyan-400"></i>
+                    <h2 class="text-[10px] sm:text-xs font-mono font-bold text-slate-200 tracking-widest uppercase">CENTRO MULTICANAL DE NOTIFICACIONES</h2>
+                    <span class="ml-auto text-[8px] sm:text-[8.5px] font-mono text-cyan-400 bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-900/30">SIMULACIÓN</span>
+                </div>
+                <p class="text-[10px] sm:text-[11px] text-slate-400 font-sans leading-normal">Monitorea cómo el sistema autónomo comunica e integra las soluciones institucionales adaptadas a la cultura y lenguaje nicaragüense.</p>
+
+                <!-- Tabs -->
+                <div class="grid grid-cols-4 gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-900">
+                    <button onclick="setNotifTab('push')" id="ntab-push" class="notif-tab py-1.5 rounded text-[9px] sm:text-[10px] font-mono font-bold uppercase flex flex-col items-center gap-1 transition-all duration-300 notif-tab-active border border-cyan-800/30 text-cyan-400 bg-cyan-950/30">
+                        <i data-lucide="bell" class="w-3.5 h-3.5"></i>
+                        <span>Push</span>
+                    </button>
+                    <button onclick="setNotifTab('whatsapp')" id="ntab-whatsapp" class="notif-tab py-1.5 rounded text-[9px] sm:text-[10px] font-mono font-bold uppercase flex flex-col items-center gap-1 transition-all duration-300 text-slate-500 hover:text-slate-300 border border-transparent">
+                        <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+                        <span>WhatsApp</span>
+                    </button>
+                    <button onclick="setNotifTab('email')" id="ntab-email" class="notif-tab py-1.5 rounded text-[9px] sm:text-[10px] font-mono font-bold uppercase flex flex-col items-center gap-1 transition-all duration-300 text-slate-500 hover:text-slate-300 border border-transparent">
+                        <i data-lucide="mail" class="w-3.5 h-3.5"></i>
+                        <span>Correo</span>
+                    </button>
+                    <button onclick="setNotifTab('institutional')" id="ntab-institutional" class="notif-tab py-1.5 rounded text-[9px] sm:text-[10px] font-mono font-bold uppercase flex flex-col items-center gap-1 transition-all duration-300 text-slate-500 hover:text-slate-300 border border-transparent">
+                        <i data-lucide="shield" class="w-3.5 h-3.5"></i>
+                        <span>Institución</span>
+                    </button>
+                </div>
+
+                <!-- Tab content -->
+                <div id="notif-content" class="bg-[#040508] border border-slate-900 rounded-lg p-3 min-h-[200px] max-h-[300px] overflow-y-auto">
+                    <!-- Se llena desde JS con simulación continua contextualizada -->
+                </div>
+            </div>
+
+            <!-- IA Panel - SINAPSIS SOBERANA (filtrada por territorio) -->
+            <div class="bg-[#0a0c10]/95 border border-purple-500/30 rounded-xl p-4 shadow-lg card-hover flex flex-col gap-2">
+                <div class="flex items-center gap-2 border-b border-purple-500/20 pb-1.5">
+                    <i data-lucide="brain" class="w-4 h-4 text-purple-400"></i>
+                    <h3 class="text-[10px] sm:text-xs font-mono font-bold text-purple-300 tracking-widest uppercase">SINAPSIS SOBERANA · IA</h3>
+                    <span class="ml-auto text-[7px] sm:text-[8px] font-mono text-purple-400 bg-purple-950/40 px-1.5 py-0.5 rounded border border-purple-800/40">v.NicaLLM</span>
+                </div>
+                <div id="ia-territory-stats" class="flex flex-col gap-0.5 text-[9px] sm:text-[10px] text-slate-300">
+                    <div class="ia-metric"><span>Frustración acumulada</span><span class="ia-value text-red-400" id="ia-frust">0</span></div>
+                    <div class="ia-metric"><span>Esperanza activa</span><span class="ia-value text-cyan-400" id="ia-hope">0</span></div>
+                    <div class="ia-metric"><span>Orgullo territorial</span><span class="ia-value text-emerald-400" id="ia-pride">0</span></div>
+                    <div class="ia-metric"><span>Abandono histórico</span><span class="ia-value text-purple-400" id="ia-neglect">0</span></div>
+                    <div class="ia-metric"><span>Índice de urgencia</span><span class="ia-value text-yellow-400" id="ia-urgency">0%</span></div>
+                    <div class="ia-metric pt-0.5 border-t border-slate-800/50"><span>Derivaciones activas</span><span class="ia-value text-cyan-300" id="ia-routing">0</span></div>
+                    <div class="ia-metric"><span>Validaciones pendientes</span><span class="ia-value text-orange-300" id="ia-validation">0</span></div>
+                    <div class="ia-metric"><span>Validaciones completadas</span><span class="ia-value text-emerald-300" id="ia-validated">0</span></div>
+                </div>
+                <div class="text-[7px] sm:text-[8px] font-mono text-slate-500 mt-0.5 flex justify-between">
+                    <span id="ia-last-sync">Última sinapsis: hace 2s</span>
+                    <span id="ia-territory-name" class="text-purple-300 font-bold truncate max-w-[100px] sm:max-w-none">REPÚBLICA</span>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- ====== MODAL DE VALIDACIÓN MULTIPOLAR (desde v4) ====== -->
+    <div id="validation-modal" class="fixed inset-0 z-50 hidden modal-overlay flex items-center justify-center p-4">
+        <div class="bg-[#0a0c12] border border-cyan-500/30 rounded-2xl p-5 max-w-md w-full shadow-2xl shadow-cyan-900/20 anim-slide-up">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-cyan-950/50 border border-cyan-800/40 flex items-center justify-center text-cyan-400"><i data-lucide="check-circle-2" class="w-4 h-4"></i></div>
+                    <div>
+                        <h3 class="text-xs font-mono font-bold text-white uppercase tracking-wider">Validación Multipolar</h3>
+                        <p class="text-[8px] text-slate-500 font-mono">Ciudadano + Comunidad + Territorio</p>
+                    </div>
+                </div>
+                <button onclick="closeValidationModal()" class="text-slate-500 hover:text-white transition-colors p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+
+            <div class="bg-[#060810] border border-slate-800 rounded-lg p-3 mb-3">
+                <div class="text-[10px] font-mono text-cyan-400 font-bold mb-1" id="val-modal-title">--</div>
+                <div class="flex flex-col gap-1 text-[9px] font-mono text-slate-400">
+                    <div class="flex items-center gap-1.5"><i data-lucide="user" class="w-3 h-3 text-slate-500"></i><span>Ciudadano: <strong class="text-slate-200" id="val-modal-citizen">--</strong></span></div>
+                    <div class="flex items-center gap-1.5"><i data-lucide="map-pin" class="w-3 h-3 text-slate-500"></i><span>Territorio: <strong class="text-slate-200" id="val-modal-territory">--</strong></span></div>
+                    <div class="flex items-center gap-1.5"><i data-lucide="building-2" class="w-3 h-3 text-slate-500"></i><span>Institución: <strong class="text-slate-200" id="val-modal-institution">--</strong></span></div>
+                    <div class="flex items-center gap-1.5"><i data-lucide="paperclip" class="w-3 h-3 text-slate-500"></i><span>Evidencia: <strong class="text-slate-200" id="val-modal-evidence">--</strong></span></div>
+                    <div class="flex items-center gap-1.5"><i data-lucide="clock" class="w-3 h-3 text-slate-500"></i><span>Ejecutado: <strong class="text-slate-200" id="val-modal-time">--</strong></span></div>
+                </div>
+            </div>
+
+            <!-- Validación Ciudadana -->
+            <div class="bg-[#0b0e16] border border-slate-800 rounded-lg p-3 mb-2">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="user-check" class="w-3.5 h-3.5 text-cyan-400"></i>
+                        <span class="text-[10px] font-mono font-bold text-slate-300">VALIDACIÓN DEL CIUDADANO</span>
+                    </div>
+                    <span class="text-[8px] font-mono font-bold px-2 py-0.5 rounded" id="val-citizen-status">PENDIENTE</span>
+                </div>
+                <p class="text-[9px] text-slate-500 mb-2">El ciudadano que reportó confirma que la solución es emocionalmente satisfactoria.</p>
+                <button onclick="doCitizenValidation()" id="btn-val-citizen" class="w-full py-1.5 bg-cyan-950/30 hover:bg-cyan-900/40 border border-cyan-800/40 text-cyan-400 text-[9px] font-mono font-bold rounded transition-all duration-300">
+                    VALIDAR COMO CIUDADANO
+                </button>
+            </div>
+
+            <!-- Validación Comunitaria -->
+            <div class="bg-[#0b0e16] border border-slate-800 rounded-lg p-3 mb-2">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="users" class="w-3.5 h-3.5 text-emerald-400"></i>
+                        <span class="text-[10px] font-mono font-bold text-slate-300">VALIDACIÓN COMUNITARIA</span>
+                    </div>
+                    <span class="text-[8px] font-mono font-bold px-2 py-0.5 rounded" id="val-community-status">PENDIENTE</span>
+                </div>
+                <p class="text-[9px] text-slate-500 mb-2">El departamento, municipio y comunidad afectada confirman justicia territorial.</p>
+                <div class="flex items-center gap-2 mb-2 text-[9px] font-mono text-slate-400 bg-[#060810] rounded p-2 border border-slate-900">
+                    <i data-lucide="map" class="w-3 h-3 text-emerald-400 flex-shrink-0"></i>
+                    <span id="val-community-territory-detail">--</span>
+                </div>
+                <button onclick="doCommunityValidation()" id="btn-val-community" class="w-full py-1.5 bg-emerald-950/30 hover:bg-emerald-900/40 border border-emerald-800/40 text-emerald-400 text-[9px] font-mono font-bold rounded transition-all duration-300">
+                    VALIDAR COMO COMUNIDAD
+                </button>
+            </div>
+
+            <div id="val-final-status" class="hidden text-center py-2 rounded-lg border text-[10px] font-mono font-bold">
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="relative z-10 border-t border-[#111622] px-4 sm:px-6 py-3 flex flex-col sm:flex-row justify-between items-center text-[9px] sm:text-xs font-mono text-slate-500 bg-black/20 gap-2 text-center sm:text-left">
+        <div id="lbl-ft-info">PROTOTIPO 3D OFFLINE SOBERANO — SIN DEPENDENCIAS EXTERNAS</div>
+        <div class="text-slate-400 font-bold" id="lbl-ft-author">DR. JULIO CÉSAR OPORTA BARRERA © 2026</div>
+    </footer>
+
+    <!-- ====== JAVASCRIPT COMPLETO (fusionado con mejoras) ====== -->
+    <script>
+        // ============================================================
+        // 1. TRANSLATIONS (completas para ES, EN, ZH)
+        // ============================================================
+        const TRANSLATIONS = {
+            es: {
+                tagline: "De la emoción ciudadana a la acción institucional sin fricción.",
+                lblVision: "VISIÓN CIVILIZATORIA",
+                vis1: "El territorio se concibe como un cuerpo vivo con memoria, dolor y esperanza.",
+                vis2: "La ciudadanía actúa como una red neuronal que percibe, reporta y transforma.",
+                vis3: "Las instituciones responden por urgencia emocional, no por rígidas jerarquías.",
+                vis4: "Tecnología Sostenible: Despliegue seguro 100% offline, sin dependencias externas.",
+                lblSlaTitle: "SLA EMOCIONAL (CAPÍTULO 2.5)",
+                lblSlaDesc: "Tiempos de respuesta definidos estrictamente por el impacto humano y el sentir colectivo.",
+                lbl3d: "SISTEMA NERVIOSO CÍVICO 3D",
+                lblOffline: "100% local · sin servidores",
+                lblDragInst: "Arrastra para rotar",
+                lblSimCtl: "SIMULADOR",
+                lblSimDesc: "Inyecta reportes ciudadanos simulados para evaluar derivación automática y registro en blockchain.",
+                btnReset: "RECALIBRAR RED CÍVICA",
+                lblAi: "REGISTRO BLOCKCHAIN SOBERANO (TRAZABLE)",
+                lblFtInfo: "PROTOTIPO 3D OFFLINE SOBERANO — SIN DEPENDENCIAS EXTERNAS",
+                lblFtAuthor: "DR. JULIO CÉSAR OPORTA BARRERA © 2026",
+                lblSimProc: "PROCESANDO:",
+                initLog: "NicaLLM de autocontención cargado. Listos para simular.",
+                calibLog: "Red recalibrada. Todos los departamentos restablecidos.",
+                blockLog: "Bloque minado en blockchain nacional",
+                sla1N: "Frustración Crítica",
+                sla1E: "Robos, Daño Vial Urgente",
+                sla2N: "Esperanza Activa",
+                sla2E: "Propuestas, Parques, Viveros",
+                sla3N: "Orgullo Territorial",
+                sla3E: "Brigadas, Cultura",
+                sla4N: "Abandono Acumulado",
+                sla4E: "Basura, Servicios Deficientes",
+                lblAuthorComp: "COMPENSACIÓN INTELECTUAL",
+                visCompDesc: "Se contempla una compensación de C$ 20.00 córdobas netos por cada usuario activo registrado, como legítimo reconocimiento por la investigación y autoría conceptual del Dr. Julio César Oporta Barrera.",
+                lblSysModes: "MODOS OPERATIVOS",
+                btnToggleNew: "NUEVO REPORTE",
+                btnToggleClose: "CERRAR",
+                lblIncidents: "IMPULSOS EN TRANSMISIÓN",
+                lblFormCity: "MUNICIPIO",
+                lblFormEmotion: "SENTIMIENTO",
+                lblFormTitle: "TÍTULO DEL INCIDENTE",
+                lblFormSeverity: "GRAVEDAD (1-10)",
+                btnSubmitReport: "ENVIAR REPORTE AL CORE",
+                modes: {
+                    reposo: "REPOSO: Monitoreo civil pasivo en tiempo real. Neuronas territoriales estables.",
+                    analisis: "ANÁLISIS: Análisis cognitivo activo. El sistema evalúa correlaciones emocionales.",
+                    simulacion: "SIMULACIÓN: Inyección y calibración dinámica de impulsos ciudadanos en tiempo real.",
+                    emergencia: "CRISIS: ALERTA CRÍTICA: Derivación instantánea y movilización de recursos de emergencia.",
+                    blockchain: "NODO BLOCKCHAIN: Registro inmutable en la Blockchain Soberana Nacional activo y auditado."
+                }
+            },
+            en: {
+                tagline: "From citizen emotion to frictionless institutional action.",
+                lblVision: "CIVILIZATIONAL VISION",
+                vis1: "The territory is conceived as a living body with memory, pain, and hope.",
+                vis2: "Citizens act as a neural network that perceives, reports, and transforms.",
+                vis3: "Institutions respond based on emotional urgency, not rigid hierarchies.",
+                vis4: "Sustainable Tech: Secure 100% offline deployment, no external dependencies.",
+                lblSlaTitle: "EMOTIONAL SLA (CHAPTER 2.5)",
+                lblSlaDesc: "Response times strictly defined by human impact and collective sentiment.",
+                lbl3d: "3D CIVIC NERVOUS SYSTEM",
+                lblOffline: "100% local · no servers",
+                lblDragInst: "Drag to rotate",
+                lblSimCtl: "SIMULATOR",
+                lblSimDesc: "Inject simulated citizen reports to evaluate automatic routing and blockchain registry.",
+                btnReset: "RECALIBRATE CIVIC NETWORK",
+                lblAi: "SOVEREIGN BLOCKCHAIN LEDGER (TRACEABLE)",
+                lblFtInfo: "OFFLINE SOVEREIGN 3D PROTOTYPE — ZERO EXTERNAL DEPENDENCIES",
+                lblFtAuthor: "DR. JULIO CÉSAR OPORTA BARRERA © 2026",
+                lblSimProc: "PROCESSING:",
+                initLog: "Self-contained NicaLLM engine loaded. Ready to simulate.",
+                calibLog: "Network recalibrated. All departments restored.",
+                blockLog: "Block mined on national blockchain",
+                sla1N: "Critical Frustration",
+                sla1E: "Robberies, Urgent Road Repairs",
+                sla2N: "Active Hope",
+                sla2E: "Proposals, Parks, Gardens",
+                sla3N: "Territorial Pride",
+                sla3E: "Brigades, Culture",
+                sla4N: "Accumulated Neglect",
+                sla4E: "Garbage, Deficient Services",
+                lblAuthorComp: "INTELLECTUAL COMPENSATION",
+                visCompDesc: "A compensation of C$ 20.00 cordobas net per active registered user is contemplated, as legitimate recognition for the research and conceptual authorship of Dr. Julio César Oporta Barrera.",
+                lblSysModes: "OPERATING MODES",
+                btnToggleNew: "NEW REPORT",
+                btnToggleClose: "CLOSE",
+                lblIncidents: "TRANSMISSION IMPULSES",
+                lblFormCity: "MUNICIPALITY",
+                lblFormEmotion: "SENTIMENT",
+                lblFormTitle: "INCIDENT TITLE",
+                lblFormSeverity: "SEVERITY (1-10)",
+                btnSubmitReport: "SUBMIT TO CORE",
+                modes: {
+                    reposo: "REST: Passive civic monitoring in real-time. Territorial nodes stable.",
+                    analisis: "ANALYSIS: Active cognitive sensing. System evaluates emotional correlations.",
+                    simulacion: "SIMULATION: Dynamic injection and calibration of civic impulses in real-time.",
+                    emergencia: "CRISIS: CRITICAL ALERT: Instant routing and crisis response resources activated.",
+                    blockchain: "BLOCKCHAIN NODE: Immutable entry in the National Sovereign Blockchain active and audited."
+                }
+            },
+            zh: {
+                tagline: "从市民情感到无摩擦的机构行动。",
+                lblVision: "文明愿景",
+                vis1: "领土被视为一个有记忆、痛苦和希望的生命体。",
+                vis2: "公民作为神经网络，感知、报告和改变。",
+                vis3: "机构根据情感紧迫性而非僵化的等级制度做出响应。",
+                vis4: "可持续技术：100%离线安全部署，无外部依赖。",
+                lblSlaTitle: "情感SLA（第2.5章）",
+                lblSlaDesc: "响应时间严格由人类影响和集体情感定义。",
+                lbl3d: "3D公民神经系统",
+                lblOffline: "100%本地 · 无服务器",
+                lblDragInst: "拖拽旋转",
+                lblSimCtl: "模拟器",
+                lblSimDesc: "注入模拟的公民报告以评估自动路由和区块链注册。",
+                btnReset: "重新校准公民网络",
+                lblAi: "主权区块链账本（可追溯）",
+                lblFtInfo: "离线主权3D原型 — 零外部依赖",
+                lblFtAuthor: "胡里奥·塞萨尔·奥波塔·巴雷拉博士 © 2026",
+                lblSimProc: "处理中:",
+                initLog: "自包含NicaLLM引擎已加载。准备模拟。",
+                calibLog: "网络已重新校准。所有部门已恢复。",
+                blockLog: "国家区块链上已挖出区块",
+                sla1N: "严重挫败感",
+                sla1E: "抢劫、紧急道路维修",
+                sla2N: "积极希望",
+                sla2E: "提案、公园、花园",
+                sla3N: "领土自豪感",
+                sla3E: "扫盲队、文化",
+                sla4N: "累积忽视",
+                sla4E: "垃圾、服务不足",
+                lblAuthorComp: "知识产权补偿",
+                visCompDesc: "为表彰其学术创新，本提案设计了每名注册市民使用系统可为胡里奥·塞萨尔·奥波塔·巴雷拉博士带来 C$ 20 尼加拉瓜科多巴的研究授权红利保障机制。",
+                lblSysModes: "操作系统模式",
+                btnToggleNew: "新报告",
+                btnToggleClose: "关闭",
+                lblIncidents: "传输脉冲",
+                lblFormCity: "市镇",
+                lblFormEmotion: "情感",
+                lblFormTitle: "事件标题",
+                lblFormSeverity: "严重程度 (1-10)",
+                btnSubmitReport: "提交到核心",
+                modes: {
+                    reposo: "休息: 实时被动公民监控。领土节点稳定。",
+                    analisis: "分析: 主动认知感知。系统评估情感相关性。",
+                    simulacion: "模拟: 实时动态注入和校准公民脉冲。",
+                    emergencia: "危机: 关键警报: 即时路由和危机响应资源已激活。",
+                    blockchain: "区块链节点: 国家主权区块链中的不可变条目已激活并审计。"
+                }
+            }
+        };
+
+        // ============================================================
+        // 2. STATE & HELPERS
+        // ============================================================
+        let currentLang = 'es';
+        let soundEnabled = true;
+        let showAddForm = false;
+        let currentMode = 'reposo';
+        let currentCameraView = 'orbital';
+        let audioCtx = null;
+        let currentNotifTab = 'push';
+        let currentValidationId = null;
+        let blockCounter = 0;
+
+        // Lucide icons
+        setTimeout(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); }, 100);
+
+        // Audio
+        function toggleAudio() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('btn-sound');
+            if (soundEnabled) {
+                btn.className = "p-1.5 sm:p-2 rounded border bg-[#4fc3f7]/10 border-[#4fc3f7]/30 text-cyan-400 transition-all duration-300 hover:bg-[#4fc3f7]/20";
+                btn.innerHTML = '<i data-lucide="volume-2" class="w-4 h-4"></i>';
+                playBeep(600, 'sine', 0.1);
+            } else {
+                btn.className = "p-1.5 sm:p-2 rounded border bg-slate-950 border-slate-800 text-slate-500 transition-all duration-300";
+                btn.innerHTML = '<i data-lucide="volume-x" class="w-4 h-4"></i>';
+            }
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        function playBeep(freq = 440, type = 'sine', duration = 0.1) {
+            if (!soundEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) { /* ignore */ }
+        }
+
+        // ============================================================
+        // 3. LANGUAGE
+        // ============================================================
+        function switchLanguage(lang) {
+            currentLang = lang;
+            playBeep(450, 'sine', 0.08);
+            const t = TRANSLATIONS[lang];
+            if (!t) return;
+
+            ['es', 'en', 'zh'].forEach(l => {
+                const btn = document.getElementById('btn-lang-' + l);
+                if (l === lang) {
+                    btn.className =
+                        "px-2 py-0.5 text-[9px] sm:text-[10px] font-mono font-bold rounded uppercase transition-all duration-300 mode-btn-active";
+                } else {
+                    btn.className =
+                        "px-2 py-0.5 text-[9px] sm:text-[10px] font-mono font-bold rounded uppercase transition-all duration-300 text-slate-400 hover:text-slate-200";
+                }
+            });
+
+            document.getElementById('hdr-tagline').innerText = t.tagline;
+            document.getElementById('lbl-vision').innerText = t.lblVision;
+            document.getElementById('vis-1').innerText = t.vis1;
+            document.getElementById('vis-2').innerText = t.vis2;
+            document.getElementById('vis-3').innerText = t.vis3;
+            document.getElementById('vis-4').innerText = t.vis4;
+            document.getElementById('lbl-sla-title').innerText = t.lblSlaTitle;
+            document.getElementById('lbl-sla-desc').innerText = t.lblSlaDesc;
+            document.getElementById('lbl-3d-hologram').innerText = t.lbl3d;
+            document.getElementById('lbl-offline-note').innerText = t.lblOffline;
+            document.getElementById('lbl-drag-inst').innerText = t.lblDragInst;
+            document.getElementById('lbl-sim-ctl').innerText = t.lblSimCtl;
+            document.getElementById('lbl-sim-desc').innerText = t.lblSimDesc;
+            document.getElementById('btn-reset').innerText = t.btnReset;
+            document.getElementById('lbl-ai').innerText = t.lblAi;
+            document.getElementById('lbl-ft-info').innerText = t.lblFtInfo;
+            document.getElementById('lbl-ft-author').innerText = t.lblFtAuthor;
+            document.getElementById('lbl-sim-proc').innerText = t.lblSimProc;
+            document.getElementById('sla-1-name').innerText = t.sla1N;
+            document.getElementById('sla-1-ex').innerText = t.sla1E;
+            document.getElementById('sla-2-name').innerText = t.sla2N;
+            document.getElementById('sla-2-ex').innerText = t.sla2E;
+            document.getElementById('sla-3-name').innerText = t.sla3N;
+            document.getElementById('sla-3-ex').innerText = t.sla3E;
+            document.getElementById('sla-4-name').innerText = t.sla4N;
+            document.getElementById('sla-4-ex').innerText = t.sla4E;
+            document.getElementById('lbl-author-comp').innerText = t.lblAuthorComp;
+            document.getElementById('vis-comp-desc').innerText = t.visCompDesc;
+            document.getElementById('lbl-sys-modes-title').innerText = t.lblSysModes;
+            document.getElementById('lbl-incidents-title').innerText = t.lblIncidents;
+            document.getElementById('lbl-form-city').innerText = t.lblFormCity;
+            document.getElementById('lbl-form-emotion').innerText = t.lblFormEmotion;
+            document.getElementById('lbl-form-title').innerText = t.lblFormTitle;
+            document.getElementById('lbl-form-severity').innerText = t.lblFormSeverity;
+            document.getElementById('btn-submit-report').innerText = t.btnSubmitReport;
+            document.getElementById('mode-desc-text').innerText = t.modes[currentMode] || t.modes.reposo;
+
+            const formBtn = document.getElementById('btn-toggle-form');
+            formBtn.innerText = showAddForm ? t.btnToggleClose : t.btnToggleNew;
+
+            renderIncidents();
+            updateIAStats();
+            renderNotifications();
+        }
+
+        // ============================================================
+        // 4. TERRITORIAL DATA (todos los departamentos y regiones)
+        // ============================================================
+        const DEPARTMENTS_DATA = {
+            boaco: { name: "Boaco", population: "185K", municipios: {
+                    boaco: { name: "Boaco", communities: ["Barrio El Calvario", "Santa Rita", "El Jicaro", "Las Mercedes"] },
+                    camoapa: { name: "Camoapa", communities: ["El Bálsamo", "Los Cerros", "San José"] },
+                    san_jose_remate: { name: "San José de los Remates", communities: ["Las Huertas", "El Zapote"] },
+                    san_lorenzo: { name: "San Lorenzo", communities: ["La Laguna", "El Rosario"] }
+                } },
+            carazo: { name: "Carazo", population: "198K", municipios: {
+                    jinotepe: { name: "Jinotepe", communities: ["Barrio Los Altos", "El Rodeo", "San Miguel"] },
+                    dolores: { name: "Dolores", communities: ["La Concepción", "El Cacao"] },
+                    san_marcos: { name: "San Marcos", communities: ["El Crucero", "La Fuente"] },
+                    santa_teresa: { name: "Santa Teresa", communities: ["El Espino", "La Ceiba"] },
+                    la_concepcion: { name: "La Concepción", communities: ["El Molino", "La Esperanza"] }
+                } },
+            chinandega: { name: "Chinandega", population: "441K", municipios: {
+                    chinandega: { name: "Chinandega", communities: ["Barrio El Rosario", "Los Pinos", "Santa Ana"] },
+                    el_viejo: { name: "El Viejo", communities: ["La Paz", "San Antonio", "El Naranjo"] },
+                    somotillo: { name: "Somotillo", communities: ["El Tamarindo", "San Francisco"] },
+                    villanueva: { name: "Villanueva", communities: ["La Esperanza", "El Sauce"] },
+                    san_francisco_norte: { name: "San Francisco del Norte", communities: ["El Papalonal"] },
+                    puerto_morazan: { name: "Puerto Morazán", communities: ["El Realejo"] }
+                } },
+            chontales: { name: "Chontales", population: "190K", municipios: {
+                    juigalpa: { name: "Juigalpa", communities: ["Barrio El Calvario", "Las Brisas", "Los Laureles"] },
+                    acoyapa: { name: "Acoyapa", communities: ["La Cruz", "El Roble"] },
+                    santo_tomas: { name: "Santo Tomás", communities: ["El Guayabo"] },
+                    villa_sandino: { name: "Villa Sandino", communities: ["La Palmera"] },
+                    san_pedro_lovago: { name: "San Pedro de Lóvago", communities: ["El Toro"] },
+                    el_coral: { name: "El Coral", communities: ["El Pital"] },
+                    comalapa: { name: "Comalapa", communities: ["El Limón"] }
+                } },
+            esteli: { name: "Estelí", population: "120K", municipios: {
+                    esteli: { name: "Estelí", communities: ["Barrio Boris Vega", "El Tisey", "La Comuna"] },
+                    condega: { name: "Condega", communities: ["San Diego", "La Venada", "Ducualí"] },
+                    pueblo_nuevo: { name: "Pueblo Nuevo", communities: ["Cofradía", "El Limón", "Los Horcones"] }
+                } },
+            granada: { name: "Granada", population: "135K", municipios: {
+                    granada: { name: "Granada", communities: ["Calle Atravesada", "La Sabaneta", "Barrio El Maltés"] },
+                    nandaime: { name: "Nandaime", communities: ["La Granja", "Monte Grande", "Río Medina"] },
+                    diriomo: { name: "Diriomo", communities: ["Diria", "El Coyol", "La Escoba"] }
+                } },
+            jinotega: { name: "Jinotega", population: "475K", municipios: {
+                    jinotega: { name: "Jinotega", communities: ["Barrio El Carmen", "La Cruz", "San Miguel"] },
+                    san_jose_de_bocay: { name: "San José de Bocay", communities: ["San José", "El Cua"] },
+                    el_cua: { name: "El Cua", communities: ["El Cua"] },
+                    santa_maria_pantasma: { name: "Santa María de Pantasma", communities: ["Pantasma"] },
+                    san_rafael_norte: { name: "San Rafael del Norte", communities: ["San Rafael"] }
+                } },
+            leon: { name: "León", population: "412K", municipios: {
+                    leon: { name: "León", communities: ["Barrio El Pantanal", "La Merced", "San Juan"] },
+                    nagarote: { name: "Nagarote", communities: ["El Zapote", "San Francisco"] },
+                    la_paz_centro: { name: "La Paz Centro", communities: ["La Paz", "El Rosario"] },
+                    telica: { name: "Telica", communities: ["San Antonio", "Los Cerros"] },
+                    quetzalguaque: { name: "Quetzalguaque", communities: ["El Jicaral"] },
+                    larreynaga: { name: "Larreynaga", communities: ["La Cruz"] }
+                } },
+            madriz: { name: "Madriz", population: "175K", municipios: {
+                    somoto: { name: "Somoto", communities: ["Barrio El Rosario", "La Pradera"] },
+                    telpaneca: { name: "Telpaneca", communities: ["San Juan", "El Cacao"] },
+                    yalagüina: { name: "Yalagüina", communities: ["El Sauce"] },
+                    totogalpa: { name: "Totogalpa", communities: ["El Espino"] },
+                    las_sabanas: { name: "Las Sabanas", communities: ["El Tamarindo"] }
+                } },
+            managua: { name: "Managua", population: "1.05M", municipios: {
+                    managua: { name: "Managua", communities: ["Barrio Hugo Chávez", "Batahola Sur", "Reparto Schick", "Altagracia"] },
+                    tipitapa: { name: "Tipitapa", communities: ["San Benito", "La Bocana", "El Trapiche"] },
+                    sandino: { name: "Ciudad Sandino", communities: ["Nueva Vida", "Zona 5", "Bello Amanecer"] }
+                } },
+            masaya: { name: "Masaya", population: "380K", municipios: {
+                    masaya: { name: "Masaya", communities: ["Barrio El Calvario", "San Jerónimo", "La Concepción"] },
+                    nindiri: { name: "Nindirí", communities: ["Los Altos", "San José"] },
+                    tisma: { name: "Tisma", communities: ["El Sauce"] },
+                    niquinohomo: { name: "Niquinohomo", communities: ["El Espino"] }
+                } },
+            matagalpa: { name: "Matagalpa", population: "600K", municipios: {
+                    matagalpa: { name: "Matagalpa", communities: ["Barrio El Calvario", "Santa Rita", "Los Robles"] },
+                    sebastian_yali: { name: "San Sebastián de Yalí", communities: ["Yalí"] },
+                    rancho_grande: { name: "Rancho Grande", communities: ["El Naranjo"] },
+                    matiguas: { name: "Matiguás", communities: ["El Roble"] },
+                    muy_muy: { name: "Muy Muy", communities: ["El Pedernal"] }
+                } },
+            nueva_segovia: { name: "Nueva Segovia", population: "270K", municipios: {
+                    ocotal: { name: "Ocotal", communities: ["Barrio El Rosario", "San José"] },
+                    san_francisco: { name: "San Francisco", communities: ["El Jícaro"] },
+                    dipilto: { name: "Dipilto", communities: ["La Esperanza"] },
+                    jalapa: { name: "Jalapa", communities: ["Los Llanos"] }
+                } },
+            rivas: { name: "Rivas", population: "186K", municipios: {
+                    rivas: { name: "Rivas", communities: ["Barrio San Miguel", "La Cruz"] },
+                    san_juan_del_sur: { name: "San Juan del Sur", communities: ["El Ostional", "La Flor"] },
+                    belen: { name: "Belén", communities: ["El Rosario"] },
+                    altagracia: { name: "Altagracia", communities: ["Los Ángeles"] }
+                } },
+            rio_san_juan: { name: "Río San Juan", population: "130K", municipios: {
+                    san_carlos: { name: "San Carlos", communities: ["El Castillo", "La Cruz"] },
+                    el_castillo: { name: "El Castillo", communities: ["El Castillo"] },
+                    morrito: { name: "Morrito", communities: ["San Miguelito"] },
+                    san_miguelito: { name: "San Miguelito", communities: ["San Miguelito"] }
+                } },
+            raan: { name: "Costa Caribe Norte", population: "520K", municipios: {
+                    bilwi: { name: "Bilwi", communities: ["Barrio Miskito", "Lamlaya", "Waspam"] },
+                    waspam: { name: "Waspam", communities: ["Waspam", "Awas Tingni"] },
+                    rosita: { name: "Rosita", communities: ["Rosita", "Siuna"] },
+                    siuna: { name: "Siuna", communities: ["Siuna", "Bonanza"] },
+                    bonanza: { name: "Bonanza", communities: ["Bonanza"] },
+                    mulukuku: { name: "Mulukuku", communities: ["Mulukuku"] }
+                } },
+            raas: { name: "Costa Caribe Sur", population: "390K", municipios: {
+                    bluefields: { name: "Bluefields", communities: ["Barrio El Canal", "Pointeen", "Beholden", "Cotton Tree"] },
+                    kukra_hill: { name: "Kukra Hill", communities: ["Big Lagoon", "Rocky Point"] },
+                    tortuguero: { name: "El Tortuguero", communities: ["La Cruz", "Río Grande"] },
+                    el_rama: { name: "El Rama", communities: ["El Rama", "La Unión"] },
+                    nueva_guinea: { name: "Nueva Guinea", communities: ["Nueva Guinea", "San Pedro"] },
+                    muelle_de_los_bueyes: { name: "Muelle de los Bueyes", communities: ["Muelle"] }
+                } }
+        };
+
+        // Nombres nicaragüenses realistas
+        const NAMES = [
+            "María Elena Rodríguez", "José Antonio López", "Ana Lucía Martínez", "Carlos Manuel Hernández",
+            "Rosa Amelia Flores", "Juan Pablo Sandino", "Mirla Elena Reyes", "Roberto Carlos Orozco",
+            "Yolanda María Rivas", "Francisco Javier Blandón", "Gladys del Carmen Aguilar", "Luis Alberto Mercado",
+            "Sonia Patricia Mendoza", "Douglas Javier Baltodano", "Karen Johana Espinoza", "Mario Alberto Cuadra",
+            "Elena Margarita Cerda", "Rigoberto Antonio Fonseca", "Patricia Isabel Sobalvarro", "Félix Edgard Téllez",
+            "Ligia María Vargas", "Óscar René Rueda", "Marta Lucía Espinales", "Alberto Enrique Lacayo",
+            "Carmen Julia Zeledón", "Jorge Luis Pineda", "Norma Elena Barrios", "Daniel Ernesto Gutiérrez",
+            "Rosa Argentina Gómez", "Miguel Ángel Salinas", "Blanca Aurora Ramos", "Sergio Adonis Morales",
+            "Teresa de Jesús Mejía", "Rafael Ángel Calderón", "Isabel Cristina Cano", "Pedro José Arauz"
+        ];
+
+        const INSTITUTIONS = {
+            frustracion: ["Alcaldía Municipal", "Policía Nacional", "MTI - Cuadrilla de Emergencia", "ENACAL", "MINSA"],
+            esperanza: ["Alcaldía Municipal - Dirección de Cultura", "MINED - Brigada Juvenil", "MARENA", "Instituto de Turismo"],
+            orgullo: ["Alcaldía Municipal", "MINED", "Presidencia - Gabinete Ciudadano", "Medios de Comunicación Oficiales"],
+            abandono: ["Alcaldía Municipal - Dirección de Servicios", "ENACAL", "MTI", "Ministerio de la Familia"]
+        };
+
+        const EVIDENCE_TYPES = ["Fotografía", "Video", "Audio", "Geolocalización", "Verificación Satelital"];
+
+        const PRESET_INCIDENTS = {
+            frustracion: [
+                "Robo a mano armada en parada de bus",
+                "Bache de 2 metros en avenida principal",
+                "Fuga de agua potable inundando calle",
+                "Poste eléctrico caído sobre vía pública",
+                "Alcantarillado obstruido con aguas negras"
+            ],
+            esperanza: [
+                "Propuesta de parque comunitario en terreno baldío",
+                "Solicitud de vivero municipal para reforestación",
+                "Idea de mural artístico en pared comunitaria",
+                "Propuesta de ciclovía en barrio residencial"
+            ],
+            orgullo: [
+                "Brigada de limpieza exitosa este fin de semana",
+                "Jóvenes pintaron murales en escuela local",
+                "Comunidad organizó festival cultural infantil",
+                "Voluntarios repararon techado de casa de anciana"
+            ],
+            abandono: [
+                "Basura acumulada hace 3 semanas en lotes",
+                "Alumbrado público sin funcionar hace meses",
+                "Calle sin asfaltar desde hace 5 años",
+                "Pozo de agua abandonado contaminando zona"
+            ]
+        };
+
+        const EMOTION_COLORS = {
+            frustracion: "#ef4444",
+            esperanza: "#06b6d4",
+            orgullo: "#22c55e",
+            abandono: "#a855f7"
+        };
+        const EMOTION_LABELS = {
+            frustracion: "Frustración Crítica",
+            esperanza: "Esperanza Activa",
+            orgullo: "Orgullo Territorial",
+            abandono: "Abandono Acumulado"
+        };
+
+        // ============================================================
+        // 5. ESTADO GLOBAL
+        // ============================================================
+        let state = {
+            dept: 'todos',
+            muni: 'todos',
+            comm: 'todos',
+            mode: 'reposo',
+            camera: 'orbital',
+            incidents: [],
+            blocks: [],
+            notifChannel: 'push',
+            soundOn: true,
+            formOpen: false,
+            counter: 0,
+            currentValidationId: null,
+            nodeMetrics: {},
+            notifCache: { push: [], email: [], whatsapp: [], institutional: [] },
+            autoNotifInterval: null,
+            autoBlockInterval: null,
+            autoIncidentInterval: null
+        };
+
+        // Alias para compatibilidad con funciones existentes
+        let reports = [];
+
+        // ============================================================
+        // 6. TERRITORIAL NAVIGATION
+        // ============================================================
+        let selectedDeptId = 'todos';
+        let selectedMuniId = 'todos';
+        let selectedComm = 'todos';
+
+        function onDeptChange() {
+            const selDept = document.getElementById('sel-dept');
+            selectedDeptId = selDept.value;
+            selectedMuniId = 'todos';
+            selectedComm = 'todos';
+
+            const selMuni = document.getElementById('sel-muni');
+            const selComm = document.getElementById('sel-comm');
+            selMuni.innerHTML = '<option value="todos">Todos los Municipios</option>';
+            selComm.innerHTML = '<option value="todos">Todas las Comunidades</option>';
+
+            if (selectedDeptId === 'todos') {
+                selMuni.disabled = true;
+                selComm.disabled = true;
+                document.getElementById('node-status-label').innerText = 'República · Nodo Central';
+                document.getElementById('territorial-nodes-section').classList.add('hidden');
+            } else {
+                selMuni.disabled = false;
+                selComm.disabled = true;
+                const dept = DEPARTMENTS_DATA[selectedDeptId];
+                if (dept) {
+                    for (const muniId in dept.municipios) {
+                        const opt = document.createElement('option');
+                        opt.value = muniId;
+                        opt.text = dept.municipios[muniId].name;
+                        selMuni.appendChild(opt);
+                    }
+                }
+                document.getElementById('node-status-label').innerText = dept ? dept.name + ' · Nodo Autónomo' : 'Nodo';
+                document.getElementById('territorial-nodes-section').classList.remove('hidden');
+                document.getElementById('nodes-dept-tag').textContent = dept ? dept.name.toUpperCase() : '--';
+                initNodeMetrics();
+                renderNodes();
+            }
+            playBeep(420, 'sine', 0.12);
+            updateTerritoryLabel();
+            syncFormWithTerritory();
+            renderIncidents();
+            triggerCameraZoomForRegion();
+            updateIAStats();
+            updateNodeStatus();
+            renderNotifications();
+            // Reiniciar simulaciones automáticas para adaptarse al nuevo territorio
+            restartAutoSimulations();
+        }
+
+        function onMuniChange() {
+            const selMuni = document.getElementById('sel-muni');
+            selectedMuniId = selMuni.value;
+            selectedComm = 'todos';
+            const selComm = document.getElementById('sel-comm');
+            selComm.innerHTML = '<option value="todos">Todas las Comunidades</option>';
+            if (selectedMuniId === 'todos' || !selectedMuniId) {
+                selComm.disabled = true;
+            } else {
+                selComm.disabled = false;
+                const dept = DEPARTMENTS_DATA[selectedDeptId];
+                if (dept && dept.municipios[selectedMuniId]) {
+                    dept.municipios[selectedMuniId].communities.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c;
+                        opt.text = c;
+                        selComm.appendChild(opt);
+                    });
+                }
+            }
+            playBeep(460, 'sine', 0.12);
+            updateTerritoryLabel();
+            syncFormWithTerritory();
+            renderIncidents();
+            triggerCameraZoomForRegion();
+            updateIAStats();
+            updateNodeStatus();
+            renderNotifications();
+            if (selectedDeptId !== 'todos') { initNodeMetrics();
+                renderNodes(); }
+            restartAutoSimulations();
+        }
+
+        function onCommChange() {
+            const selComm = document.getElementById('sel-comm');
+            selectedComm = selComm.value;
+            playBeep(500, 'sine', 0.12);
+            updateTerritoryLabel();
+            syncFormWithTerritory();
+            renderIncidents();
+            updateIAStats();
+            updateNodeStatus();
+            renderNotifications();
+            restartAutoSimulations();
+        }
+
+        function updateNodeStatus() {
+            const label = document.getElementById('node-status-label');
+            if (selectedDeptId === 'todos') {
+                label.innerText = 'República · Nodo Central';
+                return;
+            }
+            const dept = DEPARTMENTS_DATA[selectedDeptId];
+            if (!dept) return;
+            let status = 'Activo',
+                dotClass = 'active';
+            if (selectedMuniId !== 'todos') {
+                const muni = dept.municipios[selectedMuniId];
+                if (muni && muni.communities.length > 3) { status = 'Resiliente';
+                    dotClass = 'resilient'; } else { status = 'Escalando';
+                    dotClass = 'scaling'; }
+            } else {
+                if (parseInt(dept.population) > 300) { status = 'Resiliente';
+                    dotClass = 'resilient'; } else { status = 'Activo';
+                    dotClass = 'active'; }
+            }
+            label.innerText = dept.name + ' · ' + status;
+            document.querySelectorAll('.node-indicator .dot').forEach(d => d.className = 'dot');
+            const dotSpan = document.querySelector('.node-indicator .dot.' + dotClass);
+            if (dotSpan) dotSpan.className = 'dot ' + dotClass;
+        }
+
+        function updateTerritoryLabel() {
+            let label = 'República de Nicaragua';
+            if (selectedDeptId !== 'todos') {
+                const dept = DEPARTMENTS_DATA[selectedDeptId];
+                if (dept) {
+                    label = dept.name;
+                    if (selectedMuniId !== 'todos') {
+                        const muni = dept.municipios[selectedMuniId];
+                        if (muni) {
+                            label += ' · ' + muni.name;
+                            if (selectedComm !== 'todos') label += ' · ' + selectedComm;
+                        }
+                    }
+                }
+            }
+            document.getElementById('active-territory-label').innerText = label;
+            document.getElementById('feed-territory-tag').innerText = label.toUpperCase();
+            document.getElementById('ia-territory-name').innerText = label.toUpperCase();
+        }
+
+        function syncFormWithTerritory() {
+            const selCity = document.getElementById('form-city');
+            selCity.innerHTML = '';
+            const deptId = document.getElementById('sel-dept').value;
+            if (deptId === 'todos') {
+                const topMunis = ['Managua', 'Granada', 'Estelí', 'Bluefields', 'León', 'Masaya', 'Matagalpa', 'Jinotega',
+                    'Chinandega', 'Rivas'
+                ];
+                topMunis.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c;
+                    opt.text = c;
+                    selCity.appendChild(opt);
+                });
+                ['Juigalpa', 'Ocotal', 'Boaco', 'Somoto', 'San Carlos'].forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c;
+                    opt.text = c;
+                    selCity.appendChild(opt);
+                });
+                return;
+            }
+            const dept = DEPARTMENTS_DATA[deptId];
+            if (!dept) return;
+            for (const muniId in dept.municipios) {
+                const muni = dept.municipios[muniId];
+                const opt = document.createElement('option');
+                opt.value = muni.name;
+                opt.text = muni.name;
+                selCity.appendChild(opt);
+            }
+            const muniVal = document.getElementById('sel-muni').value;
+            if (muniVal !== 'todos' && dept.municipios[muniVal]) {
+                selCity.value = dept.municipios[muniVal].name;
+            }
+            document.getElementById('form-community').value = document.getElementById('sel-comm').value;
+        }
+
+        function toggleForm() {
+            playBeep(400, 'sine', 0.1);
+            showAddForm = !showAddForm;
+            const form = document.getElementById('report-form');
+            const presets = document.getElementById('quick-presets');
+            const formBtn = document.getElementById('btn-toggle-form');
+            const t = TRANSLATIONS[currentLang];
+            if (showAddForm) {
+                form.classList.remove('hidden');
+                presets.classList.add('hidden');
+                formBtn.innerText = t.btnToggleClose;
+                syncFormWithTerritory();
+            } else {
+                form.classList.add('hidden');
+                presets.classList.remove('hidden');
+                formBtn.innerText = t.btnToggleNew;
+            }
+        }
+
+        // ============================================================
+        // 7. NODOS TERRITORIALES AUTÓNOMOS (desde v4)
+        // ============================================================
+        function initNodeMetrics() {
+            if (!selectedDeptId || selectedDeptId === 'todos' || !DEPARTMENTS_DATA[selectedDeptId]) return;
+            const d = DEPARTMENTS_DATA[selectedDeptId];
+            state.nodeMetrics = {};
+            Object.entries(d.municipios).forEach(([k, v]) => {
+                const incInMuni = state.incidents.filter(i => i.deptKey === selectedDeptId && i.muniKey === k);
+                const resolved = incInMuni.filter(i => i.status === 'responded' || i.status === 'validated');
+                const validated = incInMuni.filter(i => i.status === 'validated');
+                const baseResilience = 70 + Math.random() * 25;
+                const incidentPenalty = incInMuni.filter(i => i.emotion === 'frustracion' || i.emotion === 'abandono')
+                    .length * 3;
+                const validationBonus = validated.length * 5;
+                state.nodeMetrics[k] = {
+                    name: v.name,
+                    comms: v.communities.length,
+                    status: incInMuni.filter(i => i.emotion === 'frustracion' && i.status === 'reported').length > 1 ?
+                        'crisis' :
+                        incInMuni.length > 3 ? 'alerta' :
+                        resolved.length > 0 && resolved.length === incInMuni.length ? 'escalando' : 'activo',
+                    resilience: Math.min(100, Math.max(20, baseResilience - incidentPenalty + validationBonus)),
+                    capacity: Math.min(100, Math.max(30, 85 - incInMuni.length * 4 + resolved.length * 3)),
+                    activeIncidents: incInMuni.filter(i => i.status !== 'validated').length,
+                    validationRate: incInMuni.length > 0 ? Math.round(validated.length / incInMuni.length * 100) : 0
+                };
+            });
+        }
+
+        // ===== NUEVA FUNCIÓN: Simular incidente en un nodo específico =====
+        function simulateNode(nodeKey) {
+            if (!selectedDeptId || selectedDeptId === 'todos') {
+                alert('Selecciona un departamento para ver sus nodos.');
+                return;
+            }
+            const dept = DEPARTMENTS_DATA[selectedDeptId];
+            if (!dept || !dept.municipios[nodeKey]) {
+                alert('Nodo no encontrado.');
+                return;
+            }
+            const muni = dept.municipios[nodeKey];
+            const communities = muni.communities;
+            const commName = pick(communities);
+            const emotion = pick(Object.keys(EMOTION_LABELS));
+            const title = pick(PRESET_INCIDENTS[emotion] || ['Incidente simulado']);
+            const severity = randInt(3, 9);
+            const citizenName = pick(NAMES);
+
+            const terr = {
+                deptKey: selectedDeptId,
+                deptName: dept.name,
+                muniKey: nodeKey,
+                muniName: muni.name,
+                commName: commName,
+                full: `${dept.name} > ${muni.name} > ${commName}`
+            };
+
+            createIncident({
+                emotion,
+                title,
+                severity,
+                citizenName,
+                deptKey: terr.deptKey,
+                deptName: terr.deptName,
+                muniKey: terr.muniKey,
+                muniName: terr.muniName,
+                commName: terr.commName,
+                full: terr.full
+            });
+
+            // Opcional: enfocar la navegación en este nodo
+            // No forzamos el cambio de selección para no perder el contexto, pero actualizamos los nodos
+            initNodeMetrics();
+            renderNodes();
+            updateIAStats();
+            renderIncidents();
+        }
+
+        function renderNodes() {
+            const grid = document.getElementById('nodes-grid');
+            grid.innerHTML = '';
+            Object.entries(state.nodeMetrics).forEach(([k, n]) => {
+                const statusColors = { activo: 'bg-emerald-500', alerta: 'bg-yellow-500', crisis: 'bg-red-500',
+                    escalando: 'bg-blue-500' };
+                const resColor = n.resilience > 70 ? 'bg-emerald-500' : n.resilience > 40 ? 'bg-yellow-500' :
+                    'bg-red-500';
+                const capColor = n.capacity > 70 ? 'bg-cyan-500' : n.capacity > 40 ? 'bg-yellow-500' : 'bg-red-500';
+                grid.innerHTML += `
+                    <div class="node-card">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-[10px] font-mono font-bold text-slate-200 truncate">${n.name}</span>
+                            <span class="w-2 h-2 rounded-full ${statusColors[n.status]} flex-shrink-0" title="${n.status}"></span>
+                        </div>
+                        <div class="flex items-center gap-1.5 mb-1">
+                            <span class="text-[8px] text-slate-500 w-10">Resil.</span>
+                            <div class="node-bar flex-1"><div class="node-bar-fill ${resColor}" style="width:${n.resilience}%"></div></div>
+                            <span class="text-[8px] font-mono text-slate-400 w-7 text-right">${Math.round(n.resilience)}%</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 mb-1.5">
+                            <span class="text-[8px] text-slate-500 w-10">Capac.</span>
+                            <div class="node-bar flex-1"><div class="node-bar-fill ${capColor}" style="width:${n.capacity}%"></div></div>
+                            <span class="text-[8px] font-mono text-slate-400 w-7 text-right">${Math.round(n.capacity)}%</span>
+                        </div>
+                        <div class="flex items-center justify-between text-[8px] font-mono">
+                            <span class="text-slate-500">${n.activeIncidents} activos</span>
+                            <span class="text-slate-500">${n.comms} comms</span>
+                            <span class="${n.validationRate>50?'text-emerald-400':'text-orange-400'} font-bold">${n.validationRate}% val.</span>
+                            <button class="simulate-btn" onclick="simulateNode('${k}')">⚡ Simular</button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function updateNodeForIncident(inc) {
+            if (selectedDeptId === 'todos' || !state.nodeMetrics[inc.muniKey]) return;
+            initNodeMetrics();
+            renderNodes();
+        }
+
+        // ============================================================
+        // 8. REPORTS & BLOCKCHAIN (trazable)
+        // ============================================================
+        let reportsData = [];
+
+        function addBlock(type, data) {
+            blockCounter++;
+            const block = {
+                index: blockCounter,
+                type: type,
+                hash: '0x' + Math.random().toString(16).substring(2, 10) + Math.random().toString(16).substring(2, 6),
+                prevHash: state.blocks.length > 0 ? state.blocks[state.blocks.length - 1].hash : '0x00000000',
+                timestamp: new Date(),
+                personName: data.personName || '--',
+                territory: data.territory || '--',
+                institution: data.institution || null,
+                emotion: data.emotion || null,
+                evidence: data.evidence || [],
+                citizenValidated: data.citizenValidated || false,
+                communityValidated: data.communityValidated || false,
+                validatorType: data.validatorType || null,
+                validatedBy: data.validatedBy || null
+            };
+            state.blocks.push(block);
+            renderBlockchainFeed();
+            document.querySelector('#block-feed + span')?.remove();
+        }
+
+        function generateHash() {
+            return '0x' + Math.random().toString(16).substring(2, 10) + Math.random().toString(16).substring(2, 6);
+        }
+
+        function renderBlockchainFeed() {
+            const feed = document.getElementById('block-feed');
+            if (state.blocks.length === 0) {
+                feed.innerHTML =
+                    '<div class="text-[10px] text-slate-600 font-mono text-center py-4">Sin bloques registrados. Active el simulador.</div>';
+                return;
+            }
+            const recent = state.blocks.slice(-15).reverse();
+            feed.innerHTML = recent.map(b => {
+                const typeColors = {
+                    'REPORTE': 'border-red-500/40 bg-red-950/10',
+                    'DERIVACIÓN': 'border-yellow-500/40 bg-yellow-950/10',
+                    'EJECUCIÓN': 'border-cyan-500/40 bg-cyan-950/10',
+                    'VALIDACIÓN CIUDADANA': 'border-emerald-500/40 bg-emerald-950/10',
+                    'VALIDACIÓN COMUNITARIA': 'border-blue-500/40 bg-blue-950/10',
+                    'VALIDACIÓN COMPLETA': 'border-emerald-400/60 bg-emerald-950/20 glow-pulse',
+                    'AUDITORÍA': 'border-purple-500/40 bg-purple-950/10',
+                    'MANTENIMIENTO': 'border-slate-500/40 bg-slate-950/10'
+                };
+                const typeDots = {
+                    'REPORTE': 'bg-red-500',
+                    'DERIVACIÓN': 'bg-yellow-500',
+                    'EJECUCIÓN': 'bg-cyan-500',
+                    'VALIDACIÓN CIUDADANA': 'bg-emerald-500',
+                    'VALIDACIÓN COMUNITARIA': 'bg-blue-500',
+                    'VALIDACIÓN COMPLETA': 'bg-emerald-400',
+                    'AUDITORÍA': 'bg-purple-500',
+                    'MANTENIMIENTO': 'bg-slate-500'
+                };
+                const cls = typeColors[b.type] || 'border-slate-700 bg-slate-950/10';
+                const dot = typeDots[b.type] || 'bg-slate-500';
+                let validationHtml = '';
+                if (b.type === 'EJECUCIÓN' || b.type === 'VALIDACIÓN COMPLETA' || b.type === 'AUDITORÍA') {
+                    const cv = b.type === 'VALIDACIÓN COMPLETA' || b.citizenValidated;
+                    const mv = b.type === 'VALIDACIÓN COMPLETA' || b.communityValidated;
+                    validationHtml =
+                        `<div class="flex gap-2 mt-1.5 pt-1.5 border-t border-slate-800/50">
+                            <span class="text-[8px] font-mono ${cv?'text-emerald-400':'text-slate-600'}">${cv?'✓ Ciudadano':'○ Ciudadano'}</span>
+                            <span class="text-[8px] font-mono ${mv?'text-emerald-400':'text-slate-600'}">${mv?'✓ Comunidad':'○ Comunidad'}</span>
+                        </div>`;
+                }
+                const evidenceHtml = b.evidence && b.evidence.length > 0 ?
+                    b.evidence.map(e =>
+                        `<span class="text-[7px] font-mono bg-slate-800/50 text-slate-400 px-1.5 py-0.5 rounded">${e}</span>`
+                        ).join('') :
+                    '';
+                return `
+                    <div class="border-l-2 ${cls} rounded-r-lg p-2 anim-slide-up">
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full ${dot}"></span>
+                                <span class="text-[8px] font-mono font-bold text-slate-400">#${String(b.index).padStart(3,'0')}</span>
+                                <span class="text-[8px] font-mono font-bold text-white">${b.type}</span>
+                            </div>
+                            <span class="text-[7px] font-mono text-slate-600">${b.timestamp.toLocaleTimeString('es-NI',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>
+                        </div>
+                        <div class="text-[9px] font-mono text-slate-300 font-semibold">${b.personName}</div>
+                        <div class="text-[8px] font-mono text-slate-500 truncate">${b.territory}</div>
+                        ${b.institution?`<div class="text-[8px] font-mono text-cyan-400/70">${b.institution}</div>`:''}
+                        ${evidenceHtml?`<div class="flex items-center gap-1.5 mt-1 flex-wrap">${evidenceHtml}</div>`:''}
+                        ${validationHtml}
+                        <div class="text-[7px] font-mono text-slate-700 mt-1">${b.hash} ← ${b.prevHash}</div>
+                    </div>`;
+            }).join('');
+        }
+
+        // ============================================================
+        // 9. INCIDENTES Y FLUJO
+        // ============================================================
+        function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+        function randInt(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+
+        // Obtiene el territorio actual seleccionado en los selectores, o uno aleatorio si no hay selección
+        function getCurrentTerritory() {
+            const deptId = document.getElementById('sel-dept').value;
+            if (deptId === 'todos') {
+                return getRandomTerritory();
+            }
+            const dept = DEPARTMENTS_DATA[deptId];
+            if (!dept) return getRandomTerritory();
+
+            const muniId = document.getElementById('sel-muni').value;
+            let muni;
+            let muniKey;
+            if (muniId === 'todos' || !muniId) {
+                const keys = Object.keys(dept.municipios);
+                muniKey = pick(keys);
+                muni = dept.municipios[muniKey];
+            } else {
+                muniKey = muniId;
+                muni = dept.municipios[muniId];
+            }
+            if (!muni) return getRandomTerritory();
+
+            const comm = document.getElementById('sel-comm').value;
+            let commName;
+            if (comm === 'todos' || !comm) {
+                commName = pick(muni.communities);
+            } else {
+                commName = comm;
+            }
+
+            return {
+                deptKey: deptId,
+                deptName: dept.name,
+                muniKey: muniKey,
+                muniName: muni.name,
+                commName: commName,
+                full: `${dept.name} > ${muni.name} > ${commName}`
+            };
+        }
+
+        function getRandomTerritory() {
+            const dKeys = Object.keys(DEPARTMENTS_DATA);
+            const dk = pick(dKeys);
+            const d = DEPARTMENTS_DATA[dk];
+            const mk = pick(Object.keys(d.municipios));
+            const m = d.municipios[mk];
+            const ck = pick(m.communities);
+            return { deptKey: dk, deptName: d.name, muniKey: mk, muniName: m.name, commName: ck,
+            full: `${d.name} > ${m.name} > ${ck}` };
+        }
+
+        function createIncident(data) {
+            state.counter++;
+            const inc = {
+                id: state.counter,
+                emotion: data.emotion,
+                title: data.title,
+                severity: data.severity,
+                citizenName: data.citizenName || pick(NAMES),
+                deptKey: data.deptKey,
+                deptName: data.deptName,
+                muniKey: data.muniKey,
+                muniName: data.muniName,
+                commName: data.commName,
+                territory: data.full || `${data.deptName} > ${data.muniName} > ${data.commName}`,
+                status: 'reported', // reported -> derived -> responded -> validated
+                timestamp: new Date(),
+                institution: null,
+                responsibleName: null,
+                evidence: [],
+                citizenValidated: false,
+                communityValidated: false,
+                citizenValidationTime: null,
+                communityValidationTime: null
+            };
+            state.incidents.unshift(inc);
+            reports.push({
+                id: inc.id,
+                city: inc.muniName,
+                municipio: inc.muniName,
+                comunidad: inc.commName,
+                type: inc.emotion,
+                title: inc.title,
+                severity: inc.severity,
+                timestamp: inc.timestamp.toISOString(),
+                institution: inc.institution,
+                status: inc.status,
+                budget: randInt(3000, 35000),
+                citizenName: inc.citizenName,
+                citizenLastname: '',
+                evidence: '',
+                validated: false,
+                validationResult: null
+            });
+
+            trigger3DPulse(inc.emotion);
+            showSimOverlay(inc.title);
+            addBlock('REPORTE', {
+                personName: inc.citizenName,
+                territory: inc.territory,
+                emotion: inc.emotion,
+                evidence: ['Reporte ciudadano'],
+                citizenValidated: false,
+                communityValidated: false
+            });
+            generateNotification(inc, 'report');
+            renderIncidents();
+            updateIAStats();
+            updateNodeForIncident(inc);
+            setTimeout(() => deriveIncident(inc.id), 2000);
+            if (selectedDeptId !== 'todos') { initNodeMetrics();
+                renderNodes(); }
+        }
+
+        function deriveIncident(id) {
+            const inc = state.incidents.find(i => i.id === id);
+            if (!inc || inc.status !== 'reported') return;
+            inc.status = 'derived';
+            inc.institution = pick(INSTITUTIONS[inc.emotion] || ['Institución']);
+            addBlock('DERIVACIÓN', {
+                personName: inc.citizenName,
+                territory: inc.territory,
+                institution: inc.institution,
+                emotion: inc.emotion,
+                evidence: ['Orden de derivación automática']
+            });
+            generateNotification(inc, 'derive');
+            renderIncidents();
+            updateIAStats();
+            const r = reports.find(rp => rp.id === id);
+            if (r) { r.status = 'derived';
+                r.institution = inc.institution; }
+            setTimeout(() => respondIncident(inc.id), 3000);
+        }
+
+        function respondIncident(id) {
+            const inc = state.incidents.find(i => i.id === id);
+            if (!inc || inc.status !== 'derived') return;
+            inc.status = 'responded';
+            inc.responsibleName = pick(NAMES);
+            inc.evidence = [pick(EVIDENCE_TYPES), pick(EVIDENCE_TYPES)];
+            addBlock('EJECUCIÓN', {
+                personName: inc.responsibleName,
+                territory: inc.territory,
+                institution: inc.institution,
+                emotion: inc.emotion,
+                evidence: inc.evidence,
+                citizenValidated: false,
+                communityValidated: false
+            });
+            generateNotification(inc, 'respond');
+            renderIncidents();
+            updateIAStats();
+            updateNodeForIncident(inc);
+            const r = reports.find(rp => rp.id === id);
+            if (r) { r.status = 'responded';
+                r.institution = inc.institution;
+                r.evidence = inc.evidence.join(', '); }
+            playBeep(700, 'sine', 0.12);
+        }
+
+        function showSimOverlay(text) {
+            const el = document.getElementById('sim-active-overlay');
+            document.getElementById('sim-active-text').textContent = text;
+            el.classList.remove('hidden');
+            setTimeout(() => el.classList.add('hidden'), 3000);
+        }
+
+        // ============================================================
+        // 10. VALIDACIÓN MULTIPOLAR (desde v4)
+        // ============================================================
+        function openValidationModal(id) {
+            const inc = state.incidents.find(i => i.id === id);
+            if (!inc || inc.status !== 'responded') return;
+            currentValidationId = id;
+            const modal = document.getElementById('validation-modal');
+            modal.classList.remove('hidden');
+            document.getElementById('val-modal-title').textContent = inc.title;
+            document.getElementById('val-modal-citizen').textContent = inc.citizenName;
+            document.getElementById('val-modal-territory').textContent = inc.territory;
+            document.getElementById('val-modal-institution').textContent = inc.institution || '--';
+            document.getElementById('val-modal-evidence').textContent = inc.evidence.join(', ') || '--';
+            document.getElementById('val-modal-time').textContent = inc.timestamp.toLocaleString('es-NI', { day: '2-digit',
+                month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById('val-community-territory-detail').textContent =
+                `Departamento: ${inc.deptName} | Municipio: ${inc.muniName} | Comunidad: ${inc.commName}`;
+            updateValidationButtons(inc);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        function closeValidationModal() {
+            document.getElementById('validation-modal').classList.add('hidden');
+            currentValidationId = null;
+        }
+
+        function updateValidationButtons(inc) {
+            const cs = document.getElementById('val-citizen-status');
+            const cms = document.getElementById('val-community-status');
+            const bc = document.getElementById('btn-val-citizen');
+            const bcom = document.getElementById('btn-val-community');
+            const final = document.getElementById('val-final-status');
+
+            if (inc.citizenValidated) {
+                cs.textContent = 'VALIDADO';
+                cs.className =
+                    'text-[8px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-800/40';
+                bc.disabled = true;
+                bc.className =
+                    'w-full py-1.5 bg-emerald-950/20 border border-emerald-800/20 text-emerald-400/50 text-[9px] font-mono font-bold rounded cursor-not-allowed';
+                bc.textContent = 'VALIDADO POR ' + inc.citizenName.split(' ').slice(0, 2).join(' ');
+            } else {
+                cs.textContent = 'PENDIENTE';
+                cs.className =
+                    'text-[8px] font-mono font-bold px-2 py-0.5 rounded bg-yellow-950/50 text-yellow-400 border border-yellow-800/40';
+                bc.disabled = false;
+                bc.className =
+                    'w-full py-1.5 bg-cyan-950/30 hover:bg-cyan-900/40 border border-cyan-800/40 text-cyan-400 text-[9px] font-mono font-bold rounded transition-all duration-300 cursor-pointer';
+                bc.textContent = 'VALIDAR COMO CIUDADANO';
+            }
+
+            if (inc.communityValidated) {
+                cms.textContent = 'VALIDADO';
+                cms.className =
+                    'text-[8px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-800/40';
+                bcom.disabled = true;
+                bcom.className =
+                    'w-full py-1.5 bg-emerald-950/20 border border-emerald-800/20 text-emerald-400/50 text-[9px] font-mono font-bold rounded cursor-not-allowed';
+                bcom.textContent = 'VALIDADO POR COMUNIDAD: ' + inc.commName;
+            } else {
+                cms.textContent = 'PENDIENTE';
+                cms.className =
+                    'text-[8px] font-mono font-bold px-2 py-0.5 rounded bg-yellow-950/50 text-yellow-400 border border-yellow-800/40';
+                bcom.disabled = false;
+                bcom.className =
+                    'w-full py-1.5 bg-emerald-950/30 hover:bg-emerald-900/40 border border-emerald-800/40 text-emerald-400 text-[9px] font-mono font-bold rounded transition-all duration-300 cursor-pointer';
+                bcom.textContent = 'VALIDAR COMO COMUNIDAD';
+            }
+
+            if (inc.citizenValidated && inc.communityValidated) {
+                final.classList.remove('hidden');
+                final.className =
+                    'text-center py-2.5 rounded-lg border text-[10px] font-mono font-bold bg-emerald-950/30 border-emerald-500/40 text-emerald-400 glow-pulse';
+                final.innerHTML =
+                    '<i data-lucide="shield-check" class="w-4 h-4 inline mr-1"></i>VALIDACIÓN MULTIPOLAR COMPLETADA — Acción verificada por ciudadano y comunidad. Registrado en blockchain.';
+                inc.status = 'validated';
+                addBlock('VALIDACIÓN COMPLETA', {
+                    personName: inc.citizenName + ' + Comunidad de ' + inc.commName,
+                    territory: inc.territory,
+                    validatorType: 'VALIDACIÓN MULTIPOLAR COMPLETA',
+                    emotion: inc.emotion,
+                    evidence: ['Validación ciudadana', 'Validación comunitaria'],
+                    citizenValidated: true,
+                    communityValidated: true
+                });
+                const r = reports.find(rp => rp.id === inc.id);
+                if (r) { r.status = 'validated';
+                    r.validated = true;
+                    r.validationResult = 'approved'; }
+            } else if (inc.citizenValidated || inc.communityValidated) {
+                final.classList.remove('hidden');
+                final.className =
+                    'text-center py-2 rounded-lg border text-[10px] font-mono font-bold bg-yellow-950/20 border-yellow-500/30 text-yellow-400';
+                final.textContent = 'Validación parcial. Se requiere validación ' + (inc.citizenValidated ?
+                    'comunitaria' : 'ciudadana') + ' para completar.';
+            } else {
+                final.classList.add('hidden');
+            }
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            renderIncidents();
+            updateIAStats();
+            updateNodeForIncident(inc);
+        }
+
+        function doCitizenValidation() {
+            const inc = state.incidents.find(i => i.id === currentValidationId);
+            if (!inc || inc.citizenValidated) return;
+            inc.citizenValidated = true;
+            inc.citizenValidationTime = new Date();
+            playBeep(800, 'sine', 0.15);
+            addBlock('VALIDACIÓN CIUDADANA', {
+                personName: inc.citizenName,
+                territory: inc.territory,
+                validatorType: 'CIUDADANO REPORTANTE',
+                validatedBy: inc.citizenName,
+                emotion: inc.emotion,
+                evidence: ['Firma digital de validación ciudadana'],
+                citizenValidated: true,
+                communityValidated: inc.communityValidated
+            });
+            generateNotification(inc, 'citizen_validation');
+            updateValidationButtons(inc);
+            renderIncidents();
+            updateIAStats();
+            updateNodeForIncident(inc);
+        }
+
+        function doCommunityValidation() {
+            const inc = state.incidents.find(i => i.id === currentValidationId);
+            if (!inc || inc.communityValidated) return;
+            inc.communityValidated = true;
+            inc.communityValidationTime = new Date();
+            playBeep(900, 'sine', 0.15);
+            addBlock('VALIDACIÓN COMUNITARIA', {
+                personName: 'Comunidad de ' + inc.commName,
+                territory: inc.territory,
+                validatorType: 'COMUNIDAD (' + inc.deptName + ' > ' + inc.muniName + ' > ' + inc.commName + ')',
+                validatedBy: 'Comunidad: ' + inc.commName,
+                emotion: inc.emotion,
+                evidence: ['Validación territorial comunitaria'],
+                citizenValidated: inc.citizenValidated,
+                communityValidated: true
+            });
+            generateNotification(inc, 'community_validation');
+            updateValidationButtons(inc);
+            renderIncidents();
+            updateIAStats();
+            updateNodeForIncident(inc);
+        }
+
+        // ============================================================
+        // 11. NOTIFICACIONES MULTICANAL (simulación contextualizada y mejorada)
+        // ============================================================
+        function generateNotification(inc, phase) {
+            const t = inc.territory;
+            const n = inc.citizenName.split(' ')[0];
+            const dept = inc.deptName;
+            const muni = inc.muniName;
+            const comm = inc.commName;
+
+            if (phase === 'report') {
+                state.notifCache.push.push({
+                    icon: '_alert-circle',
+                    color: 'text-red-400',
+                    title: 'Nuevo impulso recibido',
+                    body: `${n} reportó: "${inc.title}" en ${comm}, ${muni}. Emoción: ${EMOTION_LABELS[inc.emotion]}. Severidad: ${inc.severity}/10.`,
+                    time: inc.timestamp.toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' })
+                });
+                state.notifCache.email.push({
+                    from: 'sistema@cuidanicaragua.gob.ni',
+                    to: inc.citizenName.toLowerCase().replace(/ /g, '.') + '@correo.ni',
+                    subject: `Reporte registrado #${inc.id} — ${inc.title.substring(0,40)}`,
+                    body: `Estimado/a ${inc.citizenName},\n\nLe confirmamos que su reporte ha sido registrado exitosamente en el Sistema Nervioso Cívico de Nicaragua.\n\nTerritorio: ${dept} > ${muni} > ${comm}\nClasificación: ${EMOTION_LABELS[inc.emotion]}\nSLA aplicado: ${inc.emotion==='frustracion'?'≤ 2 horas':inc.emotion==='esperanza'?'≤ 24 horas':inc.emotion==='orgullo'?'≤ 72 horas':'≤ 7 días'}\n\nLe mantendremos informado/a de cada paso.\n\nAtentamente,\nSistema Cuida Nicaragua™`
+                });
+                state.notifCache.whatsapp.push({
+                    msg: `*Cuida Nicaragua™*\n\nBuenas, ${n}. Le avisamos que ya quedó registrado su reporte:\n\n"${inc.title}"\n\n📍 ${comm}, ${muni}\n📊 ${EMOTION_LABELS[inc.emotion]}\n\nEn un ratito le avisamos cuando la institución tome carta. Quede atento/a.`,
+                    time: inc.timestamp.toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' })
+                });
+                state.notifCache.institutional.push({
+                    code: `TRZ-${new Date().getFullYear()}-${String(inc.id).padStart(4,'0')}`,
+                    to: pick(INSTITUTIONS[inc.emotion] || ['Institución']),
+                    priority: inc.severity >= 8 ? 'CRÍTICA' : 'ALTA',
+                    sla: inc.emotion === 'frustracion' ? '≤ 2 Horas' : inc.emotion === 'esperanza' ? '≤ 24 Horas' :
+                        inc.emotion === 'orgullo' ? '≤ 72 Horas' : '≤ 7 Días',
+                    status: 'RECIBIDO — Pendiente derivación',
+                    territory: t,
+                    responsible: null
+                });
+            } else if (phase === 'derive') {
+                state.notifCache.push.push({
+                    icon: 'arrow-right-circle',
+                    color: 'text-yellow-400',
+                    title: 'Reporte derivado',
+                    body: `Su reporte en ${comm} fue derivado a ${inc.institution}. Monitoreando tiempo de respuesta SLA.`,
+                    time: new Date().toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' })
+                });
+                const instEntry = state.notifCache.institutional.find(e => e.code ===
+                    `TRZ-${new Date().getFullYear()}-${String(inc.id).padStart(4,'0')}`);
+                if (instEntry) {
+                    instEntry.status = 'DERIVADO — Esperando ejecución';
+                    instEntry.to = inc.institution;
+                }
+            } else if (phase === 'respond') {
+                state.notifCache.push.push({
+                    icon: 'check-circle',
+                    color: 'text-emerald-400',
+                    title: 'Acción ejecutada',
+                    body: `${inc.responsibleName} ejecutó la respuesta en ${comm}, ${muni}. Valide la solución para completar el ciclo.`,
+                    time: new Date().toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' })
+                });
+                state.notifCache.email.push({
+                    from: 'sistema@cuidanicaragua.gob.ni',
+                    to: inc.citizenName.toLowerCase().replace(/ /g, '.') + '@correo.ni',
+                    subject: `Su reporte #${inc.id} fue atendido — Valide la solución`,
+                    body: `Estimado/a ${inc.citizenName},\n\nLe informamos que ${inc.institution} ya ejecutó la acción correspondiente a su reporte:\n\n"${inc.title}"\n\nResponsable: ${inc.responsibleName}\nEvidencia: ${inc.evidence.join(', ')}\nTerritorio: ${dept} > ${muni} > ${comm}\n\nPor favor, valide si la solución le resulta satisfactoria tanto a nivel personal como comunitario.\n\nSu validación garantiza justicia territorial.\n\nCuida Nicaragua™`
+                });
+                state.notifCache.whatsapp.push({
+                    msg: `*Cuida Nicaragua™*\n\nBuenas tardes, ${n}. Ya le dieron respuesta a lo que reportó en ${comm}.\n\n👤 ${inc.responsibleName}\n🏢 ${inc.institution}\n📎 ${inc.evidence.join(', ')}\n\n¿Todo está bien? Valide desde la app para que quede constancia. Si no, avísenos y lo volvemos a gestionar.`,
+                    time: new Date().toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' })
+                });
+                const instEntry = state.notifCache.institutional.find(e => e.code ===
+                    `TRZ-${new Date().getFullYear()}-${String(inc.id).padStart(4,'0')}`);
+                if (instEntry) {
+                    instEntry.status = 'EJECUTADO — Pendiente validación ciudadana y comunitaria';
+                    instEntry.responsible = inc.responsibleName;
+                }
+            } else if (phase === 'citizen_validation') {
+                state.notifCache.push.push({
+                    icon: 'user-check',
+                    color: 'text-emerald-400',
+                    title: 'Validación ciudadana confirmada',
+                    body: `${inc.citizenName} validó la acción en ${comm}. Falta validación comunitaria.`,
+                    time: new Date().toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' })
+                });
+                state.notifCache.whatsapp.push({
+                    msg: `*Cuida Nicaragua™*\n\n${n} ya validó como ciudadano/a. Ahora falta que la comunidad de ${comm} también confirme. Coordinemos con los vecinos.`,
+                    time: new Date().toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' })
+                });
+            } else if (phase === 'community_validation') {
+                state.notifCache.push.push({
+                    icon: 'users',
+                    color: 'text-emerald-400',
+                    title: 'Validación comunitaria confirmada',
+                    body: `La comunidad de ${comm}, ${muni} validó la acción. ${inc.citizenValidated?'Ciclo completo.':'Falta validación ciudadana.'}`,
+                    time: new Date().toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' })
+                });
+                state.notifCache.email.push({
+                    from: 'sistema@cuidanicaragua.gob.ni',
+                    to: 'red territorial <red@' + muni.toLowerCase().replace(/ /g, '') + '.gob.ni>',
+                    subject: `Validación comunitaria completada — ${comm}, ${muni}`,
+                    body: `Se informa que la comunidad de ${comm}, municipio de ${muni}, departamento de ${dept}, ha validado la acción institucional correspondiente al reporte #${inc.id}.\n\n${inc.citizenValidated?'La validación multipolar se encuentra COMPLETA.':'Aún se espera la validación del ciudadano reportante.'}\n\nRegistro blockchain actualizado.\n\nCuida Nicaragua™`
+                });
+            }
+            renderNotifications();
+        }
+
+        // Simulación automática de notificaciones contextualizadas
+        function autoGenerateNotification() {
+            const territory = getCurrentTerritory();
+            const emotion = pick(Object.keys(EMOTION_LABELS));
+            const title = pick(PRESET_INCIDENTS[emotion] || ['Incidente simulado']);
+            const severity = currentMode === 'emergencia' ? randInt(8, 10) : randInt(3, 8);
+            const citizen = pick(NAMES);
+            const fakeInc = {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                emotion: emotion,
+                title: title,
+                severity: severity,
+                citizenName: citizen,
+                deptName: territory.deptName,
+                muniName: territory.muniName,
+                commName: territory.commName,
+                territory: territory.full,
+                institution: pick(INSTITUTIONS[emotion] || ['Institución']),
+                evidence: [pick(EVIDENCE_TYPES)],
+                status: 'reported',
+                timestamp: new Date(),
+                responsibleName: null,
+                citizenValidated: false,
+                communityValidated: false
+            };
+            const phases = ['report', 'derive', 'respond', 'citizen_validation', 'community_validation'];
+            // En modo crisis, priorizar fases urgentes
+            let phase = pick(phases);
+            if (currentMode === 'emergencia' && Math.random() < 0.4) phase = 'report';
+            if (currentMode === 'blockchain' && Math.random() < 0.3) phase = 'derive';
+            generateNotification(fakeInc, phase);
+            // También generar notificaciones adicionales según el modo
+            if (currentMode === 'emergencia' && Math.random() < 0.3) {
+                // Notificación extra urgente
+                const extra = pick(['🚨 ALERTA CRÍTICA', '⚠️ Atención inmediata', '🔴 Emergencia activa']);
+                state.notifCache.push.push({
+                    icon: 'alert-triangle',
+                    color: 'text-red-400',
+                    title: extra,
+                    body: `Se reporta situación crítica en ${territory.muniName}, ${territory.commName}. Prioridad máxima.`,
+                    time: new Date().toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' })
+                });
+                renderNotifications();
+            }
+        }
+
+        // ============================================================
+        // 12. RENDER INCIDENTS (filtrado por territorio)
+        // ============================================================
+        function renderIncidents() {
+            const feed = document.getElementById('incidents-feed');
+            let filtered = state.incidents;
+            if (selectedDeptId !== 'todos') filtered = filtered.filter(i => i.deptKey === selectedDeptId);
+            if (selectedMuniId !== 'todos') filtered = filtered.filter(i => i.muniKey === selectedMuniId);
+            if (selectedComm !== 'todos') filtered = filtered.filter(i => i.commName === selectedComm);
+
+            if (filtered.length === 0) {
+                feed.innerHTML =
+                    '<div class="text-[10px] text-slate-600 font-mono text-center py-3">Sin impulsos en este territorio.</div>';
+                updateNotifications();
+                return;
+            }
+            feed.innerHTML = filtered.slice(0, 10).map(inc => {
+                const ec = EMOTION_COLORS[inc.emotion];
+                let statusBadge = '';
+                if (inc.status === 'reported') statusBadge =
+                    '<span class="text-[7px] font-mono font-bold bg-yellow-950/50 text-yellow-400 border border-yellow-800/40 px-1.5 py-0.5 rounded">REPORTADO</span>';
+                else if (inc.status === 'derived') statusBadge =
+                    '<span class="text-[7px] font-mono font-bold bg-orange-950/50 text-orange-400 border border-orange-800/40 px-1.5 py-0.5 rounded">DERIVADO</span>';
+                else if (inc.status === 'responded') statusBadge =
+                    '<span class="text-[7px] font-mono font-bold bg-cyan-950/50 text-cyan-400 border border-cyan-800/40 px-1.5 py-0.5 rounded">EJECUTADO</span>';
+                else if (inc.status === 'validated') statusBadge =
+                    '<span class="text-[7px] font-mono font-bold bg-emerald-950/50 text-emerald-400 border border-emerald-800/40 px-1.5 py-0.5 rounded">VALIDADO</span>';
+
+                let validationIcons = '';
+                validationIcons +=
+                    `<span class="${inc.citizenValidated?'text-emerald-400':'text-slate-700'} text-[9px]" title="Validación ciudadana">${inc.citizenValidated?'✓':'○'}</span>`;
+                validationIcons +=
+                    `<span class="${inc.communityValidated?'text-emerald-400':'text-slate-700'} text-[9px]" title="Validación comunitaria">${inc.communityValidated?'✓':'○'}</span>`;
+
+                let actionBtn = '';
+                if (inc.status === 'responded') {
+                    actionBtn =
+                        `<button onclick="openValidationModal(${inc.id})" class="text-[8px] font-mono font-bold bg-emerald-950/30 hover:bg-emerald-900/40 border border-emerald-800/40 text-emerald-400 px-2 py-0.5 rounded transition-all duration-300 cursor-pointer">VALIDAR</button>`;
+                } else if (inc.status === 'validated') {
+                    actionBtn = '<span class="text-[8px] font-mono font-bold text-emerald-400/60">COMPLETADO</span>';
+                }
+
+                return `
+                    <div class="border-l-2 bg-[#080b12] rounded-r-lg p-2 anim-slide-up" style="border-color:${ec}40">
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full" style="background:${ec}"></span>
+                                <span class="text-[9px] font-mono font-bold text-slate-200 truncate max-w-[160px]">${inc.title}</span>
+                            </div>
+                            ${statusBadge}
+                        </div>
+                        <div class="text-[8px] font-mono text-slate-500 mb-1">${inc.citizenName} — ${inc.muniName}</div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                ${validationIcons}
+                                <span class="text-[7px] font-mono text-slate-600">${inc.timestamp.toLocaleTimeString('es-NI',{hour:'2-digit',minute:'2-digit'})}</span>
+                            </div>
+                            ${actionBtn}
+                        </div>
+                    </div>`;
+            }).join('');
+            updateNotifications();
+        }
+
+        function setNotifTab(ch) {
+            state.notifChannel = ch;
+            document.querySelectorAll('[id^="ntab-"]').forEach(b => {
+                b.className = b.id === 'ntab-' + ch ?
+                    'notif-tab py-1.5 rounded text-[9px] sm:text-[10px] font-mono font-bold uppercase flex flex-col items-center gap-1 transition-all duration-300 notif-tab-active border border-cyan-800/30 text-cyan-400 bg-cyan-950/30' :
+                    'notif-tab py-1.5 rounded text-[9px] sm:text-[10px] font-mono font-bold uppercase flex flex-col items-center gap-1 transition-all duration-300 text-slate-500 hover:text-slate-300 border border-transparent';
+            });
+            renderNotifications();
+            playBeep(500, 'sine', 0.04);
+        }
+
+        function renderNotifications() {
+            const el = document.getElementById('notif-content');
+            const items = state.notifCache[state.notifChannel] || [];
+            if (items.length === 0) {
+                el.innerHTML =
+                    '<div class="text-[10px] text-slate-600 font-mono text-center py-3">Sin notificaciones en este canal.</div>';
+                return;
+            }
+            const recent = items.slice(-5).reverse();
+            if (state.notifChannel === 'push') {
+                el.innerHTML = recent.map(n => `
+                    <div class="bg-[#0a1628] border border-[#1a2a4a] rounded-lg p-2.5 mb-2">
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full ${n.color==='text-red-400'?'bg-red-500':n.color==='text-yellow-400'?'bg-yellow-500':'bg-emerald-500'}"></span>
+                                <span class="text-[8px] font-mono font-bold text-slate-400">CUIDA NICARAGUA</span>
+                            </div>
+                            <span class="text-[7px] font-mono text-slate-600">${n.time}</span>
+                        </div>
+                        <div class="text-[10px] font-bold text-white mb-0.5">${n.title}</div>
+                        <div class="text-[9px] text-slate-400 leading-relaxed">${n.body}</div>
+                    </div>`).join('');
+            } else if (state.notifChannel === 'email') {
+                el.innerHTML = recent.map(n => `
+                    <div class="bg-[#080b12] border border-[#1e293b] rounded-lg p-2.5 mb-2 text-[10px]">
+                        <div class="flex justify-between text-[8px]"><span class="text-slate-500">De: <strong class="text-slate-300">${n.from}</strong></span></div>
+                        <div class="text-[8px] text-slate-500">Para: <strong class="text-slate-300">${n.to}</strong></div>
+                        <div class="text-[9px] font-bold text-cyan-400 my-1">${n.subject}</div>
+                        <div class="text-[8px] text-slate-400 whitespace-pre-line leading-relaxed border-t border-slate-800 pt-1.5 mt-1">${n.body}</div>
+                    </div>`).join('');
+            } else if (state.notifChannel === 'whatsapp') {
+                el.innerHTML = recent.map(n => `
+                    <div class="bg-[#0b1410] border border-[#1a3a2a] rounded-r-lg rounded-tl-lg p-2.5 mb-2 relative">
+                        <div class="text-[8px] text-emerald-500 font-mono mb-1">Cuida Nicaragua™ <span class="text-slate-600">${n.time}</span></div>
+                        <div class="text-[9px] text-slate-200 whitespace-pre-line leading-relaxed">${n.msg}</div>
+                    </div>`).join('');
+            } else {
+                el.innerHTML = recent.map(n => `
+                    <div class="bg-[#10090a] border border-[#3a1a1a] rounded-lg p-2.5 mb-2 border-l-3 border-l-red-500">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[8px] font-mono font-bold text-red-400">ALERTA INSTITUCIONAL</span>
+                            <span class="text-[7px] font-mono text-slate-500">${n.code}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-1 text-[8px] font-mono mb-1.5">
+                            <div><span class="text-slate-500">Derivado a:</span> <strong class="text-slate-200">${n.to}</strong></div>
+                            <div><span class="text-slate-500">Prioridad:</span> <strong class="${n.priority==='CRÍTICA'?'text-red-400':'text-yellow-400'}">${n.priority}</strong></div>
+                            <div><span class="text-slate-500">SLA:</span> <strong class="text-slate-200">${n.sla}</strong></div>
+                            <div><span class="text-slate-500">Estado:</span> <strong class="text-cyan-400">${n.status}</strong></div>
+                        </div>
+                        <div class="text-[8px] text-slate-500">Territorio: <strong class="text-slate-300">${n.territory}</strong></div>
+                        ${n.responsible?`<div class="text-[8px] text-slate-500">Responsable: <strong class="text-slate-300">${n.responsible}</strong></div>`:''}
+                    </div>`).join('');
+            }
+        }
+
+        // ============================================================
+        // 13. IA STATS (filtrada por territorio)
+        // ============================================================
+        function updateIAStats() {
+            let filtered = state.incidents;
+            if (selectedDeptId !== 'todos') filtered = filtered.filter(i => i.deptKey === selectedDeptId);
+            if (selectedMuniId !== 'todos') filtered = filtered.filter(i => i.muniKey === selectedMuniId);
+            if (selectedComm !== 'todos') filtered = filtered.filter(i => i.commName === selectedComm);
+
+            const f = filtered.filter(i => i.emotion === 'frustracion').length;
+            const h = filtered.filter(i => i.emotion === 'esperanza').length;
+            const p = filtered.filter(i => i.emotion === 'orgullo').length;
+            const n = filtered.filter(i => i.emotion === 'abandono').length;
+            const total = filtered.length || 1;
+            const urgency = Math.round(((f * 10 + n * 5 + h * 2) / total) * 10);
+            const routing = filtered.filter(i => i.status === 'derived').length;
+            const pending = filtered.filter(i => i.status === 'responded' && !i.citizenValidated && !i.communityValidated)
+                .length;
+            const validated = filtered.filter(i => i.status === 'validated').length;
+
+            document.getElementById('ia-frust').textContent = f;
+            document.getElementById('ia-hope').textContent = h;
+            document.getElementById('ia-pride').textContent = p;
+            document.getElementById('ia-neglect').textContent = n;
+            document.getElementById('ia-urgency').textContent = Math.min(100, urgency) + '%';
+            document.getElementById('ia-routing').textContent = routing;
+            document.getElementById('ia-validation').textContent = pending;
+            document.getElementById('ia-validated').textContent = validated;
+            document.getElementById('ia-last-sync').textContent = 'Última sinapsis: hace ' + (Math.floor(Math.random() *
+                8) + 2) + 's';
+        }
+
+        // ============================================================
+        // 14. MODE & RESET (mejorado con efectos territoriales)
+        // ============================================================
+        function changeMode(mode) {
+            currentMode = mode;
+            playBeep(520, 'sine', 0.12);
+            ['reposo', 'analisis', 'simulacion', 'emergencia', 'blockchain'].forEach(m => {
+                const btn = document.getElementById('mode-' + m);
+                if (m === mode) {
+                    btn.className =
+                        "py-1 text-[8px] sm:text-[9px] font-mono font-bold rounded border uppercase transition-all duration-300 mode-btn-active";
+                } else {
+                    btn.className =
+                        "py-1 text-[8px] sm:text-[9px] font-mono font-bold rounded border uppercase transition-all duration-300 text-slate-400 border-slate-900 bg-black/40 hover:border-slate-700";
+                }
+            });
+            const t = TRANSLATIONS[currentLang];
+            document.getElementById('mode-desc-text').innerText = t.modes[mode] || t.modes.reposo;
+            // Actualizar indicador de modo
+            document.getElementById('mode-label').textContent = mode.toUpperCase();
+            const dot = document.getElementById('mode-dot');
+            dot.className = 'dot ' + mode;
+            if (mode === 'emergencia') {
+                dot.style.background = '#ef4444';
+            } else if (mode === 'analisis') {
+                dot.style.background = '#a855f7';
+            } else if (mode === 'simulacion') {
+                dot.style.background = '#facc15';
+            } else if (mode === 'blockchain') {
+                dot.style.background = '#34d399';
+            } else {
+                dot.style.background = '#06b6d4';
+            }
+            // Ajustar color del mapa 3D
+            if (typeof mapOutline !== 'undefined' && mapOutline) {
+                const colors = { reposo: 0x06b6d4, analisis: 0xa855f7, emergencia: 0xef4444, blockchain: 0x34d759,
+                    simulacion: 0xfacc15 };
+                mapOutline.material.color.setHex(colors[mode] || 0x06b6d4);
+            }
+            // Reiniciar simulaciones automáticas según el modo
+            restartAutoSimulations();
+            // Generar notificaciones según el modo
+            if (mode === 'emergencia') {
+                // Alerta inicial
+                state.notifCache.push.push({
+                    icon: 'alert-triangle',
+                    color: 'text-red-400',
+                    title: '🚨 MODO CRISIS ACTIVADO',
+                    body: `Se ha declarado estado de emergencia en ${document.getElementById('active-territory-label').innerText}. Todas las unidades alertadas.`,
+                    time: new Date().toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' })
+                });
+                renderNotifications();
+            }
+            updateIAStats();
+        }
+
+        function resetSim() {
+            playBeep(250, 'sine', 0.3);
+            state.incidents = [];
+            state.blocks = [];
+            blockCounter = 0;
+            reports = [];
+            state.notifCache = { push: [], email: [], whatsapp: [], institutional: [] };
+            state.nodeMetrics = {};
+            renderIncidents();
+            renderBlockchainFeed();
+            renderNotifications();
+            updateIAStats();
+            if (selectedDeptId !== 'todos') { initNodeMetrics();
+                renderNodes(); }
+            document.querySelector('#block-feed + span')?.remove();
+        }
+
+        // ============================================================
+        // 15. SUBMIT REPORT & PRESETS (usan territorio seleccionado)
+        // ============================================================
+        function submitCustomReport(e) {
+            e.preventDefault();
+            playBeep(500, 'sine', 0.25);
+            const title = document.getElementById('form-title').value.trim();
+            if (!title) { alert('Ingresa un título para el incidente.'); return; }
+            const emotion = document.getElementById('form-emotion').value;
+            const severity = parseInt(document.getElementById('form-severity').value) || 7;
+            const cityKey = document.getElementById('form-city').value;
+            let terr;
+            if (selectedDeptId !== 'todos' && DEPARTMENTS_DATA[selectedDeptId] && DEPARTMENTS_DATA[selectedDeptId]
+                .municipios[cityKey]) {
+                const m = DEPARTMENTS_DATA[selectedDeptId].municipios[cityKey];
+                const comm = selectedComm !== 'todos' ? selectedComm : pick(m.communities);
+                terr = {
+                    deptKey: selectedDeptId,
+                    deptName: DEPARTMENTS_DATA[selectedDeptId].name,
+                    muniKey: cityKey,
+                    muniName: m.name,
+                    commName: comm,
+                    full: `${DEPARTMENTS_DATA[selectedDeptId].name} > ${m.name} > ${comm}`
+                };
+            } else {
+                terr = getCurrentTerritory();
+            }
+            const citizenName = document.getElementById('form-citizen-name').value.trim() || pick(NAMES);
+            createIncident({
+                emotion,
+                title,
+                severity,
+                citizenName,
+                deptKey: terr.deptKey,
+                deptName: terr.deptName,
+                muniKey: terr.muniKey,
+                muniName: terr.muniName,
+                commName: terr.commName,
+                full: terr.full
+            });
+            document.getElementById('report-form').classList.add('hidden');
+            state.formOpen = false;
+            document.getElementById('btn-toggle-form').textContent = 'NUEVO REPORTE';
+            document.getElementById('form-title').value = '';
+            renderIncidents();
+            renderNotifications();
+        }
+
+        function triggerPreset(emotion) {
+            const terr = getCurrentTerritory();
+            const title = pick(PRESET_INCIDENTS[emotion] || ['Incidente simulado']);
+            const severity = currentMode === 'emergencia' ? randInt(8, 10) : randInt(5, 10);
+            createIncident({
+                emotion,
+                title,
+                severity,
+                citizenName: pick(NAMES),
+                deptKey: terr.deptKey,
+                deptName: terr.deptName,
+                muniKey: terr.muniKey,
+                muniName: terr.muniName,
+                commName: terr.commName,
+                full: terr.full
+            });
+        }
+
+        // ============================================================
+        // 16. THREE.JS 3D ENGINE (sin cambios, solo referencia)
+        // ============================================================
+        let scene, camera, renderer, controls, mapOutline, cityGroup, people = [], riverGroup, bridgeGroup;
+        let animFrameId = null;
+        let useThreeJS = false;
+        let cityBuildings = [];
+
+        const NICARAGUA_SHAPE = [
+            { x: -0.55, z: -0.35 }, { x: -0.45, z: -0.30 }, { x: -0.30, z: -0.40 }, { x: -0.15, z: -0.45 },
+            { x: 0.00, z: -0.50 }, { x: 0.25, z: -0.45 }, { x: 0.45, z: -0.30 }, { x: 0.60, z: -0.10 },
+            { x: 0.65, z: 0.10 }, { x: 0.60, z: 0.30 }, { x: 0.50, z: 0.45 }, { x: 0.30, z: 0.55 },
+            { x: 0.10, z: 0.60 }, { x: -0.10, z: 0.55 }, { x: -0.30, z: 0.50 }, { x: -0.45, z: 0.40 },
+            { x: -0.60, z: 0.20 }, { x: -0.65, z: 0.00 }, { x: -0.60, z: -0.20 }
+        ];
+
+        const DEPT_COORDS = {
+            managua: { x: -0.15, z: 0.05 },
+            leon: { x: -0.35, z: 0.25 },
+            chinandega: { x: -0.45, z: 0.35 },
+            granada: { x: -0.05, z: -0.15 },
+            masaya: { x: -0.02, z: -0.20 },
+            carazo: { x: -0.12, z: -0.22 },
+            rivas: { x: 0.02, z: -0.35 },
+            matagalpa: { x: -0.10, z: 0.45 },
+            jinotega: { x: -0.05, z: 0.60 },
+            esteli: { x: -0.30, z: 0.40 },
+            boaco: { x: 0.15, z: 0.10 },
+            chontales: { x: 0.30, z: 0.05 },
+            nueva_segovia: { x: -0.40, z: 0.55 },
+            madriz: { x: -0.35, z: 0.50 },
+            rio_san_juan: { x: 0.35, z: -0.30 },
+            raan: { x: 0.60, z: 0.40 },
+            raas: { x: 0.55, z: -0.10 }
+        };
+
+        function init3D() {
+            const hasThree = typeof THREE !== 'undefined' && typeof THREE.OrbitControls !== 'undefined';
+            if (hasThree) {
+                try { initThreeJS();
+                    useThreeJS = true; return; } catch (e) { console.warn("Three.js init failed", e); }
+            }
+            initCanvasFallback();
+        }
+
+        function initThreeJS() {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth || 600;
+            const height = container.clientHeight || 400;
+            const canvas = document.createElement('canvas');
+            canvas.id = 'three-canvas';
+            canvas.className = 'w-full h-full cursor-grab active:cursor-grabbing';
+            container.innerHTML = '';
+            container.appendChild(canvas);
+
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x06080d, 0.02);
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+            camera.position.set(0, 3.5, 6.5);
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.06;
+            controls.maxPolarAngle = Math.PI / 2 + 0.3;
+            controls.minDistance = 1.8;
+            controls.maxDistance = 14;
+            controls.target.set(0, 0.2, 0);
+
+            const ambient = new THREE.AmbientLight(0x0f172a, 1.2);
+            scene.add(ambient);
+            const dirLight = new THREE.DirectionalLight(0x4fc3f7, 0.8);
+            dirLight.position.set(4, 7, 5);
+            scene.add(dirLight);
+            const backLight = new THREE.DirectionalLight(0x8b5cf6, 0.4);
+            backLight.position.set(-3, 2, -5);
+            scene.add(backLight);
+
+            const shapePoints = NICARAGUA_SHAPE.map(p => new THREE.Vector3(p.x * 2.8, -0.2, p.z * 2.8));
+            shapePoints.push(shapePoints[0]);
+            const shapeGeo = new THREE.BufferGeometry().setFromPoints(shapePoints);
+            const shapeMat = new THREE.LineBasicMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.6 });
+            mapOutline = new THREE.Line(shapeGeo, shapeMat);
+            scene.add(mapOutline);
+
+            const meshGeo = new THREE.BufferGeometry();
+            const vertices = [];
+            const indices = [];
+            const center = new THREE.Vector3(0, -0.2, 0);
+            vertices.push(center.x, center.y, center.z);
+            for (let i = 0; i < shapePoints.length - 1; i++) {
+                const p = shapePoints[i];
+                vertices.push(p.x, p.y, p.z);
+                if (i > 0) indices.push(0, i, i + 1);
+            }
+            meshGeo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            meshGeo.setIndex(indices);
+            meshGeo.computeVertexNormals();
+            const meshMat = new THREE.MeshBasicMaterial({
+                color: 0x0a2a3a,
+                transparent: true,
+                opacity: 0.3,
+                side: THREE.DoubleSide
+            });
+            const mesh = new THREE.Mesh(meshGeo, meshMat);
+            scene.add(mesh);
+
+            cityGroup = new THREE.Group();
+            scene.add(cityGroup);
+
+            const streetColor = 0x2a3a4a;
+            const streetMat = new THREE.MeshBasicMaterial({ color: streetColor });
+            const streetWidth = 0.025;
+            const blockSize = 0.35;
+            const citySize = 1.4;
+            const offsetX = -0.15;
+            const offsetZ = 0.05;
+
+            for (let i = -3; i <= 3; i++) {
+                const pos = i * blockSize;
+                const hStreet = new THREE.Mesh(new THREE.PlaneGeometry(citySize, streetWidth), streetMat);
+                hStreet.rotation.x = -Math.PI / 2;
+                hStreet.position.set(offsetX, -0.18, offsetZ + pos);
+                cityGroup.add(hStreet);
+                const vStreet = new THREE.Mesh(new THREE.PlaneGeometry(streetWidth, citySize), streetMat);
+                vStreet.rotation.x = -Math.PI / 2;
+                vStreet.position.set(offsetX + pos, -0.18, offsetZ);
+                cityGroup.add(vStreet);
+            }
+
+            const buildingColors = [0x4a6a8a, 0x6a8a9a, 0x3a5a6a, 0x5a7a8a, 0x7a9aaa, 0x2a4a5a];
+            const houseColors = [0x8a7a6a, 0x9a8a7a, 0xaa9a8a, 0xbaaa9a];
+
+            for (let ix = -2; ix <= 2; ix++) {
+                for (let iz = -2; iz <= 2; iz++) {
+                    if (Math.abs(ix) < 1 && Math.abs(iz) < 1) continue;
+                    const x = offsetX + ix * blockSize;
+                    const z = offsetZ + iz * blockSize;
+                    const w = 0.08 + Math.random() * 0.12;
+                    const d = 0.08 + Math.random() * 0.12;
+                    const h = 0.06 + Math.random() * 0.25;
+                    const isHouse = h < 0.12;
+                    const color = isHouse ? pick(houseColors) : pick(buildingColors);
+                    const mat = new THREE.MeshBasicMaterial({ color: color });
+                    const geo = new THREE.BoxGeometry(w, h, d);
+                    const building = new THREE.Mesh(geo, mat);
+                    building.position.set(x, -0.18 + h / 2, z);
+                    cityGroup.add(building);
+                    cityBuildings.push(building);
+
+                    if (isHouse) {
+                        const roofMat = new THREE.MeshBasicMaterial({ color: 0x6a4a3a });
+                        const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.7, h * 0.4, 4), roofMat);
+                        roof.position.set(x, -0.18 + h + 0.02, z);
+                        roof.rotation.y = Math.PI / 4;
+                        cityGroup.add(roof);
+                    }
+
+                    if (Math.random() < 0.2) {
+                        const treeMat = new THREE.MeshBasicMaterial({ color: 0x2a6a3a });
+                        const trunkMat = new THREE.MeshBasicMaterial({ color: 0x5a3a2a });
+                        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.01, 0.04), trunkMat);
+                        trunk.position.set(x + (Math.random() - 0.5) * 0.15, -0.18 + 0.02, z + (Math.random() - 0.5) *
+                            0.15);
+                        cityGroup.add(trunk);
+                        const crown = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6), treeMat);
+                        crown.position.set(trunk.position.x, trunk.position.y + 0.04, trunk.position.z);
+                        cityGroup.add(crown);
+                    }
+                }
+            }
+
+            riverGroup = new THREE.Group();
+            scene.add(riverGroup);
+            const riverMat = new THREE.MeshBasicMaterial({ color: 0x1a6a8a, transparent: true, opacity: 0.6 });
+            const river1 = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.06), riverMat);
+            river1.rotation.x = -Math.PI / 2;
+            river1.position.set(offsetX, -0.17, offsetZ - 0.6);
+            riverGroup.add(river1);
+            const river2 = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 1.4), riverMat);
+            river2.rotation.x = -Math.PI / 2;
+            river2.rotation.z = 0.3;
+            river2.position.set(offsetX + 0.5, -0.17, offsetZ + 0.2);
+            riverGroup.add(river2);
+
+            bridgeGroup = new THREE.Group();
+            scene.add(bridgeGroup);
+            const bridgeMat = new THREE.MeshBasicMaterial({ color: 0x8a7a6a });
+            const bridgePositions = [
+                { x: offsetX - 0.2, z: offsetZ - 0.6 },
+                { x: offsetX + 0.3, z: offsetZ - 0.6 },
+                { x: offsetX + 0.5, z: offsetZ + 0.2 }
+            ];
+            bridgePositions.forEach(pos => {
+                const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.02, 0.08), bridgeMat);
+                bridge.position.set(pos.x, -0.16, pos.z);
+                bridgeGroup.add(bridge);
+                const pillarMat = new THREE.MeshBasicMaterial({ color: 0x6a5a4a });
+                for (let side = -1; side <= 1; side += 2) {
+                    const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.06), pillarMat);
+                    pillar.position.set(pos.x + side * 0.05, -0.19, pos.z);
+                    bridgeGroup.add(pillar);
+                }
+            });
+
+            people = [];
+            const personMat = new THREE.MeshBasicMaterial({ color: 0xccbbaa });
+            const headMat = new THREE.MeshBasicMaterial({ color: 0xddccbb });
+            for (let i = 0; i < 25; i++) {
+                const personGroup = new THREE.Group();
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.06), personMat);
+                body.position.y = 0.03;
+                personGroup.add(body);
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6), headMat);
+                head.position.y = 0.07;
+                personGroup.add(head);
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 0.2 + Math.random() * 0.6;
+                const px = offsetX + Math.cos(angle) * radius;
+                const pz = offsetZ + Math.sin(angle) * radius;
+                personGroup.position.set(px, -0.18, pz);
+                personGroup.rotation.y = Math.random() * Math.PI * 2;
+                personGroup.userData = {
+                    speed: 0.002 + Math.random() * 0.004,
+                    targetX: px,
+                    targetZ: pz,
+                    radius: radius,
+                    angle: angle,
+                    phase: Math.random() * 100
+                };
+                cityGroup.add(personGroup);
+                people.push(personGroup);
+            }
+
+            const deptNodes = [];
+            Object.entries(DEPT_COORDS).forEach(([id, pos]) => {
+                const color = id === 'managua' ? 0x22d3ee : 0x06b6d4;
+                const node = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.06, 12, 12),
+                    new THREE.MeshBasicMaterial({ color: color })
+                );
+                node.position.set(pos.x * 2.8, -0.15, pos.z * 2.8);
+                scene.add(node);
+                const glow = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.09, 8, 8),
+                    new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.2 })
+                );
+                glow.position.copy(node.position);
+                scene.add(glow);
+                deptNodes.push({ mesh: node, glow, id, pos });
+            });
+
+            const deptIds = Object.keys(DEPT_COORDS);
+            for (let i = 0; i < deptIds.length; i++) {
+                for (let j = i + 1; j < deptIds.length; j++) {
+                    if (Math.random() < 0.25) {
+                        const p1 = new THREE.Vector3(DEPT_COORDS[deptIds[i]].x * 2.8, -0.15, DEPT_COORDS[deptIds[i]].z * 2.8);
+                        const p2 = new THREE.Vector3(DEPT_COORDS[deptIds[j]].x * 2.8, -0.15, DEPT_COORDS[deptIds[j]].z * 2.8);
+                        const curve = new THREE.QuadraticBezierCurve3(
+                            p1,
+                            new THREE.Vector3((p1.x + p2.x) / 2, 0.1 + Math.random() * 0.2, (p1.z + p2.z) / 2),
+                            p2
+                        );
+                        const pts = curve.getPoints(30);
+                        const line = new THREE.Line(
+                            new THREE.BufferGeometry().setFromPoints(pts),
+                            new THREE.LineBasicMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.12 })
+                        );
+                        scene.add(line);
+                    }
+                }
+            }
+
+            const impulses = [];
+            for (let i = 0; i < 10; i++) {
+                const startId = pick(deptIds);
+                const endId = pick(deptIds.filter(id => id !== startId));
+                const p1 = new THREE.Vector3(DEPT_COORDS[startId].x * 2.8, -0.15, DEPT_COORDS[startId].z * 2.8);
+                const p2 = new THREE.Vector3(DEPT_COORDS[endId].x * 2.8, -0.15, DEPT_COORDS[endId].z * 2.8);
+                const curve = new THREE.QuadraticBezierCurve3(
+                    p1,
+                    new THREE.Vector3((p1.x + p2.x) / 2, 0.2 + Math.random() * 0.3, (p1.z + p2.z) / 2),
+                    p2
+                );
+                const mesh = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.025, 6, 6),
+                    new THREE.MeshBasicMaterial({ color: 0x22d3ee })
+                );
+                scene.add(mesh);
+                impulses.push({
+                    curve: curve,
+                    progress: Math.random(),
+                    speed: 0.003 + Math.random() * 0.005,
+                    mesh: mesh
+                });
+            }
+
+            function animate() {
+                animFrameId = requestAnimationFrame(animate);
+                controls.update();
+                const time = Date.now() * 0.001;
+
+                people.forEach(person => {
+                    const data = person.userData;
+                    if (Math.random() < 0.002) {
+                        data.angle += (Math.random() - 0.5) * 0.8;
+                        data.radius = Math.max(0.2, Math.min(0.8, data.radius + (Math.random() - 0.5) * 0.1));
+                    }
+                    data.angle += data.speed * 0.2;
+                    const targetX = offsetX + Math.cos(data.angle) * data.radius;
+                    const targetZ = offsetZ + Math.sin(data.angle) * data.radius;
+                    person.position.x += (targetX - person.position.x) * 0.02;
+                    person.position.z += (targetZ - person.position.z) * 0.02;
+                    person.rotation.y = Math.atan2(targetZ - person.position.z, targetX - person.position.x);
+                });
+
+                impulses.forEach(imp => {
+                    imp.progress += imp.speed;
+                    if (imp.progress > 1.0) {
+                        imp.progress = 0;
+                        const startId = pick(deptIds);
+                        const endId = pick(deptIds.filter(id => id !== startId));
+                        const p1 = new THREE.Vector3(DEPT_COORDS[startId].x * 2.8, -0.15, DEPT_COORDS[startId].z * 2.8);
+                        const p2 = new THREE.Vector3(DEPT_COORDS[endId].x * 2.8, -0.15, DEPT_COORDS[endId].z * 2.8);
+                        imp.curve = new THREE.QuadraticBezierCurve3(
+                            p1,
+                            new THREE.Vector3((p1.x + p2.x) / 2, 0.2 + Math.random() * 0.3, (p1.z + p2.z) / 2),
+                            p2
+                        );
+                    }
+                    const pos = imp.curve.getPointAt(imp.progress);
+                    imp.mesh.position.copy(pos);
+                });
+
+                deptNodes.forEach((node, idx) => {
+                    const s = 1 + Math.sin(time * 1.8 + idx) * 0.15;
+                    node.glow.scale.set(s, s, s);
+                });
+
+                if (currentCameraView === 'orbital') {
+                    scene.rotation.y = time * 0.015;
+                } else {
+                    scene.rotation.y = 0;
+                }
+
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            const resizeObserver = new ResizeObserver(() => {
+                const w = container.clientWidth;
+                const h = container.clientHeight || 400;
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+                renderer.setSize(w, h);
+            });
+            resizeObserver.observe(container);
+        }
+
+        function trigger3DPulse(emotion) {
+            if (!useThreeJS || !scene) return;
+            const color = new THREE.Color(EMOTION_COLORS[emotion] || 0x06b6d4);
+            cityBuildings.forEach((b, idx) => {
+                setTimeout(() => {
+                    b.material.color.copy(color);
+                    setTimeout(() => {
+                        b.material.color.setHex(pick([0x4a6a8a, 0x6a8a9a, 0x3a5a6a, 0x5a7a8a, 0x7a9aaa,
+                            0x2a4a5a
+                        ]));
+                    }, 500);
+                }, idx * 20);
+            });
+            if (mapOutline) {
+                mapOutline.material.color.copy(color);
+                setTimeout(() => mapOutline.material.color.setHex(0x06b6d4), 600);
+            }
+        }
+
+        function changeCamera(view) {
+            currentCameraView = view;
+            playBeep(480, 'sine', 0.1);
+            ['orbital', 'exploded', 'xray', 'internal'].forEach(v => {
+                const btn = document.getElementById('cam-' + v);
+                if (v === view) btn.className =
+                    "py-1 text-[8px] sm:text-[10px] font-mono font-bold rounded uppercase transition-all duration-300 mode-btn-active";
+                else btn.className =
+                    "py-1 text-[8px] sm:text-[10px] font-mono font-bold rounded uppercase transition-all duration-300 text-slate-400 hover:text-slate-200";
+            });
+            document.getElementById('camera-state-txt').innerText = view.toUpperCase();
+            if (!useThreeJS || !camera) return;
+            const pos = { orbital: { x: 0, y: 3.5, z: 6.5 }, exploded: { x: 0, y: 5, z: 8 }, xray: { x: 3.2, y: 1.0,
+                    z: 3.2 }, internal: { x: 0, y: 0.2, z: 1.2 } };
+            const p = pos[view] || pos.orbital;
+            camera.position.set(p.x, p.y, p.z);
+            controls.target.set(0, 0.2, 0);
+            controls.update();
+        }
+
+        function triggerCameraZoomForRegion() {
+            if (!useThreeJS || !camera) return;
+            const targetId = selectedDeptId;
+            if (targetId === 'todos' || !DEPT_COORDS[targetId]) {
+                controls.target.set(0, 0.2, 0);
+                camera.position.set(0, 3.5, 6.5);
+                return;
+            }
+            const pos = DEPT_COORDS[targetId];
+            controls.target.set(pos.x * 2.8, -0.1, pos.z * 2.8);
+            camera.position.set(pos.x * 2.8 + 0.5, 0.8, pos.z * 2.8 + 2.5);
+            controls.update();
+        }
+
+        // ============================================================
+        // 17. FALLBACK CANVAS 2D (sin cambios)
+        // ============================================================
+        let canvas, ctx, cWidth, cHeight,
+            rotX = 0.4,
+            rotY = -0.5,
+            isDragging = false,
+            prevX, prevY;
+
+        function initCanvasFallback() {
+            const container = document.getElementById('canvas-container');
+            canvas = document.getElementById('canvas-3d');
+            if (!canvas) { canvas = document.createElement('canvas');
+                canvas.id = 'canvas-3d';
+                container.innerHTML = '';
+                container.appendChild(canvas); }
+            ctx = canvas.getContext('2d');
+            const resize = () => {
+                cWidth = canvas.width = container.clientWidth || 600;
+                cHeight = canvas.height = container.clientHeight || 400;
+            };
+            resize();
+            window.addEventListener('resize', resize);
+            canvas.addEventListener('mousedown', e => { isDragging = true;
+                prevX = e.clientX;
+                prevY = e.clientY; });
+            window.addEventListener('mouseup', () => isDragging = false);
+            canvas.addEventListener('mousemove', e => {
+                if (!isDragging) return;
+                const dx = e.clientX - prevX,
+                    dy = e.clientY - prevY;
+                rotY += dx * 0.006;
+                rotX = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, rotX + dy * 0.006));
+                prevX = e.clientX;
+                prevY = e.clientY;
+            });
+
+            function project2D(x, y, z) {
+                let x1 = x * Math.cos(rotY) - z * Math.sin(rotY);
+                let z1 = x * Math.sin(rotY) + z * Math.cos(rotY);
+                let y2 = y * Math.cos(rotX) - z1 * Math.sin(rotX);
+                let z2 = y * Math.sin(rotX) + z1 * Math.cos(rotX);
+                const scale = (3.2 / (3.2 + z2)) * (cWidth * 0.42);
+                return { x: cWidth / 2 + x1 * scale, y: cHeight / 2 - y2 * scale, visible: z2 > -3.2 };
+            }
+
+            const fallbackImpulses = [];
+            const deptIds = Object.keys(DEPT_COORDS);
+            for (let i = 0; i < 10; i++) {
+                fallbackImpulses.push({ from: pick(deptIds), to: pick(deptIds.filter(id => id !== pick(deptIds))),
+                    progress: Math.random(), speed: 0.005 + Math.random() * 0.007 });
+            }
+
+            function drawFallback() {
+                if (useThreeJS) return;
+                ctx.clearRect(0, 0, cWidth, cHeight);
+                const time = Date.now() * 0.001;
+
+                ctx.strokeStyle = 'rgba(6,182,212,0.4)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                NICARAGUA_SHAPE.forEach((p, i) => {
+                    const pr = project2D(p.x * 2.8, -0.1, p.z * 2.8);
+                    if (i === 0) ctx.moveTo(pr.x, pr.y);
+                    else ctx.lineTo(pr.x, pr.y);
+                });
+                ctx.closePath();
+                ctx.stroke();
+                ctx.fillStyle = 'rgba(10,42,58,0.3)';
+                ctx.fill();
+
+                Object.entries(DEPT_COORDS).forEach(([id, pos]) => {
+                    const pr = project2D(pos.x * 2.8, -0.1, pos.z * 2.8);
+                    if (pr.visible) {
+                        ctx.fillStyle = id === 'managua' ? '#22d3ee' : '#06b6d4';
+                        ctx.beginPath();
+                        ctx.arc(pr.x, pr.y, 4, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillStyle = 'rgba(34,211,238,0.2)';
+                        ctx.beginPath();
+                        ctx.arc(pr.x, pr.y, 8 + Math.sin(time + id.length) * 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+
+                deptIds.forEach((id1, i) => {
+                    deptIds.slice(i + 1).forEach(id2 => {
+                        if (Math.random() < 0.2) {
+                            const p1 = project2D(DEPT_COORDS[id1].x * 2.8, -0.1, DEPT_COORDS[id1].z * 2.8);
+                            const p2 = project2D(DEPT_COORDS[id2].x * 2.8, -0.1, DEPT_COORDS[id2].z * 2.8);
+                            if (p1.visible && p2.visible) {
+                                ctx.strokeStyle = 'rgba(6,182,212,0.1)';
+                                ctx.lineWidth = 1;
+                                ctx.beginPath();
+                                ctx.moveTo(p1.x, p1.y);
+                                ctx.lineTo(p2.x, p2.y);
+                                ctx.stroke();
+                            }
+                        }
+                    });
+                });
+
+                fallbackImpulses.forEach(imp => {
+                    imp.progress += imp.speed;
+                    if (imp.progress > 1.0) { imp.progress = 0;
+                        imp.from = pick(deptIds);
+                        imp.to = pick(deptIds.filter(id => id !== imp.from)); }
+                    const p1 = project2D(DEPT_COORDS[imp.from].x * 2.8, -0.1, DEPT_COORDS[imp.from].z * 2.8);
+                    const p2 = project2D(DEPT_COORDS[imp.to].x * 2.8, -0.1, DEPT_COORDS[imp.to].z * 2.8);
+                    if (p1.visible && p2.visible) {
+                        const x = p1.x + (p2.x - p1.x) * imp.progress;
+                        const y = p1.y + (p2.y - p1.y) * imp.progress;
+                        ctx.fillStyle = '#22d3ee';
+                        ctx.beginPath();
+                        ctx.arc(x, y, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+
+                if (!isDragging && currentCameraView === 'orbital') rotY += 0.002;
+                requestAnimationFrame(drawFallback);
+            }
+            drawFallback();
+        }
+
+        // ============================================================
+        // 18. NOTIFICACIONES SIMPLIFICADAS (indicadores)
+        // ============================================================
+        function updateNotifications() {
+            const hasRouting = state.incidents.some(i => i.status === 'derived');
+            const hasCompleted = state.incidents.some(i => i.status === 'validated');
+            const hasExecuting = state.incidents.some(i => i.status === 'responded');
+            const hasValidating = state.incidents.some(i => i.status === 'reported');
+
+            document.getElementById('notif-push').className =
+                `text-[7px] sm:text-[8px] font-mono px-1.5 py-0.5 rounded border ${hasRouting ? 'bg-cyan-950/30 border-cyan-800/30 text-cyan-400' : 'bg-slate-800/30 border-slate-700/30 text-slate-500'}`;
+            document.getElementById('notif-email').className =
+                `text-[7px] sm:text-[8px] font-mono px-1.5 py-0.5 rounded border ${hasCompleted ? 'bg-slate-800/30 border-slate-700/30 text-slate-300' : 'bg-slate-800/30 border-slate-700/30 text-slate-500'}`;
+            document.getElementById('notif-whatsapp').className =
+                `text-[7px] sm:text-[8px] font-mono px-1.5 py-0.5 rounded border ${hasExecuting ? 'bg-emerald-950/30 border-emerald-800/30 text-emerald-400' : 'bg-slate-800/30 border-slate-700/30 text-slate-500'}`;
+            document.getElementById('notif-inst').className =
+                `text-[7px] sm:text-[8px] font-mono px-1.5 py-0.5 rounded border ${hasValidating ? 'bg-purple-950/30 border-purple-800/30 text-purple-400' : 'bg-slate-800/30 border-slate-700/30 text-slate-500'}`;
+        }
+
+        // ============================================================
+        // 19. SIMULACIONES AUTOMÁTICAS (reiniciables)
+        // ============================================================
+        function restartAutoSimulations() {
+            // Limpiar intervalos anteriores
+            if (state.autoNotifInterval) clearInterval(state.autoNotifInterval);
+            if (state.autoBlockInterval) clearInterval(state.autoBlockInterval);
+            if (state.autoIncidentInterval) clearInterval(state.autoIncidentInterval);
+
+            // Notificaciones automáticas (cada 4-8 segundos)
+            state.autoNotifInterval = setInterval(() => {
+                if (currentMode === 'reposo' && Math.random() < 0.3) return; // menos actividad en reposo
+                autoGenerateNotification();
+            }, 4000 + Math.random() * 4000);
+
+            // Blockchain automático (cada 5-10 segundos, más rápido en modo blockchain)
+            const blockInterval = currentMode === 'blockchain' ? 2000 + Math.random() * 3000 : 5000 + Math.random() * 5000;
+            state.autoBlockInterval = setInterval(() => {
+                const types = ['REPORTE', 'DERIVACIÓN', 'EJECUCIÓN', 'VALIDACIÓN CIUDADANA', 'VALIDACIÓN COMUNITARIA',
+                    'VALIDACIÓN COMPLETA', 'AUDITORÍA', 'MANTENIMIENTO'
+                ];
+                const type = pick(types);
+                const person = pick(NAMES);
+                const territory = getCurrentTerritory();
+                const institution = pick(Object.values(INSTITUTIONS).flat());
+                const evidence = [pick(EVIDENCE_TYPES), pick(EVIDENCE_TYPES)].filter(e => e);
+                const emotion = pick(Object.keys(EMOTION_LABELS));
+                const citizenValidated = Math.random() > 0.5;
+                const communityValidated = Math.random() > 0.5;
+                let data = {
+                    personName: person,
+                    territory: territory.full,
+                    institution: institution,
+                    emotion: emotion,
+                    evidence: evidence,
+                    citizenValidated: citizenValidated,
+                    communityValidated: communityValidated
+                };
+                addBlock(type, data);
+                updateIAStats();
+            }, blockInterval);
+
+            // Incidentes automáticos (solo en modo simulación o crisis)
+            if (currentMode === 'simulacion' || currentMode === 'emergencia') {
+                const incInterval = currentMode === 'emergencia' ? 8000 + Math.random() * 5000 : 12000 + Math.random() * 8000;
+                state.autoIncidentInterval = setInterval(() => {
+                    const emotion = currentMode === 'emergencia' ? pick(['frustracion', 'abandono']) : pick(
+                    Object.keys(EMOTION_LABELS));
+                    const terr = getCurrentTerritory();
+                    const title = pick(PRESET_INCIDENTS[emotion] || ['Incidente simulado']);
+                    const severity = currentMode === 'emergencia' ? randInt(8, 10) : randInt(4, 9);
+                    createIncident({
+                        emotion,
+                        title,
+                        severity,
+                        citizenName: pick(NAMES),
+                        deptKey: terr.deptKey,
+                        deptName: terr.deptName,
+                        muniKey: terr.muniKey,
+                        muniName: terr.muniName,
+                        commName: terr.commName,
+                        full: terr.full
+                    });
+                }, incInterval);
+            }
+        }
+
+        // ============================================================
+        // 20. BACKGROUND WORKER
+        // ============================================================
+        setInterval(() => {
+            let changed = false;
+            state.incidents.forEach(inc => {
+                if (inc.status === 'reported') { inc.status = 'derived';
+                    changed = true; } else if (inc.status === 'derived') { inc.status = 'responded';
+                    changed = true; }
+            });
+            if (changed) {
+                renderIncidents();
+                updateIAStats();
+                updateNotifications();
+                if (selectedDeptId !== 'todos') { initNodeMetrics();
+                    renderNodes(); }
+            }
+        }, 10000);
+
+        // ============================================================
+        // 21. INIT
+        // ============================================================
+        window.addEventListener('load', () => {
+            init3D();
+            switchLanguage('es');
+            addBlock('INICIO', { personName: 'Sistema', territory: 'República de Nicaragua', evidence: [
+                    'NicaLLM cargado'
+                ] });
+            addBlock('GEORREFERENCIADOR', { personName: 'Sistema', territory: 'Todos los departamentos',
+                evidence: ['4D sincronizado'] });
+            updateTerritoryLabel();
+            updateIAStats();
+            renderIncidents();
+            updateNodeStatus();
+            updateNotifications();
+            renderNotifications();
+            if (selectedDeptId !== 'todos') { document.getElementById('territorial-nodes-section').classList.remove(
+                    'hidden'); }
+            // Iniciar simulaciones automáticas
+            restartAutoSimulations();
+            setTimeout(() => {
+                if (useThreeJS && controls) {
+                    controls.target.set(0, 0.2, 0);
+                    camera.position.set(0, 3.5, 6.5);
+                }
+            }, 300);
+        });
+    </script>
+</body>
+</html>
