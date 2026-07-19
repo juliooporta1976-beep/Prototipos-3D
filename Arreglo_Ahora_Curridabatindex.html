@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arréglalo Ahora · Plataforma Cívica Completa</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Outfit', sans-serif; background: #09090b; color: #f4f4f5; overflow-x: hidden; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .glass { background: rgba(24,24,27,0.88); backdrop-filter: blur(4px); border: 1px solid #27272a; }
+    .glass-light { background: rgba(39,39,42,0.5); backdrop-filter: blur(2px); border: 1px solid #3f3f46; }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #18181b; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 2px; }
+    .toast { position: fixed; bottom: 20px; right: 20px; z-index: 9999; max-width: 380px; }
+    .active-btn { border-color: #06b6d4 !important; background: rgba(6,182,212,0.15) !important; }
+    .ticket-card { transition: all 0.2s; cursor: pointer; }
+    .ticket-card:hover { border-color: #06b6d4; transform: translateY(-1px); }
+    .status-badge { font-size: 0.6rem; padding: 0.1rem 0.5rem; border-radius: 999px; }
+    .modal-bg { background: rgba(0,0,0,0.75); backdrop-filter: blur(3px); }
+    .fade-in { animation: fadeIn 0.25s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: scale(0.96) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    .role-tab { cursor: pointer; transition: all 0.2s; }
+    .role-tab.active { border-bottom: 2px solid #06b6d4; color: #06b6d4; }
+    .filter-btn { font-size: 0.6rem; padding: 0.1rem 0.5rem; border-radius: 999px; background: #27272a; color: #a1a1aa; transition: all 0.2s; cursor: pointer; }
+    .filter-btn.active { background: #06b6d4; color: #fff; }
+    .priority-high { border-left: 3px solid #ef4444; }
+    .priority-medium { border-left: 3px solid #f59e0b; }
+    .priority-low { border-left: 3px solid #22c55e; }
+    .sla-bar { height: 3px; border-radius: 2px; transition: width 1s; }
+    .sla-bar.danger { background: #ef4444; }
+    .sla-bar.warning { background: #f59e0b; }
+    .sla-bar.safe { background: #22c55e; }
+    .timeline-item { border-left: 2px solid #3f3f46; padding-left: 12px; margin-left: 6px; position: relative; }
+    .timeline-item::before { content: ''; position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: #06b6d4; border: 2px solid #18181b; }
+    .timeline-item .time { font-size: 0.55rem; color: #71717a; }
+    .drop-zone { border: 2px dashed #3f3f46; transition: all 0.2s; }
+    .drop-zone.drag-over { border-color: #06b6d4; background: rgba(6,182,212,0.05); }
+    .chart-container { height: 110px; }
+    .filter-indicator { background: rgba(6,182,212,0.12); border: 1px solid #06b6d4; color: #06b6d4; font-size: 0.55rem; padding: 0.05rem 0.5rem; border-radius: 999px; }
+  </style>
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <div class="bg-zinc-900 border-b border-zinc-800 px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold select-none">
+    <div class="flex items-center gap-3">
+      <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+      <span class="text-neutral-400 font-mono tracking-wider">[PROJECT LEADER]</span>
+      <span class="text-cyan-400 font-bold">Dr. Julio César Oporta Barrera</span>
+      <span class="hidden md:inline-block px-2 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded text-[10px] font-mono">100% OFFLINE</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="changeLang('es')" id="btn-lang-es" class="flex items-center gap-1 px-2.5 py-1 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-lg text-xs transition-all active:scale-95 active-btn"><span>🇪🇸</span><span class="hidden sm:inline">Español</span></button>
+      <button onclick="changeLang('en')" id="btn-lang-en" class="flex items-center gap-1 px-2.5 py-1 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-lg text-xs transition-all active:scale-95"><span>🇬🇧</span><span class="hidden sm:inline">English</span></button>
+      <button onclick="changeLang('zh')" id="btn-lang-zh" class="flex items-center gap-1 px-2.5 py-1 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-lg text-xs transition-all active:scale-95"><span>🇨🇳</span><span class="hidden sm:inline">Mandarín</span></button>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header class="border-b border-zinc-800 bg-zinc-950/90 backdrop-blur px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-black tracking-tight text-white" id="main-title">ARRÉGLALO AHORA</h1>
+      <p class="text-xs text-zinc-400 mt-0.5" id="sub-title">Plataforma Cívica · Gestión Territorial Inteligente</p>
+    </div>
+    <div class="flex items-center gap-3 flex-wrap">
+      <button onclick="openReportModal()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-lg shadow-cyan-600/25">
+        <i class="fas fa-plus-circle"></i> <span id="btn-report">Reportar Ahora</span>
+      </button>
+      <div class="text-right text-[11px] font-mono text-zinc-400">
+        <span id="label-canton">Cantón</span>: <span class="text-emerald-400 uppercase font-black" id="canton-label">CURRIDABAT</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- DASHBOARD -->
+  <section class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 p-6">
+    <div class="glass rounded-2xl p-3 border border-zinc-800"><p class="text-[10px] text-zinc-400 font-mono" id="metric-total-label">TOTAL</p><p class="text-2xl font-black text-white" id="metric-total">0</p></div>
+    <div class="glass rounded-2xl p-3 border border-zinc-800"><p class="text-[10px] text-zinc-400 font-mono" id="metric-open-label">EN PROCESO</p><p class="text-2xl font-black text-orange-400" id="metric-open">0</p></div>
+    <div class="glass rounded-2xl p-3 border border-zinc-800"><p class="text-[10px] text-zinc-400 font-mono" id="metric-resolved-label">RESUELTOS</p><p class="text-2xl font-black text-emerald-400" id="metric-resolved">0</p></div>
+    <div class="glass rounded-2xl p-3 border border-zinc-800"><p class="text-[10px] text-zinc-400 font-mono" id="metric-sla-label">SLA</p><p class="text-2xl font-black text-cyan-400" id="metric-sla">0%</p></div>
+    <div class="glass rounded-2xl p-3 border border-zinc-800"><p class="text-[10px] text-zinc-400 font-mono" id="metric-avg-time-label">TIEMPO PROM.</p><p class="text-2xl font-black text-purple-400" id="metric-avg-time">0h</p></div>
+    <div class="glass rounded-2xl p-3 border border-zinc-800"><p class="text-[10px] text-zinc-400 font-mono" id="metric-critical-zones-label">ZONAS CRÍTICAS</p><p class="text-2xl font-black text-red-400" id="metric-critical-zones">0</p></div>
+    <div class="glass rounded-2xl p-3 border border-zinc-800"><p class="text-[10px] text-zinc-400 font-mono" id="metric-escalated-label">ESCALADOS</p><p class="text-2xl font-black text-yellow-400" id="metric-escalated">0</p></div>
+  </section>
+
+  <!-- FILTROS Y GRÁFICO -->
+  <div class="px-6 pb-2 grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div class="glass rounded-2xl p-4 border border-zinc-800 lg:col-span-2">
+      <div class="flex justify-between items-center"><span class="text-xs font-mono text-zinc-400" id="chart-title">📊 Tickets por Tipo</span><span class="text-[10px] text-zinc-500">Actualizado en tiempo real</span></div>
+      <div class="chart-container mt-2"><canvas id="typeChart"></canvas></div>
+    </div>
+    <div class="glass rounded-2xl p-4 border border-zinc-800">
+      <div class="flex justify-between items-center"><span class="text-xs font-mono text-zinc-400" id="filter-title">🔍 Filtros</span><span class="text-[10px] text-zinc-500" id="filter-count">0 tickets</span></div>
+      <div class="mt-2 flex flex-wrap gap-1">
+        <span class="text-[9px] text-zinc-500 font-mono">Tipo:</span>
+        <button class="filter-btn active" data-filter="type" data-value="all" onclick="applyFilter('type','all')">Todos</button>
+        <button class="filter-btn" data-filter="type" data-value="pothole" onclick="applyFilter('type','pothole')">🚧</button>
+        <button class="filter-btn" data-filter="type" data-value="lighting" onclick="applyFilter('type','lighting')">💡</button>
+        <button class="filter-btn" data-filter="type" data-value="waste" onclick="applyFilter('type','waste')">🗑️</button>
+        <button class="filter-btn" data-filter="type" data-value="traffic_light" onclick="applyFilter('type','traffic_light')">🚦</button>
+        <button class="filter-btn" data-filter="type" data-value="sewer" onclick="applyFilter('type','sewer')">🕳️</button>
+        <button class="filter-btn" data-filter="type" data-value="graffiti" onclick="applyFilter('type','graffiti')">🎨</button>
+        <button class="filter-btn" data-filter="type" data-value="tree" onclick="applyFilter('type','tree')">🌳</button>
+        <button class="filter-btn" data-filter="type" data-value="water" onclick="applyFilter('type','water')">💧</button>
+      </div>
+      <div class="mt-1 flex flex-wrap gap-1">
+        <span class="text-[9px] text-zinc-500 font-mono">Estado:</span>
+        <button class="filter-btn active" data-filter="status" data-value="all" onclick="applyFilter('status','all')">Todos</button>
+        <button class="filter-btn" data-filter="status" data-value="reportado" onclick="applyFilter('status','reportado')">Reportado</button>
+        <button class="filter-btn" data-filter="status" data-value="clasificado" onclick="applyFilter('status','clasificado')">Clasif.</button>
+        <button class="filter-btn" data-filter="status" data-value="aprobado" onclick="applyFilter('status','aprobado')">Aprobado</button>
+        <button class="filter-btn" data-filter="status" data-value="asignado" onclick="applyFilter('status','asignado')">Asignado</button>
+        <button class="filter-btn" data-filter="status" data-value="resuelto" onclick="applyFilter('status','resuelto')">Resuelto</button>
+        <button class="filter-btn" data-filter="status" data-value="retroalimentado" onclick="applyFilter('status','retroalimentado')">Cerrado</button>
+        <button class="filter-btn" data-filter="status" data-value="rechazado" onclick="applyFilter('status','rechazado')">Rechazado</button>
+      </div>
+      <div class="mt-2 flex gap-2">
+        <input id="search-input" type="text" placeholder="🔍 Buscar por ID..." class="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-xs text-white w-full focus:outline-none focus:border-cyan-500">
+        <button onclick="searchTickets()" class="bg-cyan-600 hover:bg-cyan-700 px-3 py-1 rounded-lg text-xs font-bold transition-colors">Buscar</button>
+      </div>
+      <div class="mt-2 text-[9px] text-zinc-400 font-mono flex items-center gap-2"><span>🧪 Filtros activos:</span><span id="filter-indicator" class="filter-indicator">Todos</span></div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 px-6 pb-6">
+
+    <!-- 3D VIEWPORT -->
+    <div id="viewport-card" class="lg:col-span-7 relative bg-zinc-950 rounded-3xl overflow-hidden border border-zinc-800 min-h-[500px]">
+      <div id="three-canvas" class="w-full h-full min-h-[500px] absolute inset-0 z-10"></div>
+      <canvas id="fallback-canvas" class="w-full h-full min-h-[500px] absolute inset-0 z-20 outline-none cursor-grab active:cursor-grabbing" width="800" height="500"></canvas>
+      <div class="absolute top-4 left-4 right-4 pointer-events-none flex justify-between items-start z-30">
+        <div class="glass px-3.5 py-1.5 rounded-xl border border-zinc-800 flex flex-col gap-1">
+          <p class="text-[10px] font-mono text-cyan-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+            <span id="view-live">● Mapa Cívico de Costa Rica</span>
+          </p>
+          <p class="text-[9px] text-zinc-400" id="engine-label">Motor 3D activo</p>
+        </div>
+        <div class="glass px-3.5 py-1.5 rounded-xl border border-zinc-800 text-[10px] font-mono text-zinc-400" id="controls-hint">🖱️ Gira con click · 🔍 Zoom con scroll</div>
+      </div>
+      <div class="absolute bottom-4 left-4 glass p-3 rounded-2xl border border-zinc-800 flex items-center gap-3.5 z-30 pointer-events-none">
+        <div id="status-core-light" class="w-3 h-3 rounded-full bg-zinc-600 shadow"></div>
+        <div><p class="text-[9px] uppercase font-mono text-zinc-500" id="status-header">Estado del Ciclo</p><p id="status-activity-label" class="text-xs font-black">Listo</p></div>
+      </div>
+      <div class="absolute bottom-4 right-4 glass px-3 py-2 rounded-xl border border-zinc-800 text-[9px] font-mono text-zinc-400 z-30 pointer-events-none">
+        <span class="inline-block w-2 h-2 rounded-full bg-red-500 mr-1"></span> Incidente activo
+      </div>
+    </div>
+
+    <!-- PANEL LATERAL -->
+    <div class="lg:col-span-5 flex flex-col gap-5">
+
+      <!-- SIMULACIÓN -->
+      <div class="glass rounded-3xl p-5 border border-zinc-800">
+        <div class="flex justify-between items-center border-b border-zinc-800 pb-2 mb-3">
+          <h3 class="text-xs font-bold tracking-wider text-neutral-400 uppercase font-mono" id="sim-header">🚀 SIMULACIÓN</h3>
+          <span class="text-[9px] bg-cyan-950 text-cyan-400 px-2 py-0.5 rounded border border-cyan-800">8 incidentes</span>
+        </div>
+        <div class="flex gap-2 mb-3 text-xs font-mono">
+          <span class="text-zinc-500" id="role-label">Rol:</span>
+          <button onclick="setRole('admin')" id="role-admin" class="role-tab active px-2 py-0.5 border-b-2 border-cyan-400 text-cyan-400">Admin</button>
+          <button onclick="setRole('coord')" id="role-coord" class="role-tab px-2 py-0.5 text-zinc-400">Coordinador</button>
+          <button onclick="setRole('tech')" id="role-tech" class="role-tab px-2 py-0.5 text-zinc-400">Técnico</button>
+        </div>
+        <div class="grid grid-cols-2 gap-1.5">
+          <button onclick="triggerSim('pothole')" class="p-1.5 bg-zinc-950 border border-zinc-800 hover:border-orange-500 hover:bg-orange-950/20 text-xs text-left transition-all rounded-xl flex items-center gap-2"><span class="text-lg">🚧</span><div><span class="font-bold block" id="b-pothole-t">Bache</span><span class="text-[8px] text-zinc-500" id="b-pothole-d">Calle principal</span></div></button>
+          <button onclick="triggerSim('lighting')" class="p-1.5 bg-zinc-950 border border-zinc-800 hover:border-cyan-500 hover:bg-cyan-950/20 text-xs text-left transition-all rounded-xl flex items-center gap-2"><span class="text-lg">💡</span><div><span class="font-bold block" id="b-lighting-t">Luminaria</span><span class="text-[8px] text-zinc-500" id="b-lighting-d">Parque oscuro</span></div></button>
+          <button onclick="triggerSim('waste')" class="p-1.5 bg-zinc-950 border border-zinc-800 hover:border-emerald-500 hover:bg-emerald-950/20 text-xs text-left transition-all rounded-xl flex items-center gap-2"><span class="text-lg">🗑️</span><div><span class="font-bold block" id="b-waste-t">Basura</span><span class="text-[8px] text-zinc-500" id="b-waste-d">Escombros</span></div></button>
+          <button onclick="triggerSim('traffic_light')" class="p-1.5 bg-zinc-950 border border-zinc-800 hover:border-red-500 hover:bg-red-950/20 text-xs text-left transition-all rounded-xl flex items-center gap-2"><span class="text-lg">🚦</span><div><span class="font-bold block" id="b-traffic_light-t">Semáforo</span><span class="text-[8px] text-zinc-500" id="b-traffic_light-d">Cruce escolar</span></div></button>
+          <button onclick="triggerSim('sewer')" class="p-1.5 bg-zinc-950 border border-zinc-800 hover:border-yellow-500 hover:bg-yellow-950/20 text-xs text-left transition-all rounded-xl flex items-center gap-2"><span class="text-lg">🕳️</span><div><span class="font-bold block" id="b-sewer-t">Alcantarilla</span><span class="text-[8px] text-zinc-500" id="b-sewer-d">Inundación</span></div></button>
+          <button onclick="triggerSim('graffiti')" class="p-1.5 bg-zinc-950 border border-zinc-800 hover:border-purple-500 hover:bg-purple-950/20 text-xs text-left transition-all rounded-xl flex items-center gap-2"><span class="text-lg">🎨</span><div><span class="font-bold block" id="b-graffiti-t">Grafiti</span><span class="text-[8px] text-zinc-500" id="b-graffiti-d">Fachada</span></div></button>
+          <button onclick="triggerSim('tree')" class="p-1.5 bg-zinc-950 border border-zinc-800 hover:border-green-500 hover:bg-green-950/20 text-xs text-left transition-all rounded-xl flex items-center gap-2"><span class="text-lg">🌳</span><div><span class="font-bold block" id="b-tree-t">Árbol caído</span><span class="text-[8px] text-zinc-500" id="b-tree-d">Vía pública</span></div></button>
+          <button onclick="triggerSim('water')" class="p-1.5 bg-zinc-950 border border-zinc-800 hover:border-blue-500 hover:bg-blue-950/20 text-xs text-left transition-all rounded-xl flex items-center gap-2"><span class="text-lg">💧</span><div><span class="font-bold block" id="b-water-t">Fuga agua</span><span class="text-[8px] text-zinc-500" id="b-water-d">Acera mojada</span></div></button>
+        </div>
+        <div class="border-t border-zinc-800/80 pt-2 mt-2 flex flex-wrap gap-1.5">
+          <button onclick="simulateMassive(5)" class="text-[9px] bg-orange-950 hover:bg-orange-900 text-orange-300 px-2.5 py-1 rounded-lg border border-orange-800 transition-all flex items-center gap-1"><i class="fas fa-bolt"></i><span id="sim-massive">5 tickets</span></button>
+          <button onclick="simulateEmergency()" class="text-[9px] bg-red-950 hover:bg-red-900 text-red-300 px-2.5 py-1 rounded-lg border border-red-800 transition-all flex items-center gap-1"><i class="fas fa-exclamation-triangle"></i><span id="sim-emergency">🚨 Emergencia</span></button>
+          <button onclick="simulateDerivation()" class="text-[9px] bg-indigo-950 hover:bg-indigo-900 text-indigo-300 px-2.5 py-1 rounded-lg border border-indigo-800 transition-all flex items-center gap-1"><i class="fas fa-share-alt"></i><span id="sim-derive">Derivación</span></button>
+        </div>
+        <div class="border-t border-zinc-800/80 pt-2 mt-2 flex justify-between items-center bg-zinc-950 p-1.5 rounded-xl border border-zinc-800 text-xs font-mono">
+          <span id="sla-lbl">SLA Medio</span><span class="text-cyan-400 font-bold" id="sla-val">12.5 min</span>
+        </div>
+        <div class="flex justify-end gap-2 mt-2">
+          <button onclick="exportReport('csv')" class="text-[9px] bg-zinc-800 hover:bg-zinc-700 px-2.5 py-1 rounded-lg text-zinc-300 transition-colors"><i class="fas fa-file-csv mr-1"></i> CSV</button>
+          <button onclick="exportReport('pdf')" class="text-[9px] bg-zinc-800 hover:bg-zinc-700 px-2.5 py-1 rounded-lg text-zinc-300 transition-colors"><i class="fas fa-file-pdf mr-1"></i> PDF</button>
+        </div>
+      </div>
+
+      <!-- LISTA DE TICKETS -->
+      <div class="glass rounded-3xl p-5 border border-zinc-800 flex flex-col gap-2 flex-1 min-h-[200px]">
+        <h3 class="text-xs font-bold tracking-wider text-neutral-400 uppercase font-mono border-b border-zinc-800 pb-2 flex justify-between items-center">
+          <span id="ticket-queue-title">📋 TICKETS</span>
+          <span class="text-[9px] bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded-full" id="ticket-count">0</span>
+        </h3>
+        <div id="ticket-list" class="flex-1 overflow-y-auto custom-scrollbar space-y-1.5 max-h-[200px]">
+          <p class="text-xs text-zinc-500 italic text-center py-4" id="no-tickets-msg">No hay tickets. Simula o reporta.</p>
+        </div>
+        <div class="flex justify-between mt-1">
+          <button onclick="clearAllTickets()" class="text-[9px] text-zinc-500 hover:text-red-400 transition-colors font-mono">Limpiar todo</button>
+          <span class="text-[9px] text-zinc-500" id="order-label">Orden: por fecha</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGS -->
+  <div class="px-6 pb-6">
+    <div class="glass rounded-3xl p-5 border border-zinc-800">
+      <h3 class="text-xs font-bold tracking-wider text-neutral-400 uppercase font-mono border-b border-zinc-800 pb-2 flex justify-between items-center">
+        <span id="log-title">📋 HISTORIAL DE TRAZABILIDAD</span>
+        <span class="text-[9px] text-zinc-500" id="log-count">0 eventos</span>
+      </h3>
+      <div id="log-container" class="mt-3 h-24 overflow-y-auto custom-scrollbar font-mono text-[10px] text-zinc-300 space-y-1">
+        <div class="text-zinc-500" id="log-init">--- Sistema iniciado ---</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE REPORTE -->
+  <div id="report-modal" class="fixed inset-0 z-50 modal-bg flex items-center justify-center hidden">
+    <div class="glass rounded-3xl p-6 max-w-lg w-full mx-4 border border-zinc-700 fade-in">
+      <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
+        <h3 class="text-lg font-bold" id="modal-title">📢 Reportar Incidente</h3>
+        <button onclick="closeReportModal()" class="text-zinc-500 hover:text-white text-xl">&times;</button>
+      </div>
+      <form id="report-form" class="mt-4 space-y-3">
+        <div>
+          <label class="text-xs font-mono text-zinc-400" id="modal-type-label">Tipo de problema *</label>
+          <select id="report-type" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-sm text-white focus:outline-none focus:border-cyan-500">
+            <option value="pothole">🚧 Bache</option><option value="lighting">💡 Luminaria</option>
+            <option value="waste">🗑️ Basura</option><option value="traffic_light">🚦 Semáforo</option>
+            <option value="sewer">🕳️ Alcantarilla</option><option value="graffiti">🎨 Grafiti</option>
+            <option value="tree">🌳 Árbol caído</option><option value="water">💧 Fuga de agua</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-mono text-zinc-400" id="modal-location-label">Ubicación *</label>
+          <input id="report-location" type="text" placeholder="Calle, barrio o coordenadas" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-sm text-white focus:outline-none focus:border-cyan-500" value="Curridabat, San José">
+        </div>
+        <div>
+          <label class="text-xs font-mono text-zinc-400" id="modal-desc-label">Descripción *</label>
+          <textarea id="report-desc" rows="2" placeholder="Describe el problema..." class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-sm text-white focus:outline-none focus:border-cyan-500">Bache profundo en la calle principal, peligro para vehículos.</textarea>
+        </div>
+        <div>
+          <label class="text-xs font-mono text-zinc-400" id="modal-evidence-label">Evidencia (foto/video ≤ 20MB)</label>
+          <input id="report-evidence" type="file" accept="image/*,video/*" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-sm text-zinc-400 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-cyan-600 file:text-white file:text-xs hover:file:bg-cyan-700">
+          <p class="text-[8px] text-zinc-500 mt-0.5" id="evidence-status">Formatos: JPG, PNG, HEIC, MP4, MOV</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" id="report-anonymous" checked>
+          <label class="text-xs text-zinc-400" id="modal-anon-label">Reportar de forma anónima</label>
+        </div>
+        <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 py-2 rounded-xl font-bold transition-all" id="modal-submit">Enviar reporte</button>
+      </form>
+      <p class="text-[10px] text-zinc-500 mt-2 text-center" id="modal-footer">Tu reporte será trazable y recibirás notificaciones.</p>
+    </div>
+  </div>
+
+  <!-- MODAL DE DETALLE DE TICKET -->
+  <div id="detail-modal" class="fixed inset-0 z-50 modal-bg flex items-center justify-center hidden">
+    <div class="glass rounded-3xl p-6 max-w-2xl w-full mx-4 border border-zinc-700 fade-in max-h-[90vh] overflow-y-auto custom-scrollbar">
+      <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
+        <h3 class="text-lg font-bold" id="detail-title">📋 Detalle del Ticket</h3>
+        <button onclick="closeDetailModal()" class="text-zinc-500 hover:text-white text-xl">&times;</button>
+      </div>
+      <div id="detail-content" class="mt-4 space-y-3">
+        <!-- Dinámico -->
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast-container" class="toast flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-zinc-800 py-3 text-center text-[10px] text-zinc-500 bg-zinc-950/80">
+    <p>© 2026 Arréglalo Ahora · <strong class="text-zinc-400">Dr. Julio César Oporta Barrera</strong> · <span id="footer-license">Licencia Costa Rica</span></p>
+  </footer>
+
+  <script>
+    // =============================================================
+    // DICCIONARIO
+    // =============================================================
+    const DICT = {
+      es: {
+        title: "ARRÉGLALO AHORA", subtitle: "Plataforma Cívica · Gestión Territorial Inteligente",
+        canton: "Cantón", metricTotal: "TOTAL", metricOpen: "EN PROCESO", metricResolved: "RESUELTOS",
+        metricSla: "SLA", metricAvgTime: "TIEMPO PROM.", metricCriticalZones: "ZONAS CRÍTICAS",
+        metricEscalated: "ESCALADOS", simHeader: "🚀 SIMULACIÓN", triggerDesc: "Activa incidentes virtuales.",
+        b1: ["Bache", "Calle principal"], b2: ["Luminaria", "Parque oscuro"], b3: ["Basura", "Escombros"],
+        b4: ["Semáforo", "Cruce escolar"], b5: ["Alcantarilla", "Inundación"], b6: ["Grafiti", "Fachada"],
+        b7: ["Árbol caído", "Vía pública"], b8: ["Fuga agua", "Acera mojada"],
+        slaLabel: "SLA Medio", slaUnit: "min", ticketQueue: "📋 TICKETS", noTickets: "No hay tickets.",
+        logTitle: "📋 HISTORIAL", logInit: "--- Sistema iniciado ---",
+        statusIdle: "Listo", statusReport: "1. Reporte", statusAI: "2. IA clasifica",
+        statusApprove: "3. Aprobación", statusAssign: "4. Asignación", statusResolve: "5. Resolución",
+        statusRate: "6. Retroalimentación",
+        toastReport: "📢 Nuevo reporte: {type} en {loc}",
+        toastAssign: "🔧 Ticket #{id} asignado a {dept}",
+        toastResolve: "✅ Ticket #{id} resuelto",
+        toastRate: "⭐ Calificación {stars}★",
+        toastReject: "❌ Ticket #{id} rechazado",
+        logCitizen: "Ciudadano reportó {type} en {loc}",
+        logAI: "AUTISOL clasificó como {cat} · prioridad {pri}",
+        logApprove: "Aprobación interna por {user}",
+        logAssign: "Asignado a {dept} · SLA {sla} min",
+        logResolve: "Cuadrilla resolvió {type}",
+        logRate: "Calificación {stars}★ · {comment}",
+        logEscalate: "⚠️ Ticket #{id} escalado por SLA",
+        logReject: "❌ Ticket #{id} rechazado: {reason}",
+        logComment: "💬 Comentario en #{id}: {text}",
+        modalTitle: "📢 Reportar Incidente",
+        modalType: "Tipo de problema *", modalLocation: "Ubicación *", modalDesc: "Descripción *",
+        modalEvidence: "Evidencia (foto/video ≤ 20MB)",
+        modalAnon: "Reportar de forma anónima", modalSubmit: "Enviar reporte",
+        modalFooter: "Tu reporte será trazable.",
+        roleLabel: "Rol:", roleAdmin: "Admin", roleCoord: "Coordinador", roleTech: "Técnico",
+        btnReport: "Reportar Ahora", simMassive: "5 tickets", simEmergency: "🚨 Emergencia",
+        simDerive: "Derivación", chartTitle: "📊 Tickets por Tipo", filterTitle: "🔍 Filtros",
+        orderLabel: "Orden: por fecha", footerLicense: "Licencia Costa Rica",
+        detailTitle: "📋 Detalle del Ticket", detailClose: "Cerrar", detailHistory: "Historial",
+        detailComments: "Comentarios", detailAddComment: "Agregar comentario",
+        detailSend: "Enviar", detailReject: "Rechazar", detailRejectReason: "Motivo del rechazo",
+        detailAssignDept: "Asignar a:", detailAssignBtn: "Asignar", detailResolveBtn: "Marcar como resuelto",
+        detailEvidence: "Evidencia", detailNoEvidence: "Sin evidencia adjunta",
+        detailStatus: "Estado", detailPriority: "Prioridad", detailCreated: "Creado",
+        detailLocation: "Ubicación", detailDepartment: "Departamento", detailSLA: "SLA",
+        detailRating: "Calificación", detailComment: "Comentario"
+      },
+      en: {
+        title: "FIX IT NOW", subtitle: "Civic Platform · Smart Territorial Management",
+        canton: "Canton", metricTotal: "TOTAL", metricOpen: "IN PROCESS", metricResolved: "RESOLVED",
+        metricSla: "SLA", metricAvgTime: "AVG TIME", metricCriticalZones: "CRITICAL ZONES",
+        metricEscalated: "ESCALATED", simHeader: "🚀 SIMULATION", triggerDesc: "Trigger virtual incidents.",
+        b1: ["Pothole", "Main St"], b2: ["Lighting", "Dark park"], b3: ["Garbage", "Sidewalk"],
+        b4: ["Traffic Light", "School crossing"], b5: ["Sewer", "Flooding"], b6: ["Graffiti", "Façade"],
+        b7: ["Fallen Tree", "Public road"], b8: ["Water Leak", "Wet sidewalk"],
+        slaLabel: "Avg SLA", slaUnit: "min", ticketQueue: "📋 TICKETS", noTickets: "No tickets.",
+        logTitle: "📋 TRACEABILITY", logInit: "--- System started ---",
+        statusIdle: "Ready", statusReport: "1. Report", statusAI: "2. AI classifies",
+        statusApprove: "3. Approval", statusAssign: "4. Assignment", statusResolve: "5. Resolution",
+        statusRate: "6. Feedback",
+        toastReport: "📢 New report: {type} at {loc}",
+        toastAssign: "🔧 Ticket #{id} assigned to {dept}",
+        toastResolve: "✅ Ticket #{id} resolved",
+        toastRate: "⭐ Rating {stars}★",
+        toastReject: "❌ Ticket #{id} rejected",
+        logCitizen: "Citizen reported {type} at {loc}",
+        logAI: "AUTISOL classified as {cat} · priority {pri}",
+        logApprove: "Internal approval by {user}",
+        logAssign: "Assigned to {dept} · SLA {sla} min",
+        logResolve: "Crew resolved {type}",
+        logRate: "Rating {stars}★ · {comment}",
+        logEscalate: "⚠️ Ticket #{id} escalated due to SLA",
+        logReject: "❌ Ticket #{id} rejected: {reason}",
+        logComment: "💬 Comment on #{id}: {text}",
+        modalTitle: "📢 Report Incident",
+        modalType: "Problem type *", modalLocation: "Location *", modalDesc: "Description *",
+        modalEvidence: "Evidence (photo/video ≤ 20MB)",
+        modalAnon: "Report anonymously", modalSubmit: "Submit report",
+        modalFooter: "Your report will be traceable.",
+        roleLabel: "Role:", roleAdmin: "Admin", roleCoord: "Coordinator", roleTech: "Technician",
+        btnReport: "Report Now", simMassive: "5 tickets", simEmergency: "🚨 Emergency",
+        simDerive: "Derivation", chartTitle: "📊 Tickets by Type", filterTitle: "🔍 Filters",
+        orderLabel: "Order: by date", footerLicense: "License Costa Rica",
+        detailTitle: "📋 Ticket Details", detailClose: "Close", detailHistory: "History",
+        detailComments: "Comments", detailAddComment: "Add comment",
+        detailSend: "Send", detailReject: "Reject", detailRejectReason: "Rejection reason",
+        detailAssignDept: "Assign to:", detailAssignBtn: "Assign", detailResolveBtn: "Mark as resolved",
+        detailEvidence: "Evidence", detailNoEvidence: "No evidence attached",
+        detailStatus: "Status", detailPriority: "Priority", detailCreated: "Created",
+        detailLocation: "Location", detailDepartment: "Department", detailSLA: "SLA",
+        detailRating: "Rating", detailComment: "Comment"
+      },
+      zh: {
+        title: "立即修复", subtitle: "公民平台 · 智慧领土管理",
+        canton: "县区", metricTotal: "总计", metricOpen: "处理中", metricResolved: "已解决",
+        metricSla: "SLA", metricAvgTime: "平均时间", metricCriticalZones: "关键区域",
+        metricEscalated: "已升级", simHeader: "🚀 模拟", triggerDesc: "触发虚拟事件。",
+        b1: ["坑洼", "主干道"], b2: ["照明", "黑暗公园"], b3: ["垃圾", "人行道"],
+        b4: ["信号灯", "学校路口"], b5: ["下水道", "内涝"], b6: ["涂鸦", "外墙"],
+        b7: ["树木倒塌", "公共道路"], b8: ["水管泄漏", "湿滑人行道"],
+        slaLabel: "平均SLA", slaUnit: "分钟", ticketQueue: "📋 工单", noTickets: "暂无工单。",
+        logTitle: "📋 追踪日志", logInit: "--- 系统已启动 ---",
+        statusIdle: "就绪", statusReport: "1. 报告", statusAI: "2. AI分类",
+        statusApprove: "3. 审批", statusAssign: "4. 分配", statusResolve: "5. 解决",
+        statusRate: "6. 反馈",
+        toastReport: "📢 新报告: {type} 位于 {loc}",
+        toastAssign: "🔧 工单 #{id} 已分配给 {dept}",
+        toastResolve: "✅ 工单 #{id} 已解决",
+        toastRate: "⭐ 评分 {stars}★",
+        toastReject: "❌ 工单 #{id} 已拒绝",
+        logCitizen: "市民报告 {type} 于 {loc}",
+        logAI: "AUTISOL 分类为 {cat} · 优先级 {pri}",
+        logApprove: "内部审批由 {user}",
+        logAssign: "分配给 {dept} · SLA {sla} 分钟",
+        logResolve: "维修队解决了 {type}",
+        logRate: "评分 {stars}★ · {comment}",
+        logEscalate: "⚠️ 工单 #{id} 因SLA超时升级",
+        logReject: "❌ 工单 #{id} 拒绝: {reason}",
+        logComment: "💬 工单 #{id} 评论: {text}",
+        modalTitle: "📢 报告事件",
+        modalType: "问题类型 *", modalLocation: "位置 *", modalDesc: "描述 *",
+        modalEvidence: "证据 (照片/视频 ≤ 20MB)",
+        modalAnon: "匿名报告", modalSubmit: "提交报告",
+        modalFooter: "您的报告将被追踪。",
+        roleLabel: "角色:", roleAdmin: "管理员", roleCoord: "协调员", roleTech: "技术员",
+        btnReport: "立即报告", simMassive: "5个工单", simEmergency: "🚨 紧急情况",
+        simDerive: "转派", chartTitle: "📊 按类型统计", filterTitle: "🔍 筛选器",
+        orderLabel: "排序: 按日期", footerLicense: "许可证 哥斯达黎加",
+        detailTitle: "📋 工单详情", detailClose: "关闭", detailHistory: "历史",
+        detailComments: "评论", detailAddComment: "添加评论",
+        detailSend: "发送", detailReject: "拒绝", detailRejectReason: "拒绝原因",
+        detailAssignDept: "分配给:", detailAssignBtn: "分配", detailResolveBtn: "标记为已解决",
+        detailEvidence: "证据", detailNoEvidence: "无证据",
+        detailStatus: "状态", detailPriority: "优先级", detailCreated: "创建时间",
+        detailLocation: "位置", detailDepartment: "部门", detailSLA: "SLA",
+        detailRating: "评分", detailComment: "评论"
+      }
+    };
+
+    // =============================================================
+    // ESTADO GLOBAL
+    // =============================================================
+    let lang = 'es';
+    let tickets = [];
+    let ticketIdCounter = 0;
+    let logs = [];
+    let activeStep = 'idle';
+    let incidentMarkerPos = null;
+    let repairTruckProg = 0;
+    let pulseAlpha = 0;
+    let currentRole = 'admin';
+    let heatmapPoints = [];
+    let filters = { type: 'all', status: 'all' };
+    let searchQuery = '';
+    let chart = null;
+
+    const STATE_LABELS = {
+      es: { reportado: 'Reportado', clasificado: 'Clasificado', aprobado: 'Aprobado', asignado: 'Asignado',
+            resolviendo: 'En resolución', resuelto: 'Resuelto', retroalimentado: 'Cerrado',
+            rechazado: 'Rechazado' },
+      en: { reportado: 'Reported', clasificado: 'Classified', aprobado: 'Approved', asignado: 'Assigned',
+            resolviendo: 'Resolving', resuelto: 'Resolved', retroalimentado: 'Closed',
+            rechazado: 'Rejected' },
+      zh: { reportado: '已报告', clasificado: '已分类', aprobado: '已批准', asignado: '已分配',
+            resolviendo: '解决中', resuelto: '已解决', retroalimentado: '已关闭',
+            rechazado: '已拒绝' }
+    };
+
+    const SLA_MAP = { pothole: 72, lighting: 48, waste: 24, traffic_light: 36, sewer: 48, graffiti: 72, tree: 24, water: 36 };
+    const TYPE_LABELS = {
+      pothole: { es: 'Bache', en: 'Pothole', zh: '坑洼' },
+      lighting: { es: 'Luminaria', en: 'Lighting', zh: '照明' },
+      waste: { es: 'Basura', en: 'Waste', zh: '垃圾' },
+      traffic_light: { es: 'Semáforo', en: 'Traffic Light', zh: '信号灯' },
+      sewer: { es: 'Alcantarilla', en: 'Sewer', zh: '下水道' },
+      graffiti: { es: 'Grafiti', en: 'Graffiti', zh: '涂鸦' },
+      tree: { es: 'Árbol', en: 'Tree', zh: '树木' },
+      water: { es: 'Fuga', en: 'Water Leak', zh: '泄漏' }
+    };
+    const DEPT_MAP = {
+      pothole: 'Infraestructura Vial', lighting: 'Alumbrado Público',
+      waste: 'Aseo Urbano', traffic_light: 'Seguridad Vial',
+      sewer: 'Drenajes', graffiti: 'Parques y Jardines',
+      tree: 'Parques y Jardines', water: 'Aguas'
+    };
+    const COMMENTS = ['Excelente respuesta', 'Muy satisfecho', 'Rápida acción', 'Mejorar comunicación', 'Regular', 'Pésimo'];
+    const REJECT_REASONS = ['Falta de presupuesto', 'No es competencia municipal', 'Requiere estudio previo', 'Solicitud duplicada', 'No se encontró el problema'];
+
+    const nodes = {
+      brain: { x: 0.5, y: 0.2, z: -1.2, color: '#d62828', label: { es: 'AUTISOL · San José', en: 'AUTISOL · San José', zh: 'AUTISOL · 圣何塞' } },
+      citizen: { x: -2.8, y: 0.2, z: 0.8, color: '#0033a0', label: { es: 'Ciudadano · Alajuela', en: 'Citizen · Alajuela', zh: '市民 · 阿拉胡埃拉' } },
+      institution: { x: 3.2, y: 0.2, z: -0.5, color: '#d62828', label: { es: 'Municipio · Cartago', en: 'Municipality · Cartago', zh: '市政 · 卡塔戈' } },
+      territory: { x: 0.0, y: 0.2, z: 2.2, color: '#0033a0', label: { es: 'Territorio · Heredia', en: 'Territory · Heredia', zh: '领地 · 埃雷迪亚' } },
+      closure: { x: -1.0, y: 0.2, z: -3.0, color: '#d62828', label: { es: 'Cierre · Puntarenas', en: 'Closure · Puntarenas', zh: '闭环 · 蓬塔雷纳斯' } }
+    };
+
+    // =============================================================
+    // FUNCIONES BÁSICAS
+    // =============================================================
+    function getLang() { return lang; }
+    function t(key, params) {
+      let str = DICT[lang][key] || key;
+      if (params) for (let k in params) str = str.replace(new RegExp('\\{'+k+'\\}','g'), params[k]);
+      return str;
+    }
+    function getTypeLabel(type) { return TYPE_LABELS[type] ? TYPE_LABELS[type][lang] : type; }
+    function getSLA(type) { return SLA_MAP[type] || 48; }
+    function getDept(type) { return DEPT_MAP[type] || 'Departamento General'; }
+    function randomComment() { return COMMENTS[Math.floor(Math.random() * COMMENTS.length)]; }
+    function randomRejectReason() { return REJECT_REASONS[Math.floor(Math.random() * REJECT_REASONS.length)]; }
+    function formatDate(d) { return d.toLocaleTimeString() + ' ' + d.toLocaleDateString(); }
+    function getStatusLabel(status) { return (STATE_LABELS[lang] || STATE_LABELS.es)[status] || status; }
+    function getPriorityLabel(priority) {
+      const map = { es: { high: 'Alta', medium: 'Media', low: 'Baja' }, en: { high: 'High', medium: 'Medium', low: 'Low' }, zh: { high: '高', medium: '中', low: '低' } };
+      return (map[lang] || map.es)[priority] || priority;
+    }
+
+    // =============================================================
+    // LOGS Y TOASTS
+    // =============================================================
+    function addLog(msg, type = 'info') {
+      const time = new Date();
+      logs.push({ time, msg, type });
+      renderLogs();
+      updateLogCount();
+    }
+    function renderLogs() {
+      const container = document.getElementById('log-container');
+      if (!container) return;
+      container.innerHTML = logs.slice(-50).map(l =>
+        `<div class="flex items-start gap-2 border-b border-zinc-900/60 pb-1 ${l.type === 'alert' ? 'text-yellow-400' : l.type === 'success' ? 'text-emerald-400' : l.type === 'error' ? 'text-red-400' : 'text-zinc-300'}">
+          <span class="text-[8px] text-zinc-500 whitespace-nowrap">${formatDate(l.time)}</span>
+          <span>${l.msg}</span>
+        </div>`
+      ).join('');
+      container.scrollTop = container.scrollHeight;
+    }
+    function updateLogCount() { document.getElementById('log-count').textContent = logs.length + ' eventos'; }
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto glass px-4 py-2.5 rounded-xl border ${type === 'success' ? 'border-emerald-700' : type === 'error' ? 'border-red-700' : 'border-cyan-700'} text-sm shadow-lg animate-[fadeIn_0.2s_ease]`;
+      el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 350); }, 3500);
+    }
+
+    // =============================================================
+    // GESTIÓN DE TICKETS
+    // =============================================================
+    function createTicket(type, location, description = '', evidenceFile = null, anonymous = true, customStatus = null) {
+      const id = ++ticketIdCounter;
+      const sla = getSLA(type);
+      const ticket = {
+        id, type, location, description: description || 'Problema reportado',
+        evidence: !!evidenceFile, evidenceFile: evidenceFile,
+        anonymous,
+        status: customStatus || 'reportado',
+        createdAt: new Date(),
+        assignedAt: null, resolvedAt: null, ratedAt: null,
+        slaMinutes: sla, dept: null, rating: null, comment: null,
+        escalated: false, priority: 'Media', category: getTypeLabel(type),
+        history: [{ time: new Date(), action: 'Creado', detail: 'Ticket creado por ciudadano' }],
+        comments: []
+      };
+      // AutoML: predecir prioridad basada en tipo
+      const priorities = { pothole: 'high', lighting: 'medium', waste: 'medium', traffic_light: 'high', sewer: 'high', graffiti: 'low', tree: 'medium', water: 'high' };
+      ticket.priority = priorities[type] || 'medium';
+      tickets.push(ticket);
+      renderTickets();
+      updateMetrics();
+      addLog(t('logCitizen', { type: getTypeLabel(type), loc: location }), 'info');
+      showToast(t('toastReport', { type: getTypeLabel(type), loc: location }), 'info');
+      updateHeatmap();
+      updateChart();
+      return ticket;
+    }
+
+    function addTicketHistory(ticket, action, detail) {
+      if (!ticket.history) ticket.history = [];
+      ticket.history.push({ time: new Date(), action, detail });
+    }
+
+    function addTicketComment(ticket, text, user = 'Ciudadano') {
+      if (!ticket.comments) ticket.comments = [];
+      ticket.comments.push({ time: new Date(), text, user });
+      addLog(t('logComment', { id: ticket.id, text: text.substring(0, 30) + (text.length > 30 ? '...' : '') }), 'info');
+      renderTickets();
+    }
+
+    function classifyTicket(id) {
+      const ticket = tickets.find(t => t.id === id);
+      if (!ticket || ticket.status !== 'reportado') return;
+      ticket.status = 'clasificado';
+      addTicketHistory(ticket, 'Clasificado', `Clasificado como ${getTypeLabel(ticket.type)} con prioridad ${getPriorityLabel(ticket.priority)}`);
+      addLog(t('logAI', { cat: ticket.category, pri: getPriorityLabel(ticket.priority) }), 'info');
+      renderTickets();
+      updateMetrics();
+      updateChart();
+      if (currentRole === 'admin' || currentRole === 'coord') {
+        setTimeout(() => approveTicket(id), 1500);
+      }
+    }
+
+    function approveTicket(id) {
+      const ticket = tickets.find(t => t.id === id);
+      if (!ticket || ticket.status !== 'clasificado') return;
+      ticket.status = 'aprobado';
+      addTicketHistory(ticket, 'Aprobado', `Aprobado por ${currentRole === 'admin' ? 'Administrador' : 'Coordinador'}`);
+      addLog(t('logApprove', { user: currentRole === 'admin' ? 'Administrador' : 'Coordinador' }), 'info');
+      renderTickets();
+      updateMetrics();
+      setTimeout(() => assignTicket(id), 1000);
+    }
+
+    function assignTicket(id, dept = null) {
+      const ticket = tickets.find(t => t.id === id);
+      if (!ticket || ticket.status !== 'aprobado') return;
+      ticket.status = 'asignado';
+      ticket.assignedAt = new Date();
+      ticket.dept = dept || getDept(ticket.type);
+      addTicketHistory(ticket, 'Asignado', `Asignado a ${ticket.dept} · SLA ${ticket.slaMinutes} min`);
+      addLog(t('logAssign', { dept: ticket.dept, sla: ticket.slaMinutes }), 'info');
+      showToast(t('toastAssign', { id, dept: ticket.dept }), 'success');
+      renderTickets();
+      updateMetrics();
+      startSlaTimer(ticket);
+    }
+
+    function startSlaTimer(ticket) {
+      if (ticket._slaTimer) clearInterval(ticket._slaTimer);
+      ticket._slaTimer = setInterval(() => {
+        if (['resuelto','retroalimentado','rechazado'].includes(ticket.status)) {
+          clearInterval(ticket._slaTimer); return;
+        }
+        const elapsed = (new Date() - ticket.assignedAt) / 60000;
+        if (elapsed >= ticket.slaMinutes) {
+          ticket.escalated = true;
+          addTicketHistory(ticket, 'Escalado', `Escalado por vencimiento de SLA (${ticket.slaMinutes} min)`);
+          addLog(t('logEscalate', { id: ticket.id }), 'alert');
+          showToast(`⚠️ Ticket #${ticket.id} escalado por SLA`, 'error');
+          clearInterval(ticket._slaTimer);
+          renderTickets();
+          updateMetrics();
+        }
+      }, 3000);
+    }
+
+    function resolveTicket(id) {
+      const ticket = tickets.find(t => t.id === id);
+      if (!ticket || ticket.status !== 'asignado') return;
+      ticket.status = 'resuelto';
+      ticket.resolvedAt = new Date();
+      ticket.evidence = true;
+      if (ticket._slaTimer) clearInterval(ticket._slaTimer);
+      addTicketHistory(ticket, 'Resuelto', 'Resuelto por cuadrilla operativa');
+      addLog(t('logResolve', { type: getTypeLabel(ticket.type) }), 'success');
+      showToast(t('toastResolve', { id }), 'success');
+      renderTickets();
+      updateMetrics();
+      updateChart();
+      setTimeout(() => rateTicket(id), 2000);
+    }
+
+    function rateTicket(id) {
+      const ticket = tickets.find(t => t.id === id);
+      if (!ticket || ticket.status !== 'resuelto') return;
+      ticket.status = 'retroalimentado';
+      ticket.ratedAt = new Date();
+      ticket.rating = Math.floor(Math.random() * 5) + 1;
+      ticket.comment = randomComment();
+      addTicketHistory(ticket, 'Retroalimentado', `Calificación ${ticket.rating}★ · ${ticket.comment}`);
+      addLog(t('logRate', { stars: ticket.rating, comment: ticket.comment }), 'info');
+      showToast(t('toastRate', { id, stars: ticket.rating }), 'success');
+      renderTickets();
+      updateMetrics();
+      updateChart();
+      if (activeStep !== 'idle') { activeStep = 'idle'; updateStatusDisplay('idle'); }
+      updateHeatmap();
+    }
+
+    function rejectTicket(id, reason) {
+      const ticket = tickets.find(t => t.id === id);
+      if (!ticket || !['reportado','clasificado'].includes(ticket.status)) return;
+      ticket.status = 'rechazado';
+      ticket.rejectReason = reason || 'No especificado';
+      if (ticket._slaTimer) clearInterval(ticket._slaTimer);
+      addTicketHistory(ticket, 'Rechazado', `Rechazado: ${ticket.rejectReason}`);
+      addLog(t('logReject', { id: ticket.id, reason: ticket.rejectReason }), 'error');
+      showToast(t('toastReject', { id }), 'error');
+      renderTickets();
+      updateMetrics();
+      updateChart();
+    }
+
+    function clearAllTickets() {
+      tickets.forEach(t => { if (t._slaTimer) clearInterval(t._slaTimer); });
+      tickets = [];
+      ticketIdCounter = 0;
+      renderTickets();
+      updateMetrics();
+      updateChart();
+      addLog('🧹 Todos los tickets eliminados', 'info');
+      updateHeatmap();
+    }
+
+    // =============================================================
+    // RENDER TICKETS
+    // =============================================================
+    function renderTickets() {
+      const list = document.getElementById('ticket-list');
+      const count = document.getElementById('ticket-count');
+      let filtered = tickets.filter(t => {
+        let ok = true;
+        if (filters.type !== 'all' && t.type !== filters.type) ok = false;
+        if (filters.status !== 'all' && t.status !== filters.status) ok = false;
+        if (searchQuery && !t.id.toString().includes(searchQuery)) ok = false;
+        return ok;
+      });
+      filtered.sort((a,b) => b.createdAt - a.createdAt);
+      count.textContent = filtered.length;
+
+      if (filtered.length === 0) {
+        list.innerHTML = `<p class="text-xs text-zinc-500 italic text-center py-4">${t('noTickets')}</p>`;
+        return;
+      }
+
+      list.innerHTML = filtered.map(t => {
+        const statusColor = {
+          reportado: 'bg-orange-500/20 text-orange-300',
+          clasificado: 'bg-cyan-500/20 text-cyan-300',
+          aprobado: 'bg-blue-500/20 text-blue-300',
+          asignado: 'bg-indigo-500/20 text-indigo-300',
+          resolviendo: 'bg-emerald-500/20 text-emerald-300',
+          resuelto: 'bg-emerald-700/20 text-emerald-300',
+          retroalimentado: 'bg-zinc-600/20 text-zinc-300',
+          rechazado: 'bg-red-500/20 text-red-300'
+        }[t.status] || 'bg-zinc-600/20 text-zinc-300';
+        const statusLabel = getStatusLabel(t.status);
+        const priorityClass = t.priority === 'high' ? 'priority-high' : t.priority === 'medium' ? 'priority-medium' : 'priority-low';
+        const slaLeft = t.assignedAt ? Math.max(0, t.slaMinutes - (new Date() - t.assignedAt) / 60000) : t.slaMinutes;
+        const slaDisplay = (t.status === 'asignado' || t.status === 'resolviendo') ? slaLeft.toFixed(0) + ' min' : '—';
+        const slaPct = t.assignedAt ? Math.min(100, ((new Date() - t.assignedAt) / 60000 / t.slaMinutes) * 100) : 0;
+        const slaClass = slaPct > 80 ? 'danger' : slaPct > 50 ? 'warning' : 'safe';
+
+        let actions = '';
+        if (currentRole === 'admin' || currentRole === 'coord') {
+          if (t.status === 'reportado') actions += `<button onclick="classifyTicket(${t.id})" class="text-[8px] bg-cyan-950 hover:bg-cyan-900 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-700">Clasif.</button>`;
+          else if (t.status === 'clasificado') actions += `<button onclick="approveTicket(${t.id})" class="text-[8px] bg-blue-950 hover:bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded border border-blue-700">Aprobar</button>`;
+          else if (t.status === 'aprobado') actions += `<button onclick="assignTicket(${t.id})" class="text-[8px] bg-indigo-950 hover:bg-indigo-900 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-700">Asignar</button>`;
+        }
+        if (currentRole === 'tech' && t.status === 'asignado') {
+          actions += `<button onclick="resolveTicket(${t.id})" class="text-[8px] bg-emerald-950 hover:bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-700">Resolver</button>`;
+        }
+        if (currentRole === 'admin' && t.status === 'asignado') {
+          actions += `<button onclick="resolveTicket(${t.id})" class="text-[8px] bg-emerald-950 hover:bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-700 ml-0.5">Resolver</button>`;
+        }
+        if (currentRole === 'admin' && ['reportado','clasificado'].includes(t.status)) {
+          actions += `<button onclick="rejectTicket(${t.id}, '${randomRejectReason()}')" class="text-[8px] bg-red-950 hover:bg-red-900 text-red-300 px-1.5 py-0.5 rounded border border-red-700 ml-0.5">Rechazar</button>`;
+        }
+
+        return `<div class="ticket-card glass-light rounded-xl p-2.5 border border-zinc-800 ${priorityClass}" onclick="openDetailModal(${t.id})">
+          <div class="flex flex-wrap items-center justify-between gap-1.5">
+            <div class="flex items-center gap-2">
+              <span class="text-base">${getIcon(t.type)}</span>
+              <div>
+                <p class="text-xs font-semibold">#${t.id} ${getTypeLabel(t.type)}</p>
+                <p class="text-[8px] text-zinc-400">${t.location}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="status-badge ${statusColor}">${statusLabel}</span>
+              <span class="text-[8px] font-mono text-zinc-400">SLA ${slaDisplay}</span>
+              ${t.escalated ? '<span class="text-[8px] text-red-400 font-bold">⚠️</span>' : ''}
+              ${t.evidence ? '<span class="text-[8px] text-emerald-400">📎</span>' : ''}
+              ${actions}
+            </div>
+          </div>
+          ${t.assignedAt ? `<div class="mt-1"><div class="sla-bar ${slaClass}" style="width:${Math.min(slaPct,100)}%"></div></div>` : ''}
+          <div class="text-[8px] text-zinc-500 mt-0.5">${t.description.substring(0, 50)}${t.description.length > 50 ? '...' : ''}</div>
+        </div>`;
+      }).join('');
+    }
+
+    function getIcon(type) {
+      const map = { pothole: '🚧', lighting: '💡', waste: '🗑️', traffic_light: '🚦', sewer: '🕳️', graffiti: '🎨', tree: '🌳', water: '💧' };
+      return map[type] || '📌';
+    }
+
+    // =============================================================
+    // MODAL DE DETALLE
+    // =============================================================
+    function openDetailModal(id) {
+      const ticket = tickets.find(t => t.id === id);
+      if (!ticket) return;
+      const modal = document.getElementById('detail-modal');
+      const content = document.getElementById('detail-content');
+      modal.classList.remove('hidden');
+
+      const statusColor = {
+        reportado: 'bg-orange-500/20 text-orange-300',
+        clasificado: 'bg-cyan-500/20 text-cyan-300',
+        aprobado: 'bg-blue-500/20 text-blue-300',
+        asignado: 'bg-indigo-500/20 text-indigo-300',
+        resolviendo: 'bg-emerald-500/20 text-emerald-300',
+        resuelto: 'bg-emerald-700/20 text-emerald-300',
+        retroalimentado: 'bg-zinc-600/20 text-zinc-300',
+        rechazado: 'bg-red-500/20 text-red-300'
+      }[ticket.status] || 'bg-zinc-600/20 text-zinc-300';
+
+      const priorityBadge = ticket.priority === 'high' ? 'text-red-400' : ticket.priority === 'medium' ? 'text-yellow-400' : 'text-emerald-400';
+
+      let historyHtml = (ticket.history || []).slice(-10).reverse().map(h =>
+        `<div class="timeline-item"><div class="time">${formatDate(h.time)}</div><div class="text-xs"><span class="font-semibold">${h.action}</span>: ${h.detail}</div></div>`
+      ).join('') || '<div class="text-xs text-zinc-500">Sin historial</div>';
+
+      let commentsHtml = (ticket.comments || []).map(c =>
+        `<div class="bg-zinc-950/60 rounded-lg p-2 text-xs"><span class="text-cyan-400 font-semibold">${c.user}</span> <span class="text-zinc-400">${formatDate(c.time)}</span><br>${c.text}</div>`
+      ).join('') || '<div class="text-xs text-zinc-500">Sin comentarios</div>';
+
+      let actionsHtml = '';
+      if (currentRole === 'admin' || currentRole === 'coord') {
+        if (ticket.status === 'reportado') {
+          actionsHtml += `<button onclick="classifyTicket(${ticket.id});closeDetailModal()" class="text-xs bg-cyan-600 hover:bg-cyan-700 px-3 py-1.5 rounded-lg transition-colors">Clasificar</button>`;
+          actionsHtml += `<button onclick="rejectTicket(${ticket.id}, prompt('Motivo del rechazo:'));closeDetailModal()" class="text-xs bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg transition-colors ml-2">Rechazar</button>`;
+        } else if (ticket.status === 'clasificado') {
+          actionsHtml += `<button onclick="approveTicket(${ticket.id});closeDetailModal()" class="text-xs bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors">Aprobar</button>`;
+        } else if (ticket.status === 'aprobado') {
+          actionsHtml += `<div class="flex items-center gap-2 flex-wrap"><span class="text-xs text-zinc-400">${t('detailAssignDept')}</span>
+            <select id="dept-select" class="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-xs text-white">
+              ${Object.values(DEPT_MAP).filter((v,i,a) => a.indexOf(v) === i).map(d => `<option value="${d}" ${d === ticket.dept ? 'selected' : ''}>${d}</option>`).join('')}
+            </select>
+            <button onclick="assignTicket(${ticket.id}, document.getElementById('dept-select').value);closeDetailModal()" class="text-xs bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition-colors">${t('detailAssignBtn')}</button></div>`;
+        }
+      }
+      if (currentRole === 'tech' && ticket.status === 'asignado') {
+        actionsHtml += `<button onclick="resolveTicket(${ticket.id});closeDetailModal()" class="text-xs bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition-colors">${t('detailResolveBtn')}</button>`;
+      }
+      if (currentRole === 'admin' && ticket.status === 'asignado') {
+        actionsHtml += `<button onclick="resolveTicket(${ticket.id});closeDetailModal()" class="text-xs bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition-colors">${t('detailResolveBtn')}</button>`;
+      }
+
+      content.innerHTML = `
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <div><span class="text-zinc-400 text-xs">${t('detailStatus')}</span><br><span class="status-badge ${statusColor}">${getStatusLabel(ticket.status)}</span></div>
+          <div><span class="text-zinc-400 text-xs">${t('detailPriority')}</span><br><span class="font-semibold ${priorityBadge}">${getPriorityLabel(ticket.priority)}</span></div>
+          <div><span class="text-zinc-400 text-xs">${t('detailLocation')}</span><br><span class="text-xs">${ticket.location}</span></div>
+          <div><span class="text-zinc-400 text-xs">${t('detailSLA')}</span><br><span class="text-xs">${ticket.slaMinutes} min ${ticket.escalated ? '⚠️ Escalado' : ''}</span></div>
+          <div class="col-span-2"><span class="text-zinc-400 text-xs">${t('detailDepartment')}</span><br><span class="text-xs">${ticket.dept || '—'}</span></div>
+          <div class="col-span-2"><span class="text-zinc-400 text-xs">${t('detailCreated')}</span><br><span class="text-xs">${formatDate(ticket.createdAt)}</span></div>
+          ${ticket.resolvedAt ? `<div class="col-span-2"><span class="text-zinc-400 text-xs">${t('detailResolveBtn')}</span><br><span class="text-xs">${formatDate(ticket.resolvedAt)}</span></div>` : ''}
+          ${ticket.rating ? `<div class="col-span-2"><span class="text-zinc-400 text-xs">${t('detailRating')}</span><br><span class="text-xs">${'★'.repeat(ticket.rating)}${'☆'.repeat(5-ticket.rating)} ${ticket.comment || ''}</span></div>` : ''}
+          ${ticket.rejectReason ? `<div class="col-span-2 text-red-400 text-xs">Motivo rechazo: ${ticket.rejectReason}</div>` : ''}
+          <div class="col-span-2"><span class="text-zinc-400 text-xs">${t('detailEvidence')}</span><br><span class="text-xs">${ticket.evidence ? '📎 Evidencia adjunta' : t('detailNoEvidence')}</span></div>
+        </div>
+
+        <div class="border-t border-zinc-800 pt-2 mt-2">
+          <p class="text-xs font-semibold text-zinc-400">${t('detailHistory')}</p>
+          <div class="mt-1 space-y-1 max-h-32 overflow-y-auto custom-scrollbar">${historyHtml}</div>
+        </div>
+
+        <div class="border-t border-zinc-800 pt-2 mt-2">
+          <p class="text-xs font-semibold text-zinc-400">${t('detailComments')}</p>
+          <div class="mt-1 space-y-1 max-h-24 overflow-y-auto custom-scrollbar">${commentsHtml}</div>
+          <div class="flex gap-2 mt-2">
+            <input id="comment-input" type="text" placeholder="${t('detailAddComment')}" class="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-cyan-500">
+            <button onclick="addComment(${ticket.id})" class="text-xs bg-cyan-600 hover:bg-cyan-700 px-3 py-1 rounded-lg transition-colors">${t('detailSend')}</button>
+          </div>
+        </div>
+
+        <div class="border-t border-zinc-800 pt-3 mt-3 flex flex-wrap gap-2">
+          ${actionsHtml}
+          <button onclick="closeDetailModal()" class="text-xs bg-zinc-800 hover:bg-zinc-700 px-4 py-1.5 rounded-lg transition-colors">${t('detailClose')}</button>
+        </div>
+      `;
+    }
+
+    function addComment(id) {
+      const input = document.getElementById('comment-input');
+      if (!input || !input.value.trim()) return;
+      const ticket = tickets.find(t => t.id === id);
+      if (!ticket) return;
+      addTicketComment(ticket, input.value.trim(), currentRole === 'admin' ? 'Administrador' : currentRole === 'coord' ? 'Coordinador' : 'Técnico');
+      input.value = '';
+      openDetailModal(id);
+    }
+
+    function closeDetailModal() {
+      document.getElementById('detail-modal').classList.add('hidden');
+    }
+
+    // =============================================================
+    // MÉTRICAS
+    // =============================================================
+    function updateMetrics() {
+      const total = tickets.length;
+      const open = tickets.filter(t => !['resuelto','retroalimentado','rechazado'].includes(t.status)).length;
+      const resolved = tickets.filter(t => ['resuelto','retroalimentado'].includes(t.status)).length;
+      const slaMet = tickets.filter(t => t.status === 'retroalimentado' && !t.escalated).length;
+      const slaPct = resolved > 0 ? Math.round((slaMet / resolved) * 100) : 0;
+
+      let avgTime = 0;
+      const resolvedTickets = tickets.filter(t => t.resolvedAt && t.createdAt);
+      if (resolvedTickets.length > 0) {
+        const totalMinutes = resolvedTickets.reduce((sum, t) => sum + (t.resolvedAt - t.createdAt) / 60000, 0);
+        avgTime = totalMinutes / resolvedTickets.length;
+      }
+      const avgDisplay = avgTime > 0 ? (avgTime < 60 ? Math.round(avgTime) + 'm' : (avgTime/60).toFixed(1) + 'h') : '—';
+
+      const locCount = {};
+      tickets.forEach(t => { const loc = t.location; locCount[loc] = (locCount[loc] || 0) + 1; });
+      const criticalZones = Object.values(locCount).filter(c => c >= 2).length;
+      const escalated = tickets.filter(t => t.escalated).length;
+
+      document.getElementById('metric-total').textContent = total;
+      document.getElementById('metric-open').textContent = open;
+      document.getElementById('metric-resolved').textContent = resolved;
+      document.getElementById('metric-sla').textContent = slaPct + '%';
+      document.getElementById('metric-avg-time').textContent = avgDisplay;
+      document.getElementById('metric-critical-zones').textContent = criticalZones;
+      document.getElementById('metric-escalated').textContent = escalated;
+      document.getElementById('filter-count').textContent = total + ' tickets';
+    }
+
+    // =============================================================
+    // HEATMAP Y GRÁFICO
+    // =============================================================
+    function updateHeatmap() {
+      heatmapPoints = tickets.filter(t => !['retroalimentado','resuelto','rechazado'].includes(t.status))
+        .map(() => ({
+          x: nodes.territory.x + (Math.random() * 3 - 1.5),
+          z: nodes.territory.z + (Math.random() * 3 - 1.5),
+          intensity: Math.random() * 0.5 + 0.5
+        }));
+      if (heatmapPoints.length > 8) heatmapPoints = heatmapPoints.slice(0, 8);
+      if (typeof updateThreeHeatmap === 'function') updateThreeHeatmap(heatmapPoints);
+    }
+
+    function updateChart() {
+      const counts = {};
+      tickets.forEach(t => { counts[t.type] = (counts[t.type] || 0) + 1; });
+      const labels = Object.keys(counts).map(k => getTypeLabel(k));
+      const data = Object.values(counts);
+      if (chart) {
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = data;
+        chart.update();
+      } else {
+        const ctx = document.getElementById('typeChart').getContext('2d');
+        chart = new Chart(ctx, {
+          type: 'bar',
+          data: { labels, datasets: [{ label: 'Tickets', data, backgroundColor: 'rgba(6,182,212,0.6)', borderColor: '#06b6d4', borderWidth: 1, borderRadius: 4 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, grid: { color: '#27272a' } }, x: { grid: { display: false } } } }
+        });
+      }
+    }
+
+    // =============================================================
+    // FILTROS
+    // =============================================================
+    function applyFilter(type, value) {
+      filters[type] = value;
+      document.querySelectorAll(`.filter-btn[data-filter="${type}"]`).forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.value === value);
+      });
+      updateFilterIndicator();
+      renderTickets();
+    }
+
+    function updateFilterIndicator() {
+      const el = document.getElementById('filter-indicator');
+      let parts = [];
+      if (filters.type !== 'all') parts.push(`Tipo: ${getTypeLabel(filters.type)}`);
+      if (filters.status !== 'all') parts.push(`Estado: ${getStatusLabel(filters.status)}`);
+      el.textContent = parts.length === 0 ? 'Todos' : parts.join(' · ');
+    }
+
+    function searchTickets() {
+      searchQuery = document.getElementById('search-input').value.trim();
+      renderTickets();
+    }
+
+    // =============================================================
+    // SIMULACIÓN
+    // =============================================================
+    function getFilteredTypes() {
+      return filters.type !== 'all' ? [filters.type] : ['pothole','lighting','waste','traffic_light','sewer','graffiti','tree','water'];
+    }
+    function getFilteredStatus() {
+      return filters.status !== 'all' ? filters.status : 'reportado';
+    }
+
+    function simulateMassive(count) {
+      if (activeStep !== 'idle') { showToast('⏳ Espera a que termine el ciclo actual', 'error'); return; }
+      const types = getFilteredTypes();
+      const status = getFilteredStatus();
+      const locations = ['Curridabat','San Pedro','Escazú','Heredia','Cartago','Alajuela','Puntarenas','San José','Desamparados','Pavas'];
+      let filterMsg = '';
+      if (filters.type !== 'all') filterMsg += ` tipo ${getTypeLabel(filters.type)}`;
+      if (filters.status !== 'all') filterMsg += ` estado ${getStatusLabel(filters.status)}`;
+      showToast(`🚀 Simulando ${count} tickets${filterMsg}`, 'success');
+      addLog(`🚀 Simulación masiva de ${count} tickets con filtros: ${filterMsg || 'todos'}`, 'info');
+
+      for (let i = 0; i < count; i++) {
+        const type = types[Math.floor(Math.random() * types.length)];
+        const loc = locations[Math.floor(Math.random() * locations.length)];
+        const ticket = createTicket(type, loc, `Ticket masivo ${i+1}`, null, true, status);
+        if (['clasificado','aprobado','asignado','resuelto','retroalimentado'].includes(status)) {
+          setTimeout(() => { if (ticket.status === 'reportado') classifyTicket(ticket.id); }, 200 + i*80);
+          if (['aprobado','asignado','resuelto','retroalimentado'].includes(status)) {
+            setTimeout(() => { if (ticket.status === 'clasificado') approveTicket(ticket.id); }, 500 + i*80);
+          }
+          if (['asignado','resuelto','retroalimentado'].includes(status)) {
+            setTimeout(() => { if (ticket.status === 'aprobado') assignTicket(ticket.id); }, 800 + i*80);
+          }
+          if (['resuelto','retroalimentado'].includes(status)) {
+            setTimeout(() => { if (ticket.status === 'asignado') resolveTicket(ticket.id); }, 1200 + i*80);
+          }
+          if (['retroalimentado'].includes(status)) {
+            setTimeout(() => { if (ticket.status === 'resuelto') rateTicket(ticket.id); }, 1800 + i*80);
+          }
+        }
+      }
+    }
+
+    function simulateEmergency() {
+      if (activeStep !== 'idle') { showToast('⏳ Espera a que termine el ciclo actual', 'error'); return; }
+      const types = getFilteredTypes();
+      let emergencyTypes = ['pothole','traffic_light','sewer'];
+      if (filters.type !== 'all') emergencyTypes = [filters.type];
+      const available = emergencyTypes.filter(t => types.includes(t));
+      if (available.length === 0) { showToast('⚠️ El filtro no permite tipos de emergencia.', 'error'); return; }
+      const locations = ['Calle principal','Cruce peligroso','Zona inundable','Avenida central'];
+      showToast('🚨 Escenario de emergencia activado', 'error');
+      addLog('🚨 Escenario de emergencia', 'alert');
+
+      available.forEach((type, i) => {
+        const ticket = createTicket(type, locations[i % locations.length], `🚨 EMERGENCIA: ${getTypeLabel(type)} crítico`, null, true, 'reportado');
+        setTimeout(() => { if (ticket.status === 'reportado') classifyTicket(ticket.id); }, 200 + i*150);
+        setTimeout(() => { if (ticket.status === 'clasificado') approveTicket(ticket.id); }, 500 + i*150);
+        setTimeout(() => { if (ticket.status === 'aprobado') assignTicket(ticket.id); }, 800 + i*150);
+        setTimeout(() => { if (ticket.status === 'asignado') resolveTicket(ticket.id); }, 1300 + i*150);
+      });
+    }
+
+    function simulateDerivation() {
+      if (activeStep !== 'idle') { showToast('⏳ Espera a que termine el ciclo actual', 'error'); return; }
+      const types = getFilteredTypes();
+      let type = types.includes('water') ? 'water' : types[0] || 'pothole';
+      const status = getFilteredStatus();
+      const ticket = createTicket(type, 'Acera principal', 'Problema que requiere derivación interinstitucional', null, true, status);
+      showToast(`🔄 Derivación iniciada (${getTypeLabel(type)})`, 'info');
+      addLog(`🔄 Derivación con filtros: ${getTypeLabel(type)}`, 'info');
+
+      if (['clasificado','aprobado','asignado','resuelto','retroalimentado'].includes(status)) {
+        setTimeout(() => { if (ticket.status === 'reportado') classifyTicket(ticket.id); }, 300);
+        if (['aprobado','asignado','resuelto','retroalimentado'].includes(status)) {
+          setTimeout(() => { if (ticket.status === 'clasificado') approveTicket(ticket.id); }, 700);
+        }
+        if (['asignado','resuelto','retroalimentado'].includes(status)) {
+          setTimeout(() => { if (ticket.status === 'aprobado') assignTicket(ticket.id); }, 1100);
+        }
+        if (['resuelto','retroalimentado'].includes(status)) {
+          setTimeout(() => { if (ticket.status === 'asignado') resolveTicket(ticket.id); }, 1700);
+        }
+      }
+      // Simular derivación a otra institución
+      if (status === 'derivado' || status === 'reportado') {
+        setTimeout(() => {
+          if (ticket.status !== 'derivado') {
+            ticket.status = 'derivado';
+            ticket.dept = 'Instituto de Acueductos (AyA)';
+            addTicketHistory(ticket, 'Derivado', `Derivado a ${ticket.dept}`);
+            addLog(`🔄 Ticket #${ticket.id} derivado a ${ticket.dept}`, 'info');
+            showToast(`Ticket #${ticket.id} derivado a ${ticket.dept}`, 'info');
+            renderTickets();
+            updateMetrics();
+            updateChart();
+          }
+        }, 2500);
+      }
+    }
+
+    function triggerSim(type) {
+      if (activeStep !== 'idle') { showToast('⏳ Espera a que termine el ciclo actual', 'error'); return; }
+      if (filters.type !== 'all' && type !== filters.type) {
+        showToast(`⚠️ El filtro solo permite ${getTypeLabel(filters.type)}`, 'error');
+        return;
+      }
+      const locations = {
+        pothole: 'Calle 23, Curridabat', lighting: 'Parque de la Libertad',
+        waste: 'Avenida 6, comercial', traffic_light: 'Cruce de la escuela',
+        sewer: 'Barrio El Progreso', graffiti: 'Fachada del Colegio',
+        tree: 'Ruta Nacional 2', water: 'Acera frente al parque'
+      };
+      const loc = locations[type] || 'Zona urbana';
+      const desc = `Incidente de ${getTypeLabel(type)} en ${loc}`;
+      const status = filters.status !== 'all' ? filters.status : 'reportado';
+      const ticket = createTicket(type, loc, desc, null, true, status);
+      activeStep = 'reporting';
+      updateStatusDisplay('reporting');
+      incidentMarkerPos = {
+        x: nodes.territory.x + (Math.random() * 1.2 - 0.6),
+        y: nodes.territory.y + 0.5,
+        z: nodes.territory.z + (Math.random() * 1.2 - 0.6)
+      };
+      if (typeof triggerThreeSimulation === 'function') triggerThreeSimulation(type);
+
+      if (status === 'reportado') {
+        // no hacer nada
+      } else if (status === 'clasificado') {
+        setTimeout(() => { if (ticket.status === 'reportado') { classifyTicket(ticket.id); activeStep = 'processing'; updateStatusDisplay('processing'); } }, 1500);
+      } else if (status === 'aprobado') {
+        setTimeout(() => { if (ticket.status === 'reportado') classifyTicket(ticket.id); }, 1500);
+        setTimeout(() => { if (ticket.status === 'clasificado') approveTicket(ticket.id); }, 3000);
+        activeStep = 'processing';
+        updateStatusDisplay('processing');
+      } else if (status === 'asignado') {
+        setTimeout(() => { if (ticket.status === 'reportado') classifyTicket(ticket.id); }, 1500);
+        setTimeout(() => { if (ticket.status === 'clasificado') approveTicket(ticket.id); }, 3000);
+        setTimeout(() => { if (ticket.status === 'aprobado') { assignTicket(ticket.id); activeStep = 'assigning'; updateStatusDisplay('assigning'); } }, 4500);
+      } else if (['resuelto','retroalimentado'].includes(status)) {
+        setTimeout(() => { if (ticket.status === 'reportado') classifyTicket(ticket.id); }, 1500);
+        setTimeout(() => { if (ticket.status === 'clasificado') approveTicket(ticket.id); }, 3000);
+        setTimeout(() => { if (ticket.status === 'aprobado') assignTicket(ticket.id); }, 4500);
+        setTimeout(() => { if (ticket.status === 'asignado') { resolveTicket(ticket.id); activeStep = 'resolving'; updateStatusDisplay('resolving'); } }, 6500);
+      }
+    }
+
+    // =============================================================
+    // ESTADO DEL CICLO
+    // =============================================================
+    function updateStatusDisplay(step) {
+      const label = document.getElementById('status-activity-label');
+      const light = document.getElementById('status-core-light');
+      const dict = DICT[lang];
+      if (step === 'idle') { label.textContent = dict.statusIdle; light.className = 'w-3 h-3 rounded-full bg-zinc-600 shadow'; return; }
+      const map = {
+        reporting: { text: dict.statusReport, color: 'bg-orange-500 shadow-orange-500/50 animate-pulse' },
+        processing: { text: dict.statusAI, color: 'bg-cyan-400 shadow-cyan-400/50 animate-pulse' },
+        approving: { text: dict.statusApprove, color: 'bg-blue-500 shadow-blue-500/50' },
+        assigning: { text: dict.statusAssign, color: 'bg-indigo-500 shadow-indigo-500/50' },
+        resolving: { text: dict.statusResolve, color: 'bg-emerald-500 shadow-emerald-500/50 animate-bounce' },
+        rating: { text: dict.statusRate, color: 'bg-lime-400 shadow-lime-400/50' }
+      };
+      const info = map[step] || map['idle'];
+      label.textContent = info.text;
+      light.className = 'w-3 h-3 rounded-full ' + info.color;
+    }
+
+    // =============================================================
+    // ROLES
+    // =============================================================
+    function setRole(role) {
+      currentRole = role;
+      document.querySelectorAll('.role-tab').forEach(el => el.classList.remove('active', 'text-cyan-400', 'border-cyan-400'));
+      document.getElementById('role-' + role).classList.add('active', 'text-cyan-400', 'border-cyan-400');
+      renderTickets();
+    }
+
+    // =============================================================
+    // MODAL DE REPORTE
+    // =============================================================
+    function openReportModal() { document.getElementById('report-modal').classList.remove('hidden'); }
+    function closeReportModal() { document.getElementById('report-modal').classList.add('hidden'); }
+
+    document.getElementById('report-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const type = document.getElementById('report-type').value;
+      const location = document.getElementById('report-location').value || 'Curridabat';
+      const desc = document.getElementById('report-desc').value || 'Problema reportado';
+      const evidenceFile = document.getElementById('report-evidence').files[0] || null;
+      const anonymous = document.getElementById('report-anonymous').checked;
+      if (!location || !desc) { showToast('Complete todos los campos obligatorios.', 'error'); return; }
+      // Validación de evidencia simulada
+      if (evidenceFile) {
+        if (evidenceFile.size > 20 * 1024 * 1024) {
+          showToast('⚠️ El archivo excede 20MB', 'error');
+          return;
+        }
+        const validTypes = ['image/jpeg','image/png','image/heic','video/mp4','video/quicktime'];
+        if (!validTypes.includes(evidenceFile.type)) {
+          showToast('⚠️ Formato no válido. Use JPG, PNG, HEIC, MP4 o MOV', 'error');
+          return;
+        }
+        showToast('📎 Evidencia validada correctamente', 'success');
+      }
+      const ticket = createTicket(type, location, desc, evidenceFile, anonymous);
+      closeReportModal();
+      if (activeStep === 'idle') {
+        activeStep = 'reporting';
+        updateStatusDisplay('reporting');
+        incidentMarkerPos = {
+          x: nodes.territory.x + (Math.random() * 1.2 - 0.6),
+          y: nodes.territory.y + 0.5,
+          z: nodes.territory.z + (Math.random() * 1.2 - 0.6)
+        };
+        if (typeof triggerThreeSimulation === 'function') triggerThreeSimulation(type);
+        setTimeout(() => { if (ticket.status === 'reportado') { classifyTicket(ticket.id); activeStep = 'processing'; updateStatusDisplay('processing'); } }, 2000);
+        setTimeout(() => { if (ticket.status === 'clasificado') approveTicket(ticket.id); }, 3500);
+        setTimeout(() => { if (ticket.status === 'aprobado') { assignTicket(ticket.id); activeStep = 'assigning'; updateStatusDisplay('assigning'); } }, 5000);
+        setTimeout(() => { if (ticket.status === 'asignado') { resolveTicket(ticket.id); activeStep = 'resolving'; updateStatusDisplay('resolving'); } }, 7500);
+      }
+      // Reset form
+      document.getElementById('report-evidence').value = '';
+    });
+
+    // =============================================================
+    // EXPORTAR
+    // =============================================================
+    function exportReport(format) {
+      if (tickets.length === 0) { showToast('No hay tickets para exportar.', 'error'); return; }
+      const data = tickets.map(t => ({
+        ID: t.id, Tipo: getTypeLabel(t.type), Ubicación: t.location,
+        Estado: getStatusLabel(t.status), 'SLA (min)': t.slaMinutes,
+        Escalado: t.escalated ? 'Sí' : 'No', Calificación: t.rating || '—',
+        'Fecha creación': formatDate(t.createdAt)
+      }));
+      if (format === 'csv') {
+        let csv = 'ID,Tipo,Ubicación,Estado,SLA (min),Escalado,Calificación,Fecha creación\n';
+        data.forEach(row => { csv += Object.values(row).join(',') + '\n'; });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'reporte_tickets.csv'; a.click();
+        URL.revokeObjectURL(url);
+        showToast('Reporte CSV exportado.', 'success');
+      } else {
+        showToast('Exportación PDF simulada.', 'info');
+      }
+    }
+
+    // =============================================================
+    // MULTILINGÜE
+    // =============================================================
+    function changeLang(newLang) {
+      lang = newLang;
+      const d = DICT[lang];
+      document.getElementById('main-title').textContent = d.title;
+      document.getElementById('sub-title').textContent = d.subtitle;
+      document.getElementById('label-canton').textContent = d.canton;
+      document.getElementById('metric-total-label').textContent = d.metricTotal;
+      document.getElementById('metric-open-label').textContent = d.metricOpen;
+      document.getElementById('metric-resolved-label').textContent = d.metricResolved;
+      document.getElementById('metric-sla-label').textContent = d.metricSla;
+      document.getElementById('metric-avg-time-label').textContent = d.metricAvgTime;
+      document.getElementById('metric-critical-zones-label').textContent = d.metricCriticalZones;
+      document.getElementById('metric-escalated-label').textContent = d.metricEscalated;
+      document.getElementById('sim-header').textContent = d.simHeader;
+      document.getElementById('b-pothole-t').textContent = d.b1[0];
+      document.getElementById('b-pothole-d').textContent = d.b1[1];
+      document.getElementById('b-lighting-t').textContent = d.b2[0];
+      document.getElementById('b-lighting-d').textContent = d.b2[1];
+      document.getElementById('b-waste-t').textContent = d.b3[0];
+      document.getElementById('b-waste-d').textContent = d.b3[1];
+      document.getElementById('b-traffic_light-t').textContent = d.b4[0];
+      document.getElementById('b-traffic_light-d').textContent = d.b4[1];
+      document.getElementById('b-sewer-t').textContent = d.b5[0];
+      document.getElementById('b-sewer-d').textContent = d.b5[1];
+      document.getElementById('b-graffiti-t').textContent = d.b6[0];
+      document.getElementById('b-graffiti-d').textContent = d.b6[1];
+      document.getElementById('b-tree-t').textContent = d.b7[0];
+      document.getElementById('b-tree-d').textContent = d.b7[1];
+      document.getElementById('b-water-t').textContent = d.b8[0];
+      document.getElementById('b-water-d').textContent = d.b8[1];
+      document.getElementById('sla-lbl').textContent = d.slaLabel;
+      document.getElementById('ticket-queue-title').textContent = d.ticketQueue;
+      document.getElementById('log-title').textContent = d.logTitle;
+      document.getElementById('footer-license').textContent = d.footerLicense;
+      document.getElementById('no-tickets-msg').textContent = d.noTickets;
+      document.getElementById('log-init').textContent = d.logInit;
+      document.getElementById('modal-title').textContent = d.modalTitle;
+      document.getElementById('modal-type-label').textContent = d.modalType;
+      document.getElementById('modal-location-label').textContent = d.modalLocation;
+      document.getElementById('modal-desc-label').textContent = d.modalDesc;
+      document.getElementById('modal-evidence-label').textContent = d.modalEvidence;
+      document.getElementById('modal-anon-label').textContent = d.modalAnon;
+      document.getElementById('modal-submit').textContent = d.modalSubmit;
+      document.getElementById('modal-footer').textContent = d.modalFooter;
+      document.getElementById('role-label').textContent = d.roleLabel;
+      document.getElementById('role-admin').textContent = d.roleAdmin;
+      document.getElementById('role-coord').textContent = d.roleCoord;
+      document.getElementById('role-tech').textContent = d.roleTech;
+      document.getElementById('btn-report').textContent = d.btnReport;
+      document.getElementById('sim-massive').textContent = d.simMassive;
+      document.getElementById('sim-emergency').textContent = d.simEmergency;
+      document.getElementById('sim-derive').textContent = d.simDerive;
+      document.getElementById('chart-title').textContent = d.chartTitle;
+      document.getElementById('filter-title').textContent = d.filterTitle;
+      document.getElementById('order-label').textContent = d.orderLabel;
+      document.getElementById('detail-title').textContent = d.detailTitle;
+      if (activeStep === 'idle') updateStatusDisplay('idle');
+      else updateStatusDisplay(activeStep);
+      ['es','en','zh'].forEach(l => {
+        document.getElementById('btn-lang-' + l).classList.toggle('active-btn', l === newLang);
+      });
+      renderTickets();
+      renderLogs();
+      updateChart();
+      updateFilterIndicator();
+    }
+
+    // =============================================================
+    // RENDERIZADO 3D (Canvas + Three.js)
+    // =============================================================
+    const canvas = document.getElementById('fallback-canvas');
+    const ctx = canvas.getContext('2d');
+    let canvasRotationY = -0.2, canvasRotationX = 0.5, cameraZoom = 45;
+    let isDragging = false, dragPos = { x: 0, y: 0 };
+
+    const crPolygon = [
+      [-3.5,1.8],[-2.8,2.0],[-2.0,2.2],[-1.2,2.0],[-0.5,1.8],
+      [0.2,1.5],[1.0,1.2],[1.8,0.8],[2.5,0.3],[3.0,-0.2],
+      [3.2,-0.8],[3.0,-1.5],[2.5,-2.0],[1.8,-2.5],[1.0,-2.8],
+      [0.2,-3.0],[-0.5,-3.2],[-1.2,-3.0],[-2.0,-2.8],[-2.8,-2.5],
+      [-3.2,-2.0],[-3.5,-1.5],[-3.5,-0.8],[-3.8,-0.2],[-3.8,0.5],
+      [-3.5,1.0],[-3.5,1.8]
+    ];
+    const provinces = [
+      { name: 'San José', x: 0.2, y: -1.0, w: 2.0, h: 1.8 },
+      { name: 'Alajuela', x: -2.5, y: 0.5, w: 2.0, h: 1.8 },
+      { name: 'Cartago', x: 2.0, y: -1.5, w: 1.5, h: 1.5 },
+      { name: 'Heredia', x: -0.5, y: 1.2, w: 1.5, h: 1.0 },
+      { name: 'Puntarenas', x: -2.0, y: -2.5, w: 1.8, h: 1.5 }
+    ];
+
+    function project3d(x, y, z) {
+      let x1 = x * Math.cos(canvasRotationY) - z * Math.sin(canvasRotationY);
+      let z1 = x * Math.sin(canvasRotationY) + z * Math.cos(canvasRotationY);
+      let y2 = y * Math.cos(canvasRotationX) - z1 * Math.sin(canvasRotationX);
+      let z2 = y * Math.sin(canvasRotationX) + z1 * Math.cos(canvasRotationX);
+      const cx = canvas.width / 2, cy = canvas.height / 2 + 30;
+      return { x: cx + x1 * cameraZoom, y: cy - y2 * cameraZoom, z: z2 };
+    }
+
+    function drawPulseRing(x, y, color) {
+      const scale = (Date.now() % 1500) / 1500;
+      ctx.beginPath();
+      ctx.arc(x, y, 20 + scale * 30, 0, 2 * Math.PI);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5 - scale;
+      ctx.globalAlpha = 0.6 - scale * 0.5;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    function drawMapBackground() {
+      ctx.save();
+      ctx.shadowColor = 'rgba(255,255,255,0.05)';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      crPolygon.forEach((p, i) => {
+        const proj = project3d(p[0], -0.2, p[1]);
+        if (i === 0) ctx.moveTo(proj.x, proj.y);
+        else ctx.lineTo(proj.x, proj.y);
+      });
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(0, 51, 160, 0.25)';
+      ctx.fill();
+      ctx.strokeStyle = '#0033a0';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+      provinces.forEach(prov => {
+        const p1 = project3d(prov.x, -0.2, prov.y);
+        const p2 = project3d(prov.x + prov.w, -0.2, prov.y + prov.h);
+        const cx = (p1.x + p2.x) / 2, cy = (p1.y + p2.y) / 2;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(214, 40, 40, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        ctx.fillRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+        ctx.fillStyle = '#f4f4f5';
+        ctx.font = '7px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(prov.name, cx, cy);
+        ctx.restore();
+      });
+      ctx.fillStyle = '#06b6d4';
+      ctx.font = 'bold 10px Outfit, sans-serif';
+      ctx.textAlign = 'center';
+      const titulo = project3d(0, 1.2, -1.8);
+      ctx.fillText('🇨🇷 COSTA RICA', titulo.x, titulo.y);
+    }
+
+    function drawHeatmap2D() {
+      heatmapPoints.forEach((p) => {
+        const proj = project3d(p.x, -0.1, p.z);
+        const radius = 4 + p.intensity * 8;
+        const grad = ctx.createRadialGradient(proj.x, proj.y, 0, proj.x, proj.y, radius);
+        grad.addColorStop(0, `rgba(255, 50, 50, ${0.4 + p.intensity * 0.4})`);
+        grad.addColorStop(1, 'rgba(255, 50, 50, 0)');
+        ctx.beginPath();
+        ctx.arc(proj.x, proj.y, radius, 0, 2 * Math.PI);
+        ctx.fillStyle = grad;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(proj.x, proj.y, 3, 0, 2 * Math.PI);
+        ctx.fillStyle = '#ef4444';
+        ctx.fill();
+      });
+    }
+
+    function renderFallback() {
+      ctx.fillStyle = '#0a0a0d';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (!isDragging) canvasRotationY += 0.003;
+      drawMapBackground();
+
+      function drawArc(start, end, color, active, heightOffset = 1.8) {
+        const p1 = project3d(start.x, start.y, start.z);
+        const p2 = project3d(end.x, end.y, end.z);
+        const midX = (p1.x + p2.x) / 2;
+        const midY = (p1.y + p2.y) / 2 - heightOffset * cameraZoom / 15;
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.quadraticCurveTo(midX, midY, p2.x, p2.y);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = active ? 3 : 1.5;
+        ctx.setLineDash(active ? [4, 4] : []);
+        ctx.shadowColor = color;
+        ctx.shadowBlur = active ? 6 : 0;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.shadowBlur = 0;
+        if (active) {
+          ctx.fillStyle = '#ffffff';
+          for (let s = 0; s < 3; s++) {
+            let t = ((Date.now() * 0.0015) + (s / 3)) % 1;
+            let px = Math.pow(1-t,2)*p1.x + 2*(1-t)*t*midX + Math.pow(t,2)*p2.x;
+            let py = Math.pow(1-t,2)*p1.y + 2*(1-t)*t*midY + Math.pow(t,2)*p2.y;
+            ctx.beginPath(); ctx.arc(px, py, 3.5, 0, 2*Math.PI); ctx.fill();
+          }
+        }
+      }
+      drawArc(nodes.citizen, nodes.brain, '#0033a0', activeStep === 'reporting');
+      drawArc(nodes.brain, nodes.institution, '#d62828', activeStep === 'processing' || activeStep === 'assigning');
+      drawArc(nodes.institution, nodes.territory, '#0033a0', activeStep === 'resolving');
+      drawArc(nodes.territory, nodes.closure, '#d62828', activeStep === 'rating');
+      drawArc(nodes.closure, nodes.citizen, '#0033a0', activeStep === 'idle' && Date.now() % 5000 > 3500);
+
+      Object.keys(nodes).forEach(key => {
+        const node = nodes[key];
+        const p = project3d(node.x, node.y, node.z);
+        const radius = key === 'brain' ? 30 : 14;
+        const breath = radius + Math.sin(Date.now()*0.004) * (key === 'brain' ? 4 : 2);
+        ctx.shadowColor = node.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, breath, 0, 2*Math.PI);
+        ctx.fillStyle = key === 'brain' ? 'rgba(214,40,40,0.15)' : 'rgba(24,24,27,0.8)';
+        ctx.fill();
+        ctx.strokeStyle = node.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        if (key === 'brain') {
+          ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, 2*Math.PI); ctx.fillStyle = '#d62828'; ctx.fill();
+          ctx.beginPath(); ctx.ellipse(p.x, p.y, 20, 6, Date.now()*0.002, 0, 2*Math.PI);
+          ctx.strokeStyle = '#ffcccc'; ctx.lineWidth = 1; ctx.stroke();
+        } else {
+          ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, 2*Math.PI); ctx.fillStyle = node.color; ctx.fill();
+        }
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#f4f4f5';
+        ctx.font = '8px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        const label = node.label[lang] || node.label.es;
+        ctx.fillText(label, p.x, p.y - (key === 'brain' ? 40 : 20));
+        if (key === 'citizen' && activeStep === 'reporting') drawPulseRing(p.x, p.y, '#0033a0');
+        if (key === 'brain' && (activeStep === 'processing' || activeStep === 'assigning')) drawPulseRing(p.x, p.y, '#d62828');
+        if (key === 'institution' && activeStep === 'assigning') drawPulseRing(p.x, p.y, '#d62828');
+        if (key === 'territory' && activeStep === 'resolving') drawPulseRing(p.x, p.y, '#0033a0');
+        if (key === 'closure' && activeStep === 'rating') drawPulseRing(p.x, p.y, '#d62828');
+      });
+
+      drawHeatmap2D();
+
+      if (incidentMarkerPos) {
+        const p = project3d(incidentMarkerPos.x, incidentMarkerPos.y, incidentMarkerPos.z);
+        pulseAlpha = (pulseAlpha + 0.05) % (2 * Math.PI);
+        const radius = 6 + Math.abs(Math.sin(pulseAlpha)) * 10;
+        ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, 2*Math.PI);
+        ctx.strokeStyle = activeStep === 'rating' ? '#22c55e' : '#ef4444';
+        ctx.lineWidth = 2; ctx.stroke();
+        ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, 2*Math.PI);
+        ctx.fillStyle = activeStep === 'rating' ? '#22c55e' : '#ef4444';
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 9px Arial';
+        ctx.fillText(activeStep === 'rating' ? '✓' : '⚠️', p.x, p.y - 10);
+      }
+
+      if (activeStep === 'resolving' && incidentMarkerPos) {
+        repairTruckProg += 0.008;
+        if (repairTruckProg > 1) repairTruckProg = 1;
+        const startX = nodes.institution.x, startZ = nodes.institution.z;
+        const endX = incidentMarkerPos.x, endZ = incidentMarkerPos.z;
+        const curX = startX + (endX - startX) * repairTruckProg;
+        const curY = -0.2 + Math.sin(repairTruckProg * Math.PI) * 0.6;
+        const curZ = startZ + (endZ - startZ) * repairTruckProg;
+        const pT = project3d(curX, curY, curZ);
+        ctx.beginPath(); ctx.arc(pT.x, pT.y, 7, 0, 2*Math.PI);
+        ctx.fillStyle = '#f59e0b';
+        ctx.shadowColor = '#f59e0b';
+        ctx.shadowBlur = 12;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#000';
+        ctx.font = '7px sans-serif';
+        ctx.fillText('🚚', pT.x, pT.y + 2.5);
+      }
+      requestAnimationFrame(renderFallback);
+    }
+
+    // ---- THREE.JS ----
+    let scene, camera3, renderer, controls3;
+    let brainGroup, threeTruck, threeIncidentMarker;
+    let mapTexture, heatmapSpheres = [];
+
+    function initThreeJs() {
+      const parent = document.getElementById('three-canvas');
+      if (!parent) return;
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color('#0a0a0c');
+      scene.fog = new THREE.FogExp2('#0a0a0c', 0.015);
+      camera3 = new THREE.PerspectiveCamera(45, parent.clientWidth / parent.clientHeight, 0.1, 1000);
+      camera3.position.set(0, 12, 18);
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(parent.clientWidth, parent.clientHeight);
+      parent.appendChild(renderer.domElement);
+      controls3 = new THREE.OrbitControls(camera3, renderer.domElement);
+      controls3.enableDamping = true;
+      controls3.dampingFactor = 0.05;
+      controls3.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambient);
+      const spot = new THREE.SpotLight(0xffffff, 1.8);
+      spot.position.set(0, 25, 20);
+      scene.add(spot);
+      const cyanPoint = new THREE.PointLight(0x06b6d4, 2, 25);
+      cyanPoint.position.set(0, 2.5, 0);
+      scene.add(cyanPoint);
+
+      const mapCanvas = document.createElement('canvas');
+      mapCanvas.width = 1024; mapCanvas.height = 768;
+      const mapCtx = mapCanvas.getContext('2d');
+      function drawMapOnCanvas(c, w, h) {
+        c.fillStyle = '#0a0a0d';
+        c.fillRect(0, 0, w, h);
+        const scaleX = w / 10, scaleY = h / 10, offsetX = w/2, offsetY = h/2;
+        c.beginPath();
+        crPolygon.forEach((p, i) => {
+          const px = offsetX + p[0] * scaleX, py = offsetY - p[1] * scaleY;
+          if (i === 0) c.moveTo(px, py);
+          else c.lineTo(px, py);
+        });
+        c.closePath();
+        c.fillStyle = 'rgba(0, 51, 160, 0.3)';
+        c.fill();
+        c.strokeStyle = '#0033a0';
+        c.lineWidth = 3;
+        c.stroke();
+        provinces.forEach(prov => {
+          const x = offsetX + prov.x * scaleX, y = offsetY - prov.y * scaleY;
+          const w2 = prov.w * scaleX, h2 = prov.h * scaleY;
+          c.strokeStyle = 'rgba(214, 40, 40, 0.4)';
+          c.lineWidth = 1.5;
+          c.strokeRect(x, y, w2, h2);
+          c.fillStyle = 'rgba(255,255,255,0.1)';
+          c.fillRect(x, y, w2, h2);
+          c.fillStyle = '#f4f4f5';
+          c.font = 'bold 18px Outfit, sans-serif';
+          c.textAlign = 'center';
+          c.fillText(prov.name, x + w2/2, y + h2/2 + 6);
+        });
+        c.fillStyle = '#06b6d4';
+        c.font = 'bold 24px Outfit, sans-serif';
+        c.textAlign = 'center';
+        c.fillText('🇨🇷 COSTA RICA', w/2, 40);
+      }
+      drawMapOnCanvas(mapCtx, mapCanvas.width, mapCanvas.height);
+      mapTexture = new THREE.CanvasTexture(mapCanvas);
+      const mapPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(8, 8),
+        new THREE.MeshBasicMaterial({ map: mapTexture, transparent: true, opacity: 0.7, side: THREE.DoubleSide })
+      );
+      mapPlane.rotation.x = -Math.PI / 2;
+      mapPlane.position.y = -0.2;
+      scene.add(mapPlane);
+
+      brainGroup = new THREE.Group();
+      brainGroup.position.set(nodes.brain.x, nodes.brain.y, nodes.brain.z);
+      scene.add(brainGroup);
+      const torus = new THREE.Mesh(
+        new THREE.TorusGeometry(2.0, 0.08, 8, 32),
+        new THREE.MeshPhongMaterial({ color: 0xd62828, wireframe: true })
+      );
+      torus.rotation.x = Math.PI/2;
+      brainGroup.add(torus);
+      const s1 = new THREE.Mesh(new THREE.SphereGeometry(0.9, 12, 12), new THREE.MeshPhongMaterial({ color: 0xd62828, transparent: true, opacity: 0.8 }));
+      s1.position.x = -0.2; brainGroup.add(s1);
+      const s2 = new THREE.Mesh(new THREE.SphereGeometry(0.9, 12, 12), new THREE.MeshPhongMaterial({ color: 0x0033a0, transparent: true, opacity: 0.8 }));
+      s2.position.x = 0.2; brainGroup.add(s2);
+
+      const colors = [0x0033a0, 0xd62828, 0x0033a0, 0xd62828];
+      const keys = ['citizen', 'institution', 'territory', 'closure'];
+      keys.forEach((k, i) => {
+        const geo = new THREE.CylinderGeometry(0.4, 0.5, 0.15, 8);
+        const mat = new THREE.MeshPhongMaterial({ color: colors[i % colors.length] });
+        const m = new THREE.Mesh(geo, mat);
+        m.position.set(nodes[k].x, nodes[k].y, nodes[k].z);
+        scene.add(m);
+        const sphere = new THREE.Mesh(
+          new THREE.SphereGeometry(0.3, 8, 8),
+          new THREE.MeshPhongMaterial({ color: colors[i % colors.length] })
+        );
+        sphere.position.set(nodes[k].x, nodes[k].y + 0.3, nodes[k].z);
+        scene.add(sphere);
+      });
+
+      function createArc(start, end, hex) {
+        const p1 = new THREE.Vector3(start.x, start.y, start.z);
+        const p2 = new THREE.Vector3(end.x, end.y, end.z);
+        const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+        mid.y += 3.5;
+        const curve = new THREE.QuadraticBezierCurve3(p1, mid, p2);
+        const pts = curve.getPoints(30);
+        const line = new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(pts),
+          new THREE.LineBasicMaterial({ color: hex, transparent: true, opacity: 0.5 })
+        );
+        scene.add(line);
+      }
+      createArc(nodes.citizen, nodes.brain, 0x0033a0);
+      createArc(nodes.brain, nodes.institution, 0xd62828);
+      createArc(nodes.institution, nodes.territory, 0x0033a0);
+      createArc(nodes.territory, nodes.closure, 0xd62828);
+
+      threeTruck = new THREE.Group();
+      threeTruck.visible = false;
+      const chassis = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 0.3), new THREE.MeshPhongMaterial({ color: 0xf59e0b }));
+      threeTruck.add(chassis);
+      scene.add(threeTruck);
+
+      updateThreeHeatmap([]);
+      threeAnimate();
+    }
+
+    function threeAnimate() {
+      requestAnimationFrame(threeAnimate);
+      if (brainGroup) brainGroup.rotation.y += 0.02;
+      if (threeIncidentMarker) threeIncidentMarker.rotation.y += 0.02;
+      if (controls3) controls3.update();
+      if (renderer && scene && camera3) renderer.render(scene, camera3);
+    }
+
+    function triggerThreeSimulation(type) {
+      if (!scene) return;
+      if (threeIncidentMarker) { scene.remove(threeIncidentMarker); threeIncidentMarker = null; }
+      const cone = new THREE.Mesh(
+        new THREE.ConeGeometry(0.4, 0.8, 8),
+        new THREE.MeshBasicMaterial({ color: 0xef4444 })
+      );
+      cone.position.set(nodes.territory.x, nodes.territory.y + 0.8, nodes.territory.z);
+      scene.add(cone);
+      threeIncidentMarker = cone;
+
+      threeTruck.visible = true;
+      let pTick = 0;
+      const start = new THREE.Vector3(nodes.institution.x, nodes.institution.y, nodes.institution.z);
+      const end = new THREE.Vector3(nodes.territory.x, nodes.territory.y, nodes.territory.z);
+      if (threeTruck._anim) clearInterval(threeTruck._anim);
+      threeTruck._anim = setInterval(() => {
+        pTick += 0.025;
+        if (pTick > 1) { pTick = 1; clearInterval(threeTruck._anim);
+          if (threeIncidentMarker) threeIncidentMarker.material.color.setHex(0x22c55e);
+          setTimeout(() => { threeTruck.visible = false; if (threeIncidentMarker) { scene.remove(threeIncidentMarker); threeIncidentMarker = null; } }, 3000);
+        }
+        const cur = new THREE.Vector3().lerpVectors(start, end, pTick);
+        cur.y += Math.sin(pTick * Math.PI) * 1.2;
+        threeTruck.position.copy(cur);
+      }, 40);
+    }
+
+    function updateThreeHeatmap(points) {
+      if (!scene) return;
+      heatmapSpheres.forEach(s => scene.remove(s));
+      heatmapSpheres = [];
+      points.forEach(p => {
+        const sphere = new THREE.Mesh(
+          new THREE.SphereGeometry(0.15 + p.intensity * 0.2, 8, 8),
+          new THREE.MeshBasicMaterial({ color: 0xff4444, transparent: true, opacity: 0.6 + p.intensity * 0.3 })
+        );
+        sphere.position.set(p.x, -0.1, p.z);
+        scene.add(sphere);
+        heatmapSpheres.push(sphere);
+      });
+    }
+
+    // =============================================================
+    // INICIALIZACIÓN
+    // =============================================================
+    function initViewports() {
+      const container = document.getElementById('viewport-card');
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+
+      if (typeof THREE !== 'undefined' && THREE.WebGLRenderer) {
+        document.getElementById('fallback-canvas').style.display = 'none';
+        document.getElementById('engine-label').textContent = 'Motor 3D WebGL · Mapa de Costa Rica';
+        initThreeJs();
+        window.triggerThreeSimulation = triggerThreeSimulation;
+        window.updateThreeHeatmap = updateThreeHeatmap;
+      } else {
+        document.getElementById('three-canvas').style.display = 'none';
+        document.getElementById('fallback-canvas').style.display = 'block';
+        document.getElementById('engine-label').textContent = 'Motor Canvas 2D · Mapa de Costa Rica';
+        renderFallback();
+        window.triggerThreeSimulation = function() {};
+        window.updateThreeHeatmap = function() {};
+      }
+
+      canvas.addEventListener('mousedown', (e) => { isDragging = true; dragPos = { x: e.clientX, y: e.clientY }; });
+      canvas.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - dragPos.x, dy = e.clientY - dragPos.y;
+        canvasRotationY += dx * 0.007;
+        canvasRotationX += dy * 0.007;
+        canvasRotationX = Math.max(-0.2, Math.min(1.2, canvasRotationX));
+        dragPos = { x: e.clientX, y: e.clientY };
+      });
+      window.addEventListener('mouseup', () => { isDragging = false; });
+      canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        cameraZoom -= e.deltaY * 0.04;
+        cameraZoom = Math.max(20, Math.min(90, cameraZoom));
+      }, { passive: false });
+
+      changeLang('es');
+      addLog(t('logInit'), 'info');
+      updateMetrics();
+      updateChart();
+      updateFilterIndicator();
+
+      window.addEventListener('resize', () => {
+        const c = document.getElementById('viewport-card');
+        if (canvas.style.display !== 'none') { canvas.width = c.clientWidth; canvas.height = c.clientHeight; }
+        if (camera3 && renderer) {
+          camera3.aspect = c.clientWidth / c.clientHeight;
+          camera3.updateProjectionMatrix();
+          renderer.setSize(c.clientWidth, c.clientHeight);
+        }
+      });
+    }
+
+    // Exponer funciones globales
+    window.triggerSim = triggerSim;
+    window.classifyTicket = classifyTicket;
+    window.approveTicket = approveTicket;
+    window.assignTicket = assignTicket;
+    window.resolveTicket = resolveTicket;
+    window.rejectTicket = rejectTicket;
+    window.clearAllTickets = clearAllTickets;
+    window.changeLang = changeLang;
+    window.setRole = setRole;
+    window.openReportModal = openReportModal;
+    window.closeReportModal = closeReportModal;
+    window.exportReport = exportReport;
+    window.applyFilter = applyFilter;
+    window.searchTickets = searchTickets;
+    window.simulateMassive = simulateMassive;
+    window.simulateEmergency = simulateEmergency;
+    window.simulateDerivation = simulateDerivation;
+    window.openDetailModal = openDetailModal;
+    window.closeDetailModal = closeDetailModal;
+    window.addComment = addComment;
+
+    window.onload = initViewports;
+  </script>
+</body>
+</html>
