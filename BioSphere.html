@@ -1,0 +1,1976 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bio-Sphere Kit: Prototipo 3D Interactivo - Dr. Julio César Oporta Barrera</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #020617;
+      color: #f1f5f9;
+      margin: 0;
+      overflow-x: hidden;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Custom thin scrollbars for tactical UI look */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #020617;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.3s ease-out forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-cyan-500 selection:text-slate-950">
+
+  <!-- TOP BRAND NAV BAR -->
+  <header class="border-b border-slate-900 bg-slate-950/85 backdrop-blur px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+    <div class="flex flex-col">
+      <div class="flex items-center gap-2">
+        <span class="h-2.5 w-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+        <h1 class="text-white font-bold text-base tracking-wider uppercase">Dr. Julio César Oporta Barrera</h1>
+      </div>
+      <span class="text-[9px] text-cyan-400 font-mono tracking-widest mt-0.5">BIO-SPHERE KIT • ECO-HEALTH AUTOPRODUCTION LAB</span>
+    </div>
+    <div class="flex gap-3 items-center">
+      <div class="hidden md:flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-md text-[10px] font-mono text-slate-400">
+        <svg class="h-3.5 w-3.5 text-amber-400 animate-pulse" fill="currentColor" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+        <span id="txtBadge">Ecosistema Bio-Digital v2.0</span>
+      </div>
+      <select id="langSelect" onchange="setLang(this.value)" class="bg-slate-900 border border-slate-800 text-slate-300 text-xs font-mono rounded px-2.5 py-1.5 focus:border-cyan-500 focus:outline-none cursor-pointer">
+        <option value="es">Español (ES)</option>
+        <option value="en">English (EN)</option>
+        <option value="zh">中文 (ZH)</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- EMERGENCY AND SYSTEM ALERT BANNERS -->
+  <div id="alertBanner" class="hidden px-6 py-2.5 text-xs font-mono flex items-center gap-2">
+    <!-- Inserted dynamically -->
+  </div>
+
+  <!-- MAIN HUD GRID (DESKTOP-FIRST PRECISION, RESPONSIBLY BALANCED) -->
+  <main class="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1400px] mx-auto w-full">
+    
+    <!-- LEFT PANEL: 3D VIEWPORT & TELEMETRY CONTROLLER (lg:col-span-8) -->
+    <section class="lg:col-span-8 flex flex-col gap-6">
+      
+      <!-- 3D Viewport container -->
+      <div class="relative bg-slate-950 border border-slate-900 rounded-xl overflow-hidden shadow-2xl h-[460px] flex flex-col">
+        
+        <!-- Canvas -->
+        <canvas id="canvas3d" class="flex-1 w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+
+        <!-- Floating view controls overlay -->
+        <div class="absolute top-16 left-4 right-4 flex justify-between pointer-events-none">
+          <div class="flex gap-1.5 pointer-events-auto">
+            <button id="btnAutoRotate" onclick="toggleAutoRotate()" class="px-2.5 py-1.5 rounded-lg text-xs font-mono bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center gap-1.5 hover:bg-cyan-500/25 transition">
+              <svg class="h-3 w-3 animate-spin" style="animation-duration: 6s" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89M9 11l3-3 3 3m-3-3v12"/></svg>
+              <span id="rotateState">Pausar Rotación</span>
+            </button>
+            <button onclick="resetCamera()" class="px-2.5 py-1.5 rounded-lg text-xs font-mono bg-slate-950/85 border border-slate-800 text-slate-400 flex items-center gap-1.5 hover:text-slate-200 transition">
+              <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              <span id="txtResetCamera">Restablecer</span>
+            </button>
+          </div>
+          <div class="flex gap-1 bg-slate-950/90 border border-slate-800 p-1 rounded-lg pointer-events-auto">
+            <button onclick="setViewMode('normal')" id="btnNormal" class="px-2.5 py-1 rounded text-[10px] font-mono transition bg-cyan-500/20 text-cyan-400 font-bold border border-cyan-500/30">Normal</button>
+            <button onclick="setViewMode('exploded')" id="btnExploded" class="px-2.5 py-1 rounded text-[10px] font-mono transition text-slate-500 border border-transparent">Explosionado</button>
+            <button onclick="setViewMode('xray')" id="btnXray" class="px-2.5 py-1 rounded text-[10px] font-mono transition text-slate-500 border border-transparent">Rayos X</button>
+          </div>
+        </div>
+
+        <!-- Zoom Floating controller -->
+        <div class="absolute right-4 bottom-14 flex flex-col gap-1 bg-slate-950/90 border border-slate-800 p-1 rounded-lg">
+          <button onclick="zoomIn()" class="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors" title="Zoom In">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+          </button>
+          <button onclick="zoomOut()" class="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors" title="Zoom Out">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- TACTICAL TELEMETRY HUD & CONTROL PANEL -->
+      <div class="flex flex-col gap-4 bg-slate-950/60 p-4 border border-slate-900 rounded-xl shadow-inner">
+        
+        <!-- Operating Mode switch -->
+        <div>
+          <h4 id="lblModeTitle" class="text-xs font-semibold text-slate-400 font-mono mb-2 uppercase tracking-wider">Modo de Operación</h4>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <button onclick="setMode('operation')" id="btnModeOp" class="py-2 px-3 rounded-lg text-[11px] font-mono border transition-all text-center bg-cyan-500/15 border-cyan-500 text-cyan-400 shadow-lg shadow-cyan-950/20">Operación Estándar</button>
+            <button onclick="setMode('ai')" id="btnModeAI" class="py-2 px-3 rounded-lg text-[11px] font-mono border transition-all text-center bg-slate-900/40 border-slate-800 text-slate-400 hover:text-slate-200">Optimización Inteligente IA</button>
+            <button onclick="setMode('analysis')" id="btnModeAn" class="py-2 px-3 rounded-lg text-[11px] font-mono border transition-all text-center bg-slate-900/40 border-slate-800 text-slate-400 hover:text-slate-200">Análisis Biomolecular</button>
+            <button onclick="setMode('emergency')" id="btnModeEm" class="py-2 px-3 rounded-lg text-[11px] font-mono border transition-all text-center bg-slate-900/40 border-slate-800 text-slate-400 hover:text-slate-200">Emergencia</button>
+          </div>
+        </div>
+
+        <!-- Critical Path Method (CPM) Agile Deploy stages -->
+        <div class="bg-slate-900/40 border border-slate-900 rounded-lg p-3">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-1.5 text-slate-300 font-semibold font-mono text-xs">
+              <svg class="h-4 w-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+              <span id="lblCpmTitle">Gestión Ruta Crítica (CPM - Agile-Deploy)</span>
+            </div>
+            <span id="lblCpmHeader" class="text-[9px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">* Análisis CPM</span>
+          </div>
+
+          <div class="flex flex-wrap gap-2" id="cpmContainer">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Tactical Real-time Grid Sensors -->
+        <div>
+          <h4 id="lblTacticalTelemetry" class="text-xs font-semibold text-slate-400 font-mono mb-2 uppercase tracking-wider">Panel de Telemetría Táctica</h4>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <!-- pH Glass Electrode -->
+            <div class="bg-slate-900/60 border border-slate-850 p-2.5 rounded-lg flex flex-col justify-between">
+              <span class="text-[9px] font-mono text-slate-400">PH ELEC. GLASS</span>
+              <div class="flex items-baseline justify-between mt-1">
+                <span id="txtPhVal" class="text-lg font-bold font-mono text-slate-100">6.25</span>
+                <span id="badgePhStatus" class="text-[8px] font-mono px-1.5 py-0.5 rounded border text-emerald-400 bg-emerald-400/10 border-emerald-400/20">Óptimo</span>
+              </div>
+              <div class="w-full bg-slate-800 h-1 rounded overflow-hidden mt-2">
+                <div id="barPh" class="bg-cyan-400 h-full transition-all duration-500" style="width: 44%"></div>
+              </div>
+            </div>
+
+            <!-- EC Nutrient -->
+            <div class="bg-slate-900/60 border border-slate-850 p-2.5 rounded-lg flex flex-col justify-between">
+              <span class="text-[9px] font-mono text-slate-400">NUTRIENTS EC</span>
+              <div class="flex items-baseline justify-between mt-1">
+                <span id="txtEcVal" class="text-lg font-bold font-mono text-slate-100">1.82 <span class="text-[9px] font-normal text-slate-500">mS</span></span>
+                <span id="badgeEcStatus" class="text-[8px] font-mono px-1.5 py-0.5 rounded border text-emerald-400 bg-emerald-400/10 border-emerald-400/20">Óptimo</span>
+              </div>
+              <div class="w-full bg-slate-800 h-1 rounded overflow-hidden mt-2">
+                <div id="barEc" class="bg-green-400 h-full transition-all duration-500" style="width: 60%"></div>
+              </div>
+            </div>
+
+            <!-- Chassis Temp -->
+            <div class="bg-slate-900/60 border border-slate-850 p-2.5 rounded-lg flex flex-col justify-between">
+              <span class="text-[9px] font-mono text-slate-400">CHASSIS TEMP</span>
+              <div class="flex items-baseline justify-between mt-1">
+                <span id="txtTempVal" class="text-lg font-bold font-mono text-slate-100">22.4 <span class="text-[9px] font-normal text-slate-500">°C</span></span>
+                <span id="badgeTempStatus" class="text-[8px] font-mono px-1.5 py-0.5 rounded border text-emerald-400 bg-emerald-400/10 border-emerald-400/20">Óptimo</span>
+              </div>
+              <div class="w-full bg-slate-800 h-1 rounded overflow-hidden mt-2">
+                <div id="barTemp" class="bg-amber-400 h-full transition-all duration-500" style="width: 41%"></div>
+              </div>
+            </div>
+
+            <!-- NDIR CO2 -->
+            <div class="bg-slate-900/60 border border-slate-850 p-2.5 rounded-lg flex flex-col justify-between">
+              <span class="text-[9px] font-mono text-slate-400">NDIR CO2 SCAN</span>
+              <div class="flex items-baseline justify-between mt-1">
+                <span id="txtCo2Val" class="text-lg font-bold font-mono text-slate-100">840 <span class="text-[9px] font-normal text-slate-500">ppm</span></span>
+                <span id="badgeCo2Status" class="text-[8px] font-mono px-1.5 py-0.5 rounded border text-emerald-400 bg-emerald-400/10 border-emerald-400/20">Óptimo</span>
+              </div>
+              <div class="w-full bg-slate-800 h-1 rounded overflow-hidden mt-2">
+                <div id="barCo2" class="bg-purple-400 h-full transition-all duration-500" style="width: 42%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Immutable BioTrace Private Blockchain Logs -->
+        <div class="flex-1 min-h-[140px] flex flex-col">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-1.5 text-slate-300 font-mono font-semibold text-xs">
+              <svg class="h-4 w-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+              <span id="lblBcTitle">Trazabilidad Blockchain (BioTrace Quorum)</span>
+            </div>
+            <span id="lblBcStatus" class="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">Contrato BioTrace Activado</span>
+          </div>
+
+          <div id="bcLogsContainer" class="flex-1 bg-slate-950/80 border border-slate-900 rounded-lg overflow-y-auto p-2.5 text-[10px] font-mono divide-y divide-slate-900 max-h-[140px]">
+            <!-- Appended dynamically -->
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: BIOSPHERE HEALTH MOBILE APP SIMULATION (lg:col-span-4) -->
+    <section class="lg:col-span-4 flex flex-col gap-6">
+      
+      <!-- Simulated smartphone container -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col h-full shadow-lg">
+        
+        <div class="flex items-center gap-2 border-b border-slate-800 pb-3 mb-4">
+          <svg class="text-cyan-400 h-5 w-5 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          <div>
+            <h3 id="txtPhoneTitle" class="text-sm font-semibold text-slate-100">BioSphere Health</h3>
+            <p id="txtPhoneSub" class="text-[10px] text-slate-400 font-mono">Gemelo Bio-Digital de tu Metabolismo</p>
+          </div>
+        </div>
+
+        <!-- Phone screen -->
+        <div class="flex-1 bg-slate-950 border-4 border-slate-800 rounded-2xl overflow-hidden flex flex-col relative min-h-[380px] justify-between">
+          
+          <!-- Notch -->
+          <div class="absolute top-0 left-1/2 -translate-x-1/2 bg-slate-800 h-3.5 w-24 rounded-b-xl z-20 flex justify-center items-center">
+            <div class="w-2.5 h-2.5 rounded-full bg-slate-950"></div>
+          </div>
+
+          <!-- Phone Header network band -->
+          <div class="bg-slate-900/60 px-3 pt-4 pb-1 flex justify-between text-[8px] text-slate-500 font-mono z-10">
+            <span>09:41 AM</span>
+            <div class="flex gap-1.5 items-center">
+              <span>5G LTE</span>
+              <span class="text-cyan-400 font-bold">100%</span>
+            </div>
+          </div>
+
+          <!-- Dynamic tab content frame area -->
+          <div id="phoneMainContent" class="flex-1 overflow-y-auto p-3 flex flex-col gap-2.5 pb-16">
+            <!-- Swapped via javascript -->
+          </div>
+
+          <!-- Simulated Bottom Menu bar -->
+          <div class="absolute bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 py-1.5 px-1.5 flex justify-around z-10">
+            <button onclick="setPhoneTab('biology')" id="tabBtnBio" class="flex flex-col items-center gap-0.5 flex-1 py-1 rounded transition-all text-cyan-400 font-bold bg-slate-950/80">
+              🧬
+              <span id="tabLblBio" class="text-[7.5px] tracking-tight">Biología</span>
+            </button>
+            <button onclick="setPhoneTab('farm')" id="tabBtnFarm" class="flex flex-col items-center gap-0.5 flex-1 py-1 rounded transition-all text-slate-500 hover:text-slate-300">
+              🌱
+              <span id="tabLblFarm" class="text-[7.5px] tracking-tight">Huerto</span>
+            </button>
+            <button onclick="setPhoneTab('nutrition')" id="tabBtnNut" class="flex flex-col items-center gap-0.5 flex-1 py-1 rounded transition-all text-slate-500 hover:text-slate-300">
+              🍎
+              <span id="tabLblNut" class="text-[7.5px] tracking-tight">Nutrición</span>
+            </button>
+            <button onclick="setPhoneTab('health')" id="tabBtnHealth" class="flex flex-col items-center gap-0.5 flex-1 py-1 rounded transition-all text-slate-500 hover:text-slate-300">
+              💤
+              <span id="tabLblHealth" class="text-[7.5px] tracking-tight">Salud</span>
+            </button>
+            <button onclick="setPhoneTab('community')" id="tabBtnComm" class="flex flex-col items-center gap-0.5 flex-1 py-1 rounded transition-all text-slate-500 hover:text-slate-300">
+              👥
+              <span id="tabLblComm" class="text-[7.5px] tracking-tight">Comunidad</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- FULL WIDTH BOTTOM BANNER: OPTI-GROW DEEP NEURAL NETWORK PROCESSOR (col-span-12) -->
+    <section class="lg:col-span-12">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col shadow-lg">
+        
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-800 pb-3 mb-3 gap-2">
+          <div class="flex items-center gap-2">
+            <svg class="text-cyan-400 h-5 w-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+            <div>
+              <h3 id="txtAiTitle" class="text-sm font-semibold text-slate-100">IA Opti-Grow v2.0 (Red Neuronal CNN + Algoritmo Genético)</h3>
+              <p id="txtAiSub" class="text-[10px] text-slate-400 font-mono">Control predictivo federado y toma de decisiones en tiempo real</p>
+            </div>
+          </div>
+          <div class="bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded text-[10px] text-cyan-400 font-mono flex items-center gap-1">
+            <span class="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+            <span id="txtFederated">Estado: Aprendizaje Federado Activo</span>
+          </div>
+        </div>
+
+        <!-- AI Metrics dashboard bar -->
+        <div class="grid grid-cols-3 gap-2 mb-3 bg-slate-950/60 p-2 border border-slate-800/60 rounded-lg">
+          <div class="text-center">
+            <span id="lblEpochs" class="block text-[9px] text-slate-500 uppercase font-mono">Épocas entrenadas</span>
+            <span id="txtEpochsVal" class="text-sm font-semibold font-mono text-cyan-400">1042</span>
+          </div>
+          <div class="text-center border-x border-slate-800">
+            <span id="lblLoss" class="block text-[9px] text-slate-500 uppercase font-mono">Pérdida (MSE)</span>
+            <span id="txtLossVal" class="text-sm font-semibold font-mono text-purple-400">0.002410</span>
+          </div>
+          <div class="text-center">
+            <span id="lblAccuracy" class="block text-[9px] text-slate-500 uppercase font-mono">Precisión de predicción</span>
+            <span id="txtAccuracyVal" class="text-sm font-semibold font-mono text-green-400">98.85%</span>
+          </div>
+        </div>
+
+        <!-- SVG Signal flow container -->
+        <div class="relative bg-slate-950 border border-slate-850 rounded-lg overflow-hidden min-h-[220px]">
+          <svg id="svgNet" class="w-full h-[220px] block" viewBox="0 0 520 220">
+            <!-- Rendered by JS -->
+          </svg>
+
+          <!-- Floating Inspection detail panel -->
+          <div id="inspectorPanel" class="hidden absolute bottom-2 left-2 right-2 bg-slate-900/95 border border-slate-700/60 p-2.5 rounded-lg text-[10px] font-mono flex items-center justify-between animate-fadeIn">
+            <div>
+              <div id="inspNodeLabel" class="font-semibold text-cyan-400">Soil pH</div>
+              <div class="text-slate-400 text-[9px] mt-0.5">
+                <span id="inspType">Tipo</span>: <span id="inspTypeVal" class="text-slate-300">INPUT</span> | <span id="inspValue">Valor</span>: <span id="inspValueVal" class="text-green-400 font-bold">6.2</span>
+              </div>
+            </div>
+            <button onclick="closeInspector()" class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 hover:text-white transition-colors">ESC</button>
+          </div>
+
+          <div id="inspectHint" class="absolute bottom-2 left-2 text-[8.5px] font-mono text-slate-500 pointer-events-none italic">
+            Haz clic en cualquier nodo para inspeccionar la red
+          </div>
+        </div>
+
+        <!-- Evolution triggering CTA button -->
+        <div class="mt-3">
+          <button onclick="evolveNetwork()" class="w-full py-2 bg-gradient-to-r from-cyan-600/20 to-purple-600/20 hover:from-cyan-600/30 hover:to-purple-600/30 border border-slate-700 hover:border-cyan-500/40 text-slate-200 hover:text-white text-[11px] font-mono font-medium rounded-lg flex items-center justify-center gap-2 transition-all">
+            <svg class="h-3.5 w-3.5 text-cyan-400 animate-spin" style="animation-duration: 10s" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89M9 11l3-3 3 3m-3-3v12"/></svg>
+            <span id="btnEvolve">Evolucionar Algoritmo Genético (Nueva Generación)</span>
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- IMMUTABLE BOTTOM FOOTER -->
+  <footer class="border-t border-slate-900 bg-slate-950 py-4 px-6 text-center text-[10px] text-slate-500 font-mono tracking-wider">
+    <span>© 2026 BIO-SPHERE AUTONOMOUS FOOD LAB. ALL RIGHTS RESERVED • CHIEF ADVISOR: DR. JULIO CÉSAR OPORTA BARRERA</span>
+  </footer>
+
+  <!-- CORE STANDALONE JS - EMBEDDED DYNAMIC CONTROLLERS -->
+  <script>
+    // System languages
+    const t = {
+      es: {
+        badge: "Ecosistema Bio-Digital v2.0",
+        alertEmergency: "SISTEMA EN ESTADO DE EMERGENCIA. REVISAR COMPARTIMENTO DE BIOL.",
+        alertAI: "IA OPTI-GROW ACTIVADA. CALIBRACIÓN DE PH ELECTRÓDICO EN PROCESO.",
+        resetCamera: "Restablecer",
+        cpmTitle: "Gestión Ruta Crítica (CPM - Agile-Deploy)",
+        cpmHeader: "* Análisis CPM",
+        tacticalTelemetry: "Panel de Telemetría Táctica",
+        bcTitle: "Trazabilidad Blockchain (BioTrace Quorum)",
+        bcStatus: "Contrato BioTrace Activado",
+        phoneTitle: "BioSphere Health",
+        phoneSub: "Gemelo Bio-Digital de tu Metabolismo",
+        tabBio: "Biología",
+        tabFarm: "Huerto",
+        tabNut: "Nutrición",
+        tabHealth: "Salud",
+        tabComm: "Comunidad",
+        aiTitle: "IA Opti-Grow v2.0 (Red Neuronal CNN + Algoritmo Genético)",
+        aiSub: "Control predictivo federado y toma de decisiones en tiempo real",
+        federated: "Estado: Aprendizaje Federado Activo",
+        epochs: "Épocas entrenadas",
+        loss: "Pérdida (MSE)",
+        accuracy: "Precisión de predicción",
+        btnEvolve: "Evolucionar Algoritmo Genético (Nueva Generación)",
+        inspectHint: "Haz clic en cualquier nodo para inspeccionar la red",
+        rotateStateActive: "Pausar Rotación",
+        rotateStateIdle: "Auto Rotación",
+        optimal: "Óptimo",
+        warning: "Atención",
+        danger: "Error",
+        modeTitle: "Modo de Operación",
+        cpmStages: [
+          { id: 0, name: "Planificación & Diagnóstico", dur: "2 días" },
+          { id: 1, name: "Instalación Física (AR)", dur: "4 días *" },
+          { id: 2, name: "Configuración IoT & Quorum", dur: "3 días *" },
+          { id: 3, name: "Operación & IA Opti-Grow", dur: "Continuo *" },
+          { id: 4, name: "Verificación & NFT", dur: "2 días" },
+          { id: 5, name: "Mantenimiento Predictivo", dur: "Continuo" }
+        ],
+        phoneBioTitle: "LAB NGS CERTIFIED",
+        phoneBioDesc: "Análisis genético completado por laboratorio de secuenciación NGS. Mutaciones MTHFR C677T detectadas: sensibilidad al gluten, metabolismo de folato afectado.",
+        phoneSnpsTitle: "SNPs de Nutrición (Genética)",
+        phoneMicrobiome: "Microbioma Oral",
+        phoneMetabolism: "Perfil Metabólico",
+        phoneOptimalDiet: "Tu dieta recomendada: 12g diarios de Microgreens de rábano.",
+        phoneSeedRec: "Sugerencia de Siembra IA",
+        phoneHarvestTip: "¡Hoy siembra Espinaca 'Bloomsdale' rica en Hierro!",
+        phoneChamberStatus: "STATUS DE LAS CÁMARAS",
+        phoneRecTitle: "REGISTRO BIOMOLECULAR",
+        phoneRecSub: "Recetas con tus cosechas activas para cubrir deficiencias de folatos.",
+        phoneRecHeader: "BATIDO FUNCIONAL DE HOY",
+        phoneRecDesc: "30g Rábano + 20g Espinacas + Manzana. Inyección de hierro y folatos 100% natural.",
+        phoneSleepQuality: "Sueño Profundo",
+        phoneMorningEnergy: "Energía Matutina",
+        phoneMorningEnergyText: "Tu nivel de energía matutina se correlaciona con el ciclo de cosecha de tus microgreens (+15%).",
+        phoneTradeTitle: "Red de Trueque de Alimentos",
+        phoneTradeMsg: "Cambio 100g de mis tomates cherry por 50g de fresas orgánicas.",
+        phoneTradePropose: "Proponer Intercambio",
+        phoneTradeFooter: "Vecinos activos: 14 | Intercambios: ",
+        evolutionSuccess: "¡Población optimizada! Fitness máximo alcanzado.",
+        type: "Tipo",
+        value: "Valor",
+        norm: "Normal",
+        exp: "Explosionado",
+        xray: "Rayos X",
+        solarPanel: "Panel Solar 50W",
+        tray4: "Tray 4: Hierbas y Frutos",
+        tray3: "Tray 3: Hortalizas de Hoja",
+        tray2: "Tray 2: Microgreens",
+        tray1: "Tray 1: Semillero",
+        bioreactor: "Biorreactor (Lombrices)",
+        sump: "Tanque de Nutrientes (15L)",
+        modeOp: "Operación Estándar",
+        modeAI: "Optimización Inteligente IA",
+        modeAn: "Análisis Biomolecular",
+        modeEm: "Emergencia",
+        bcLogs: [
+          { timestamp: "14:32:04", hash: "0x3bf4a928e1fc...602b", text: "Semilla plantada: Espinaca Bloomsdale" },
+          { timestamp: "14:33:15", hash: "0x992b4fa4de22...88df", text: "Riego dosificado por Goteo: 250ml" },
+          { timestamp: "14:35:48", hash: "0x77c229f3d994...aa3c", text: "Biorreactor: Compost cosechado y verificado" }
+        ],
+        bcLiveEvents: [
+          "Actualización Opti-Grow: pH calibrado en tiempo real",
+          "Bomba Peristáltica: Microdosis de Magnesio inyectada",
+          "Bio-Lume LED: Ajuste espectral PWM óptimo",
+          "Trazabilidad: Firma inmutable de huella de carbono"
+        ]
+      },
+      en: {
+        badge: "Bio-Digital Ecosystem v2.0",
+        alertEmergency: "SYSTEM EMERGENCY LEVEL REACHED. INSPECT BIOL REACTOR.",
+        alertAI: "OPTI-GROW AI ACTIVATED. AUTOMATIC ELECTRODE PH CORRECTION RUNNING.",
+        resetCamera: "Reset View",
+        cpmTitle: "Critical Path Method (CPM - Agile-Deploy)",
+        cpmHeader: "* CPM Path Analysis",
+        tacticalTelemetry: "Tactical Telemetry Dashboard",
+        bcTitle: "Blockchain Traceability (Quorum BioTrace)",
+        bcStatus: "BioTrace Contract Standard",
+        phoneTitle: "BioSphere Health",
+        phoneSub: "Bio-Digital Twin of Your Metabolism",
+        tabBio: "Biology",
+        tabFarm: "Garden",
+        tabNut: "Nutrition",
+        tabHealth: "Health",
+        tabComm: "Community",
+        aiTitle: "Opti-Grow v2.0 AI (CNN Neural Network + Genetic Algorithm)",
+        aiSub: "Federated predictive control and real-time decision making",
+        federated: "Status: Active Federated Learning",
+        epochs: "Epochs Trained",
+        loss: "Loss (MSE)",
+        accuracy: "Prediction Accuracy",
+        btnEvolve: "Evolve Genetic Algorithm (New Generation)",
+        inspectHint: "Click on any node to inspect the network",
+        rotateStateActive: "Pause Rotation",
+        rotateStateIdle: "Auto Rotate",
+        optimal: "Optimal",
+        warning: "Attention",
+        danger: "Warning",
+        modeTitle: "Operating Mode",
+        cpmStages: [
+          { id: 0, name: "Planning & Diagnosis", dur: "2 days" },
+          { id: 1, name: "Physical Install (AR)", dur: "4 days *" },
+          { id: 2, name: "IoT & Quorum Setup", dur: "3 days *" },
+          { id: 3, name: "Operation & Opti-Grow AI", dur: "Continuous *" },
+          { id: 4, name: "Verification & NFT", dur: "2 days" },
+          { id: 5, name: "Predictive Maintenance", dur: "Continuous" }
+        ],
+        phoneBioTitle: "LAB NGS CERTIFIED",
+        phoneBioDesc: "Genetic analysis complete. DNA SNPs show MTHFR C677T mutation: gluten sensitivity, deficient folate pathways.",
+        phoneSnpsTitle: "Nutrition SNPs (Genetics)",
+        phoneMicrobiome: "Oral Microbiome",
+        phoneMetabolism: "Metabolic Profile",
+        phoneOptimalDiet: "Optimal Daily Dose: 12g radish microgreens.",
+        phoneSeedRec: "AI Planting Suggestion",
+        phoneHarvestTip: "Plant iron-rich 'Bloomsdale' Spinach today!",
+        phoneChamberStatus: "CHAMBERS STATUS STATUS",
+        phoneRecTitle: "BIOMOLECULAR LOG",
+        phoneRecSub: "Recipes designed to fill folate deficiencies using active harvests.",
+        phoneRecHeader: "TODAY'S FUNCTIONAL SMOOTHIE",
+        phoneRecDesc: "30g Radish + 20g Spinach + Apple. 100% natural iron & folate injection.",
+        phoneSleepQuality: "Deep Sleep Quality",
+        phoneMorningEnergy: "Morning Energy",
+        phoneMorningEnergyText: "Your morning energy levels correlate positively with your microgreen harvest cycles (+15%).",
+        phoneTradeTitle: "Food Exchange Digital Network",
+        phoneTradeMsg: "Trade 100g of my cherry tomatoes for 50g organic strawberries.",
+        phoneTradePropose: "Propose Trade",
+        phoneTradeFooter: "Active neighbors: 14 | Completed trades: ",
+        evolutionSuccess: "Population optimized! Maximum fitness achieved.",
+        type: "Type",
+        value: "Value",
+        norm: "Normal",
+        exp: "Exploded",
+        xray: "X-Ray",
+        solarPanel: "50W Solar Panel",
+        tray4: "Tray 4: Herbs & Fruits",
+        tray3: "Tray 3: Leafy Greens",
+        tray2: "Tray 2: Microgreens",
+        tray1: "Tray 1: Seedling Bed",
+        bioreactor: "Bioreactor (Vermicompost)",
+        sump: "Nutrient Sump Tank (15L)",
+        modeOp: "Standard Operation",
+        modeAI: "AI Smart Optimization",
+        modeAn: "Biomolecular Analysis",
+        modeEm: "Emergency Mode",
+        bcLogs: [
+          { timestamp: "14:32:04", hash: "0x3bf4a928e1fc...602b", text: "Seed Planted: Bloomsdale Spinach" },
+          { timestamp: "14:33:15", hash: "0x992b4fa4de22...88df", text: "Drip Irrigation Dosed: 250ml" },
+          { timestamp: "14:35:48", hash: "0x77c229f3d994...aa3c", text: "Bioreactor: Organic Compost verified" }
+        ],
+        bcLiveEvents: [
+          "Opti-Grow Update: Real-time pH auto-calibrated",
+          "Peristaltic Pump: Magnesium microdose injected",
+          "Bio-Lume LED: Spectral ratio optimized via PWM",
+          "Traceability: Immutable Carbon Footprint signed"
+        ]
+      },
+      zh: {
+        badge: "数字化双基质生物反应器 v2.0",
+        alertEmergency: "系统异常警告：活性液流循环阻断，请立刻排查有机母液阀！",
+        alertAI: "OPTI-GROW 深度强化学习运行中，电极电极自动电导率自校准。",
+        resetCamera: "重置视图",
+        cpmTitle: "关键路径优化管理 (CPM - 敏捷部署)",
+        cpmHeader: "* 关键路径时间计算",
+        tacticalTelemetry: "战术遥测仪控制板",
+        bcTitle: "区块链溯源证书 (BioTrace 私有以太坊)",
+        bcStatus: "BioTrace 合约执行完毕",
+        phoneTitle: "BioSphere Health",
+        phoneSub: "个人代谢生物数字化双胞胎系统",
+        tabBio: "基因组",
+        tabFarm: "智能园",
+        tabNut: "营养配",
+        tabHealth: "健指标",
+        tabComm: "数字社区",
+        aiTitle: "Opti-Grow v2.0 人工智能 (CNN神经网络 + 遗传算法)",
+        aiSub: "联邦预测控制与实时智能决策系统",
+        federated: "状态：联邦学习模式激活",
+        epochs: "已训练周期 (Epochs)",
+        loss: "均方误差损失 (MSE)",
+        accuracy: "预测精确度",
+        btnEvolve: "启动遗传算法进化 (繁衍新世代)",
+        inspectHint: "点击任意节点以检测神经网络结构",
+        rotateStateActive: "暂停自动旋转",
+        rotateStateIdle: "自动旋转",
+        optimal: "优良",
+        warning: "注意",
+        danger: "故障",
+        modeTitle: "系统运行模式",
+        cpmStages: [
+          { id: 0, name: "数据规划与环境评估", dur: "2 天" },
+          { id: 1, name: "硬件拼装 (AR 增强现实)", dur: "4 天 *" },
+          { id: 2, name: "物联传感与区块链节点同步", dur: "3 天 *" },
+          { id: 3, name: "作物培育与智能控制 (AI)", dur: "无限期 *" },
+          { id: 4, name: "品质确权与 NFT 证书颁发", dur: "2 天" },
+          { id: 5, name: "AI 寿命与维护预警", dur: "无限期" }
+        ],
+        phoneBioTitle: "已由认证 NGS 新一代基因测序实验室完成全多组学筛查",
+        phoneBioDesc: "唾液采样完成。检测出 MTHFR C677T 中度遗传易感：麸质敏感、叶酸叶绿素代谢障碍。",
+        phoneSnpsTitle: "营养单核苷酸多态性 (SNPs)",
+        phoneMicrobiome: "口腔微生态组学",
+        phoneMetabolism: "人体代谢概况",
+        phoneOptimalDiet: "最佳细胞营养剂量：每日 12 克樱桃萝卜芽苗。",
+        phoneSeedRec: "AI 播种处方建议",
+        phoneHarvestTip: "推荐今日播种富含活性铁元素的‘Bloomsdale’菠菜！",
+        phoneChamberStatus: "反应器腔室状态",
+        phoneRecTitle: "数字营养配餐",
+        phoneRecSub: "专配食谱：利用当前收获物，针对性填补叶酸与维生素B缺乏症。",
+        phoneRecHeader: "今日排毒配餐",
+        phoneRecDesc: "30克自采红萝卜芽苗 + 有机富士苹果，最大化天然叶酸活性吸收。",
+        phoneSleepQuality: "深睡眠质量评估",
+        phoneMorningEnergy: "晨间活力指数",
+        phoneMorningEnergyText: "经交叉对比，当您连续摄入新鲜微型绿植时，深睡眠及晨间精力自动提升 15%。",
+        phoneTradeTitle: "邻里绿色食品数字化物物交换网络",
+        phoneTradeMsg: "用我刚摘的 100 克樱桃番茄交换 50 克新鲜有机草莓。",
+        phoneTradePropose: "申请自由物物交换",
+        phoneTradeFooter: "活跃邻居: 14 | 已促成交易: ",
+        evolutionSuccess: "种群优化完毕！已达到最大适应度 (Fitness)。",
+        type: "类型",
+        value: "数值",
+        norm: "常规",
+        exp: "爆炸图",
+        xray: "X光透戏",
+        solarPanel: "50W 太阳能电池板",
+        tray4: "4号托盘：草药与浆果",
+        tray3: "3号托盘：叶菜类作物",
+        tray2: "2号托盘：微型绿植",
+        tray1: "1号托盘：育苗基质",
+        bioreactor: "生物反应器 (蚯蚓堆肥)",
+        sump: "营养液储水箱 (15L)",
+        modeOp: "自动生产标准运行",
+        modeAI: "联邦神经网络自优化",
+        modeAn: "生物分子多组学分析",
+        modeEm: "系统紧急状态",
+        bcLogs: [
+          { timestamp: "14:32:04", hash: "0x3bf4a928e1fc...602b", text: "植物播种成功：Bloomsdale 菠菜" },
+          { timestamp: "14:33:15", hash: "0x992b4fa4de22...88df", text: "智能灌溉启动：给水量 250 毫升" },
+          { timestamp: "14:35:48", hash: "0x77c229f3d994...aa3c", text: "蠕虫分解完成：自产绿色有机复合肥" }
+        ],
+        bcLiveEvents: [
+          "Opti-Grow 更新：实时玻璃电极pH自校准",
+          "配给阀微量调节：注入多效碳酸镁溶液",
+          "植物光谱灯控制：动态蓝/深红光调节",
+          "链上碳数据核查：二氧化碳循环固着计量"
+        ]
+      }
+    };
+
+    // State Variables
+    let lang = 'es';
+    let mode = 'operation';
+    let viewMode = 'normal';
+    let autoRotate = true;
+    let selectedCpmStage = 3;
+    let phoneTab = 'biology';
+    let exchangeCount = 12;
+
+    // AI Stats State
+    let epoch = 1042;
+    let loss = 0.002410;
+    let accuracy = 98.85;
+
+    // Camera view angles
+    let yaw = -0.6;
+    let pitch = 0.2;
+    let zoom = 1.1;
+
+    // Live fluctuate telemetry
+    let telemetry = {
+      pH: 6.25,
+      ec: 1.82,
+      temp: 22.4,
+      co2: 840,
+      waterLevel: 94.5,
+      waterFlow: 0.82,
+      biolLevel: 62.0,
+      energyGen: 42,
+      ledIntensity: 100
+    };
+
+    // AI Network nodes definition
+    let selectedNetNode = null;
+    const netNodes = [
+      { id: 'i_ph', label: { es: 'pH Suelo', en: 'Soil pH', zh: '土壤 pH 值' }, type: 'input', value: function() { return telemetry.pH.toFixed(2); }, x: 50, y: 30 },
+      { id: 'i_ec', label: { es: 'EC Nutrientes', en: 'EC Nutrients', zh: '营养液 EC' }, type: 'input', value: function() { return telemetry.ec.toFixed(2) + ' mS/cm'; }, x: 50, y: 70 },
+      { id: 'i_temp', label: { es: 'Temperatura', en: 'Temperature', zh: '环境温度' }, type: 'input', value: function() { return telemetry.temp.toFixed(1) + '°C'; }, x: 50, y: 110 },
+      { id: 'i_co2', label: { es: 'CO2', en: 'CO2 Level', zh: '二氧化碳浓度' }, type: 'input', value: function() { return telemetry.co2 + ' ppm'; }, x: 50, y: 150 },
+      { id: 'i_h2o', label: { es: 'Flujo Agua', en: 'Water Flow', zh: '灌溉水流' }, type: 'input', value: function() { return telemetry.waterFlow.toFixed(2) + ' L/m'; }, x: 50, y: 190 },
+
+      { id: 'h_conv1', label: { es: 'Filtro CNN 1', en: 'CNN Filter 1', zh: '卷积特征 1' }, type: 'hidden', value: function() { return 'ReLU (0.84)'; }, x: 190, y: 50 },
+      { id: 'h_conv2', label: { es: 'Filtro CNN 2', en: 'CNN Filter 2', zh: '卷积特征 2' }, type: 'hidden', value: function() { return 'ReLU (-0.21)'; }, x: 190, y: 110 },
+      { id: 'h_conv3', label: { es: 'Filtro CNN 3', en: 'CNN Filter 3', zh: '卷积特征 3' }, type: 'hidden', value: function() { return 'ReLU (1.11)'; }, x: 190, y: 170 },
+
+      { id: 'h_gen1', label: { es: 'Gen Cromosoma A', en: 'Gen Chromosome A', zh: '基因染色体 A' }, type: 'hidden', value: function() { return 'Fit: 0.94'; }, x: 330, y: 70 },
+      { id: 'h_gen2', label: { es: 'Gen Cromosoma B', en: 'Gen Chromosome B', zh: '基因染色体 B' }, type: 'hidden', value: function() { return 'Fit: 0.88'; }, x: 330, y: 150 },
+
+      { id: 'o_pump', label: { es: 'Bomba Peristáltica', en: 'Peristaltic Pump', zh: '蠕动泵调节器' }, type: 'output', value: function() { return (telemetry.waterFlow > 0.1 ? '65%' : '0%') + ' PWM'; }, x: 470, y: 50 },
+      { id: 'o_led', label: { es: 'Espectro LED PWM', en: 'LED PWM Spectrum', zh: 'LED 脉宽调制' }, type: 'output', value: function() { return telemetry.ledIntensity + '% Duty'; }, x: 470, y: 110 },
+      { id: 'o_nutr', label: { es: 'Dosificador Biol', en: 'Biol Dosing Valve', zh: '有机肥定量配给' }, type: 'output', value: function() { return telemetry.biolLevel > 5 ? 'OPEN' : 'CLOSE'; }, x: 470, y: 170 }
+    ];
+
+    // Connection list weights
+    const netConns = [];
+    const inputs = ['i_ph', 'i_ec', 'i_temp', 'i_co2', 'i_h2o'];
+    const hiddens1 = ['h_conv1', 'h_conv2', 'h_conv3'];
+    const hiddens2 = ['h_gen1', 'h_gen2'];
+    const outputs = ['o_pump', 'o_led', 'o_nutr'];
+    inputs.forEach(function(i) { hiddens1.forEach(function(h) { netConns.push({ from: i, to: h, weight: Math.random() * 2 - 1 }); }); });
+    hiddens1.forEach(function(h1) { hiddens2.forEach(function(h2) { netConns.push({ from: h1, to: h2, weight: Math.random() * 2 - 1 }); }); });
+    hiddens2.forEach(function(h2) { outputs.forEach(function(o) { netConns.push({ from: h2, to: o, weight: Math.random() * 2 - 1 }); }); });
+
+    let particles = [];
+
+    // Local lists
+    let bcLogsList = [];
+
+    // Canvas setup
+    const canvas = document.getElementById('canvas3d');
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+      const rect = canvas.parentNode.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Interaction 3D
+    let dragging = false;
+    let lastX = 0;
+    let lastY = 0;
+    canvas.addEventListener('mousedown', function(e) {
+      dragging = true;
+      autoRotate = false;
+      document.getElementById('btnAutoRotate').className = "px-2.5 py-1.5 rounded-lg text-xs font-mono bg-slate-950/85 border border-slate-800 text-slate-400 flex items-center gap-1.5 hover:text-slate-200 transition";
+      document.getElementById('rotateState').innerText = t[lang].rotateStateIdle;
+      lastX = e.clientX;
+      lastY = e.clientY;
+    });
+    window.addEventListener('mouseup', function() { dragging = false; });
+    canvas.addEventListener('mousemove', function(e) {
+      if (!dragging) return;
+      const dx = e.clientX - lastX;
+      const dy = e.clientY - lastY;
+      yaw += dx * 0.007;
+      pitch = Math.max(-1, Math.min(1, pitch - dy * 0.007));
+      lastX = e.clientX;
+      lastY = e.clientY;
+    });
+
+    function toggleAutoRotate() {
+      autoRotate = !autoRotate;
+      const btn = document.getElementById('btnAutoRotate');
+      if (autoRotate) {
+        btn.className = "px-2.5 py-1.5 rounded-lg text-xs font-mono bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center gap-1.5 hover:bg-cyan-500/25 transition";
+        document.getElementById('rotateState').innerText = t[lang].rotateStateActive;
+      } else {
+        btn.className = "px-2.5 py-1.5 rounded-lg text-xs font-mono bg-slate-950/85 border border-slate-800 text-slate-400 flex items-center gap-1.5 hover:text-slate-200 transition";
+        document.getElementById('rotateState').innerText = t[lang].rotateStateIdle;
+      }
+    }
+
+    function resetCamera() {
+      yaw = -0.6;
+      pitch = 0.2;
+      zoom = 1.1;
+    }
+
+    function zoomIn() {
+      zoom = Math.min(2.0, zoom + 0.1);
+    }
+    function zoomOut() {
+      zoom = Math.max(0.6, zoom - 0.1);
+    }
+
+    function setViewMode(val) {
+      viewMode = val;
+      ['btnNormal', 'btnExploded', 'btnXray'].forEach(function(id) {
+        document.getElementById(id).className = "px-2.5 py-1 rounded text-[10px] font-mono transition text-slate-500 border border-transparent";
+      });
+      const activeBtn = val === 'normal' ? 'btnNormal' : val === 'exploded' ? 'btnExploded' : 'btnXray';
+      document.getElementById(activeBtn).className = "px-2.5 py-1 rounded text-[10px] font-mono transition bg-cyan-500/20 text-cyan-400 font-bold border border-cyan-500/30";
+    }
+
+    function setMode(val) {
+      mode = val;
+      ['btnModeOp', 'btnModeAI', 'btnModeAn', 'btnModeEm'].forEach(function(id) {
+        document.getElementById(id).className = "py-2 px-3 rounded-lg text-[11px] font-mono border transition-all text-center bg-slate-900/40 border-slate-800 text-slate-400 hover:text-slate-200";
+      });
+
+      const bId = val === 'operation' ? 'btnModeOp' : val === 'ai' ? 'btnModeAI' : val === 'analysis' ? 'btnModeAn' : 'btnModeEm';
+      if (val === 'emergency') {
+        document.getElementById(bId).className = "py-2 px-3 rounded-lg text-[11px] font-mono border transition-all text-center bg-red-500/15 border-red-500 text-red-400 shadow-lg shadow-red-950/20";
+      } else if (val === 'ai') {
+        document.getElementById(bId).className = "py-2 px-3 rounded-lg text-[11px] font-mono border transition-all text-center bg-purple-500/15 border-purple-500 text-purple-400 shadow-lg shadow-purple-950/20";
+      } else {
+        document.getElementById(bId).className = "py-2 px-3 rounded-lg text-[11px] font-mono border transition-all text-center bg-cyan-500/15 border-cyan-500 text-cyan-400 shadow-lg shadow-cyan-950/20";
+      }
+
+      updateAlertBanners();
+    }
+
+    function updateAlertBanners() {
+      const banner = document.getElementById('alertBanner');
+      if (mode === 'emergency') {
+        banner.className = "bg-red-500/10 border-b border-red-500/20 text-red-400 px-6 py-2.5 text-xs font-mono flex items-center gap-2 animate-pulse";
+        banner.innerHTML = '<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg><span>' + t[lang].alertEmergency + '</span>';
+      } else if (mode === 'ai') {
+        banner.className = "bg-purple-500/10 border-b border-purple-500/20 text-purple-400 px-6 py-2.5 text-xs font-mono flex items-center gap-2";
+        banner.innerHTML = '<span class="h-2 w-2 rounded-full bg-purple-400 animate-ping"></span><span>' + t[lang].alertAI + '</span>';
+      } else {
+        banner.className = "hidden";
+      }
+    }
+
+    function addBcLogHtml(textEs, textEn, textZh) {
+      const timestamp = new Date().toTimeString().split(' ')[0];
+      const randHash = "0x" + Math.floor(Math.random()*16777215).toString(16).padStart(6,'0') + "..." + Math.floor(Math.random()*16777215).toString(16).padStart(4,'0');
+      
+      let text = textEs;
+      if (lang === 'en') text = textEn;
+      else if (lang === 'zh') text = textZh;
+
+      bcLogsList = [
+        { timestamp: timestamp, hash: randHash, text: text },
+        ...bcLogsList.slice(0, 4)
+      ];
+      renderBlockchainLogs();
+    }
+
+    function setCpmStage(id) {
+      selectedCpmStage = id;
+      renderCpmStages();
+
+      switch (id) {
+        case 0:
+          viewMode = 'xray';
+          mode = 'analysis';
+          telemetry.temp = 21.5;
+          telemetry.pH = 6.4;
+          addBcLogHtml(
+            "Planificación Iniciada: Analizando idoneidad del sustrato dual para el gemelo bio-digital.",
+            "Planning Initiated: Analyzing dual substrate suitability for the bio-digital twin.",
+            "系统初级规划：分析双组分生长基质对于宿主多组学特征的自适应匹配度。"
+          );
+          break;
+        case 1:
+          viewMode = 'exploded';
+          mode = 'operation';
+          telemetry.waterLevel = 98.0;
+          telemetry.biolLevel = 75.0;
+          addBcLogHtml(
+            "Instalación Física AR: Calibrando volumetría 3D y alineación del biorreactor de lombrices.",
+            "Physical Install AR: Calibrating 3D volumes and vermicomposting bioreactor alignment.",
+            "AR 增强现实安装引导：校准智能气培架 3D 机械结构、管线布局与蚯蚓反应器倾角。"
+          );
+          break;
+        case 2:
+          viewMode = 'normal';
+          mode = 'operation';
+          telemetry.ec = 1.5;
+          telemetry.waterFlow = 0.9;
+          addBcLogHtml(
+            "Configuración IoT: Sincronizando sensores NDIR de CO2 y nodos Quorum de telemetría.",
+            "IoT Configuration: Syncing CO2 NDIR sensors and Quorum telemetry nodes.",
+            "物联传感激活：同步 NDIR 红外二氧化碳传感器及 Quorum 区块链节点，启动秒级防篡改存证。"
+          );
+          break;
+        case 3:
+          viewMode = 'normal';
+          mode = 'ai';
+          telemetry.temp = 22.0;
+          telemetry.pH = 6.25;
+          telemetry.co2 = 850;
+          addBcLogHtml(
+            "Optimización Inteligente IA: Algoritmo genético ajustando espectros PWM y dosificación del biol.",
+            "AI Intelligent Optimization: Genetic algorithm adjusting PWM spectra and biol dosing.",
+            "AI 智能生产：启动 CNN 卷积神经网络与遗传算法联控，动态优化补光光谱与有机母液配比。"
+          );
+          break;
+        case 4:
+          viewMode = 'normal';
+          mode = 'analysis';
+          telemetry.ec = 1.82;
+          telemetry.pH = 6.3;
+          addBcLogHtml(
+            "Certificación NFT: Generando certificado inmutable ERC-721 para la cosecha optimizada.",
+            "NFT Certification: Generating immutable ERC-721 certificate for the optimized harvest.",
+            "品质链上存证：正在为本次富营养化收获物铸造 ERC-721 标准 NFT 证书，锚定多维健康标签。"
+          );
+          break;
+        case 5:
+          viewMode = 'xray';
+          mode = 'emergency';
+          telemetry.temp = 24.5;
+          telemetry.pH = 5.9;
+          telemetry.waterFlow = 0.1;
+          addBcLogHtml(
+            "Mantenimiento Predictivo: Desviación detectada en electrodo de pH. Activando protocolo de emergencia.",
+            "Predictive Maintenance: Drift detected in pH glass electrode. Activating emergency protocol.",
+            "维护性异常预警：玻璃电极电化学电位发生漂移，环境温度偏高。自动触发系统级紧急阻断方案。"
+          );
+          break;
+        default:
+          break;
+      }
+
+      // Update active view modes buttons visually
+      ['btnNormal', 'btnExploded', 'btnXray'].forEach(function(btnId) {
+        document.getElementById(btnId).className = "px-2.5 py-1 rounded text-[10px] font-mono transition text-slate-500 border border-transparent";
+      });
+      const activeBtnId = viewMode === 'normal' ? 'btnNormal' : viewMode === 'exploded' ? 'btnExploded' : 'btnXray';
+      document.getElementById(activeBtnId).className = "px-2.5 py-1 rounded text-[10px] font-mono transition bg-cyan-500/20 text-cyan-400 font-bold border border-cyan-500/30";
+
+      // Update operating mode buttons visually
+      ['btnModeOp', 'btnModeAI', 'btnModeAn', 'btnModeEm'].forEach(function(btnId) {
+        document.getElementById(btnId).className = "py-2 px-3 rounded-lg text-[11px] font-mono border transition-all text-center bg-slate-900/40 border-slate-800 text-slate-400 hover:text-slate-200";
+      });
+      const bId = mode === 'operation' ? 'btnModeOp' : mode === 'ai' ? 'btnModeAI' : mode === 'analysis' ? 'btnModeAn' : 'btnModeEm';
+      if (mode === 'emergency') {
+        document.getElementById(bId).className = "py-2 px-3 rounded-lg text-[11px] font-mono border transition-all text-center bg-red-500/15 border-red-500 text-red-400 shadow-lg shadow-red-950/20";
+      } else if (mode === 'ai') {
+        document.getElementById(bId).className = "py-2 px-3 rounded-lg text-[11px] font-mono border transition-all text-center bg-purple-500/15 border-purple-500 text-purple-400 shadow-lg shadow-purple-950/20";
+      } else {
+        document.getElementById(bId).className = "py-2 px-3 rounded-lg text-[11px] font-mono border transition-all text-center bg-cyan-500/15 border-cyan-500 text-cyan-400 shadow-lg shadow-cyan-950/20";
+      }
+
+      updateAlertBanners();
+    }
+
+    function renderCpmStages() {
+      const parent = document.getElementById('cpmContainer');
+      parent.innerHTML = '';
+      t[lang].cpmStages.forEach(function(stage) {
+        const isPassed = stage.id < selectedCpmStage;
+        const isCurrent = stage.id === selectedCpmStage;
+        const isCritical = stage.name.includes('*') || stage.id === 1 || stage.id === 2 || stage.id === 3;
+        
+        const card = document.createElement('div');
+        card.onclick = function() { setCpmStage(stage.id); };
+        card.className = "flex-1 min-w-[120px] p-2 rounded border cursor-pointer transition-all " + (isCurrent ? "bg-amber-500/10 border-amber-500 text-amber-300 scale-[1.02] shadow" : isPassed ? "bg-slate-900/90 border-slate-800/60 text-slate-500" : "bg-slate-950/60 border-slate-900 text-slate-600");
+        card.innerHTML = '<div class="flex justify-between items-center mb-1"><span class="text-[8px] font-mono text-slate-500">PHASE 0' + stage.id + '</span>' + (isCritical ? '<span class="text-[8px] text-red-400 font-bold uppercase font-mono">CRIT</span>' : '') + '</div><div class="text-[10px] font-medium leading-tight truncate">' + stage.name.replace('*', '') + '</div><div class="text-[9px] font-mono text-slate-400 mt-1">' + stage.dur + '</div>';
+        parent.appendChild(card);
+      });
+    }
+
+    // Phone control Tab
+    function setPhoneTab(tabName) {
+      phoneTab = tabName;
+      ['tabBtnBio', 'tabBtnFarm', 'tabBtnNut', 'tabBtnHealth', 'tabBtnComm'].forEach(function(id) {
+        document.getElementById(id).className = "flex flex-col items-center gap-0.5 flex-1 py-1 rounded transition-all text-slate-500 hover:text-slate-300";
+      });
+      const actId = tabName === 'biology' ? 'tabBtnBio' : tabName === 'farm' ? 'tabBtnFarm' : tabName === 'nutrition' ? 'tabBtnNut' : tabName === 'health' ? 'tabBtnHealth' : 'tabBtnComm';
+      document.getElementById(actId).className = "flex flex-col items-center gap-0.5 flex-1 py-1 rounded transition-all text-cyan-400 font-bold bg-slate-950/80";
+      
+      switch (tabName) {
+        case 'biology':
+          viewMode = 'xray';
+          mode = 'analysis';
+          telemetry.temp = 21.8;
+          telemetry.pH = 6.35;
+          telemetry.waterFlow = 0.75;
+          addBcLogHtml(
+            "Sincronización de Biometría: Gemelo Bio-Digital de Dr. Julio César Oporta Barrera cargado. Sincronizando biomarcadores genéticos y diversidad del microbioma oral.",
+            "Biometric Synchronization: Dr. Julio César Oporta Barrera's Bio-Digital Twin loaded. Syncing genetic biomarkers and oral microbiome diversity.",
+            "多组学基因同步: Dr. Julio César Oporta Barrera 个人生物数字化双胞胎装载。正在对单核苷酸多态性(SNPs)、口腔微生态及叶酸代谢标记物进行高频比对。"
+          );
+          break;
+        case 'farm':
+          viewMode = 'normal';
+          mode = 'ai';
+          telemetry.pH = 6.25;
+          telemetry.ec = 1.80;
+          telemetry.temp = 22.0;
+          telemetry.waterFlow = 0.85;
+          addBcLogHtml(
+            "Prescripción de Siembra IA: Sugerencia de cultivo de Espinaca Bloomsdale calibrada. Requerimientos de folatos calculados para corregir deficiencia enzimática.",
+            "AI Planting Prescription: Calibrated crop suggestions for Bloomsdale Spinach. Folate requirements calculated to correct enzyme deficiency.",
+            "AI 自适应种植处方: 推荐栽培富铁 Bloomsdale 菠菜。AI 正在生成定制水肥配比，用于定向干预并补充宿主甲基化代谢障碍。"
+          );
+          break;
+        case 'nutrition':
+          viewMode = 'normal';
+          mode = 'analysis';
+          telemetry.co2 = 810;
+          telemetry.pH = 6.18;
+          telemetry.ec = 1.78;
+          addBcLogHtml(
+            "Síntesis Biomolecular: Receta 'Green Power Shot' (30g rábano + 20g espinaca) formulada con base en cosechas activas para optimizar biodisponibilidad de hierro.",
+            "Biomolecular Synthesis: 'Green Power Shot' recipe (30g radish + 20g spinach) formulated based on active harvests to optimize iron bioavailability.",
+            "多维分子营养合成: 系统自动定制“Green Power Shot”功能配餐（30g水培樱桃萝卜芽 + 20g功能菠菜），细胞级天然营养吸收率优化120%。"
+          );
+          break;
+        case 'health':
+          viewMode = 'xray';
+          mode = 'ai';
+          telemetry.humidity = 62;
+          telemetry.temp = 22.4;
+          telemetry.energyGen = 48;
+          addBcLogHtml(
+            "Correlación Wearable: Datos biométricos de Oura Ring vinculados. Registrando mejora en calidad de sueño tras consumo diario de microgreens.",
+            "Wearable Correlation: Oura Ring biometric data linked. Logging improvement in deep sleep cycles after daily microgreens intake.",
+            "可穿戴设备生物反馈: Oura 智能手表/指环高频数据同步完成。生物医学分析：宿主深睡眠时长与自产芽苗菜叶绿素/花青素摄入呈正相关。"
+          );
+          break;
+        case 'community':
+          viewMode = 'normal';
+          mode = 'operation';
+          addBcLogHtml(
+            "Red de Trueque Activa: Intercambio propuesto de 100g de tomates cherry por 50g de fresas orgánicas. Contrato inteligente inmutable en cola de validación.",
+            "Active Barter Network: Proposed exchange of 100g of cherry tomatoes for 50g of organic strawberries. Smart contract pending validation.",
+            "数字易物社区: 邻里食品交换交易已发起：用 100克无菌樱桃小番茄兑换50克生态草莓。Quorum 联盟链智能合约核签中。"
+          );
+          break;
+        default:
+          break;
+      }
+
+      // Update active view modes buttons visually
+      ['btnNormal', 'btnExploded', 'btnXray'].forEach(function(btnId) {
+        document.getElementById(btnId).className = "px-2.5 py-1 rounded text-[10px] font-mono transition text-slate-500 border border-transparent";
+      });
+      const activeBtnId = viewMode === 'normal' ? 'btnNormal' : viewMode === 'exploded' ? 'btnExploded' : 'btnXray';
+      document.getElementById(activeBtnId).className = "px-2.5 py-1 rounded text-[10px] font-mono transition bg-cyan-500/20 text-cyan-400 font-bold border border-cyan-500/30";
+
+      // Update operating mode buttons visually
+      ['btnModeOp', 'btnModeAI', 'btnModeAn', 'btnModeEm'].forEach(function(btnId) {
+        document.getElementById(btnId).className = "py-2 px-3 rounded-lg text-[11px] font-mono border transition-all text-center bg-slate-900/40 border-slate-800 text-slate-400 hover:text-slate-200";
+      });
+      const bId = mode === 'operation' ? 'btnModeOp' : mode === 'ai' ? 'btnModeAI' : mode === 'analysis' ? 'btnModeAn' : 'btnModeEm';
+      if (mode === 'emergency') {
+        document.getElementById(bId).className = "py-2 px-3 rounded-lg text-[11px] font-mono border transition-all text-center bg-red-500/15 border-red-500 text-red-400 shadow-lg shadow-red-950/20";
+      } else if (mode === 'ai') {
+        document.getElementById(bId).className = "py-2 px-3 rounded-lg text-[11px] font-mono border transition-all text-center bg-purple-500/15 border-purple-500 text-purple-400 shadow-lg shadow-purple-950/20";
+      } else {
+        document.getElementById(bId).className = "py-2 px-3 rounded-lg text-[11px] font-mono border transition-all text-center bg-cyan-500/15 border-cyan-500 text-cyan-400 shadow-lg shadow-cyan-950/20";
+      }
+
+      updateAlertBanners();
+      renderPhoneScreen();
+    }
+
+    function triggerExchange() {
+      exchangeCount++;
+      renderPhoneScreen();
+    }
+
+    function renderPhoneScreen() {
+      const content = document.getElementById('phoneMainContent');
+      content.innerHTML = '';
+      if (phoneTab === 'biology') {
+        content.innerHTML = '<div class="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-2.5 animate-fadeIn"><div class="text-[9px] font-mono text-cyan-400 flex items-center gap-1">🧬 LAB NGS CERTIFIED</div><p class="text-[10px] text-slate-300 font-sans mt-1 leading-relaxed">' + t[lang].phoneBioDesc + '</p></div><div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-lg animate-fadeIn"><span class="text-[9px] font-semibold text-slate-400 block font-mono">' + t[lang].phoneSnpsTitle + '</span><div class="grid grid-cols-2 gap-1.5 mt-1.5 text-[9.5px]"><div class="bg-slate-950 p-1.5 rounded border border-slate-800/80"><span class="text-slate-500 block">MTHFR C677T</span><span class="text-amber-400 font-mono font-bold">Deficiency (B9)</span></div><div class="bg-slate-950 p-1.5 rounded border border-slate-800/80"><span class="text-slate-500 block">LCT Genotype</span><span class="text-red-400 font-mono font-bold">Lactose Intolerant</span></div></div></div><div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-lg animate-fadeIn"><span class="text-[9px] font-semibold text-slate-400 block font-mono">' + t[lang].phoneMicrobiome + '</span><div class="flex justify-between items-center mt-1"><div class="text-[9px] text-slate-300">Diversity Index (Shannon)</div><div class="text-[11px] font-mono text-green-400 font-bold">4.85 (Optimal)</div></div><div class="w-full bg-slate-950 h-1 rounded overflow-hidden mt-1.5"><div class="bg-green-400 h-full w-[85%]"></div></div></div><div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-lg animate-fadeIn"><span class="text-[9px] font-semibold text-slate-400 block font-mono">' + t[lang].phoneMetabolism + '</span><p class="text-[9px] text-slate-400 mt-1 leading-normal">' + t[lang].phoneOptimalDiet + '</p></div>';
+      } else if (phoneTab === 'farm') {
+        content.innerHTML = '<div class="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 animate-fadeIn"><div class="flex items-center gap-1 text-[10px] font-bold text-emerald-400 font-mono">🌱 ' + t[lang].phoneSeedRec + '</div><p class="text-[11px] font-sans text-slate-100 font-semibold mt-1.5">' + t[lang].phoneHarvestTip + '</p><div class="flex gap-1.5 mt-2"><span class="text-[8px] font-mono bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded">High Iron</span><span class="text-[8px] font-mono bg-cyan-500/20 text-cyan-300 px-1.5 py-0.5 rounded">Vitamins B9/B12</span></div></div><div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-lg flex flex-col gap-2 animate-fadeIn"><span class="text-[9px] font-semibold text-slate-400 block font-mono">' + t[lang].phoneChamberStatus + '</span><div class="flex items-center justify-between text-[9px] border-b border-slate-800 pb-1.5"><span class="text-slate-300 font-semibold">T4: Cherry Tomatillo</span><span class="text-red-400 font-mono">Doble Riego Activo</span></div><div class="flex items-center justify-between text-[9px] border-b border-slate-800 pb-1.5"><span class="text-slate-300 font-semibold">T3: Lechuga Batavia</span><span class="text-green-400 font-mono">Optimal pH 6.2</span></div><div class="flex items-center justify-between text-[9px] border-b border-slate-800 pb-1.5"><span class="text-slate-300 font-semibold">T2: Brote de Rábano</span><span class="text-green-400 font-mono">Fase Cosecha - Ready</span></div><div class="flex items-center justify-between text-[9px]"><span class="text-slate-300 font-semibold">T1: Germinado Brócoli</span><span class="text-cyan-400 font-mono">100% Germinación</span></div></div>';
+      } else if (phoneTab === 'nutrition') {
+        content.innerHTML = '<div class="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3 animate-fadeIn"><div class="flex items-center gap-1.5 text-[10px] font-bold text-purple-400 font-mono">🍎 ' + t[lang].phoneRecTitle + '</div><p class="text-[10px] text-slate-300 font-sans mt-2 leading-relaxed">' + t[lang].phoneRecSub + '</p></div><div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-lg animate-fadeIn"><span class="text-[9px] font-semibold text-slate-400 block font-mono">' + t[lang].phoneRecHeader + '</span><div class="mt-1.5 flex gap-2"><div class="bg-slate-950 p-2 rounded border border-slate-800 flex-1"><div class="text-[9.5px] font-semibold text-green-400">Green Power Shot</div><div class="text-[8px] text-slate-500 mt-0.5">' + t[lang].phoneRecDesc + '</div></div></div></div>';
+      } else if (phoneTab === 'health') {
+        content.innerHTML = '<div class="flex justify-between items-center animate-fadeIn"><span class="text-[9.5px] font-semibold text-slate-400 font-mono">WEARABLE CORRELATION</span><span class="text-[8px] bg-green-500/20 text-green-300 px-1.5 py-0.5 rounded font-mono">SYNCED</span></div><div class="bg-slate-900/80 border border-slate-800 p-3 rounded-lg animate-fadeIn"><div class="flex justify-between items-center"><span class="text-[10px] font-bold text-indigo-400 font-mono">' + t[lang].phoneSleepQuality + '</span><span class="text-xs font-bold text-green-400 font-mono">+15%</span></div><p class="text-[9px] text-slate-400 mt-1.5 leading-normal">' + t[lang].phoneMorningEnergyText + '</p></div><div class="bg-slate-900/80 border border-slate-800 p-3 rounded-lg animate-fadeIn"><span class="text-[10px] font-bold text-cyan-400 font-mono block">' + t[lang].phoneMorningEnergy + '</span><div class="flex items-baseline gap-1 mt-1"><span class="text-lg font-bold font-mono text-slate-200">88</span><span class="text-[8px] text-slate-500">/ 100 max score</span></div><div class="w-full bg-slate-950 h-1.5 rounded overflow-hidden mt-2"><div class="bg-gradient-to-r from-cyan-500 to-indigo-500 h-full w-[88%]"></div></div></div>';
+      } else if (phoneTab === 'community') {
+        content.innerHTML = '<div class="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-3 animate-fadeIn"><div class="flex items-center justify-between"><div class="flex items-center gap-1 text-[10px] font-bold text-cyan-400 font-mono">👥 &nbsp;' + t[lang].phoneTradeTitle + '</div><span class="text-[8.5px] text-slate-500 font-mono">A 350m de ti</span></div><p class="text-[10px] text-slate-200 font-sans mt-2 font-semibold italic">"' + t[lang].phoneTradeMsg + '"</p><button onclick="triggerExchange()" class="mt-3.5 w-full py-1.5 bg-cyan-500 text-slate-950 rounded text-[9.5px] font-mono font-bold flex items-center justify-center gap-1 hover:bg-cyan-400 transition-colors">Proponer Intercambio →</button></div><div class="text-[8px] text-slate-500 text-center mt-2 animate-fadeIn">' + t[lang].phoneTradeFooter + '<span class="text-cyan-400 font-mono font-bold">' + exchangeCount + '</span></div>';
+      }
+    }
+
+    // AI Network processor engine
+    function drawNetwork() {
+      const svg = document.getElementById('svgNet');
+      svg.innerHTML = '';
+
+      // Draw Connection lines first
+      netConns.forEach(function(conn) {
+        const fromNode = netNodes.find(function(n) { return n.id === conn.from; });
+        const toNode = netNodes.find(function(n) { return n.id === conn.to; });
+        if (!fromNode || !toNode) return;
+
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', fromNode.x);
+        line.setAttribute('y1', fromNode.y);
+        line.setAttribute('x2', toNode.x);
+        line.setAttribute('y2', toNode.y);
+        const active = mode !== 'sleep';
+        line.setAttribute('stroke', active ? (conn.weight > 0 ? 'rgba(79, 195, 247, 0.15)' : 'rgba(139, 195, 74, 0.12)') : 'rgba(255,255,255,0.02)');
+        line.setAttribute('stroke-width', active ? Math.max(0.5, Math.abs(conn.weight) * 2.5) : 0.5);
+        svg.appendChild(line);
+      });
+
+      // Draw floating signal particles
+      particles.forEach(function(p) {
+        const curX = p.fromX + (p.toX - p.fromX) * p.progress;
+        const curY = p.fromY + (p.toY - p.fromY) * p.progress;
+
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', curX);
+        circle.setAttribute('cy', curY);
+        circle.setAttribute('r', '3');
+        circle.setAttribute('fill', p.color);
+        svg.appendChild(circle);
+      });
+
+      // Draw Interactive Nodes
+      netNodes.forEach(function(node) {
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.style.cursor = 'pointer';
+        g.onclick = function() { inspectNode(node.id); };
+
+        const isSelected = selectedNetNode && selectedNetNode.id === node.id;
+        let color = '#90A4AE';
+        if (node.type === 'input') color = '#4FC3F7';
+        else if (node.type === 'output') color = '#81C784';
+        else if (isSelected) color = '#BA68C8';
+
+        // Outer glow ping ring if selected
+        if (isSelected) {
+          const ping = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          ping.setAttribute('cx', node.x);
+          ping.setAttribute('cy', node.y);
+          ping.setAttribute('r', '12');
+          ping.setAttribute('fill', 'none');
+          ping.setAttribute('stroke', '#BA68C8');
+          ping.setAttribute('stroke-width', '1.5');
+          g.appendChild(ping);
+        }
+
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', node.x);
+        circle.setAttribute('cy', node.y);
+        circle.setAttribute('r', isSelected ? '8' : '6');
+        circle.setAttribute('fill', color);
+        circle.setAttribute('stroke', '#1E293B');
+        circle.setAttribute('stroke-width', '1.5');
+        g.appendChild(circle);
+
+        // text helper label
+        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        txt.setAttribute('x', node.x);
+        txt.setAttribute('y', node.y - 10);
+        txt.setAttribute('text-anchor', 'middle');
+        txt.setAttribute('fill', '#94A3B8');
+        txt.setAttribute('font-size', '8');
+        txt.setAttribute('font-family', 'Inter');
+        txt.textContent = node.label[lang];
+        g.appendChild(txt);
+
+        svg.appendChild(g);
+      });
+    }
+
+    function inspectNode(id) {
+      const node = netNodes.find(function(n) { return n.id === id; });
+      if (!node) return;
+      selectedNetNode = node;
+      document.getElementById('inspectHint').style.display = 'none';
+      const panel = document.getElementById('inspectorPanel');
+      panel.style.display = 'flex';
+      document.getElementById('inspNodeLabel').innerText = node.label[lang];
+      document.getElementById('inspTypeVal').innerText = node.type.toUpperCase();
+      document.getElementById('inspValueVal').innerText = node.value();
+      drawNetwork();
+    }
+
+    function closeInspector() {
+      selectedNetNode = null;
+      document.getElementById('inspectorPanel').style.display = 'none';
+      document.getElementById('inspectHint').style.display = 'block';
+      drawNetwork();
+    }
+
+    function evolveNetwork() {
+      epoch += 50;
+      loss = Math.max(0.0005, loss * 0.85);
+      accuracy = Math.min(99.98, accuracy + (100 - accuracy) * 0.4);
+      updateAiLabels();
+      alert(t[lang].evolutionSuccess);
+    }
+
+    function updateAiLabels() {
+      document.getElementById('txtEpochsVal').innerText = epoch;
+      document.getElementById('txtLossVal').innerText = loss.toFixed(6);
+      document.getElementById('txtAccuracyVal').innerText = accuracy.toFixed(2) + '%';
+    }
+
+    // 3D Projection projection math
+    function project(p) {
+      const cosY = Math.cos(yaw);
+      const sinY = Math.sin(yaw);
+      let x1 = p.x * cosY - p.z * sinY;
+      let z1 = p.x * sinY + p.z * cosY;
+
+      const cosX = Math.cos(pitch);
+      const sinX = Math.sin(pitch);
+      let y2 = p.y * cosX - z1 * sinX;
+      let z2 = p.y * sinX + z1 * cosX;
+
+      const scale = (600 / (600 + z2)) * zoom;
+      return {
+        x: canvas.width / 2 + x1 * scale * 1.5,
+        y: canvas.height / 2 - y2 * scale * 1.5,
+        z: z2,
+        scale: scale
+      };
+    }
+
+    let renderQueue = [];
+
+    // Helper: Draw 3D Cylinder / Rings
+    function addCylinder(
+      centerY,
+      radius,
+      height,
+      colorStroke,
+      colorFill,
+      lineWidth,
+      isSolid,
+      customSegments,
+      sideXOffset
+    ) {
+      if (isSolid === undefined) isSolid = true;
+      if (customSegments === undefined) customSegments = 16;
+      if (sideXOffset === undefined) sideXOffset = 0;
+      if (lineWidth === undefined) lineWidth = 1;
+
+      const segments = customSegments;
+      const topY = centerY + height / 2;
+      const botY = centerY - height / 2;
+
+      const topPoints = [];
+      const botPoints = [];
+
+      for (let i = 0; i < segments; i++) {
+        const theta = (i / segments) * Math.PI * 2;
+        const x = Math.cos(theta) * radius + sideXOffset;
+        const z = Math.sin(theta) * radius;
+        topPoints.push({ x, y: topY, z });
+        botPoints.push({ x, y: botY, z });
+      }
+
+      const topProj = topPoints.map(project);
+      const botProj = botPoints.map(project);
+      const avgZ = project({ x: sideXOffset, y: centerY, z: 0 }).z;
+
+      renderQueue.push({
+        z: avgZ,
+        draw: function(c) {
+          let stroke = colorStroke;
+          let fill = colorFill;
+
+          if (viewMode === 'xray') {
+            stroke = colorStroke.replace(/[0-9.]+[)]$/, '0.2)');
+            fill = 'rgba(20, 30, 40, 0.15)';
+          }
+          c.strokeStyle = stroke;
+          c.fillStyle = fill;
+          c.lineWidth = lineWidth;
+
+          // Draw side faces back-to-front
+          for (let i = 0; i < segments; i++) {
+            const nextIdx = (i + 1) % segments;
+
+            c.beginPath();
+            c.moveTo(topProj[i].x, topProj[i].y);
+            c.lineTo(topProj[nextIdx].x, topProj[nextIdx].y);
+            c.lineTo(botProj[nextIdx].x, botProj[nextIdx].y);
+            c.lineTo(botProj[i].x, botProj[i].y);
+            c.closePath();
+
+            if (isSolid && viewMode !== 'xray') {
+              const angleVal = (i / segments) * Math.PI * 2 + yaw;
+              const shade = Math.max(0.1, (Math.cos(angleVal) + 1) / 2);
+              c.fillStyle = fill.replace(/[0-9.]+[)]$/, (shade * 0.35 + 0.05) + ')');
+              c.fill();
+            }
+            c.stroke();
+          }
+
+          // Draw Top cap
+          c.beginPath();
+          c.moveTo(topProj[0].x, topProj[0].y);
+          for (let i = 1; i < segments; i++) {
+            c.lineTo(topProj[i].x, topProj[i].y);
+          }
+          c.closePath();
+          if (isSolid && viewMode !== 'xray') {
+            c.fillStyle = fill.replace(/[0-9.]+[)]$/, '0.25)');
+            c.fill();
+          }
+          c.strokeStyle = stroke;
+          c.stroke();
+
+          // Draw Bottom cap
+          c.beginPath();
+          c.moveTo(botProj[0].x, botProj[0].y);
+          for (let i = 1; i < segments; i++) {
+            c.lineTo(botProj[i].x, botProj[i].y);
+          }
+          c.closePath();
+          if (isSolid && viewMode !== 'xray') {
+            c.fillStyle = fill.replace(/[0-9.]+[)]$/, '0.15)');
+            c.fill();
+          }
+          c.stroke();
+        }
+      });
+    }
+
+    function drawGrid() {
+      const gridSize = 140;
+      const step = 20;
+      const yOffset = -140;
+
+      for (let x = -gridSize; x <= gridSize; x += step) {
+        const p1 = { x, y: yOffset, z: -gridSize };
+        const p2 = { x, y: yOffset, z: gridSize };
+        const pr1 = project(p1);
+        const pr2 = project(p2);
+
+        renderQueue.push({
+          z: (pr1.z + pr2.z) / 2 + 1000,
+          draw: function(c) {
+            c.beginPath();
+            c.moveTo(pr1.x, pr1.y);
+            c.lineTo(pr2.x, pr2.y);
+            c.strokeStyle = 'rgba(79, 195, 247, 0.06)';
+            c.lineWidth = 1;
+            c.stroke();
+          }
+        });
+      }
+
+      for (let z = -gridSize; z <= gridSize; z += step) {
+        const p1 = { x: -gridSize, y: yOffset, z };
+        const p2 = { x: gridSize, y: yOffset, z };
+        const pr1 = project(p1);
+        const pr2 = project(p2);
+
+        renderQueue.push({
+          z: (pr1.z + pr2.z) / 2 + 1000,
+          draw: function(c) {
+            c.beginPath();
+            c.moveTo(pr1.x, pr1.y);
+            c.lineTo(pr2.x, pr2.y);
+            c.strokeStyle = 'rgba(79, 195, 247, 0.06)';
+            c.lineWidth = 1;
+            c.stroke();
+          }
+        });
+      }
+    }
+
+    // Main 3D Canvas engine loop
+    function loop() {
+      if (autoRotate) {
+        yaw += 0.0025;
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      renderQueue = [];
+
+      // Draw Grid Floor
+      drawGrid();
+
+      // Layout y-offsets based on exploded view state
+      const yOffsets = {
+        solar: viewMode === 'exploded' ? 140 : 105,
+        hvac: viewMode === 'exploded' ? 105 : 85,
+        tray4: viewMode === 'exploded' ? 70 : 50,
+        tray3: viewMode === 'exploded' ? 30 : 15,
+        tray2: viewMode === 'exploded' ? -10 : -20,
+        tray1: viewMode === 'exploded' ? -50 : -55,
+        sump: -90,
+        bioreactorX: viewMode === 'exploded' ? 110 : 85
+      };
+
+      // Color definitions based on OperationMode
+      let ledColor = 'rgba(255, 230, 180, 0.6)';
+      let ledColorPulse = 'rgba(255, 230, 180, 0.15)';
+      if (mode === 'sleep') {
+        ledColor = 'rgba(79, 195, 247, 0.15)';
+        ledColorPulse = 'rgba(79, 195, 247, 0.03)';
+      } else if (mode === 'analysis' || mode === 'diagnosis') {
+        ledColor = 'rgba(0, 229, 255, 0.7)';
+        ledColorPulse = 'rgba(0, 229, 255, 0.2)';
+      } else if (mode === 'emergency') {
+        ledColor = 'rgba(239, 83, 80, 0.5)';
+        ledColorPulse = 'rgba(239, 83, 80, 0.15)';
+      } else if (mode === 'ai' || mode === 'operation') {
+        ledColor = 'rgba(139, 195, 74, 0.7)';
+        ledColorPulse = 'rgba(139, 195, 74, 0.2)';
+      }
+
+      let ringColor = '#4FC3F7';
+      if (mode === 'emergency') ringColor = '#EF5350';
+      else if (mode === 'ai') ringColor = '#8BC34A';
+      else if (mode === 'sleep') ringColor = 'rgba(79,195,247,0.3)';
+
+      // 1. Bottom Nutrient Sump Tank
+      addCylinder(yOffsets.sump, 48, 25, 'rgba(79, 195, 247, 0.4)', 'rgba(3, 169, 244, 0.25)', 1.5, true, 16, 0);
+
+      // Liquid in sump tank
+      const waterHeight = (telemetry.waterLevel / 100) * 22;
+      if (waterHeight > 2) {
+        addCylinder(yOffsets.sump - 12.5 + waterHeight / 2, 47, waterHeight, 'rgba(0, 229, 255, 0.3)', 'rgba(0, 188, 212, 0.45)', 1, true, 12, 0);
+      }
+
+      // 2. Main structure vertical acrylic tube skeleton
+      if (viewMode !== 'exploded') {
+        addCylinder(10, 50, 180, 'rgba(255, 255, 255, 0.12)', 'rgba(255, 255, 255, 0.015)', 1, false, 12, 0);
+      }
+
+      // 3. Tray 1: Semillero + sprouts
+      addCylinder(yOffsets.tray1, 46, 12, 'rgba(255,255,255,0.2)', 'rgba(33, 33, 33, 0.7)', 1.5, true, 16, 0);
+      for (let i = 0; i < 18; i++) {
+        const angle = (i / 18) * Math.PI * 2;
+        const r = 15 + Math.sin(i * 4) * 12;
+        const x = Math.cos(angle) * r;
+        const z = Math.sin(angle) * r;
+        const p = { x, y: yOffsets.tray1 + 7, z };
+        const pr = project(p);
+        renderQueue.push({
+          z: pr.z,
+          draw: function(c) {
+            c.beginPath();
+            c.arc(pr.x, pr.y, pr.scale * (mode === 'emergency' ? 1.5 : 2.5), 0, Math.PI * 2);
+            c.fillStyle = mode === 'emergency' ? '#D32F2F' : '#C5E1A5';
+            c.fill();
+            c.beginPath();
+            c.moveTo(pr.x, pr.y);
+            c.lineTo(pr.x, pr.y - pr.scale * 3);
+            c.strokeStyle = '#8BC34A';
+            c.lineWidth = 1;
+            c.stroke();
+          }
+        });
+      }
+
+      // 4. Tray 2: Microgreens + leaves
+      addCylinder(yOffsets.tray2, 46, 12, 'rgba(255,255,255,0.2)', 'rgba(33, 33, 33, 0.7)', 1.5, true, 16, 0);
+      for (let i = 0; i < 28; i++) {
+        const angle = (i * 2.4) % (Math.PI * 2);
+        const r = 10 + (i * 1.2) % 25;
+        const x = Math.cos(angle) * r;
+        const z = Math.sin(angle) * r;
+        const p = { x, y: yOffsets.tray2 + 7, z };
+        const pr = project(p);
+        renderQueue.push({
+          z: pr.z,
+          draw: function(c) {
+            c.beginPath();
+            c.ellipse(pr.x, pr.y - pr.scale * 2, pr.scale * 3, pr.scale * 1.5, Math.PI / 4, 0, Math.PI * 2);
+            c.ellipse(pr.x - pr.scale * 1, pr.y - pr.scale * 2.5, pr.scale * 2.5, pr.scale * 1.5, -Math.PI / 4, 0, Math.PI * 2);
+            c.fillStyle = mode === 'emergency' ? '#FF8A65' : '#8BC34A';
+            c.fill();
+          }
+        });
+      }
+
+      // 5. Tray 3: Cultivos de Hoja + volumetric lettuce
+      addCylinder(yOffsets.tray3, 46, 12, 'rgba(255,255,255,0.2)', 'rgba(33, 33, 33, 0.7)', 1.5, true, 16, 0);
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2 + 0.3;
+        const r = 24;
+        const x = Math.cos(angle) * r;
+        const z = Math.sin(angle) * r;
+        const p = { x, y: yOffsets.tray3 + 6, z };
+        const pr = project(p);
+        renderQueue.push({
+          z: pr.z,
+          draw: function(c) {
+            c.beginPath();
+            c.arc(pr.x, pr.y - pr.scale * 5, pr.scale * 7, 0, Math.PI * 2);
+            c.fillStyle = mode === 'emergency' ? '#B0BEC5' : 'rgba(76, 175, 80, 0.8)';
+            c.fill();
+            c.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            c.stroke();
+
+            c.beginPath();
+            c.arc(pr.x - pr.scale * 3, pr.y - pr.scale * 6, pr.scale * 4, 0, Math.PI * 2);
+            c.arc(pr.x + pr.scale * 2, pr.y - pr.scale * 4, pr.scale * 5, 0, Math.PI * 2);
+            c.fillStyle = mode === 'emergency' ? '#90A4AE' : 'rgba(139, 195, 74, 0.9)';
+            c.fill();
+          }
+        });
+      }
+
+      // 6. Tray 4: Herbs and Fruits + stems & cherry tomatoes
+      addCylinder(yOffsets.tray4, 46, 12, 'rgba(255,255,255,0.2)', 'rgba(33, 33, 33, 0.7)', 1.5, true, 16, 0);
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2 + 0.8;
+        const r = 26;
+        const x = Math.cos(angle) * r;
+        const z = Math.sin(angle) * r;
+        const p = { x, y: yOffsets.tray4 + 6, z };
+        const pr = project(p);
+        renderQueue.push({
+          z: pr.z,
+          draw: function(c) {
+            c.beginPath();
+            c.moveTo(pr.x, pr.y);
+            c.lineTo(pr.x, pr.y - pr.scale * 18);
+            c.strokeStyle = '#4CAF50';
+            c.lineWidth = pr.scale * 1.5;
+            c.stroke();
+
+            c.beginPath();
+            c.arc(pr.x, pr.y - pr.scale * 14, pr.scale * 8, 0, Math.PI * 2);
+            c.fillStyle = mode === 'emergency' ? '#FFCC80' : 'rgba(56, 142, 60, 0.85)';
+            c.fill();
+
+            if (mode !== 'emergency') {
+              c.beginPath();
+              c.arc(pr.x - pr.scale * 4, pr.y - pr.scale * 10, pr.scale * 2.5, 0, Math.PI * 2);
+              c.arc(pr.x + pr.scale * 4, pr.y - pr.scale * 15, pr.scale * 2, 0, Math.PI * 2);
+              c.arc(pr.x + pr.scale * 1, pr.y - pr.scale * 8, pr.scale * 2.8, 0, Math.PI * 2);
+              c.fillStyle = '#EF5350';
+              c.fill();
+            }
+          }
+        });
+      }
+
+      // 7. LED grow rings emitting light
+      const ledHeights = [yOffsets.tray1 + 18, yOffsets.tray2 + 18, yOffsets.tray3 + 18, yOffsets.tray4 + 18];
+      ledHeights.forEach(function(ly) {
+        const ledPoints = [];
+        const steps = 12;
+        for (let i = 0; i < steps; i++) {
+          const theta = (i / steps) * Math.PI * 2;
+          ledPoints.push({ x: Math.cos(theta) * 40, y: ly, z: Math.sin(theta) * 40 });
+        }
+        const projLeds = ledPoints.map(project);
+        const avgZ = project({ x: 0, y: ly, z: 0 }).z;
+
+        renderQueue.push({
+          z: avgZ - 5,
+          draw: function(c) {
+            if (mode !== 'sleep') {
+              const grad = c.createLinearGradient(canvas.width / 2, project({ x: 0, y: ly, z: 0 }).y, canvas.width / 2, project({ x: 0, y: ly - 18, z: 0 }).y);
+              grad.addColorStop(0, ledColorPulse);
+              grad.addColorStop(1, 'rgba(0,0,0,0)');
+              c.fillStyle = grad;
+              c.beginPath();
+              const topC = project({ x: -44, y: ly, z: 0 });
+              const topD = project({ x: 44, y: ly, z: 0 });
+              const botC = project({ x: -46, y: ly - 18, z: 0 });
+              const botD = project({ x: 46, y: ly - 18, z: 0 });
+
+              c.moveTo(topC.x, topC.y);
+              c.lineTo(topD.x, topD.y);
+              c.lineTo(botD.x, botD.y);
+              c.lineTo(botC.x, botC.y);
+              c.closePath();
+              c.fill();
+            }
+
+            projLeds.forEach(function(p) {
+              c.beginPath();
+              c.arc(p.x, p.y, p.scale * 1.5, 0, Math.PI * 2);
+              c.fillStyle = ledColor;
+              c.shadowColor = ledColor;
+              c.shadowBlur = 10;
+              c.fill();
+              c.shadowBlur = 0;
+            });
+          }
+        });
+      });
+
+      // 8. HVAC / Top Cover + controller housing
+      addCylinder(yOffsets.hvac, 48, 12, 'rgba(255,255,255,0.22)', 'rgba(25, 35, 45, 0.9)', 1.5, true, 16, 0);
+
+      // Frontend status LED ring on HVAC top surface
+      const controlRingPoint = project({ x: 0, y: yOffsets.hvac, z: 42 });
+      renderQueue.push({
+        z: controlRingPoint.z - 20,
+        draw: function(c) {
+          c.beginPath();
+          c.arc(controlRingPoint.x, controlRingPoint.y, controlRingPoint.scale * 7, 0, Math.PI * 2);
+          c.strokeStyle = ringColor;
+          c.lineWidth = controlRingPoint.scale * 2.5;
+          c.shadowColor = ringColor;
+          c.shadowBlur = 15;
+          c.stroke();
+          c.shadowBlur = 0;
+
+          if (mode !== 'sleep') {
+            c.beginPath();
+            const pulseR = 3 + Math.sin(Date.now() * 0.005) * 1.5;
+            c.arc(controlRingPoint.x, controlRingPoint.y, controlRingPoint.scale * pulseR, 0, Math.PI * 2);
+            c.fillStyle = ringColor;
+            c.fill();
+          }
+        }
+      });
+
+      // 9. Solar Panel
+      const solarY = yOffsets.solar;
+      const sP1 = { x: -28, y: solarY + 8, z: -25 };
+      const sP2 = { x: 28, y: solarY + 8, z: -25 };
+      const sP3 = { x: 28, y: solarY - 4, z: 25 };
+      const sP4 = { x: -28, y: solarY - 4, z: 25 };
+
+      const sp1 = project(sP1);
+      const sp2 = project(sP2);
+      const sp3 = project(sP3);
+      const sp4 = project(sP4);
+
+      renderQueue.push({
+        z: (sp1.z + sp3.z) / 2,
+        draw: function(c) {
+          c.beginPath();
+          c.moveTo(sp1.x, sp1.y);
+          c.lineTo(sp2.x, sp2.y);
+          c.lineTo(sp3.x, sp3.y);
+          c.lineTo(sp4.x, sp4.y);
+          c.closePath();
+
+          c.fillStyle = 'rgba(21, 101, 192, 0.9)';
+          c.strokeStyle = '#90CAF9';
+          c.lineWidth = 1.5;
+          c.fill();
+          c.stroke();
+
+          c.beginPath();
+          for (let tVal = 0.25; tVal <= 0.75; tVal += 0.25) {
+            const l1_x = sP1.x + (sP2.x - sP1.x) * tVal;
+            const l1_y = sP1.y;
+            const l1_z = sP1.z;
+            const l2_x = sP4.x + (sP3.x - sP4.x) * tVal;
+            const l2_y = sP4.y;
+            const l2_z = sP4.z;
+
+            const p1 = project({ x: l1_x, y: l1_y, z: l1_z });
+            const p2 = project({ x: l2_x, y: l2_y, z: l2_z });
+            c.moveTo(p1.x, p1.y);
+            c.lineTo(p2.x, p2.y);
+          }
+          for (let tVal = 0.2; tVal <= 0.8; tVal += 0.2) {
+            const l1_x = sP1.x;
+            const l1_y = sP1.y + (sP4.y - sP1.y) * tVal;
+            const l1_z = sP1.z + (sP4.z - sP1.z) * tVal;
+            const l2_x = sP2.x;
+            const l2_y = sP2.y + (sP3.y - sP2.y) * tVal;
+            const l2_z = sP2.z + (sP3.z - sP2.z) * tVal;
+
+            const p1 = project({ x: l1_x, y: l1_y, z: l1_z });
+            const p2 = project({ x: l2_x, y: l2_y, z: l2_z });
+            c.moveTo(p1.x, p1.y);
+            c.lineTo(p2.x, p2.y);
+          }
+          c.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+          c.lineWidth = 1;
+          c.stroke();
+
+          if (viewMode === 'exploded' || viewMode === 'normal') {
+            c.fillStyle = 'rgba(255,255,255,0.7)';
+            c.font = '9px monospace';
+            c.fillText(t[lang].solarPanel, sp2.x + 8, sp2.y - 4);
+          }
+        }
+      });
+
+      // 10. Lateral vermicomposting bioreactor cylinder
+      const bioX = yOffsets.bioreactorX;
+      addCylinder(0, 16, 120, 'rgba(76, 175, 80, 0.4)', 'rgba(46, 125, 50, 0.65)', 1.5, true, 12, bioX);
+
+      // Organic debris levels inside bioreactor
+      addCylinder(-15, 15.5, 40, 'rgba(121, 85, 72, 0.3)', 'rgba(93, 64, 55, 0.8)', 1, true, 8, bioX);
+
+      // Draw little pink vermicomposting worms moving
+      for (let i = 0; i < 5; i++) {
+        const theta = (i * 1.2);
+        const wormY = -25 + i * 8;
+        const radiusWorm = 10;
+        const wormX = Math.cos(theta) * radiusWorm + bioX;
+        const wormZ = Math.sin(theta) * radiusWorm;
+
+        const wormP = { x: wormX, y: wormY, z: wormZ };
+        const prWorm = project(wormP);
+
+        renderQueue.push({
+          z: prWorm.z - 1,
+          draw: function(c) {
+            c.beginPath();
+            c.moveTo(prWorm.x - prWorm.scale * 3, prWorm.y + Math.sin(Date.now() * 0.007 + i) * 2);
+            c.quadraticCurveTo(
+              prWorm.x, prWorm.y + Math.sin(Date.now() * 0.007 + i + Math.PI) * 3,
+              prWorm.x + prWorm.scale * 3, prWorm.y + Math.sin(Date.now() * 0.007 + i) * 2
+            );
+            c.strokeStyle = '#FF8A80';
+            c.lineWidth = prWorm.scale * 1.5;
+            c.stroke();
+          }
+        });
+      }
+
+      // 11. Connecting pipe pumping Biol from bioreactor back into nutrient sump
+      const pipePoints = [
+        { x: bioX, y: -50, z: 0 },
+        { x: bioX - 10, y: -65, z: 0 },
+        { x: 30, y: -80, z: 0 }
+      ];
+      const projPipe = pipePoints.map(project);
+      renderQueue.push({
+        z: projPipe[1].z - 2,
+        draw: function(c) {
+          c.beginPath();
+          c.moveTo(projPipe[0].x, projPipe[0].y);
+          c.bezierCurveTo(projPipe[1].x, projPipe[1].y, projPipe[1].x, projPipe[1].y, projPipe[2].x, projPipe[2].y);
+          c.strokeStyle = 'rgba(79, 195, 247, 0.4)';
+          c.lineWidth = 3;
+          c.stroke();
+
+          const tVal = (Date.now() % 1500) / 1500;
+          const dropX = (1 - tVal) * (1 - tVal) * projPipe[0].x + 2 * (1 - tVal) * tVal * projPipe[1].x + tVal * tVal * projPipe[2].x;
+          const dropY = (1 - tVal) * (1 - tVal) * projPipe[0].y + 2 * (1 - tVal) * tVal * projPipe[1].y + tVal * tVal * projPipe[2].y;
+
+          c.beginPath();
+          c.arc(dropX, dropY, 2.5, 0, Math.PI * 2);
+          c.fillStyle = '#8BC34A';
+          c.fill();
+        }
+      });
+
+      // 12. Text overlay labels in 3D space highlighting modules
+      const labelPoints = [
+        { p: { x: -55, y: yOffsets.tray4, z: 0 }, text: t[lang].tray4, color: '#FFD54F' },
+        { p: { x: -55, y: yOffsets.tray3, z: 0 }, text: t[lang].tray3, color: '#81C784' },
+        { p: { x: -55, y: yOffsets.tray2, z: 0 }, text: t[lang].tray2, color: '#AED581' },
+        { p: { x: -55, y: yOffsets.tray1, z: 0 }, text: t[lang].tray1, color: '#D4E157' },
+        { p: { x: bioX + 18, y: 30, z: 0 }, text: t[lang].bioreactor, color: '#81C784' },
+        { p: { x: -60, y: yOffsets.sump, z: 0 }, text: t[lang].sump, color: '#4FC3F7' },
+      ];
+
+      if (viewMode === 'exploded') {
+        labelPoints.forEach(function(lbl) {
+          const pr = project(lbl.p);
+          renderQueue.push({
+            z: pr.z - 50,
+            draw: function(c) {
+              c.beginPath();
+              c.arc(pr.x, pr.y, 3, 0, Math.PI * 2);
+              c.fillStyle = lbl.color;
+              c.fill();
+
+              c.beginPath();
+              c.moveTo(pr.x, pr.y);
+              const isLeft = lbl.p.x < 0;
+              const lineLength = isLeft ? -25 : 25;
+              c.lineTo(pr.x + lineLength, pr.y);
+              c.strokeStyle = 'rgba(255,255,255,0.35)';
+              c.lineWidth = 1;
+              c.stroke();
+
+              c.fillStyle = 'rgba(255,255,255,0.85)';
+              c.font = '10px sans-serif';
+              c.textAlign = isLeft ? 'right' : 'left';
+              c.fillText(lbl.text, pr.x + lineLength + (isLeft ? -4 : 4), pr.y + 3);
+            }
+          });
+        });
+      }
+
+      // Sorting painter's algorithm
+      renderQueue.sort(function(a, b) { return b.z - a.z; });
+      renderQueue.forEach(function(item) { item.draw(ctx); });
+
+      // HUD overlays on 3D Canvas
+      ctx.textAlign = 'left';
+      ctx.font = '11px monospace';
+      ctx.fillStyle = '#4FC3F7';
+      ctx.fillText("ROT-Y: " + Math.round((yaw * 180) / Math.PI) + "°", 15, canvas.height - 35);
+      ctx.fillText("ZOOM: " + Math.round(zoom * 100) + "%", 15, canvas.height - 20);
+
+      ctx.fillStyle = ringColor;
+      ctx.beginPath();
+      ctx.arc(15 + 4, canvas.height - 52, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillText("SYS STATE: " + mode.toUpperCase(), 28, canvas.height - 49);
+
+      // Top Right Info Overlay
+      ctx.textAlign = 'right';
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.fillText("BIO-SPHERE KIT v2.0", canvas.width - 15, 25);
+      ctx.fillStyle = '#4FC3F7';
+      ctx.fillText("STATION ACTIVE", canvas.width - 15, 40);
+
+      // Top Left - Doctor Author requirement
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '500 13px sans-serif';
+      ctx.fillText("Dr. Julio César Oporta Barrera", 15, 26);
+      ctx.fillStyle = 'rgba(79, 195, 247, 0.7)';
+      ctx.font = '9px monospace';
+      ctx.fillText("DIRECTOR CIENTÍFICO / BIO-CHIEF SCIENTIST", 15, 39);
+
+      requestAnimationFrame(loop);
+    }
+
+    // Localized GUI updates
+    function setLang(val) {
+      lang = val;
+      updateUI();
+    }
+
+    function updateUI() {
+      // General Header / badge labels
+      document.getElementById('txtBadge').innerText = t[lang].badge;
+      document.getElementById('txtResetCamera').innerText = t[lang].resetCamera;
+
+      // HUD and labels
+      document.getElementById('lblModeTitle').innerText = t[lang].modeTitle;
+      document.getElementById('lblCpmTitle').innerText = t[lang].cpmTitle;
+      document.getElementById('lblCpmHeader').innerText = t[lang].cpmHeader;
+      document.getElementById('lblTacticalTelemetry').innerText = t[lang].tacticalTelemetry;
+      document.getElementById('lblBcTitle').innerText = t[lang].bcTitle;
+      document.getElementById('lblBcStatus').innerText = t[lang].bcStatus;
+
+      // Mobile simulator headers
+      document.getElementById('txtPhoneTitle').innerText = t[lang].phoneTitle;
+      document.getElementById('txtPhoneSub').innerText = t[lang].phoneSub;
+
+      // Mobile Bottom Bar buttons
+      document.getElementById('tabLblBio').innerText = t[lang].tabBio;
+      document.getElementById('tabLblFarm').innerText = t[lang].tabFarm;
+      document.getElementById('tabLblNut').innerText = t[lang].tabNut;
+      document.getElementById('tabLblHealth').innerText = t[lang].tabHealth;
+      document.getElementById('tabLblComm').innerText = t[lang].tabComm;
+
+      // AI Processor labels
+      document.getElementById('txtAiTitle').innerText = t[lang].aiTitle;
+      document.getElementById('txtAiSub').innerText = t[lang].aiSub;
+      document.getElementById('txtFederated').innerText = t[lang].federated;
+      document.getElementById('lblEpochs').innerText = t[lang].epochs;
+      document.getElementById('lblLoss').innerText = t[lang].loss;
+      document.getElementById('lblAccuracy').innerText = t[lang].accuracy;
+      document.getElementById('btnEvolve').innerText = t[lang].btnEvolve;
+      document.getElementById('inspectHint').innerText = t[lang].inspectHint;
+
+      // Update sub components
+      updateAlertBanners();
+      renderCpmStages();
+      renderPhoneScreen();
+      renderBlockchainLogs();
+      drawNetwork();
+    }
+
+    // Seed and trigger Blockchain verified ledger log rows
+    function initBlockchainLogs() {
+      bcLogsList = [...t[lang].bcLogs];
+      renderBlockchainLogs();
+    }
+
+    function renderBlockchainLogs() {
+      const parent = document.getElementById('bcLogsContainer');
+      parent.innerHTML = '';
+      bcLogsList.forEach(function(log) {
+        const row = document.createElement('div');
+        row.className = "py-2 first:pt-0 last:pb-0 flex flex-col gap-0.5 border-b border-slate-900 last:border-0";
+        row.innerHTML = '<div class="flex justify-between items-center text-slate-400"><span class="text-[9px] bg-slate-900 px-1.5 py-0.2 rounded text-slate-500 font-mono">' + log.timestamp + '</span><span class="text-cyan-500/80 text-[8px] font-bold font-mono">' + log.hash + '</span><span class="text-green-400 text-[8px] flex items-center gap-0.5 font-bold">● VERIFIED</span></div><div class="text-slate-200 mt-0.5 leading-relaxed font-sans">' + log.text + '</div>';
+        parent.appendChild(row);
+      });
+    }
+
+    // Telemetry and signals fluctuation loop
+    setInterval(function() {
+      // Senses drift directions based on active operating mode
+      let pHDirection = Math.random() * 0.1 - 0.05;
+      let ecDirection = Math.random() * 0.04 - 0.02;
+      let tempDirection = Math.random() * 0.2 - 0.1;
+      let co2Direction = Math.random() * 10 - 5;
+
+      if (mode === 'emergency') {
+        pHDirection += 0.06;
+        tempDirection += 0.28;
+        co2Direction += 22;
+      } else if (mode === 'ai') {
+        pHDirection = (6.2 - telemetry.pH) * 0.12;
+        ecDirection = (1.8 - telemetry.ec) * 0.12;
+        tempDirection = (22.5 - telemetry.temp) * 0.12;
+        co2Direction = (850 - telemetry.co2) * 0.12;
+      }
+
+      telemetry.pH = Math.max(4.0, Math.min(9.0, telemetry.pH + pHDirection));
+      telemetry.ec = Math.max(0.5, Math.min(3.0, telemetry.ec + ecDirection));
+      telemetry.temp = Math.max(15.0, Math.min(35.0, telemetry.temp + tempDirection));
+      telemetry.co2 = Math.max(350, Math.min(2500, Math.round(telemetry.co2 + co2Direction)));
+
+      // Update tactile displays
+      document.getElementById('txtPhVal').innerText = telemetry.pH.toFixed(2);
+      document.getElementById('txtEcVal').innerText = telemetry.ec.toFixed(2) + " mS";
+      document.getElementById('txtTempVal').innerText = telemetry.temp.toFixed(1) + " °C";
+      document.getElementById('txtCo2Val').innerText = telemetry.co2 + " ppm";
+
+      // Progress bars values
+      document.getElementById('barPh').style.width = (telemetry.pH / 14) * 100 + "%";
+      document.getElementById('barEc').style.width = (telemetry.ec / 3) * 100 + "%";
+      document.getElementById('barTemp').style.width = ((telemetry.temp - 10) / 30) * 100 + "%";
+      document.getElementById('barCo2').style.width = (telemetry.co2 / 2000) * 100 + "%";
+
+      // Status badges
+      const getStatusText = function(v, min, max) { return (v < min || v > max) ? t[lang].warning : t[lang].optimal; };
+      const getBadgeClass = function(v, min, max) {
+        if (v < min || v > max) return "text-amber-400 bg-amber-400/10 border-amber-400/20";
+        return "text-emerald-400 bg-emerald-400/10 border-emerald-400/20";
+      };
+
+      document.getElementById('badgePhStatus').innerText = getStatusText(telemetry.pH, 5.8, 6.6);
+      document.getElementById('badgePhStatus').className = "text-[8px] font-mono px-1.5 py-0.5 rounded border " + getBadgeClass(telemetry.pH, 5.8, 6.6);
+
+      document.getElementById('badgeEcStatus').innerText = getStatusText(telemetry.ec, 1.2, 2.2);
+      document.getElementById('badgeEcStatus').className = "text-[8px] font-mono px-1.5 py-0.5 rounded border " + getBadgeClass(telemetry.ec, 1.2, 2.2);
+
+      document.getElementById('badgeTempStatus').innerText = getStatusText(telemetry.temp, 20.0, 25.0);
+      document.getElementById('badgeTempStatus').className = "text-[8px] font-mono px-1.5 py-0.5 rounded border " + getBadgeClass(telemetry.temp, 20.0, 25.0);
+
+      document.getElementById('badgeCo2Status').innerText = getStatusText(telemetry.co2, 600, 1200);
+      document.getElementById('badgeCo2Status').className = "text-[8px] font-mono px-1.5 py-0.5 rounded border " + getBadgeClass(telemetry.co2, 600, 1200);
+
+      // AI gradual training epoch increments
+      if (mode !== 'sleep') {
+        epoch += 1;
+        loss = Math.max(0.0005, loss - Math.random() * 0.000004);
+        accuracy = Math.min(99.95, accuracy + Math.random() * 0.001);
+        updateAiLabels();
+      }
+
+      if (selectedNetNode) {
+        inspectNode(selectedNetNode.id);
+      }
+
+    }, 2000);
+
+    // Blockchain real-time block appending
+    setInterval(function() {
+      if (mode === 'sleep') return;
+      const timestamp = new Date().toTimeString().split(' ')[0];
+      const randHash = "0x" + Math.floor(Math.random()*16777215).toString(16).padStart(6,'0') + "..." + Math.floor(Math.random()*16777215).toString(16).padStart(4,'0');
+      
+      const eventList = t[lang].bcLiveEvents;
+      const text = eventList[Math.floor(Math.random() * eventList.length)];
+
+      bcLogsList = [
+        { timestamp: timestamp, hash: randHash, text: text },
+        ...bcLogsList.slice(0, 4)
+      ];
+      renderBlockchainLogs();
+    }, 7000);
+
+    // AI Signal flow particles ticker loop
+    setInterval(function() {
+      if (mode === 'sleep') return;
+      
+      // Select random weights to transmit active signal
+      const randConns = [];
+      const count = mode === 'ai' ? 3 : 1;
+      for (let k = 0; k < count; k++) {
+        randConns.push(netConns[Math.floor(Math.random() * netConns.length)]);
+      }
+
+      randConns.forEach(function(conn) {
+        const fromN = netNodes.find(function(n) { return n.id === conn.from; });
+        const toN = netNodes.find(function(n) { return n.id === conn.to; });
+        if (fromN && toN) {
+          particles.push({
+            fromX: fromN.x,
+            fromY: fromN.y,
+            toX: toN.x,
+            toY: toN.y,
+            progress: 0,
+            speed: 0.03 + Math.random() * 0.03,
+            color: conn.weight > 0 ? 'rgba(79, 195, 247, 0.8)' : 'rgba(139, 195, 74, 0.8)'
+          });
+        }
+      });
+
+    }, 600);
+
+    // Particle flow loop animation frames
+    function animateParticles() {
+      particles = particles
+        .map(function(p) {
+          p.progress += p.speed;
+          return p;
+        })
+        .filter(function(p) { return p.progress < 1; });
+
+      drawNetwork();
+      requestAnimationFrame(animateParticles);
+    }
+
+    // INIT INITIALIZATION RUN
+    updateUI();
+    initBlockchainLogs();
+    loop();
+    animateParticles();
+
+  </script>
+</body>
+</html>
