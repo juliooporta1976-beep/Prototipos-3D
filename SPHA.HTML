@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPHA-Q — Plataforma de Simulación</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+  :root {
+    --bg: #020617; --card: #0a0f1e; --border: #1e293b;
+    --accent: #06b6d4; --accent2: #34d399; --warn: #f59e0b; --danger: #ef4444;
+    --text: #e2e8f0; --muted: #64748b;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); margin: 0; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  canvas.chart { width: 100%; height: 100%; display: block; border-radius: 8px; }
+
+  /* Animaciones de flujo del diagrama */
+  @keyframes flowRight { to { stroke-dashoffset: -24; } }
+  @keyframes flowDown { to { stroke-dashoffset: -24; } }
+  @keyframes pulse-ring { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(1.8); opacity: 0; } }
+  .flow-r { stroke-dasharray: 8 16; animation: flowRight 0.8s linear infinite; }
+  .flow-d { stroke-dasharray: 8 16; animation: flowDown 0.8s linear infinite; }
+  .flow-off { stroke-dasharray: 8 16; animation: none; opacity: 0.15; }
+
+  .module-box { cursor: pointer; transition: all 0.2s; }
+  .module-box:hover { filter: brightness(1.3); }
+  .module-box.selected { stroke: var(--accent); stroke-width: 2.5; filter: drop-shadow(0 0 6px rgba(6,182,212,0.5)); }
+
+  /* Scrollbar personalizado */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+
+  /* Slider personalizado */
+  input[type=range] { -webkit-appearance: none; background: transparent; width: 100%; }
+  input[type=range]::-webkit-slider-track { height: 4px; background: #1e293b; border-radius: 4px; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); margin-top: -5px; cursor: pointer; box-shadow: 0 0 8px rgba(6,182,212,0.4); }
+  input[type=range]::-moz-range-track { height: 4px; background: #1e293b; border-radius: 4px; border: none; }
+  input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: none; cursor: pointer; }
+
+  .tab-btn { transition: all 0.15s; }
+  .tab-btn.active { background: var(--accent); color: #020617; font-weight: 700; }
+
+  .mode-btn { transition: all 0.15s; }
+  .mode-btn.active-eco { background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.4); color: #34d399; }
+  .mode-btn.active-normal { background: rgba(6,182,212,0.1); border-color: rgba(6,182,212,0.4); color: #06b6d4; }
+  .mode-btn.active-boost { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.4); color: #f59e0b; }
+  .mode-btn.active-emergency { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.4); color: #ef4444; animation: pulse-emergency 1s infinite; }
+  @keyframes pulse-emergency { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
+
+  .fade-in { animation: fadeIn 0.3s ease-out; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+  .toast { position: fixed; bottom: 24px; right: 24px; z-index: 100; animation: slideUp 0.3s ease-out; }
+  @keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+<!-- ========== HEADER ========== -->
+<header class="border-b border-slate-800 bg-slate-950/90 backdrop-blur-md sticky top-0 z-40 px-4 py-3">
+  <div class="max-w-[1440px] mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
+    <div class="flex items-center gap-3">
+      <div class="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+        <i class="fa-solid fa-atom text-cyan-400 text-lg animate-pulse"></i>
+      </div>
+      <div>
+        <h1 class="text-sm font-bold tracking-tight text-white">SPHA-Q <span class="text-slate-500 text-xs font-normal ml-1">Simulación</span></h1>
+        <p class="text-[10px] text-slate-500 mono">Dr. Julio César Oporta Barrera · Prototipo Interactivo</p>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3">
+      <!-- Tabs de navegación -->
+      <nav class="flex bg-slate-900 border border-slate-800 p-0.5 rounded-lg text-[11px] gap-0.5" role="tablist">
+        <button class="tab-btn active px-3 py-1.5 rounded-md" onclick="switchTab('control')" role="tab" aria-selected="true"><i class="fa-solid fa-gauge-high mr-1"></i>Control</button>
+        <button class="tab-btn px-3 py-1.5 rounded-md text-slate-400 hover:text-white" onclick="switchTab('faraday')" role="tab"><i class="fa-solid fa-flask mr-1"></i>Faraday</button>
+        <button class="tab-btn px-3 py-1.5 rounded-md text-slate-400 hover:text-white" onclick="switchTab('lca')" role="tab"><i class="fa-solid fa-chart-pie mr-1"></i>LCA</button>
+        <button class="tab-btn px-3 py-1.5 rounded-md text-slate-400 hover:text-white" onclick="switchTab('scenarios')" role="tab"><i class="fa-solid fa-timeline mr-1"></i>Escenarios</button>
+        <button class="tab-btn px-3 py-1.5 rounded-md text-slate-400 hover:text-white" onclick="switchTab('safety')" role="tab"><i class="fa-solid fa-shield-halved mr-1"></i>Seguridad</button>
+      </nav>
+
+      <!-- Controles de simulación -->
+      <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1">
+        <button id="btn-pause" onclick="togglePause()" class="w-7 h-7 flex items-center justify-center rounded-md bg-slate-800 hover:bg-slate-700 text-cyan-400 text-xs transition" aria-label="Pausar/Reanudar"><i class="fa-solid fa-pause"></i></button>
+        <select id="sim-speed" onchange="setSpeed(this.value)" class="bg-slate-800 border-none text-cyan-400 text-[10px] mono rounded px-1.5 py-1 cursor-pointer" aria-label="Velocidad">
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1x</option>
+          <option value="2">2x</option>
+          <option value="5">5x</option>
+          <option value="10">10x</option>
+        </select>
+        <span id="sim-clock" class="mono text-[10px] text-slate-500 min-w-[48px] text-right">00:00</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Banner de emergencia -->
+<div id="emergency-banner" class="hidden bg-red-500/10 border-b border-red-500/20 px-4 py-2.5 flex items-center justify-between">
+  <div class="flex items-center gap-2">
+    <i class="fa-solid fa-triangle-exclamation text-red-500 animate-pulse"></i>
+    <p class="text-xs text-red-400 font-semibold mono tracking-wide">MODO EMERGENCIA — LÁSER APAGADO — ELECTRÓLISIS ELÉCTRICA PURA</p>
+  </div>
+  <button onclick="resetSystem()" class="flex items-center gap-1.5 px-3 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-[10px] mono font-bold transition cursor-pointer">
+    <i class="fa-solid fa-rotate-left text-[10px]"></i> RESTAURAR
+  </button>
+</div>
+
+<!-- ========== MAIN ========== -->
+<main class="flex-1 p-4 max-w-[1440px] mx-auto w-full">
+
+<!-- ==================== TAB: SALA DE CONTROL ==================== -->
+<section id="tab-control" class="fade-in">
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+
+    <!-- Columna izquierda: Controles -->
+    <div class="xl:col-span-3 space-y-4">
+      <!-- Modos de operación -->
+      <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+        <span class="text-[10px] mono text-slate-500 uppercase tracking-wider">Modo de Operación</span>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <button onclick="setMode('eco')" id="btn-eco" class="mode-btn p-2.5 rounded-lg border border-slate-800 bg-slate-900/30 text-slate-400 text-left font-medium flex flex-col">
+            <span><i class="fa-solid fa-leaf mr-1"></i>Eco</span>
+            <span class="text-[9px] text-slate-500 mono mt-1">~91% eff.</span>
+          </button>
+          <button onclick="setMode('normal')" id="btn-normal" class="mode-btn active-normal p-2.5 rounded-lg border border-slate-800 bg-slate-900/30 text-slate-400 text-left font-medium flex flex-col">
+            <span><i class="fa-solid fa-bolt mr-1"></i>Normal</span>
+            <span class="text-[9px] text-slate-500 mono mt-1">~87% eff.</span>
+          </button>
+          <button onclick="setMode('boost')" id="btn-boost" class="mode-btn p-2.5 rounded-lg border border-slate-800 bg-slate-900/30 text-slate-400 text-left font-medium flex flex-col">
+            <span><i class="fa-solid fa-fire mr-1"></i>Boost</span>
+            <span class="text-[9px] text-slate-500 mono mt-1">~81% eff.</span>
+          </button>
+          <button onclick="setMode('emergency')" id="btn-emergency" class="mode-btn p-2.5 rounded-lg border border-slate-800 bg-slate-900/30 text-slate-400 text-left font-medium flex flex-col">
+            <span><i class="fa-solid fa-circle-exclamation mr-1"></i>Emergencia</span>
+            <span class="text-[9px] text-slate-500 mono mt-1">Láser OFF</span>
+          </button>
+        </div>
+
+        <!-- Demanda -->
+        <div class="space-y-1 pt-2 border-t border-slate-800/60">
+          <div class="flex justify-between text-xs mono">
+            <span class="text-slate-400">Demanda</span>
+            <span class="text-cyan-400 font-bold" id="demand-val">50%</span>
+          </div>
+          <input type="range" min="10" max="100" value="50" id="demand-slider" oninput="setDemand(this.value)">
+        </div>
+
+        <!-- Toggles -->
+        <div class="flex gap-2 flex-wrap pt-1">
+          <button onclick="toggleRecovery()" id="btn-recovery" class="px-3 py-1.5 rounded-full text-[10px] mono font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 transition">
+            <i class="fa-solid fa-recycle mr-1"></i>Recuperación
+          </button>
+          <button onclick="toggleQuantum()" id="btn-quantum" class="px-3 py-1.5 rounded-full text-[10px] mono font-bold border border-slate-700 bg-slate-900 text-slate-500 transition">
+            <i class="fa-solid fa-atom mr-1"></i>Quantum
+          </button>
+        </div>
+      </div>
+
+      <!-- Telemetría numérica -->
+      <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+        <span class="text-[10px] mono text-slate-500 uppercase tracking-wider">Telemetría en Vivo</span>
+        <div class="grid grid-cols-2 gap-2 mono text-xs" id="telemetry-grid">
+          <div class="p-2 bg-slate-900/40 rounded border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">VOLTAJE</span>
+            <span class="text-slate-200 font-bold" id="tel-voltage">1.42 V</span>
+          </div>
+          <div class="p-2 bg-slate-900/40 rounded border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">CORRIENTE</span>
+            <span class="text-slate-200 font-bold" id="tel-current">5.0 A</span>
+          </div>
+          <div class="p-2 bg-slate-900/40 rounded border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">H2 PROD.</span>
+            <span class="text-emerald-400 font-bold" id="tel-h2">0.32 g/s</span>
+          </div>
+          <div class="p-2 bg-slate-900/40 rounded border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">EFICIENCIA</span>
+            <span class="text-cyan-400 font-bold" id="tel-eff">87.3%</span>
+          </div>
+          <div class="p-2 bg-slate-900/40 rounded border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">POT. LÁSER</span>
+            <span class="text-slate-200 font-bold" id="tel-laser">1.2 W</span>
+          </div>
+          <div class="p-2 bg-slate-900/40 rounded border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">TEMP. NÚCLEO</span>
+            <span class="text-slate-200 font-bold" id="tel-temp">42 °C</span>
+          </div>
+          <div class="p-2 bg-slate-900/40 rounded border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">PRESIÓN</span>
+            <span class="text-slate-200 font-bold" id="tel-pressure">2.4 bar</span>
+          </div>
+          <div class="p-2 bg-slate-900/40 rounded border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">SOC BATERÍA</span>
+            <span class="text-slate-200 font-bold" id="tel-soc">78%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- H2 acumulado -->
+      <div class="bg-slate-950 border border-emerald-500/20 rounded-xl p-4">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] mono text-slate-500 uppercase">H2 Acumulado</span>
+          <span class="text-[9px] mono text-emerald-400" id="h2-rate">0.32 g/s</span>
+        </div>
+        <p class="text-2xl font-bold text-emerald-400 mono mt-1" id="h2-total">0.000 g</p>
+        <p class="text-[10px] text-slate-500 mono mt-1" id="h2-equiv">equiv. 0.000 kWh</p>
+      </div>
+    </div>
+
+    <!-- Columna central: Gráficos + Diagrama -->
+    <div class="xl:col-span-6 space-y-4">
+      <!-- 6 gráficos en tiempo real -->
+      <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
+          <canvas id="chart-voltage" class="chart" style="height:120px"></canvas>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
+          <canvas id="chart-current" class="chart" style="height:120px"></canvas>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
+          <canvas id="chart-h2" class="chart" style="height:120px"></canvas>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
+          <canvas id="chart-eff" class="chart" style="height:120px"></canvas>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
+          <canvas id="chart-laser" class="chart" style="height:120px"></canvas>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
+          <canvas id="chart-temp" class="chart" style="height:120px"></canvas>
+        </div>
+      </div>
+
+      <!-- Diagrama de flujo del sistema -->
+      <div class="bg-slate-950 border border-slate-800 rounded-xl p-4">
+        <span class="text-[10px] mono text-slate-500 uppercase tracking-wider block mb-3">Diagrama de Flujo del Sistema — Haz clic en un módulo</span>
+        <svg id="system-diagram" viewBox="0 0 600 220" class="w-full" style="max-height:220px">
+          <!-- Líneas de flujo -->
+          <line id="flow-water" x1="95" y1="70" x2="200" y2="70" stroke="#38bdf8" stroke-width="2" class="flow-r"/>
+          <line id="flow-elec-bat" x1="310" y1="170" x2="310" y2="140" stroke="#fbbf24" stroke-width="2" class="flow-d"/>
+          <line id="flow-laser" x1="310" y1="45" x2="310" y2="65" stroke="#f472b6" stroke-width="2" class="flow-d"/>
+          <line id="flow-h2" x1="420" y1="95" x2="500" y2="95" stroke="#34d399" stroke-width="2" class="flow-r"/>
+          <line id="flow-heat" x1="420" y1="120" x2="500" y2="140" stroke="#ef4444" stroke-width="1.5" class="flow-r" stroke-dasharray="4 8"/>
+          <line id="flow-ecu" x1="230" y1="170" x2="200" y2="140" stroke="#a78bfa" stroke-width="1.5" class="flow-r" stroke-dasharray="4 8"/>
+
+          <!-- Módulo 1: Agua -->
+          <g class="module-box" onclick="selectModule('water')" data-module="water">
+            <rect x="10" y="40" width="85" height="60" rx="8" fill="#0c1929" stroke="#1e3a5f" stroke-width="1.5"/>
+            <text x="52" y="62" text-anchor="middle" fill="#38bdf8" font-size="9" font-family="JetBrains Mono" font-weight="700">M1</text>
+            <text x="52" y="78" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="Space Grotesk">Purif. H2O</text>
+            <text x="52" y="90" text-anchor="middle" fill="#38bdf8" font-size="8" font-family="JetBrains Mono" id="diag-water">85%</text>
+          </g>
+
+          <!-- Módulo 3A: Electrólisis -->
+          <g class="module-box" onclick="selectModule('core')" data-module="core">
+            <rect x="200" y="50" width="120" height="90" rx="8" fill="#0c1929" stroke="#1e3a5f" stroke-width="1.5"/>
+            <text x="260" y="72" text-anchor="middle" fill="#06b6d4" font-size="9" font-family="JetBrains Mono" font-weight="700">M3A</text>
+            <text x="260" y="88" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="Space Grotesk">Electrólisis</text>
+            <text x="260" y="100" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="Space Grotesk">Plasmónica</text>
+            <text x="260" y="118" text-anchor="middle" fill="#06b6d4" font-size="8" font-family="JetBrains Mono" id="diag-core">1.42V</text>
+            <text x="260" y="132" text-anchor="middle" fill="#34d399" font-size="8" font-family="JetBrains Mono" id="diag-core-eff">87.3%</text>
+          </g>
+
+          <!-- Módulo 3B: Láser -->
+          <g class="module-box" onclick="selectModule('laser')" data-module="laser">
+            <rect x="250" y="5" width="120" height="38" rx="6" fill="#0c1929" stroke="#1e3a5f" stroke-width="1.5"/>
+            <text x="310" y="22" text-anchor="middle" fill="#f472b6" font-size="9" font-family="JetBrains Mono" font-weight="700">M3B</text>
+            <text x="310" y="35" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="Space Grotesk">Gatillo Fotónico <tspan fill="#f472b6" id="diag-laser">1.2W</tspan></text>
+          </g>
+
+          <!-- Módulo 2: Batería -->
+          <g class="module-box" onclick="selectModule('battery')" data-module="battery">
+            <rect x="250" y="170" width="120" height="42" rx="6" fill="#0c1929" stroke="#1e3a5f" stroke-width="1.5"/>
+            <text x="310" y="188" text-anchor="middle" fill="#fbbf24" font-size="9" font-family="JetBrains Mono" font-weight="700">M2</text>
+            <text x="310" y="202" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="Space Grotesk">Batería <tspan fill="#fbbf24" id="diag-bat">78%</tspan></text>
+          </g>
+
+          <!-- Módulo 4: PEM + TEG -->
+          <g class="module-box" onclick="selectModule('fuelcell')" data-module="fuelcell">
+            <rect x="500" y="60" width="90" height="80" rx="8" fill="#0c1929" stroke="#1e3a5f" stroke-width="1.5"/>
+            <text x="545" y="82" text-anchor="middle" fill="#34d399" font-size="9" font-family="JetBrains Mono" font-weight="700">M4</text>
+            <text x="545" y="96" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="Space Grotesk">PEM + TEG</text>
+            <text x="545" y="112" text-anchor="middle" fill="#34d399" font-size="8" font-family="JetBrains Mono" id="diag-pem">H2 OUT</text>
+            <text x="545" y="128" text-anchor="middle" fill="#ef4444" font-size="7" font-family="JetBrains Mono" id="diag-teg">TEG 6.2%</text>
+          </g>
+
+          <!-- Módulo 5: ECU -->
+          <g class="module-box" onclick="selectModule('ecu')" data-module="ecu">
+            <rect x="100" y="155" width="130" height="45" rx="6" fill="#0c1929" stroke="#1e3a5f" stroke-width="1.5"/>
+            <text x="165" y="175" text-anchor="middle" fill="#a78bfa" font-size="9" font-family="JetBrains Mono" font-weight="700">M5 — ECU IA</text>
+            <text x="165" y="190" text-anchor="middle" fill="#34d399" font-size="8" font-family="JetBrains Mono" id="diag-ecu">MPC ACTIVO</text>
+          </g>
+
+          <!-- Leyenda -->
+          <g transform="translate(10, 195)">
+            <line x1="0" y1="5" x2="15" y2="5" stroke="#38bdf8" stroke-width="2"/>
+            <text x="18" y="8" fill="#64748b" font-size="6" font-family="JetBrains Mono">H2O</text>
+            <line x1="45" y1="5" x2="60" y2="5" stroke="#34d399" stroke-width="2"/>
+            <text x="63" y="8" fill="#64748b" font-size="6" font-family="JetBrains Mono">H2</text>
+            <line x1="85" y1="5" x2="100" y2="5" stroke="#fbbf24" stroke-width="2"/>
+            <text x="103" y="8" fill="#64748b" font-size="6" font-family="JetBrains Mono">Elec</text>
+            <line x1="130" y1="5" x2="145" y2="5" stroke="#f472b6" stroke-width="2"/>
+            <text x="148" y="8" fill="#64748b" font-size="6" font-family="JetBrains Mono">Láser</text>
+            <line x1="180" y1="5" x2="195" y2="5" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4 8"/>
+            <text x="198" y="8" fill="#64748b" font-size="6" font-family="JetBrains Mono">Calor</text>
+            <line x1="230" y1="5" x2="245" y2="5" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4 8"/>
+            <text x="248" y="8" fill="#64748b" font-size="6" font-family="JetBrains Mono">Control</text>
+          </g>
+        </svg>
+      </div>
+
+      <!-- Panel de módulo seleccionado -->
+      <div id="module-detail" class="bg-slate-950 border border-slate-800 rounded-xl p-4 hidden">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-bold text-slate-200" id="module-title">Módulo</h3>
+          <button onclick="selectModule(null)" class="text-slate-500 hover:text-slate-300 text-xs"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="module-content" class="text-xs text-slate-400 space-y-2"></div>
+      </div>
+    </div>
+
+    <!-- Columna derecha: Estadísticas y resumen -->
+    <div class="xl:col-span-3 space-y-4">
+      <!-- Resumen energético -->
+      <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+        <span class="text-[10px] mono text-slate-500 uppercase tracking-wider">Balance Energético</span>
+        <div class="space-y-2 mono text-xs">
+          <div class="flex justify-between"><span class="text-slate-400">P. Eléctrica</span><span class="text-amber-400 font-bold" id="bal-elec">7.1 W</span></div>
+          <div class="flex justify-between"><span class="text-slate-400">P. Láser</span><span class="text-pink-400 font-bold" id="bal-laser">1.2 W</span></div>
+          <div class="flex justify-between"><span class="text-slate-400">P. Total In</span><span class="text-white font-bold" id="bal-total-in">8.3 W</span></div>
+          <hr class="border-slate-800">
+          <div class="flex justify-between"><span class="text-slate-400">P. H2 (HHV)</span><span class="text-emerald-400 font-bold" id="bal-h2-out">7.0 W</span></div>
+          <div class="flex justify-between"><span class="text-slate-400">P. Recuperada</span><span class="text-cyan-400 font-bold" id="bal-recov">0.5 W</span></div>
+          <hr class="border-slate-800">
+          <div class="flex justify-between"><span class="text-slate-400">Energía Esp.</span><span class="text-cyan-300 font-bold" id="bal-spec">46.5 kWh/kg</span></div>
+        </div>
+      </div>
+
+      <!-- Consumo acumulado -->
+      <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+        <span class="text-[10px] mono text-slate-500 uppercase tracking-wider">Consumo Acumulado</span>
+        <div class="space-y-2 mono text-xs">
+          <div class="flex justify-between"><span class="text-slate-400">Energía</span><span class="text-amber-400 font-bold" id="acc-energy">0.000 Wh</span></div>
+          <div class="flex justify-between"><span class="text-slate-400">Agua</span><span class="text-sky-400 font-bold" id="acc-water">0.000 mL</span></div>
+          <div class="flex justify-between"><span class="text-slate-400">CO2 evitado</span><span class="text-emerald-400 font-bold" id="acc-co2">0.000 g</span></div>
+        </div>
+      </div>
+
+      <!-- Indicadores de estado -->
+      <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+        <span class="text-[10px] mono text-slate-500 uppercase tracking-wider">Indicadores</span>
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 text-xs">
+            <div id="ind-laser" class="w-2 h-2 rounded-full bg-emerald-400 shadow-lg shadow-emerald-500/30"></div>
+            <span class="text-slate-400">Láser 808nm</span>
+            <span class="mono text-emerald-400 ml-auto text-[10px]" id="ind-laser-text">OK</span>
+          </div>
+          <div class="flex items-center gap-2 text-xs">
+            <div id="ind-spr" class="w-2 h-2 rounded-full bg-emerald-400 shadow-lg shadow-emerald-500/30"></div>
+            <span class="text-slate-400">Resonancia SPR</span>
+            <span class="mono text-emerald-400 ml-auto text-[10px]" id="ind-spr-text">808nm</span>
+          </div>
+          <div class="flex items-center gap-2 text-xs">
+            <div id="ind-mpc" class="w-2 h-2 rounded-full bg-emerald-400 shadow-lg shadow-emerald-500/30"></div>
+            <span class="text-slate-400">Control MPC</span>
+            <span class="mono text-emerald-400 ml-auto text-[10px]" id="ind-mpc-text">≤50ms</span>
+          </div>
+          <div class="flex items-center gap-2 text-xs">
+            <div id="ind-safety" class="w-2 h-2 rounded-full bg-emerald-400 shadow-lg shadow-emerald-500/30"></div>
+            <span class="text-slate-400">Matriz Seguridad</span>
+            <span class="mono text-emerald-400 ml-auto text-[10px]" id="ind-safety-text">NOMINAL</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== TAB: SIMULADOR FARADAY ==================== -->
+<section id="tab-faraday" class="hidden fade-in">
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <!-- Parámetros de entrada -->
+    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
+      <h2 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-flask text-cyan-400"></i> Parámetros de Entrada</h2>
+      <div class="space-y-4" id="faraday-inputs">
+        <div>
+          <div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">Corriente por celda (A)</span><span class="text-cyan-400 font-bold" id="f-cur-val">5.0</span></div>
+          <input type="range" min="0.5" max="200" step="0.5" value="5" id="f-current" oninput="updateFaraday()">
+        </div>
+        <div>
+          <div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">Número de celdas</span><span class="text-cyan-400 font-bold" id="f-cells-val">10</span></div>
+          <input type="range" min="1" max="200" step="1" value="10" id="f-cells" oninput="updateFaraday()">
+        </div>
+        <div>
+          <div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">Eficiencia de corriente (%)</span><span class="text-cyan-400 font-bold" id="f-eff-val">95</span></div>
+          <input type="range" min="50" max="99" step="0.5" value="95" id="f-eff" oninput="updateFaraday()">
+        </div>
+        <div>
+          <div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">Voltaje por celda (V)</span><span class="text-cyan-400 font-bold" id="f-volt-val">1.42</span></div>
+          <input type="range" min="1.0" max="2.5" step="0.01" value="1.42" id="f-volt" oninput="updateFaraday()">
+        </div>
+        <div>
+          <div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">Potencia láser total (W)</span><span class="text-cyan-400 font-bold" id="f-laser-val">12</span></div>
+          <input type="range" min="0" max="500" step="1" value="12" id="f-laser" oninput="updateFaraday()">
+        </div>
+        <div>
+          <div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">Tiempo de simulación (h)</span><span class="text-cyan-400 font-bold" id="f-time-val">1</span></div>
+          <input type="range" min="0.1" max="24" step="0.1" value="1" id="f-time" oninput="updateFaraday()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Resultados -->
+    <div class="space-y-4">
+      <div class="bg-slate-950 border border-emerald-500/20 rounded-xl p-5 space-y-4">
+        <h2 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-calculator text-emerald-400"></i> Resultados — Ley de Faraday</h2>
+        <div class="grid grid-cols-2 gap-3 mono text-xs">
+          <div class="p-3 bg-slate-900/50 rounded-lg border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">H2 PRODUCIDO</span>
+            <span class="text-xl font-bold text-emerald-400 block mt-1" id="fr-mass">1.786 g</span>
+          </div>
+          <div class="p-3 bg-slate-900/50 rounded-lg border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">VOLUMEN H2 (STP)</span>
+            <span class="text-xl font-bold text-emerald-400 block mt-1" id="fr-vol">19.9 L</span>
+          </div>
+          <div class="p-3 bg-slate-900/50 rounded-lg border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">MOLES H2</span>
+            <span class="text-lg font-bold text-cyan-400 block mt-1" id="fr-mol">0.886 mol</span>
+          </div>
+          <div class="p-3 bg-slate-900/50 rounded-lg border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">POTENCIA TOTAL</span>
+            <span class="text-lg font-bold text-amber-400 block mt-1" id="fr-power">83.0 W</span>
+          </div>
+          <div class="p-3 bg-slate-900/50 rounded-lg border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">ENERGÍA ENTRADA</span>
+            <span class="text-lg font-bold text-amber-400 block mt-1" id="fr-ein">83.0 Wh</span>
+          </div>
+          <div class="p-3 bg-slate-900/50 rounded-lg border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">ENERGÍA H2 (HHV)</span>
+            <span class="text-lg font-bold text-emerald-400 block mt-1" id="fr-eout">70.3 Wh</span>
+          </div>
+          <div class="p-3 bg-slate-900/50 rounded-lg border border-slate-800 col-span-2">
+            <span class="text-[9px] text-slate-500 block">EFICIENCIA TERMODINÁMICA</span>
+            <div class="flex items-end gap-2 mt-1">
+              <span class="text-3xl font-bold text-cyan-400" id="fr-eff">84.7%</span>
+              <span class="text-[10px] text-slate-500 mb-1">HHV base</span>
+            </div>
+            <div class="w-full h-2 bg-slate-800 rounded-full mt-2 overflow-hidden">
+              <div id="fr-eff-bar" class="h-full bg-gradient-to-r from-red-500 via-amber-500 to-emerald-400 rounded-full transition-all duration-300" style="width:84.7%"></div>
+            </div>
+          </div>
+          <div class="p-3 bg-slate-900/50 rounded-lg border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">ENERGÍA ESPECÍFICA</span>
+            <span class="text-lg font-bold text-cyan-300 block mt-1" id="fr-spec">46.5 kWh/kg</span>
+          </div>
+          <div class="p-3 bg-slate-900/50 rounded-lg border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">AGUA CONSUMIDA</span>
+            <span class="text-lg font-bold text-sky-400 block mt-1" id="fr-water">16.1 mL</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ecuación mostrada -->
+      <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 mono text-[11px] text-slate-400 leading-relaxed">
+        <span class="text-slate-500 block mb-2">/* Ecuación de Faraday aplicada */</span>
+        <p>n(H2) = (I × t × η × N_celdas) / (z × F)</p>
+        <p class="mt-1">n(H2) = (<span class="text-cyan-400" id="eq-i">5.0</span> × <span class="text-cyan-400" id="eq-t">3600</span>s × <span class="text-cyan-400" id="eq-eta">0.95</span> × <span class="text-cyan-400" id="eq-n">10</span>) / (2 × 96485)</p>
+        <p class="mt-1">n(H2) = <span class="text-emerald-400 font-bold" id="eq-result">0.886</span> mol → <span class="text-emerald-400 font-bold" id="eq-mass">1.786</span> g H2</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== TAB: LCA ECONÓMICO ==================== -->
+<section id="tab-lca" class="hidden fade-in">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <!-- CAPEX -->
+    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+      <h2 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-coins text-amber-400"></i> CAPEX (USD)</h2>
+      <div class="space-y-3" id="lca-capex-inputs">
+        <div><div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">Celdas electrolíticas</span><span class="text-amber-400" id="lc-ca1-v">15,000</span></div><input type="range" min="5000" max="100000" step="500" value="15000" id="lc-ca1" oninput="updateLCA()"></div>
+        <div><div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">Sistema láser 808nm</span><span class="text-amber-400" id="lc-ca2-v">8,000</span></div><input type="range" min="2000" max="50000" step="500" value="8000" id="lc-ca2" oninput="updateLCA()"></div>
+        <div><div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">Batería estructural</span><span class="text-amber-400" id="lc-ca3-v">12,000</span></div><input type="range" min="3000" max="60000" step="500" value="12000" id="lc-ca3" oninput="updateLCA()"></div>
+        <div><div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">ECU + IA</span><span class="text-amber-400" id="lc-ca4-v">5,000</span></div><input type="range" min="1000" max="20000" step="500" value="5000" id="lc-ca4" oninput="updateLCA()"></div>
+        <div><div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">Instalación + integration</span><span class="text-amber-400" id="lc-ca5-v">3,000</span></div><input type="range" min="500" max="15000" step="500" value="3000" id="lc-ca5" oninput="updateLCA()"></div>
+      </div>
+      <div class="pt-2 border-t border-slate-800 flex justify-between text-xs mono font-bold"><span class="text-slate-400">CAPEX TOTAL</span><span class="text-amber-400" id="lc-capex-total">43,000</span></div>
+    </div>
+
+    <!-- OPEX y parámetros -->
+    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+      <h2 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-gear text-slate-400"></i> OPEX y Parámetros</h2>
+      <div class="space-y-3">
+        <div><div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">Mantenimiento anual (USD)</span><span class="text-slate-300" id="lc-op1-v">2,000</span></div><input type="range" min="0" max="10000" step="100" value="2000" id="lc-op1" oninput="updateLCA()"></div>
+        <div><div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">Costo electricidad (USD/kWh)</span><span class="text-slate-300" id="lc-op2-v">0.12</span></div><input type="range" min="0.02" max="0.40" step="0.01" value="0.12" id="lc-op2" oninput="updateLCA()"></div>
+        <div><div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">Horas operación/año</span><span class="text-slate-300" id="lc-op3-v">8,000</span></div><input type="range" min="1000" max="8760" step="100" value="8000" id="lc-op3" oninput="updateLCA()"></div>
+        <div><div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">Vida útil (años)</span><span class="text-slate-300" id="lc-op4-v">15</span></div><input type="range" min="5" max="30" step="1" value="15" id="lc-op4" oninput="updateLCA()"></div>
+        <div><div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">Tasa descuento (%)</span><span class="text-slate-300" id="lc-op5-v">8</span></div><input type="range" min="1" max="20" step="0.5" value="8" id="lc-op5" oninput="updateLCA()"></div>
+        <div><div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">Degradación anual (%)</span><span class="text-slate-300" id="lc-op6-v">0.5</span></div><input type="range" min="0" max="5" step="0.1" value="0.5" id="lc-op6" oninput="updateLCA()"></div>
+        <div><div class="flex justify-between text-xs mono mb-1"><span class="text-slate-400">Producción H2 (g/h)</span><span class="text-emerald-400" id="lc-op7-v">178.6</span></div><input type="range" min="10" max="5000" step="1" value="179" id="lc-op7" oninput="updateLCA()"></div>
+      </div>
+    </div>
+
+    <!-- Resultados LCA -->
+    <div class="space-y-4">
+      <div class="bg-slate-950 border border-cyan-500/20 rounded-xl p-5 space-y-4">
+        <h2 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-chart-line text-cyan-400"></i> Resultados LCA</h2>
+        <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-800 text-center">
+          <span class="text-[10px] text-slate-500 mono block">LCOH — Costo Nivelado de H2</span>
+          <span class="text-4xl font-bold text-cyan-400 mono block mt-2" id="lc-lcoh">$9.74</span>
+          <span class="text-xs text-slate-500 mono">/kg H2</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 mono text-xs">
+          <div class="p-2 bg-slate-900/40 rounded border border-slate-800"><span class="text-[9px] text-slate-500 block">H2 ANUAL</span><span class="text-emerald-400 font-bold" id="lc-h2-yr">1,429 kg</span></div>
+          <div class="p-2 bg-slate-900/40 rounded border border-slate-800"><span class="text-[9px] text-slate-500 block">H2 TOTAL VIDA</span><span class="text-emerald-400 font-bold" id="lc-h2-total">18,240 kg</span></div>
+          <div class="p-2 bg-slate-900/40 rounded border border-slate-800"><span class="text-[9px] text-slate-500 block">OPEX ANUAL</span><span class="text-amber-400 font-bold" id="lc-opex-yr">$8,903</span></div>
+          <div class="p-2 bg-slate-900/40 rounded border border-slate-800"><span class="text-[9px] text-slate-500 block">CRF</span><span class="text-slate-300 font-bold" id="lc-crf">0.1168</span></div>
+        </div>
+      </div>
+
+      <!-- Comparación -->
+      <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+        <span class="text-[10px] mono text-slate-500 uppercase tracking-wider">Comparativa de Costo H2</span>
+        <canvas id="chart-lca-compare" class="chart" style="height:150px"></canvas>
+        <div class="grid grid-cols-3 gap-2 text-center mono text-[10px]">
+          <div><span class="text-slate-500 block">H2 Gris</span><span class="text-red-400 font-bold">$1.50</span></div>
+          <div><span class="text-slate-500 block">H2 Verde PEM</span><span class="text-amber-400 font-bold">$4.50</span></div>
+          <div><span class="text-slate-500 block">SPHA-Q</span><span class="text-cyan-400 font-bold" id="lc-compare-val">$9.74</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== TAB: ESCENARIOS ==================== -->
+<section id="tab-scenarios" class="hidden fade-in">
+  <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
+    <button onclick="selectScenario('24h')" id="sc-24h" class="scenario-card bg-slate-950 border border-slate-800 rounded-xl p-4 text-left transition hover:border-cyan-500/30">
+      <i class="fa-solid fa-sun text-amber-400 text-lg mb-2"></i>
+      <h3 class="text-xs font-bold text-white">Operación 24 Horas</h3>
+      <p class="text-[10px] text-slate-500 mt-1">Ciclo completo diario con demanda variable simulando irradiación solar.</p>
+    </button>
+    <button onclick="selectScenario('fault')" id="sc-fault" class="scenario-card bg-slate-950 border border-slate-800 rounded-xl p-4 text-left transition hover:border-cyan-500/30">
+      <i class="fa-solid fa-bolt text-red-400 text-lg mb-2"></i>
+      <h3 class="text-xs font-bold text-white">Respuesta a Fallo</h3>
+      <p class="text-[10px] text-slate-500 mt-1">Normal → Sobrecalentamiento → Emergencia → Recuperación automática.</p>
+    </button>
+    <button onclick="selectScenario('quantum')" id="sc-quantum" class="scenario-card bg-slate-950 border border-slate-800 rounded-xl p-4 text-left transition hover:border-cyan-500/30">
+      <i class="fa-solid fa-atom text-purple-400 text-lg mb-2"></i>
+      <h3 class="text-xs font-bold text-white">Efecto Quantum</h3>
+      <p class="text-[10px] text-slate-500 mt-1">Comparación directa: modo estándar vs asistencia de enjambre cuántico.</p>
+    </button>
+    <button onclick="selectScenario('optimize')" id="sc-optimize" class="scenario-card bg-slate-950 border border-slate-800 rounded-xl p-4 text-left transition hover:border-cyan-500/30">
+      <i class="fa-solid fa-sliders text-emerald-400 text-lg mb-2"></i>
+      <h3 class="text-xs font-bold text-white">Optimización ECU</h3>
+      <p class="text-[10px] text-slate-500 mt-1">El MPC busca el punto óptimo de eficiencia ajustando demanda y modo.</p>
+    </button>
+  </div>
+
+  <!-- Controles de reproducción -->
+  <div id="scenario-controls" class="hidden bg-slate-950 border border-slate-800 rounded-xl p-4 mb-4">
+    <div class="flex items-center gap-4">
+      <button id="sc-play-btn" onclick="playScenario()" class="w-10 h-10 rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 flex items-center justify-center transition cursor-pointer"><i class="fa-solid fa-play"></i></button>
+      <div class="flex-1">
+        <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden cursor-pointer" onclick="seekScenario(event)" id="sc-progress-bar">
+          <div id="sc-progress" class="h-full bg-cyan-400 rounded-full transition-all duration-100" style="width:0%"></div>
+        </div>
+      </div>
+      <span class="mono text-xs text-slate-400 min-w-[80px] text-right" id="sc-time-display">00:00 / 00:00</span>
+      <button onclick="resetScenario()" class="text-slate-500 hover:text-slate-300 text-xs"><i class="fa-solid fa-rotate-left"></i></button>
+    </div>
+  </div>
+
+  <!-- Gráfico del escenario -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4">
+      <span class="text-[10px] mono text-slate-500 uppercase tracking-wider block mb-2">Eficiencia y Producción H2</span>
+      <canvas id="chart-scenario-1" class="chart" style="height:200px"></canvas>
+    </div>
+    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4">
+      <span class="text-[10px] mono text-slate-500 uppercase tracking-wider block mb-2">Temperatura y Potencia</span>
+      <canvas id="chart-scenario-2" class="chart" style="height:200px"></canvas>
+    </div>
+  </div>
+
+  <!-- Resumen del escenario -->
+  <div id="scenario-summary" class="hidden mt-4 bg-slate-950 border border-emerald-500/20 rounded-xl p-5">
+    <h3 class="text-sm font-bold text-white mb-3">Resumen de Simulación</h3>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mono text-xs" id="scenario-stats"></div>
+  </div>
+</section>
+
+<!-- ==================== TAB: SEGURIDAD ==================== -->
+<section id="tab-safety" class="hidden fade-in">
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="space-y-4">
+      <div class="bg-slate-950 border border-red-500/20 rounded-xl p-5 space-y-4">
+        <h2 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-shield-halved text-red-400 animate-pulse"></i> Inyector de Fallos (Anexo 2)</h2>
+        <p class="text-[11px] text-slate-400 leading-relaxed">Simula las tres condiciones de fallo crítico definidas en el protocolo de seguridad del SPHA-Q. Cada fallo activa el Modo de Emergencia — Eléctrico Puro de forma automática.</p>
+        <div class="space-y-2.5">
+          <button onclick="injectFault('overtemp')" class="w-full p-3 bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-500/20 rounded-lg text-xs font-medium flex items-center gap-3 transition cursor-pointer text-left">
+            <i class="fa-solid fa-temperature-high text-lg shrink-0"></i>
+            <div><span class="font-bold block">Sobrecalentamiento Crítico</span><span class="text-[10px] text-red-400/60">Temp. núcleo > 65°C — Apagado instantáneo del array láser M3B</span></div>
+          </button>
+          <button onclick="injectFault('leak')" class="w-full p-3 bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-500/20 rounded-lg text-xs font-medium flex items-center gap-3 transition cursor-pointer text-left">
+            <i class="fa-solid fa-bolt-lightning text-lg shrink-0"></i>
+            <div><span class="font-bold block">Fuga Óptica Detectada</span><span class="text-[10px] text-red-400/60">Fotodiodo detecta dispersión lumínica en frontera — Cutoff de potencia láser</span></div>
+          </button>
+          <button onclick="injectFault('timeout')" class="w-full p-3 bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-500/20 rounded-lg text-xs font-medium flex items-center gap-3 transition cursor-pointer text-left">
+            <i class="fa-solid fa-clock-rotate-left text-lg shrink-0"></i>
+            <div><span class="font-bold block">Timeout de Señal Láser</span><span class="text-[10px] text-red-400/60">Latencia > 500ms — Pérdida de enlace con emisores M3B</span></div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Estado de seguridad actual -->
+      <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+        <h2 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-list-check text-cyan-400"></i> Checklist de Seguridad</h2>
+        <div class="space-y-2" id="safety-checklist">
+          <div class="flex items-center gap-2 text-xs"><i class="fa-solid fa-circle-check text-emerald-400" id="sc-1"></i><span class="text-slate-400">Encapsulado hermético óptico</span></div>
+          <div class="flex items-center gap-2 text-xs"><i class="fa-solid fa-circle-check text-emerald-400" id="sc-2"></i><span class="text-slate-400">Gafas OD 4+ @ 808nm disponibles</span></div>
+          <div class="flex items-center gap-2 text-xs"><i class="fa-solid fa-circle-check text-emerald-400" id="sc-3"></i><span class="text-slate-400">Sensores de temperatura operativos</span></div>
+          <div class="flex items-center gap-2 text-xs"><i class="fa-solid fa-circle-check text-emerald-400" id="sc-4"></i><span class="text-slate-400">Fotodiodos de frontera activos</span></div>
+          <div class="flex items-center gap-2 text-xs"><i class="fa-solid fa-circle-check text-emerald-400" id="sc-5"></i><span class="text-slate-400">ECU latencia < 50ms verificada</span></div>
+          <div class="flex items-center gap-2 text-xs"><i class="fa-solid fa-circle-check text-emerald-400" id="sc-6"></i><span class="text-slate-400">Modo emergencia testado</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log de seguridad y timeline -->
+    <div class="space-y-4">
+      <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+        <h2 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-terminal text-slate-400"></i> Log de Control ECU</h2>
+        <div id="safety-log" class="space-y-1.5 max-h-[400px] overflow-y-auto mono text-[10px]">
+          <div class="text-slate-500 p-2">Sistema iniciado. Todos los módulos nominales. Esperando interacción...</div>
+        </div>
+      </div>
+
+      <!-- Estadísticas de fallos -->
+      <div class="bg-slate-950 border border-slate-800 rounded-xl p-5">
+        <h2 class="text-sm font-bold text-white mb-3 flex items-center gap-2"><i class="fa-solid fa-chart-bar text-amber-400"></i> Estadísticas de Fallos</h2>
+        <div class="grid grid-cols-3 gap-3 mono text-xs text-center">
+          <div class="p-3 bg-slate-900/40 rounded-lg border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">FALLOS TOTAL</span>
+            <span class="text-lg font-bold text-red-400" id="fault-count">0</span>
+          </div>
+          <div class="p-3 bg-slate-900/40 rounded-lg border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">TIEMPO MEDIO REC.</span>
+            <span class="text-lg font-bold text-amber-400" id="fault-mttr">—</span>
+          </div>
+          <div class="p-3 bg-slate-900/40 rounded-lg border border-slate-800">
+            <span class="text-[9px] text-slate-500 block">DISPONIBILIDAD</span>
+            <span class="text-lg font-bold text-emerald-400" id="fault-avail">100%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- Footer -->
+<footer class="border-t border-slate-800 bg-slate-950/80 py-4 text-center text-[10px] text-slate-600 mono mt-auto shrink-0">
+  <div class="max-w-[1440px] mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
+    <span>© 2026 SPHA-Q · Dr. Julio César Oporta Barrera</span>
+    <span>Faraday Engine · MPC Closed Loop · Canvas Render</span>
+  </div>
+</footer>
+
+<script>
+// ============================================================
+// ESTADO GLOBAL
+// ============================================================
+const S = {
+  tab: 'control',
+  mode: 'normal',
+  demand: 50,
+  quantum: false,
+  recovery: true,
+  selectedModule: null,
+  paused: false,
+  speed: 1,
+  elapsed: 0, // segundos simulados
+  h2Total: 0,
+  energyTotal: 0,
+  waterTotal: 0,
+  faultCount: 0,
+  faultTimes: [], // timestamps de fallos para calcular MTTR
+  activeFault: null,
+  faultStartTime: null,
+  telemetry: { voltage:1.42, current:5.0, h2Prod:0.32, efficiency:87.3, laserPower:1.2, tempCore:42, tempTeg:38, pressure:2.4, h2Flow:0.32, waterLevel:85, soc:78, recoveryEff:6.2 },
+  history: { voltage:[], current:[], h2Prod:[], efficiency:[], laserPower:[], tempCore:[] },
+  scenario: { id:null, playing:false, step:0, data:[], recorded:null }
+};
+
+// Constantes físicas
+const FARADAY = 96485; // C/mol
+const M_H2 = 2.016; // g/mol
+const V_H2_STP = 22.414; // L/mol
+const HHV_H2 = 39.39; // kWh/kg (Higher Heating Value)
+const WATER_PER_H2 = 9.0; // g H2O por g H2 (estequiometría)
+
+// ============================================================
+// SISTEMA DE GRÁFICOS CANVAS
+// ============================================================
+const charts = {};
+const dpr = window.devicePixelRatio || 1;
+
+function createChart(id, opts) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return null;
+  const ctx = canvas.getContext('2d');
+  const data = [];
+  const maxPts = opts.maxPoints || 90;
+  const c = { canvas, ctx, data, maxPts, color: opts.color, label: opts.label, unit: opts.unit, yMin: opts.yMin, yMax: opts.yMax, dualColor: opts.dualColor || null, dualData: opts.dualData || null };
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
+  }
+
+  function push(val) {
+    data.push(val);
+    if (data.length > maxPts) data.shift();
+    draw();
+  }
+
+  function draw() {
+    const w = canvas.width / dpr;
+    const h = canvas.height / dpr;
+    if (w < 10 || h < 10) return;
+
+    // Fondo
+    ctx.fillStyle = '#070c18';
+    ctx.fillRect(0, 0, w, h);
+
+    // Grid horizontal
+    const gridN = 4;
+    ctx.strokeStyle = 'rgba(148,163,184,0.06)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= gridN; i++) {
+      const y = Math.round((h / gridN) * i) + 0.5;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      const val = c.yMax - (c.yMax - c.yMin) * (i / gridN);
+      ctx.fillStyle = 'rgba(148,163,184,0.3)';
+      ctx.font = '8px JetBrains Mono';
+      ctx.textAlign = 'left';
+      ctx.fillText(val.toFixed(val >= 100 ? 0 : 1), 3, y - 3);
+    }
+
+    if (data.length < 2) return;
+    const xStep = w / (maxPts - 1);
+    const startI = maxPts - data.length;
+
+    function toY(v) { return h - ((v - c.yMin) / (c.yMax - c.yMin)) * (h - 4) - 2; }
+    function toX(i) { return (startI + i) * xStep; }
+
+    // Relleno degradado
+    ctx.beginPath();
+    for (let i = 0; i < data.length; i++) {
+      const x = toX(i), y = toY(data[i]);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.lineTo(toX(data.length - 1), h);
+    ctx.lineTo(toX(0), h);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, c.color + '25');
+    grad.addColorStop(1, c.color + '00');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Línea con glow
+    ctx.beginPath();
+    for (let i = 0; i < data.length; i++) {
+      const x = toX(i), y = toY(data[i]);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = c.color;
+    ctx.lineWidth = 1.8;
+    ctx.shadowColor = c.color;
+    ctx.shadowBlur = 6;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Punto actual
+    const lastV = data[data.length - 1];
+    const lx = toX(data.length - 1), ly = toY(lastV);
+    ctx.beginPath(); ctx.arc(lx, ly, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = c.color; ctx.fill();
+    ctx.beginPath(); ctx.arc(lx, ly, 7, 0, Math.PI * 2);
+    ctx.strokeStyle = c.color + '50'; ctx.lineWidth = 1.2; ctx.stroke();
+
+    // Label
+    ctx.fillStyle = 'rgba(148,163,184,0.5)';
+    ctx.font = '9px Space Grotesk';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${c.label} (${c.unit})`, w - 4, 12);
+
+    // Valor actual
+    ctx.fillStyle = c.color;
+    ctx.font = 'bold 10px JetBrains Mono';
+    ctx.textAlign = 'right';
+    ctx.fillText(lastV.toFixed(lastV >= 100 ? 0 : lastV >= 10 ? 1 : 2), w - 4, 24);
+  }
+
+  resize();
+  const ro = new ResizeObserver(resize);
+  ro.observe(canvas);
+  return { push, draw, clear: () => { data.length = 0; draw(); }, data: () => data };
+}
+
+// Gráfico de barras para LCA
+function drawLCACompare() {
+  const canvas = document.getElementById('chart-lca-compare');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const w = rect.width, h = rect.height;
+
+  ctx.fillStyle = '#070c18';
+  ctx.fillRect(0, 0, w, h);
+
+  const lcoh = parseFloat(document.getElementById('lc-lcoh').textContent.replace('$','')) || 9.74;
+  const vals = [
+    { label: 'H2 Gris', val: 1.5, color: '#ef4444' },
+    { label: 'H2 Verde\nPEM', val: 4.5, color: '#f59e0b' },
+    { label: 'SPHA-Q', val: lcoh, color: '#06b6d4' }
+  ];
+  const maxVal = Math.max(...vals.map(v => v.val)) * 1.2;
+  const barW = Math.min(60, (w - 80) / vals.length - 20);
+  const gap = (w - vals.length * barW) / (vals.length + 1);
+  const baseY = h - 24;
+
+  vals.forEach((v, i) => {
+    const x = gap + i * (barW + gap);
+    const barH = (v.val / maxVal) * (baseY - 20);
+
+    // Barra con gradiente
+    const g = ctx.createLinearGradient(x, baseY - barH, x, baseY);
+    g.addColorStop(0, v.color);
+    g.addColorStop(1, v.color + '40');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.roundRect(x, baseY - barH, barW, barH, [4, 4, 0, 0]);
+    ctx.fill();
+
+    // Valor
+    ctx.fillStyle = v.color;
+    ctx.font = 'bold 10px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText('$' + v.val.toFixed(2), x + barW / 2, baseY - barH - 6);
+
+    // Label
+    ctx.fillStyle = '#64748b';
+    ctx.font = '8px Space Grotesk';
+    const lines = v.label.split('\n');
+    lines.forEach((line, li) => {
+      ctx.fillText(line, x + barW / 2, baseY + 10 + li * 10);
+    });
+  });
+}
+
+// ============================================================
+// SIMULACIÓN DE TELEMETRÍA
+// ============================================================
+function simulateTelemetry() {
+  const t = S.elapsed * 0.001;
+  const df = 0.5 + (S.demand / 100) * 0.65;
+  const qm = S.quantum ? 1.55 : 1.0;
+
+  let tV = 1.42, tC = 5.0, tH = 0.32, tE = 87.0, tL = 1.2, tT = 42;
+
+  if (S.mode === 'eco') { tV=1.36; tC=4.0; tH=0.26; tE=91.2; tL=0.7; tT=37; }
+  else if (S.mode === 'boost') { tV=1.52; tC=7.0; tH=0.45; tE=81.5; tL=1.8; tT=48; }
+  else if (S.mode === 'emergency') { tV=1.20; tC=3.0; tH=0.14; tE=68.0; tL=0.0; tT=58; }
+
+  // Si hay fallo activo, forzar emergencia
+  if (S.activeFault) { tV=1.20; tC=3.0; tH=0.14; tE=68.0; tL=0.0; tT=58 + 5*Math.sin(t*3); }
+
+  const cur = Math.max(0.1, tC * df * qm + 0.3 * Math.sin(t * 1.5));
+  const vol = Math.max(0.1, tV + 0.03 * Math.sin(t * 0.8));
+  const h2 = Math.max(0.01, tH * df * (0.85 + 0.25 * qm) + 0.02 * Math.sin(t * 1.2));
+  let eff = tE + 2.0 * Math.sin(t * 0.6) + (S.recovery ? 2.5 : 0) + (S.quantum ? 4.5 : 0);
+  eff = Math.min(94, Math.max(45, eff));
+  const laser = S.mode === 'emergency' || S.activeFault ? 0 : Math.max(0, tL + 0.15 * Math.sin(t * 2.2));
+  const temp = tT + 3.0 * Math.sin(t * 0.4) + (S.quantum ? 4.0 : 0);
+
+  S.telemetry = {
+    voltage: vol, current: cur, h2Prod: h2, efficiency: eff,
+    laserPower: laser, tempCore: temp, tempTeg: temp - 4 + 1.5 * Math.sin(t * 0.3),
+    pressure: 2.0 + 0.8 * (S.demand / 100) + 0.1 * Math.sin(t * 0.5),
+    h2Flow: h2 * (0.9 + 0.15 * (S.demand / 100)),
+    waterLevel: Math.max(10, 85 - (t * 0.005) % 15),
+    soc: Math.max(15, 78 - (S.mode === 'boost' ? 0.02 : S.mode === 'eco' ? 0.003 : 0.008) * t % 30),
+    recoveryEff: 5.0 + 1.8 * (S.demand / 100) + (S.recovery ? 2.2 : 0) + (S.quantum ? 3.0 : 0)
+  };
+
+  // Acumulados
+  const dt = S.speed * 0.1; // intervalo real ~100ms
+  S.h2Total += h2 * dt;
+  const pElec = vol * cur;
+  const pTotal = pElec + laser;
+  S.energyTotal += (pTotal / 3600) * dt; // Wh
+  S.waterTotal += (h2 * WATER_PER_H2 * dt) / 1000; // mL (H2O en g -> mL)
+
+  // Empujar a gráficos
+  if (charts.voltage) charts.voltage.push(vol);
+  if (charts.current) charts.current.push(cur);
+  if (charts.h2) charts.h2.push(h2);
+  if (charts.eff) charts.eff.push(eff);
+  if (charts.laser) charts.laser.push(laser);
+  if (charts.temp) charts.temp.push(temp);
+}
+
+function updateTelemetryUI() {
+  const t = S.telemetry;
+  document.getElementById('tel-voltage').textContent = t.voltage.toFixed(2) + ' V';
+  document.getElementById('tel-current').textContent = t.current.toFixed(1) + ' A';
+  document.getElementById('tel-h2').textContent = t.h2Prod.toFixed(2) + ' g/s';
+  document.getElementById('tel-eff').textContent = t.efficiency.toFixed(1) + '%';
+  document.getElementById('tel-laser').textContent = t.laserPower.toFixed(1) + ' W';
+  document.getElementById('tel-temp').textContent = t.tempCore.toFixed(0) + ' °C';
+  document.getElementById('tel-pressure').textContent = t.pressure.toFixed(1) + ' bar';
+  document.getElementById('tel-soc').textContent = t.soc.toFixed(0) + '%';
+
+  // H2 acumulado
+  document.getElementById('h2-total').textContent = S.h2Total.toFixed(1) + ' g';
+  document.getElementById('h2-rate').textContent = t.h2Prod.toFixed(2) + ' g/s';
+  document.getElementById('h2-equiv').textContent = 'equiv. ' + (S.h2Total / 1000 * HHV_H2).toFixed(4) + ' kWh';
+
+  // Balance energético
+  const pElec = t.voltage * t.current;
+  const pTotal = pElec + t.laserPower;
+  const pH2 = t.h2Prod / 1000 * HHV_H2; // W (g/s -> kg/s -> kWh/s -> kW)
+  const pRecov = pTotal * (t.recoveryEff / 100);
+  document.getElementById('bal-elec').textContent = pElec.toFixed(1) + ' W';
+  document.getElementById('bal-laser').textContent = t.laserPower.toFixed(1) + ' W';
+  document.getElementById('bal-total-in').textContent = pTotal.toFixed(1) + ' W';
+  document.getElementById('bal-h2-out').textContent = (pH2 * 1000).toFixed(1) + ' W';
+  document.getElementById('bal-recov').textContent = pRecov.toFixed(1) + ' W';
+  const specEnergy = t.h2Prod > 0.001 ? (pTotal / 1000) / (t.h2Prod / 1000 / 3600) : 0;
+  document.getElementById('bal-spec').textContent = specEnergy.toFixed(1) + ' kWh/kg';
+
+  // Acumulados
+  document.getElementById('acc-energy').textContent = S.energyTotal.toFixed(3) + ' Wh';
+  document.getElementById('acc-water').textContent = S.waterTotal.toFixed(2) + ' mL';
+  document.getElementById('acc-co2').textContent = (S.h2Total / 1000 * 10).toFixed(3) + ' g';
+
+  // Diagrama SVG
+  document.getElementById('diag-water').textContent = t.waterLevel.toFixed(0) + '%';
+  document.getElementById('diag-core').textContent = t.voltage.toFixed(2) + 'V';
+  document.getElementById('diag-core-eff').textContent = t.efficiency.toFixed(1) + '%';
+  document.getElementById('diag-laser').textContent = t.laserPower.toFixed(1) + 'W';
+  document.getElementById('diag-bat').textContent = t.soc.toFixed(0) + '%';
+  document.getElementById('diag-teg').textContent = 'TEG ' + t.recoveryEff.toFixed(1) + '%';
+
+  // Flujos SVG — desactivar en emergencia
+  const isOff = S.mode === 'emergency' || !!S.activeFault;
+  document.getElementById('flow-laser').className.baseVal = isOff ? 'flow-off' : 'flow-d';
+  document.getElementById('flow-ecu').className.baseVal = isOff ? 'flow-off' : 'flow-r';
+
+  // Indicadores
+  const laserOk = !isOff && t.laserPower > 0.1;
+  setIndicator('ind-laser', laserOk, isOff ? 'OFF' : 'OK');
+  setIndicator('ind-spr', laserOk, '808nm');
+  setIndicator('ind-mpc', !isOff, '≤50ms');
+  setIndicator('ind-safety', !S.activeFault, S.activeFault ? 'FAULT' : 'NOMINAL');
+
+  // Reloj
+  const mins = Math.floor(S.elapsed / 60);
+  const secs = Math.floor(S.elapsed % 60);
+  document.getElementById('sim-clock').textContent = String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0');
+}
+
+function setIndicator(id, ok, text) {
+  const el = document.getElementById(id);
+  const txt = document.getElementById(id + '-text');
+  if (el) el.className = 'w-2 h-2 rounded-full ' + (ok ? 'bg-emerald-400 shadow-lg shadow-emerald-500/30' : 'bg-red-500 shadow-lg shadow-red-500/30');
+  if (txt) { txt.textContent = text; txt.className = 'mono ml-auto text-[10px] ' + (ok ? 'text-emerald-400' : 'text-red-400'); }
+}
+
+// ============================================================
+// SIMULADOR FARADAY
+// ============================================================
+function updateFaraday() {
+  const I = parseFloat(document.getElementById('f-current').value);
+  const N = parseInt(document.getElementById('f-cells').value);
+  const eta = parseFloat(document.getElementById('f-eff').value) / 100;
+  const V = parseFloat(document.getElementById('f-volt').value);
+  const P_laser = parseFloat(document.getElementById('f-laser').value);
+  const hours = parseFloat(document.getElementById('f-time').value);
+  const t = hours * 3600;
+
+  // Mostrar valores de sliders
+  document.getElementById('f-cur-val').textContent = I.toFixed(1);
+  document.getElementById('f-cells-val').textContent = N;
+  document.getElementById('f-eff-val').textContent = (eta * 100).toFixed(1);
+  document.getElementById('f-volt-val').textContent = V.toFixed(2);
+  document.getElementById('f-laser-val').textContent = P_laser.toFixed(0);
+  document.getElementById('f-time-val').textContent = hours.toFixed(1);
+
+  // Cálculos de Faraday
+  const moles = (I * t * eta * N) / (2 * FARADAY);
+  const mass = moles * M_H2; // gramos
+  const volume = moles * V_H2_STP; // litros STP
+
+  // Balance energético
+  const P_elec = V * I * N; // Watts
+  const P_total = P_elec + P_laser;
+  const E_in = P_total * hours / 1000; // kWh
+  const E_out = (mass / 1000) * HHV_H2; // kWh
+  const efficiency = E_in > 0 ? (E_out / E_in) * 100 : 0;
+  const specEnergy = mass > 0 ? E_in / (mass / 1000) : 0; // kWh/kg
+  const waterUsed = mass * WATER_PER_H2 / 1000; // mL (g H2O -> mL)
+
+  // Mostrar resultados
+  document.getElementById('fr-mass').textContent = mass >= 1000 ? (mass/1000).toFixed(2) + ' kg' : mass.toFixed(1) + ' g';
+  document.getElementById('fr-vol').textContent = volume >= 1000 ? (volume/1000).toFixed(2) + ' m³' : volume.toFixed(1) + ' L';
+  document.getElementById('fr-mol').textContent = moles.toFixed(3) + ' mol';
+  document.getElementById('fr-power').textContent = P_total >= 1000 ? (P_total/1000).toFixed(2) + ' kW' : P_total.toFixed(1) + ' W';
+  document.getElementById('fr-ein').textContent = E_in >= 1 ? E_in.toFixed(2) + ' kWh' : (E_in*1000).toFixed(1) + ' Wh';
+  document.getElementById('fr-eout').textContent = E_out >= 1 ? E_out.toFixed(2) + ' kWh' : (E_out*1000).toFixed(1) + ' Wh';
+  document.getElementById('fr-eff').textContent = efficiency.toFixed(1) + '%';
+  document.getElementById('fr-eff-bar').style.width = Math.min(100, efficiency) + '%';
+  document.getElementById('fr-spec').textContent = specEnergy.toFixed(1) + ' kWh/kg';
+  document.getElementById('fr-water').textContent = waterUsed >= 1000 ? (waterUsed/1000).toFixed(2) + ' L' : waterUsed.toFixed(1) + ' mL';
+
+  // Ecuación
+  document.getElementById('eq-i').textContent = I.toFixed(1);
+  document.getElementById('eq-t').textContent = t.toFixed(0);
+  document.getElementById('eq-eta').textContent = eta.toFixed(2);
+  document.getElementById('eq-n').textContent = N;
+  document.getElementById('eq-result').textContent = moles.toFixed(3);
+  document.getElementById('eq-mass').textContent = mass.toFixed(2);
+}
+
+// ============================================================
+// SIMULADOR LCA
+// ============================================================
+function updateLCA() {
+  const ca1 = parseFloat(document.getElementById('lc-ca1').value);
+  const ca2 = parseFloat(document.getElementById('lc-ca2').value);
+  const ca3 = parseFloat(document.getElementById('lc-ca3').value);
+  const ca4 = parseFloat(document.getElementById('lc-ca4').value);
+  const ca5 = parseFloat(document.getElementById('lc-ca5').value);
+  const capex = ca1 + ca2 + ca3 + ca4 + ca5;
+
+  document.getElementById('lc-ca1-v').textContent = ca1.toLocaleString();
+  document.getElementById('lc-ca2-v').textContent = ca2.toLocaleString();
+  document.getElementById('lc-ca3-v').textContent = ca3.toLocaleString();
+  document.getElementById('lc-ca4-v').textContent = ca4.toLocaleString();
+  document.getElementById('lc-ca5-v').textContent = ca5.toLocaleString();
+  document.getElementById('lc-capex-total').textContent = '$' + capex.toLocaleString();
+
+  const maint = parseFloat(document.getElementById('lc-op1').value);
+  const eCost = parseFloat(document.getElementById('lc-op2').value);
+  const opHours = parseFloat(document.getElementById('lc-op3').value);
+  const lifetime = parseInt(document.getElementById('lc-op4').value);
+  const discount = parseFloat(document.getElementById('lc-op5').value) / 100;
+  const degrad = parseFloat(document.getElementById('lc-op6').value) / 100;
+  const h2rate = parseFloat(document.getElementById('lc-op7').value); // g/h
+
+  document.getElementById('lc-op1-v').textContent = maint.toLocaleString();
+  document.getElementById('lc-op2-v').textContent = eCost.toFixed(2);
+  document.getElementById('lc-op3-v').textContent = opHours.toLocaleString();
+  document.getElementById('lc-op4-v').textContent = lifetime;
+  document.getElementById('lc-op5-v').textContent = (discount * 100).toFixed(1);
+  document.getElementById('lc-op6-v').textContent = (degrad * 100).toFixed(1);
+  document.getElementById('lc-op7-v').textContent = h2rate.toFixed(1);
+
+  // Producción anual de H2 (considerando degradación)
+  let h2Annual = 0;
+  for (let y = 1; y <= lifetime; y++) {
+    const factor = Math.pow(1 - degrad, y - 1);
+    h2Annual += (h2rate * opHours * factor) / 1000; // kg
+  }
+  h2Annual /= lifetime; // promedio anual
+
+  // CRF
+  const crf = discount > 0 ? (discount * Math.pow(1 + discount, lifetime)) / (Math.pow(1 + discount, lifetime) - 1) : 1 / lifetime;
+
+  // Potencia estimada del sistema
+  const power = (h2rate / 1000) * 46.5; // kW basado en energía específica promedio
+  const eAnnual = power * opHours; // kWh
+  const eCostAnnual = eAnnual * eCost;
+  const opexAnnual = maint + eCostAnnual;
+
+  // LCOH
+  const annualCapex = capex * crf;
+  const lcoh = h2Annual > 0 ? (annualCapex + opexAnnual) / h2Annual : 0;
+
+  // H2 total vida útil
+  let h2Total = 0;
+  for (let y = 1; y <= lifetime; y++) {
+    h2Total += (h2rate * opHours * Math.pow(1 - degrad, y - 1)) / 1000;
+  }
+
+  document.getElementById('lc-lcoh').textContent = '$' + lcoh.toFixed(2);
+  document.getElementById('lc-h2-yr').textContent = Math.round(h2Annual).toLocaleString() + ' kg';
+  document.getElementById('lc-h2-total').textContent = Math.round(h2Total).toLocaleString() + ' kg';
+  document.getElementById('lc-opex-yr').textContent = '$' + Math.round(opexAnnual).toLocaleString();
+  document.getElementById('lc-crf').textContent = crf.toFixed(4);
+  document.getElementById('lc-compare-val').textContent = '$' + lcoh.toFixed(2);
+
+  drawLCACompare();
+}
+
+// ============================================================
+// ESCENARIOS
+// ============================================================
+const SCENARIOS = {
+  '24h': {
+    name: 'Operación 24 Horas',
+    duration: 240, // pasos de simulación
+    steps: [
+      { t:0, mode:'eco', demand:25, quantum:false },
+      { t:40, mode:'normal', demand:50, quantum:false },
+      { t:80, mode:'boost', demand:85, quantum:false },
+      { t:120, mode:'normal', demand:65, quantum:false },
+      { t:160, mode:'eco', demand:30, quantum:false },
+      { t:200, mode:'eco', demand:20, quantum:false },
+      { t:240, mode:'eco', demand:15, quantum:false }
+    ]
+  },
+  'fault': {
+    name: 'Respuesta a Fallo',
+    duration: 200,
+    steps: [
+      { t:0, mode:'normal', demand:60, quantum:false },
+      { t:50, mode:'normal', demand:60, quantum:false, fault:'overtemp' },
+      { t:70, mode:'emergency', demand:30, quantum:false },
+      { t:110, mode:'emergency', demand:20, quantum:false, reset:true },
+      { t:130, mode:'normal', demand:40, quantum:false },
+      { t:200, mode:'normal', demand:55, quantum:false }
+    ]
+  },
+  'quantum': {
+    name: 'Efecto Quantum',
+    duration: 200,
+    steps: [
+      { t:0, mode:'normal', demand:60, quantum:false },
+      { t:60, mode:'normal', demand:60, quantum:false },
+      { t:60, mode:'normal', demand:60, quantum:true },
+      { t:140, mode:'normal', demand:60, quantum:true },
+      { t:200, mode:'normal', demand:60, quantum:false }
+    ]
+  },
+  'optimize': {
+    name: 'Optimización ECU',
+    duration: 200,
+    steps: [
+      { t:0, mode:'boost', demand:90, quantum:false },
+      { t:40, mode:'boost', demand:85, quantum:false },
+      { t:80, mode:'normal', demand:70, quantum:true },
+      { t:120, mode:'eco', demand:55, quantum:true },
+      { t:160, mode:'eco', demand:45, quantum:true },
+      { t:200, mode:'eco', demand:40, quantum:true }
+    ]
+  }
+};
+
+function selectScenario(id) {
+  // Deseleccionar anterior
+  document.querySelectorAll('.scenario-card').forEach(c => { c.classList.remove('border-cyan-500/50'); c.style.background = ''; });
+  const card = document.getElementById('sc-' + id);
+  if (card) { card.classList.add('border-cyan-500/50'); card.style.background = 'rgba(6,182,212,0.05)'; }
+
+  S.scenario.id = id;
+  S.scenario.playing = false;
+  S.scenario.step = 0;
+  S.scenario.data = [];
+  S.scenario.recorded = { eff:[], h2:[], temp:[], power:[] };
+
+  document.getElementById('scenario-controls').classList.remove('hidden');
+  document.getElementById('scenario-summary').classList.add('hidden');
+  document.getElementById('sc-progress').style.width = '0%';
+  document.getElementById('sc-time-display').textContent = '00:00 / ' + formatTime(SCENARIOS[id].duration);
+  document.getElementById('sc-play-btn').innerHTML = '<i class="fa-solid fa-play"></i>';
+
+  // Limpiar gráficos de escenario
+  ['chart-scenario-1', 'chart-scenario-2'].forEach(id => {
+    const c = document.getElementById(id);
+    if (c) { const ctx = c.getContext('2d'); ctx.clearRect(0, 0, c.width, c.height); }
+  });
+}
+
+function playScenario() {
+  if (!S.scenario.id) return;
+  S.scenario.playing = !S.scenario.playing;
+  document.getElementById('sc-play-btn').innerHTML = S.scenario.playing ? '<i class="fa-solid fa-pause"></i>' : '<i class="fa-solid fa-play"></i>';
+  if (S.scenario.playing && S.scenario.step === 0) {
+    S.scenario.recorded = { eff:[], h2:[], temp:[], power:[] };
+  }
+}
+
+function resetScenario() {
+  S.scenario.playing = false;
+  S.scenario.step = 0;
+  S.scenario.recorded = { eff:[], h2:[], temp:[], power:[] };
+  document.getElementById('sc-play-btn').innerHTML = '<i class="fa-solid fa-play"></i>';
+  document.getElementById('sc-progress').style.width = '0%';
+  document.getElementById('scenario-summary').classList.add('hidden');
+}
+
+function seekScenario(e) {
+  if (!S.scenario.id) return;
+  const bar = document.getElementById('sc-progress-bar');
+  const rect = bar.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  S.scenario.step = Math.floor(pct * SCENARIOS[S.scenario.id].duration);
+}
+
+function tickScenario() {
+  if (!S.scenario.id || !S.scenario.playing) return;
+  const sc = SCENARIOS[S.scenario.id];
+  if (S.scenario.step >= sc.duration) {
+    S.scenario.playing = false;
+    document.getElementById('sc-play-btn').innerHTML = '<i class="fa-solid fa-play"></i>';
+    showScenarioSummary();
+    return;
+  }
+
+  // Encontrar el paso activo
+  let activeStep = sc.steps[0];
+  for (let i = sc.steps.length - 1; i >= 0; i--) {
+    if (S.scenario.step >= sc.steps[i].t) { activeStep = sc.steps[i]; break; }
+  }
+
+  // Aplicar parámetros al estado de simulación
+  S.mode = activeStep.mode;
+  S.demand = activeStep.demand;
+  S.quantum = activeStep.quantum;
+  updateModeButtons();
+
+  // Inyectar fallo si aplica
+  if (activeStep.fault && !S.activeFault) injectFault(activeStep.fault);
+  if (activeStep.reset && S.activeFault) resetSystem();
+
+  // Registrar datos
+  const r = S.scenario.recorded;
+  r.eff.push(S.telemetry.efficiency);
+  r.h2.push(S.telemetry.h2Prod);
+  r.temp.push(S.telemetry.tempCore);
+  r.power.push(S.telemetry.voltage * S.telemetry.current + S.telemetry.laserPower);
+
+  // Actualizar progreso
+  const pct = (S.scenario.step / sc.duration) * 100;
+  document.getElementById('sc-progress').style.width = pct + '%';
+  document.getElementById('sc-time-display').textContent = formatTime(S.scenario.step) + ' / ' + formatTime(sc.duration);
+
+  S.scenario.step++;
+  drawScenarioCharts();
+}
+
+function drawScenarioCharts() {
+  const r = S.scenario.recorded;
+  if (r.eff.length < 2) return;
+
+  // Gráfico 1: Eficiencia y H2
+  drawScenarioLine('chart-scenario-1', [
+    { data: r.eff, color: '#06b6d4', label: 'Eficiencia %', yMin: 50, yMax: 98 },
+    { data: r.h2.map(v => v * 100), color: '#34d399', label: 'H2 (x100 g/s)', yMin: 0, yMax: 60 }
+  ]);
+
+  // Gráfico 2: Temp y Potencia
+  drawScenarioLine('chart-scenario-2', [
+    { data: r.temp, color: '#ef4444', label: 'Temp °C', yMin: 20, yMax: 70 },
+    { data: r.power, color: '#f59e0b', label: 'Potencia W', yMin: 0, yMax: 20 }
+  ]);
+}
+
+function drawScenarioLine(canvasId, series) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const w = rect.width, h = rect.height;
+
+  ctx.fillStyle = '#070c18';
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid
+  for (let i = 0; i <= 4; i++) {
+    const y = Math.round((h / 4) * i) + 0.5;
+    ctx.strokeStyle = 'rgba(148,163,184,0.06)';
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+
+  const maxPts = SCENARIOS[S.scenario.id]?.duration || 200;
+
+  series.forEach(s => {
+    if (s.data.length < 2) return;
+    const xStep = w / (maxPts - 1);
+    const startI = maxPts - s.data.length;
+
+    function toY(v) { return h - ((v - s.yMin) / (s.yMax - s.yMin)) * (h - 20) - 10; }
+    function toX(i) { return (startI + i) * xStep; }
+
+    // Línea
+    ctx.beginPath();
+    for (let i = 0; i < s.data.length; i++) {
+      const x = toX(i), y = Math.max(2, Math.min(h - 2, toY(s.data[i])));
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = s.color;
+    ctx.shadowBlur = 4;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Label
+    ctx.fillStyle = s.color;
+    ctx.font = '9px JetBrains Mono';
+    ctx.textAlign = 'left';
+    ctx.fillText(s.label, 6, 14);
+  });
+}
+
+function showScenarioSummary() {
+  const r = S.scenario.recorded;
+  if (!r.eff.length) return;
+
+  const avgEff = r.eff.reduce((a,b) => a+b, 0) / r.eff.length;
+  const avgH2 = r.h2.reduce((a,b) => a+b, 0) / r.h2.length;
+  const maxTemp = Math.max(...r.temp);
+  const totalH2 = r.h2.reduce((a,b) => a+b, 0) * 0.1; // asumiendo 0.1s por paso
+
+  const stats = document.getElementById('scenario-stats');
+  stats.innerHTML = `
+    <div class="p-3 bg-slate-900/40 rounded-lg border border-slate-800"><span class="text-[9px] text-slate-500 block">EFICIENCIA MEDIA</span><span class="text-lg font-bold text-cyan-400">${avgEff.toFixed(1)}%</span></div>
+    <div class="p-3 bg-slate-900/40 rounded-lg border border-slate-800"><span class="text-[9px] text-slate-500 block">H2 PROD. MEDIO</span><span class="text-lg font-bold text-emerald-400">${avgH2.toFixed(3)} g/s</span></div>
+    <div class="p-3 bg-slate-900/40 rounded-lg border border-slate-800"><span class="text-[9px] text-slate-500 block">TEMP. MÁXIMA</span><span class="text-lg font-bold text-red-400">${maxTemp.toFixed(1)}°C</span></div>
+    <div class="p-3 bg-slate-900/40 rounded-lg border border-slate-800"><span class="text-[9px] text-slate-500 block">H2 TOTAL SIM.</span><span class="text-lg font-bold text-emerald-400">${totalH2.toFixed(2)} g</span></div>
+  `;
+  document.getElementById('scenario-summary').classList.remove('hidden');
+}
+
+function formatTime(steps) {
+  const s = Math.floor(steps * 0.1);
+  return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+}
+
+// ============================================================
+// SISTEMA DE SEGURIDAD
+// ============================================================
+function injectFault(type) {
+  S.activeFault = type;
+  S.mode = 'emergency';
+  S.faultCount++;
+  S.faultStartTime = S.elapsed;
+  updateModeButtons();
+
+  // Banner
+  document.getElementById('emergency-banner').classList.remove('hidden');
+
+  // Beep
+  playBeep(980, 0.5);
+  setTimeout(() => playBeep(980, 0.5), 600);
+
+  // Log
+  const ts = new Date().toLocaleTimeString();
+  let msg = '';
+  if (type === 'overtemp') msg = `[${ts}] CRITICAL: Temp > 65°C. Shutdown M3B laser. Emergencia Eléctrico Puro activada.`;
+  else if (type === 'leak') msg = `[${ts}] FAULT: Fuga óptica detectada por fotodiodo. Cutoff láser inmediato.`;
+  else msg = `[${ts}] TIMEOUT: Señal láser > 500ms. Fallback automático activado.`;
+
+  addSafetyLog(msg, 'error');
+  updateFaultStats();
+  showToast(msg, 'danger');
+
+  // Actualizar checklist
+  for (let i = 1; i <= 6; i++) {
+    const el = document.getElementById('sc-' + i);
+    if (el) el.className = 'fa-solid fa-circle-xmark text-red-400';
+  }
+}
+
+function resetSystem() {
+  if (S.faultStartTime) {
+    S.faultTimes.push(S.elapsed - S.faultStartTime);
+  }
+  S.activeFault = null;
+  S.mode = 'normal';
+  updateModeButtons();
+  document.getElementById('emergency-banner').classList.add('hidden');
+  playBeep(440, 0.25);
+  addSafetyLog(`[${new Date().toLocaleTimeString()}] Sistema restaurado manualmente. Parámetros nominales.`, 'success');
+  updateFaultStats();
+
+  for (let i = 1; i <= 6; i++) {
+    const el = document.getElementById('sc-' + i);
+    if (el) el.className = 'fa-solid fa-circle-check text-emerald-400';
+  }
+}
+
+function addSafetyLog(msg, type) {
+  const log = document.getElementById('safety-log');
+  const div = document.createElement('div');
+  div.className = `p-2 rounded border text-[10px] leading-normal ${type === 'error' ? 'text-red-400 bg-red-950/10 border-red-500/10' : type === 'success' ? 'text-emerald-400 bg-emerald-950/10 border-emerald-500/10' : 'text-slate-400 bg-slate-900/30 border-slate-800'}`;
+  div.textContent = msg;
+  log.prepend(div);
+  // Limitar a 50 entradas
+  while (log.children.length > 50) log.removeChild(log.lastChild);
+}
+
+function updateFaultStats() {
+  document.getElementById('fault-count').textContent = S.faultCount;
+  if (S.faultTimes.length > 0) {
+    const mttr = S.faultTimes.reduce((a,b) => a+b, 0) / S.faultTimes.length;
+    document.getElementById('fault-mttr').textContent = mttr.toFixed(1) + 's';
+    const totalUptime = Math.max(1, S.elapsed);
+    const downtime = S.faultTimes.reduce((a,b) => a+b, 0);
+    const avail = ((totalUptime - downtime) / totalUptime * 100).toFixed(1);
+    document.getElementById('fault-avail').textContent = avail + '%';
+  }
+}
+
+// ============================================================
+// UI: TABS, MODOS, CONTROLES
+// ============================================================
+function switchTab(tab) {
+  S.tab = tab;
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+  document.getElementById('tab-' + tab).classList.remove('hidden');
+  document.getElementById('tab-' + tab).classList.add('fade-in');
+
+  document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('active'); b.classList.add('text-slate-400'); });
+  event.target.closest('.tab-btn').classList.add('active');
+  event.target.closest('.tab-btn').classList.remove('text-slate-400');
+
+  // Redimensionar gráficos si es necesario
+  setTimeout(() => {
+    if (tab === 'lca') drawLCACompare();
+    Object.values(charts).forEach(c => c && c.draw && c.draw());
+  }, 50);
+}
+
+function setMode(mode) {
+  if (S.activeFault && mode !== 'emergency') return; // No permitir salir de emergencia con fallo activo
+  S.mode = mode;
+  updateModeButtons();
+  playBeep(mode === 'emergency' ? 698 : mode === 'eco' ? 523 : mode === 'boost' ? 659 : 587, 0.15);
+}
+
+function updateModeButtons() {
+  ['eco', 'normal', 'boost', 'emergency'].forEach(m => {
+    const btn = document.getElementById('btn-' + m);
+    btn.className = 'mode-btn p-2.5 rounded-lg border text-left font-medium flex flex-col ' +
+      (S.mode === m ? 'active-' + m + ' border-slate-800' : 'border-slate-800 bg-slate-900/30 text-slate-400');
+  });
+  document.getElementById('emergency-banner').classList.toggle('hidden', S.mode !== 'emergency' && !S.activeFault);
+}
+
+function setDemand(val) {
+  S.demand = parseInt(val);
+  document.getElementById('demand-val').textContent = val + '%';
+}
+
+function toggleRecovery() {
+  S.recovery = !S.recovery;
+  const btn = document.getElementById('btn-recovery');
+  btn.className = 'px-3 py-1.5 rounded-full text-[10px] mono font-bold border transition ' +
+    (S.recovery ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-slate-700 bg-slate-900 text-slate-500');
+  playBeep(784, 0.1);
+}
+
+function toggleQuantum() {
+  S.quantum = !S.quantum;
+  const btn = document.getElementById('btn-quantum');
+  btn.className = 'px-3 py-1.5 rounded-full text-[10px] mono font-bold border transition ' +
+    (S.quantum ? 'border-purple-500/30 bg-purple-500/10 text-purple-400 shadow-sm shadow-purple-950/20' : 'border-slate-700 bg-slate-900 text-slate-500');
+  playBeep(880, 0.15);
+}
+
+function togglePause() {
+  S.paused = !S.paused;
+  document.getElementById('btn-pause').innerHTML = S.paused ? '<i class="fa-solid fa-play"></i>' : '<i class="fa-solid fa-pause"></i>';
+}
+
+function setSpeed(val) {
+  S.speed = parseFloat(val);
+}
+
+function selectModule(mod) {
+  S.selectedModule = mod;
+  const panel = document.getElementById('module-detail');
+  const boxes = document.querySelectorAll('.module-box');
+
+  boxes.forEach(b => b.classList.remove('selected'));
+
+  if (!mod) { panel.classList.add('hidden'); return; }
+
+  // Seleccionar en SVG
+  const box = document.querySelector(`[data-module="${mod}"]`);
+  if (box) box.classList.add('selected');
+
+  panel.classList.remove('hidden');
+
+  const info = {
+    water: { title:'Módulo 1: Purificación H2O', specs:['HDPE con recubrimiento de grafeno','Pureza requerida: ≥99.999%','Ósmosis inversa atómica','Flujo: 1.2 L/min nominal'], tel:[['NIVEL', S.telemetry.waterLevel.toFixed(0)+'%'],['FLUJO','1.2 L/min'],['PURIDAD','99.999%']] },
+    battery: { title:'Módulo 2: Batería Estructural', specs:['Li-ion + Súpercondensadores Grafeno','Capacidad: 3.2 kWh / 18 kWh','Ciclos estimados: ≥2,000','Gestión activa por ECU'], tel:[['SOC', S.telemetry.soc.toFixed(0)+'%'],['SOH','98%'],['POTENCIA','2.5 kW']] },
+    core: { title:'Módulo 3A: Electrólisis Plasmónica', specs:['Ánodos Au/Ag recubiertos de Ir','Resonancia SPR @ 808nm','Fibra óptica lateral (96 fibras/celda)','Voltaje termodinámico: 1.23V'], tel:[['VOLTAJE', S.telemetry.voltage.toFixed(2)+'V'],['CORRIENTE', S.telemetry.current.toFixed(1)+'A'],['EFICIENCIA', S.telemetry.efficiency.toFixed(1)+'%']] },
+    laser: { title:'Módulo 3B: Gatillo Fotónico', specs:['Diodos GaAs estado sólido','Longitud: 808 nm ±5 nm','Modulación PWM sincronizada','Potencia: hasta 1.8W por celda'], tel:[['LONG. ONDA','808 nm'],['POTENCIA', S.telemetry.laserPower.toFixed(1)+'W'],['ESTADO', S.telemetry.laserPower > 0.1 ? 'ACTIVO':'OFF']] },
+    fuelcell: { title:'Módulo 4: Conversión PEM + TEG', specs:['Pila PEM integrada','TEG pozo cuántico (Bi2Te3)','Recuperación de calor residual','Salida H2 a presión controlada'], tel:[['RECUP.', S.telemetry.recoveryEff.toFixed(1)+'%'],['TEMP TEG', S.telemetry.tempTeg.toFixed(0)+'°C'],['H2 OUT', S.telemetry.h2Flow.toFixed(2)+' g/s']] },
+    ecu: { title:'Módulo 5: ECU Predictiva (IA)', specs:['ARM Cortex-A72 + Coprocesador IA','Tiempo respuesta: ≤50 ms','Precisión predicción: Error ≤5%','Control MPC multivariable'], tel:[['RESPUESTA','≤ 50 ms'],['MPC','ACTIVO'],['MODELO','Online']] }
+  };
+
+  const m = info[mod];
+  document.getElementById('module-title').textContent = m.title;
+  document.getElementById('module-content').innerHTML = `
+    <div class="mb-3">
+      <span class="text-[9px] mono text-slate-500 uppercase block mb-1">Especificaciones (Anexo 1)</span>
+      <ul class="space-y-0.5 text-slate-300">${m.specs.map(s => '<li class="flex items-start gap-1.5"><span class="text-cyan-400 mt-0.5">›</span>' + s + '</li>').join('')}</ul>
+    </div>
+    <div>
+      <span class="text-[9px] mono text-slate-500 uppercase block mb-1">Telemetría del Módulo</span>
+      <div class="grid grid-cols-3 gap-2">
+        ${m.tel.map(([k,v]) => `<div class="p-2 bg-slate-900/40 rounded border border-slate-800 text-center"><span class="text-[8px] text-slate-500 block">${k}</span><span class="text-[11px] text-slate-200 font-bold">${v}</span></div>`).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// UTILIDADES
+// ============================================================
+function playBeep(freq, duration) {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    gain.gain.setValueAtTime(0.06, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    osc.start(); osc.stop(ctx.currentTime + duration);
+  } catch(e) {}
+}
+
+function showToast(msg, type) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast px-4 py-3 rounded-lg text-xs mono max-w-sm border ${type === 'danger' ? 'bg-red-950/90 text-red-400 border-red-500/20' : 'bg-slate-900/90 text-slate-300 border-slate-700'}`;
+  toast.style.backdropFilter = 'blur(12px)';
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 4000);
+}
+
+// ============================================================
+// BUCLE PRINCIPAL
+// ============================================================
+let lastTick = 0;
+const TICK_INTERVAL = 100; // ms
+
+function mainLoop(timestamp) {
+  if (timestamp - lastTick >= TICK_INTERVAL) {
+    lastTick = timestamp;
+
+    if (!S.paused) {
+      S.elapsed += TICK_INTERVAL * S.speed * 0.001;
+
+      // Si no hay escenario activo, simular normalmente
+      if (!S.scenario.playing) {
+        simulateTelemetry();
+      } else {
+        simulateTelemetry();
+        tickScenario();
+      }
+
+      updateTelemetryUI();
+    }
+  }
+  requestAnimationFrame(mainLoop);
+}
+
+// ============================================================
+// INICIALIZACIÓN
+// ============================================================
+function init() {
+  // Crear gráficos de telemetría
+  charts.voltage = createChart('chart-voltage', { label:'Voltaje', unit:'V', color:'#22d3ee', yMin:0.8, yMax:2.0 });
+  charts.current = createChart('chart-current', { label:'Corriente', unit:'A', color:'#fbbf24', yMin:0, yMax:12 });
+  charts.h2 = createChart('chart-h2', { label:'H2', unit:'g/s', color:'#34d399', yMin:0, yMax:0.8 });
+  charts.eff = createChart('chart-eff', { label:'Eficiencia', unit:'%', color:'#06b6d4', yMin:50, yMax:98 });
+  charts.laser = createChart('chart-laser', { label:'Láser', unit:'W', color:'#f472b6', yMin:0, yMax:3.0 });
+  charts.temp = createChart('chart-temp', { label:'Temp', unit:'°C', color:'#ef4444', yMin:20, yMax:70 });
+
+  // Inicializar calculadoras
+  updateFaraday();
+  updateLCA();
+
+  // Iniciar bucle
+  requestAnimationFrame(mainLoop);
+
+  // Log inicial
+  addSafetyLog(`[${new Date().toLocaleTimeString()}] SPHA-Q Simulation Engine v2.0 iniciado. Todos los módulos nominales.`, 'info');
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
