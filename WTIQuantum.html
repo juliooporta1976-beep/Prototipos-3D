@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CO₂ WTI QUANTUM - Prototipo 3D Autónomo (Dr. Julio César Oporta Barrera)</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; user-select: none; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background-color: #0d0f12; color: #e2e8f0; }
+    #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+    #video-ar { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 0; display: none; }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(15, 17, 21, 0.6); }
+    ::-webkit-scrollbar-thumb { background: rgba(0, 229, 255, 0.4); border-radius: 3px; }
+
+    /* Top Left Branding */
+    .header {
+      position: absolute; top: 16px; left: 16px; z-index: 10;
+      background: rgba(22, 25, 30, 0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(79, 195, 247, 0.35); border-radius: 14px;
+      padding: 12px 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 15px rgba(0, 229, 255, 0.15);
+      max-width: 360px; pointer-events: auto;
+    }
+    .author-badge { font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #00E5FF; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; }
+    .project-title { font-size: 1.3rem; font-weight: 900; color: #ffffff; letter-spacing: -0.5px; margin: 2px 0; display: flex; align-items: center; gap: 8px; }
+    .project-subtitle { font-size: 0.75rem; color: #94a3b8; line-height: 1.3; }
+
+    /* Top Center WTI Banner */
+    .wti-banner {
+      position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 10;
+      background: linear-gradient(135deg, rgba(26, 29, 34, 0.95), rgba(15, 17, 21, 0.95));
+      border: 1.5px solid #00E5FF; border-radius: 20px; padding: 10px 24px; text-align: center;
+      box-shadow: 0 0 25px rgba(0, 229, 255, 0.3); pointer-events: auto;
+    }
+    .wti-val { font-size: 1.7rem; font-weight: 900; color: #00E5FF; font-family: monospace; letter-spacing: 1px; }
+    .wti-lbl { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1.5px; color: #cbd5e1; font-weight: 700; margin-top: 1px; }
+
+    /* Top Right Header Controls */
+    .header-right {
+      position: absolute; top: 16px; right: 16px; z-index: 10;
+      display: flex; gap: 10px; align-items: center; pointer-events: auto;
+    }
+    .btn {
+      background: rgba(30, 34, 42, 0.9); border: 1px solid rgba(79, 195, 247, 0.4);
+      color: #e0f2fe; padding: 8px 14px; border-radius: 10px; font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px;
+      outline: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .btn:hover { background: rgba(79, 195, 247, 0.25); border-color: #00E5FF; color: #ffffff; transform: translateY(-1px); box-shadow: 0 0 15px rgba(0, 229, 255, 0.3); }
+    .btn-active { background: #00E5FF !important; color: #0f1115 !important; border-color: #00E5FF !important; font-weight: 800; box-shadow: 0 0 20px rgba(0, 229, 255, 0.5); }
+
+    /* Selector de idioma - mejora de contraste y legibilidad */
+    #lang-select {
+      color: #ffffff !important;
+      background: rgba(30, 34, 42, 0.95);
+      border: 1px solid rgba(79, 195, 247, 0.4);
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      appearance: auto;
+      -webkit-appearance: auto;
+    }
+    #lang-select option {
+      background: #1a1d22;
+      color: #ffffff;
+    }
+
+    /* Bottom Control Bar Modes */
+    .modes-bar {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 30;
+      background: rgba(22, 25, 30, 0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(79, 195, 247, 0.35); border-radius: 18px;
+      padding: 8px; display: flex; gap: 8px; max-width: 95vw; overflow-x: auto;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.7), 0 0 20px rgba(0, 229, 255, 0.1); pointer-events: auto;
+    }
+
+    /* Right Tactical HUD Overlay */
+    .tactical-hud {
+      position: absolute; top: 105px; right: 16px; z-index: 20; width: 290px;
+      background: rgba(22, 25, 30, 0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(79, 195, 247, 0.3); border-radius: 14px; padding: 14px;
+      max-height: calc(100vh - 220px); overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5); pointer-events: auto;
+    }
+    .hud-header { font-size: 0.7rem; font-weight: 800; color: #00E5FF; letter-spacing: 1.2px; margin-bottom: 10px; border-bottom: 1px dashed rgba(79,195,247,0.3); padding-bottom: 4px; display: flex; justify-content: space-between; }
+    .hud-stat { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.75rem; color: #cbd5e1; }
+    .hud-val { font-weight: 700; color: #ffffff; font-family: monospace; }
+
+    /* Left Simulation Response Panel */
+    .sim-panel {
+      position: absolute; top: 135px; left: 16px; z-index: 20; width: 340px;
+      background: rgba(22, 25, 30, 0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border: 1.5px solid rgba(79, 195, 247, 0.35); border-radius: 14px; padding: 16px;
+      max-height: calc(100vh - 230px); overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 20px rgba(0, 229, 255, 0.1); pointer-events: auto;
+    }
+    .sim-title { font-size: 0.92rem; font-weight: 800; color: #00E5FF; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .slider-group { margin-bottom: 12px; }
+    .slider-group label { display: flex; justify-content: space-between; font-size: 0.75rem; color: #cbd5e1; margin-bottom: 4px; }
+    .slider-group input { width: 100%; accent-color: #00E5FF; cursor: pointer; }
+
+    /* Tooltip modal - now positioned at bottom-right, just above modes bar */
+    .node-modal {
+      position: absolute;
+      bottom: 10px;              /* just above the modes bar (which is at bottom:20px) */
+      right: 16px;               /* aligned with right edge */
+      z-index: 25;
+      width: 320px;
+      background: rgba(26, 29, 34, 0.96);
+      backdrop-filter: blur(16px);
+      border: 1.5px solid #00E5FF;
+      border-radius: 14px;
+      padding: 16px;
+      display: none;
+      box-shadow: 0 0 35px rgba(0, 229, 255, 0.3);
+      pointer-events: auto;
+    }
+
+    /* AR Target Crosshair Overlay */
+    .ar-overlay {
+      position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 5;
+      pointer-events: none; display: none; flex-direction: column; align-items: center; justify-content: space-between;
+      padding: 80px 20px 100px 20px;
+    }
+    .ar-banner {
+      background: rgba(15, 17, 21, 0.85); border: 1px solid #00E5FF; border-radius: 20px;
+      padding: 10px 24px; color: #00E5FF; font-weight: 700; font-size: 0.85rem; text-align: center;
+      box-shadow: 0 0 20px rgba(0,229,255,0.4); backdrop-filter: blur(12px);
+    }
+    .ar-target-frame {
+      width: 260px; height: 260px; border: 2px dashed rgba(0, 229, 255, 0.6); border-radius: 24px;
+      position: relative; animation: pulseTarget 2s infinite ease-in-out; display: flex; align-items: center; justify-content: center;
+    }
+    .ar-corner { position: absolute; width: 20px; height: 20px; border-color: #00E5FF; border-style: solid; }
+    .tl { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-top-left-radius: 8px; }
+    .tr { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-top-right-radius: 8px; }
+    .bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-bottom-left-radius: 8px; }
+    .br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-bottom-right-radius: 8px; }
+
+    @keyframes pulseTarget {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.03); opacity: 1; }
+    }
+  </style>
+  <!-- Three.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+  <video id="video-ar" autoplay playsinline muted></video>
+  <div id="canvas-container"></div>
+
+  <!-- AR Target Crosshair Overlay -->
+  <div class="ar-overlay" id="ar-overlay">
+    <div class="ar-banner" id="ar-banner-text">📷 AR Workstation Mode - Point camera at flat surface</div>
+    <div class="ar-target-frame">
+      <div class="ar-corner tl"></div>
+      <div class="ar-corner tr"></div>
+      <div class="ar-corner bl"></div>
+      <div class="ar-corner br"></div>
+      <div style="color: rgba(0,229,255,0.7); font-size: 0.7rem; font-family: monospace; letter-spacing: 1px;">WORKSTATION TARGET</div>
+    </div>
+    <button class="btn btn-active" onclick="toggleAR()" style="pointer-events: auto; padding: 10px 20px;">✕ Exit AR Mode</button>
+  </div>
+
+  <!-- Top Left Branding Header -->
+  <div class="header">
+    <div class="author-badge">👨‍🔬 <span id="lbl-author">Dr. Julio César Oporta Barrera</span></div>
+    <div class="project-title">⚡ <span id="lbl-title">CO₂ WTI QUANTUM</span></div>
+    <div class="project-subtitle" id="lbl-subtitle">Bolsa de Carbono Regenerativa con Tokens de Captura Dinámica</div>
+  </div>
+
+  <!-- Top Right Controls Header -->
+  <div class="header-right">
+    <select id="lang-select" class="btn" onchange="changeLanguage(this.value)">
+      <option value="es" selected>🇪🇸 Español</option>
+      <option value="en" >🇬🇧 English</option>
+      <option value="zh" >🇨🇳 中文 (Mandarin)</option>
+    </select>
+    <button class="btn" onclick="toggleAudio()" id="btn-audio">🔊 Audio FX</button>
+  </div>
+
+  <!-- Left Tactical Telemetry HUD -->
+  <div class="tactical-hud" id="tactical-hud">
+    <div class="hud-header"><span>📡 <span id="lbl-hud-telemetry">TELEMETRÍA TÁCTICA EN TIEMPO REAL</span></span><span style="color:#4fe3c1;">LIVE</span></div>
+    <div class="hud-stat"><span id="lbl-hud-co2">CO₂ Atmosférico:</span><span class="hud-val" id="hud-co2">424.5 ppm</span></div>
+    <div class="hud-stat"><span id="lbl-hud-temp">Anomalía Térmica:</span><span class="hud-val" id="hud-temp">+1.25 °C</span></div>
+    <div class="hud-stat"><span id="lbl-hud-netcap">Captura Neta Anual:</span><span class="hud-val" id="hud-capture">1,450,000 Ton/yr</span></div>
+    <div class="hud-stat"><span id="lbl-hud-efficiency">Eficiencia Energética:</span><span class="hud-val" id="hud-energy">94.8%</span></div>
+    <div class="hud-stat"><span id="lbl-hud-georisk">Riesgo Geopolítico:</span><span class="hud-val" id="hud-geo">Moderate (38)</span></div>
+    
+    <div class="hud-header" style="margin-top: 12px;"><span>⚡ <span id="lbl-hud-gauge">BALANCE DE ENERGÍA HÍBRIDA</span></span></div>
+    <div class="hud-stat"><span id="lbl-hud-input">Entrada Renovable:</span><span class="hud-val" style="color: #4fe3c1;">24.5 MW</span></div>
+    <div class="hud-stat"><span id="lbl-hud-output">Retiro Net-Negative:</span><span class="hud-val" style="color: #00E5FF;">-12.8 kTon/mo</span></div>
+    
+    <div class="hud-header" style="margin-top: 12px;"><span>🤖 <span id="lbl-hud-swarm">IA de Enjambre Operativa</span></span></div>
+    <div class="hud-stat"><span id="lbl-hud-bots">Bots Verificadores activos:</span><span class="hud-val" id="hud-bots">128 Units</span></div>
+
+    <div style="margin-top: 12px; padding-top: 8px; border-top: 1px dashed rgba(79,195,247,0.3); font-size: 0.65rem; color: #94a3b8; line-height: 1.3;">
+      <div style="font-weight: 700; color: #00E5FF; margin-bottom: 2px;">MATERIAL CHASSIS SPECS:</div>
+      <div>• Titanio Satinado Gris Grafito (Estructura Principal)</div>
+      <div>• Azul Cian Luminoso (#4FC3F7 - Iluminación & Datos)</div>
+    </div>
+  </div>
+
+  <!-- Left Simulation Panel -->
+  <div class="sim-panel" id="sim-panel">
+    <div class="sim-title" id="sim-title">⚙️ Simulador Biomecánico & Protocolo MRV Multisensorial</div>
+    <div id="sim-content">
+      <!-- Injected based on mode -->
+    </div>
+  </div>
+
+  <!-- Tooltip Modal for Node Inspection - now at bottom-right, separated from HUD -->
+  <div class="node-modal" id="node-modal">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px dashed rgba(79,195,247,0.3); padding-bottom:6px;">
+      <h3 id="modal-title" style="font-size:1rem; color:#00E5FF; font-weight:800;">Module Details</h3>
+      <button onclick="closeModal()" style="background:none; border:none; color:#cbd5e1; cursor:pointer; font-size:1.2rem; line-height:1;">✕</button>
+    </div>
+    <p id="modal-desc" style="font-size:0.8rem; color:#cbd5e1; line-height:1.4;"></p>
+    <div id="modal-stats" style="margin-top:12px; font-size:0.75rem; color:#e2e8f0; font-family:monospace; background:rgba(15,17,21,0.8); border:1px solid rgba(79,195,247,0.3); padding:8px; border-radius:8px;"></div>
+  </div>
+
+  <!-- Bottom Modes Navigation Bar -->
+  <div class="modes-bar" id="modes-bar">
+    <button class="btn btn-active" onclick="setMode('architectural')" id="m-architectural">1. Modelo 3D & Arquitectura</button>
+    <button class="btn" onclick="setMode('mrv_simulator')" id="m-mrv">2. Simulador MRV Biomecánico</button>
+    <button class="btn" onclick="setMode('quantum_ai')" id="m-quantum">3. Motor IA-Q & WTI Index</button>
+    <button class="btn" onclick="setMode('dex_trading')" id="m-dex">4. Mercado DEX & Acuñación</button>
+    <button class="btn" onclick="setMode('climate_staking')" id="m-staking">5. Staking Climático & Fiscal</button>
+    <button class="btn" onclick="setMode('ar_mode')" id="m-ar">6. Modo AR Mesa de Trabajo</button>
+  </div>
+
+  <!-- Complete Embedded Offline Engine Script -->
+  <script>
+    // Embedded Multilingual Dictionary
+    const translations = {"es":{"authorTitle":"Dr. Julio César Oporta Barrera","projectTitle":"CO₂ WTI QUANTUM","projectSubtitle":"Bolsa de Carbono Regenerativa con Tokens de Captura Dinámica","downloadOffline":"Descargar Prototipo 3D HTML","downloading":"Generando HTML Autónomo...","arMode":"Realidad Aumentada (AR)","arInstructions":"Apunte su cámara a su mesa o superficie plana para proyectar el prototipo 3D.","exitAr":"Salir de AR","soundOn":"Audio FX Activado","soundOff":"Audio FX Silenciado","wtiIndexValue":"Índice WTI Base:","terValueUnit":"Valor Unitario TER:","quantumCore":"Procesador Cuántico Central","swarmAiNodes":"IA de Enjambre Operativa","activeBots":"Bots Verificadores activos","modes":{"architectural":"1. Modelo 3D & Arquitectura","mrv_simulator":"2. Simulador MRV Biomecánico","quantum_ai":"3. Motor IA-Q & WTI Index","dex_trading":"4. Mercado DEX & Acuñación","climate_staking":"5. Staking Climático & Fiscal","ar_mode":"6. Modo AR Mesa de Trabajo"},"modules":{"dac":"Direct Air Capture (DAC)","reforestation":"Reforestación Acreditada","ocean":"Secuestro Oceánico / Fitoplancton","beccs":"BECCS Biomasa & Captura Industrial","mineralization":"Mineralización Geológica / Basalto"},"hud":{"telemetry":"TELEMETRÍA TÁCTICA EN TIEMPO REAL","co2Concentration":"CO₂ Atmosférico","globalTemp":"Anomalía Térmica","netCapture":"Captura Neta Anual","energyEfficiency":"Eficiencia Energética","geopoliticalRisk":"Riesgo Geopolítico","hybridEnergyGauge":"BALANCE DE ENERGÍA HÍBRIDA","powerInput":"Entrada Renovable","captureOutput":"Retiro Net-Negative","quantumNodeStatus":"ESTADO DE NODOS CUÁNTICOS","mrvProtocol":"Protocolo MRV Criptográfico","activeSwarm":"Enjambre IA Autónomo","blockchainLedger":"Registro Blockchain Inmutable","dynamicStates":"ESTADOS DINÁMICOS DEL MODELO","clickToInspect":"Haga clic en cualquier nodo 3D para inspeccionar"},"simulator":{"mrvTitle":"Simulador Biomecánico & Protocolo MRV Multisensorial","adjustParameters":"Ajustar Variables Ambientales","dacSpeed":"Flujo Aire Turbinas DAC","oceanAlkalinity":"Alcalinización Oceánica","forestDensity":"Cobertura Vegetal / Satelital","industrialBio":"Captura Post-Combustión BECCS","recalculateCapture":"Recalcular Tasa de Captura","quantumAiTitle":"Motor de Inteligencia Artificial Cuántica (IA-Q)","wtiFormula":"Fórmula General del WTI Index: WTI_TER = α·C + β·G + γ·E + δ·T","climateWeight":"Urgencia Climática (α)","geopoliticalWeight":"Riesgo Geopolítico (β)","energyWeight":"Demanda Energética (γ)","techWeight":"Innovación Tecnológica (δ)","calculateWti":"Calcular Valor Dinámico TER","dexTitle":"Mercado Descentralizado (DEX) & Minting de TERs","mintNewTer":"Acuñar Nuevo TER Certificado","mintDescription":"Convierte 1 Tonelada Métrica de CO₂ Verificada en Activo Financiero Anticipativo.","amountTons":"Cantidad (Toneladas CO₂):","selectMethod":"Método de Captura:","mintButton":"Acuñar Token TER en Blockchain","stakingTitle":"Sistema de Staking Climático & Beneficios Fiscales","companyName":"Nombre de Empresa / Entidad:","lockAmount":"Tokens TER a Bloquear:","durationYears":"Duración del Staking (Años):","calculateTaxCredit":"Simular Beneficio Fiscal y ESG","taxIncentiveResult":"Incentivo Fiscal Proyectado:","esgBoostResult":"Mejora en Ranking ESG:"},"materials":{"titanium":"Titanio Satinado Gris Grafito (Estructura Principal)","cyanAccent":"Azul Cian Luminoso (#4FC3F7 - Iluminación & Datos)","silverMetal":"Plata Metálica Suave (Componentes Estructurales)","clinicalWhite":"Blanco Clínico Mate (Zonas Sanitarias/Funcionales)","anthraciteBlack":"Negro Antracita Moderado (Contraste Base)"},"offlineNote":"Este archivo HTML se puede enviar por WhatsApp o correo y ejecutar 100% offline en Edge o Chrome con soporte 3D, física, IA y AR."},"en":{"authorTitle":"Dr. Julio César Oporta Barrera","projectTitle":"CO₂ WTI QUANTUM","projectSubtitle":"Regenerative Carbon Exchange with Dynamic Capture Tokens","downloadOffline":"Download Standalone 3D HTML Prototype","downloading":"Generating Offline HTML Package...","arMode":"Augmented Reality (AR)","arInstructions":"Point your camera at your desk or tabletop surface to project the 3D model.","exitAr":"Exit AR","soundOn":"Audio FX Enabled","soundOff":"Audio FX Muted","wtiIndexValue":"Base WTI Index:","terValueUnit":"TER Token Unit Price:","quantumCore":"Central Quantum Processor","swarmAiNodes":"Swarm AI Operational","activeBots":"Active Verifier Bots","modes":{"architectural":"1. 3D Model & Architecture","mrv_simulator":"2. Biomechanical MRV Simulator","quantum_ai":"3. IA-Q Engine & WTI Index","dex_trading":"4. DEX Market & Token Minting","climate_staking":"5. Climate Staking & Tax Benefits","ar_mode":"6. Workstation AR Mode"},"modules":{"dac":"Direct Air Capture (DAC)","reforestation":"Accredited Reforestation","ocean":"Ocean Sequestration / Phytoplankton","beccs":"BECCS Biomass & Industrial Capture","mineralization":"Geological Mineralization / Basalt"},"hud":{"telemetry":"TACTICAL REAL-TIME TELEMETRY","co2Concentration":"Atmospheric CO₂","globalTemp":"Thermal Anomaly","netCapture":"Annual Net Removal","energyEfficiency":"Energy Efficiency","geopoliticalRisk":"Geopolitical Risk","hybridEnergyGauge":"HYBRID ENERGY BALANCE","powerInput":"Renewable Power Input","captureOutput":"Net-Negative Output","quantumNodeStatus":"QUANTUM NODES STATUS","mrvProtocol":"Cryptographic MRV Protocol","activeSwarm":"Autonomous AI Swarm","blockchainLedger":"Immutable Blockchain Ledger","dynamicStates":"DYNAMIC MODEL STATES","clickToInspect":"Click any 3D node to inspect specs"},"simulator":{"mrvTitle":"Biomechanical Simulator & Multisensorial MRV Protocol","adjustParameters":"Adjust Environmental Variables","dacSpeed":"DAC Turbine Airflow","oceanAlkalinity":"Oceanic Alkalinization","forestDensity":"Vegetation / Satellite Coverage","industrialBio":"BECCS Post-Combustion Capture","recalculateCapture":"Recalculate Capture Rate","quantumAiTitle":"Quantum Artificial Intelligence Engine (IA-Q)","wtiFormula":"WTI Index Formula: WTI_TER = α·C + β·G + γ·E + δ·T","climateWeight":"Climate Urgency (α)","geopoliticalWeight":"Geopolitical Risk (β)","energyWeight":"Energy Demand (γ)","techWeight":"Tech Innovation (δ)","calculateWti":"Calculate Dynamic TER Value","dexTitle":"Decentralized Exchange (DEX) & TER Minting","mintNewTer":"Mint Certified TER Token","mintDescription":"Convert 1 Verified Metric Ton of CO₂ into an Anticipatory Financial Asset.","amountTons":"Amount (Metric Tons CO₂):","selectMethod":"Capture Method:","mintButton":"Mint TER Token on Blockchain","stakingTitle":"Climate Staking System & Tax Incentives","companyName":"Company / Organization Name:","lockAmount":"TER Tokens to Lock:","durationYears":"Staking Duration (Years):","calculateTaxCredit":"Simulate Tax Incentive & ESG Impact","taxIncentiveResult":"Projected Tax Incentive:","esgBoostResult":"ESG Ranking Boost:"},"materials":{"titanium":"Satin Graphite Titanium (Primary Chassis)","cyanAccent":"Luminous Cyan Blue (#4FC3F7 - Lighting & Data)","silverMetal":"Soft Metallic Silver (Structural Beams)","clinicalWhite":"Clinical White Matte (Sanitary/Functional Zones)","anthraciteBlack":"Moderate Anthracite Black (Base Contrast)"},"offlineNote":"This HTML file can be sent via WhatsApp or Email and executed 100% offline in Chrome or Edge with full 3D, physics, AI, and AR support."},"zh":{"authorTitle":"胡利奥·塞萨尔·奥波尔塔·巴雷拉 博士 (Dr. Julio César Oporta Barrera)","projectTitle":"CO₂ WTI QUANTUM - 量子碳交易","projectSubtitle":"具有动态捕获代币的再生碳交易所","downloadOffline":"下载 3D HTML 离线原型","downloading":"正在生成独立 HTML 文件...","arMode":"增强现实 (AR 模式)","arInstructions":"将手机/电脑摄像头对准您的桌面，即可投影 3D 模型原型。","exitAr":"退出 AR 模式","soundOn":"音效已开启","soundOff":"音效已静音","wtiIndexValue":"WTI 基准指数:","terValueUnit":"TER 代币单价:","quantumCore":"中央量子处理器","swarmAiNodes":"群智 AI 系统运行中","activeBots":"活跃的验证机器人","modes":{"architectural":"1. 3D模型与整体架构","mrv_simulator":"2. 生物力学 MRV 模拟器","quantum_ai":"3. IA-Q 量子 AI 引擎 & WTI 指数","dex_trading":"4. DEX 交易所与 TER 铸造","climate_staking":"5. 气候质押与税收优惠","ar_mode":"6. 工作台 AR 增强现实"},"modules":{"dac":"直接空气捕集 (DAC)","reforestation":"认证森林再造","ocean":"海洋碳封存 / 浮游植物","beccs":"BECCS 生物质与工业捕集","mineralization":"地质矿化 / 玄武岩"},"hud":{"telemetry":"战术实时遥测数据","co2Concentration":"大气 CO₂ 浓度","globalTemp":"全球气温异常","netCapture":"年净捕集量","energyEfficiency":"能源转化效率","geopoliticalRisk":"地缘政治风险指数","hybridEnergyGauge":"混合能源平衡","powerInput":"可再生能源输入","captureOutput":"净负碳输出","quantumNodeStatus":"量子节点状态","mrvProtocol":"密码学 MRV 协议","activeSwarm":"自主 AI 蜂群系统","blockchainLedger":"不可篡改的区块链账本","dynamicStates":"模型动态运行状态","clickToInspect":"点击任意 3D 节点查看详细规格"},"simulator":{"mrvTitle":"生物力学模拟器与多传感 MRV 验证","adjustParameters":"调整环境参数变量","dacSpeed":"DAC 涡轮气流速度","oceanAlkalinity":"海洋碱化增效","forestDensity":"卫星遥感植被覆盖率","industrialBio":"BECCS 燃烧后捕集","recalculateCapture":"重新计算捕集率","quantumAiTitle":"量子人工智能引擎 (IA-Q)","wtiFormula":"WTI 指数通用公式: WTI_TER = α·C + β·G + γ·E + δ·T","climateWeight":"气候紧迫度 (α)","geopoliticalWeight":"地缘政治风险 (β)","energyWeight":"能源需求权重 (γ)","techWeight":"技术创新权重 (δ)","calculateWti":"计算动态 TER 价值","dexTitle":"去中心化交易所 (DEX) & TER 铸造","mintNewTer":"铸造认证的 TER 代币","mintDescription":"将 1 公吨已验证的 CO₂ 转化为前瞻性金融资产。","amountTons":"捕集数量 (公吨 CO₂):","selectMethod":"捕集技术路线:","mintButton":"在区块链上铸造 TER 代币","stakingTitle":"气候质押系统与税收激励机制","companyName":"企业/机构名称:","lockAmount":"锁定的 TER 代币数量:","durationYears":"质押期限 (年):","calculateTaxCredit":"模拟税收优惠与 ESG 影响","taxIncentiveResult":"预计税收抵免:","esgBoostResult":"ESG 排名提升:"},"materials":{"titanium":"石墨灰缎面钛金 (主结构底盘)","cyanAccent":"明亮荧光青蓝 (#4FC3F7 - 灯光与数据)","silverMetal":"柔和金属银 (结构连接件)","clinicalWhite":"哑光临床白 (功能/卫生区域)","anthraciteBlack":"适度无烟煤黑 (基础对比色)"},"offlineNote":"此 HTML 文件可通过 WhatsApp 或电子邮件发送，并在 Edge 或 Chrome 中 100% 离线运行，支持 3D、物理学、AI 和 AR。"}};
+    let currentLang = 'es';
+    let audioEnabled = true;
+    let arActive = false;
+    let currentMode = 'architectural';
+
+    // Get active translation dictionary
+    function getT() {
+      return translations[currentLang] || translations.es;
+    }
+
+    // WTI Base Calculation variables
+    let wtiParams = { alpha: 0.35, beta: 0.25, gamma: 0.20, delta: 0.20, co2Ppm: 424.5, temp: 1.25, geo: 38, energy: 85, tech: 88 };
+
+    // Web Audio Synthesizer
+    let audioCtx = null;
+    function playSound(type = 'click') {
+      if (!audioEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const now = audioCtx.currentTime;
+        if (type === 'click') {
+          let osc = audioCtx.createOscillator();
+          let gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(600, now);
+          osc.frequency.exponentialRampToValueAtTime(300, now + 0.05);
+          gain.gain.setValueAtTime(0.06, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.05);
+        } else if (type === 'nodeSelect') {
+          let osc = audioCtx.createOscillator();
+          let gain = audioCtx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(440, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.12);
+        } else if (type === 'mint') {
+          // 4-note chord arpeggio
+          const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+          notes.forEach((freq, idx) => {
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+            gain.gain.setValueAtTime(0.07, now + idx * 0.06);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.18);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + idx * 0.06);
+            osc.stop(now + idx * 0.06 + 0.18);
+          });
+        }
+      } catch(e) {}
+    }
+
+    function toggleAudio() {
+      audioEnabled = !audioEnabled;
+      const t = getT();
+      document.getElementById('btn-audio').innerText = audioEnabled ? '🔊 Audio FX' : '🔇 Muted';
+      if (audioEnabled) playSound('click');
+    }
+
+    // AR Mode Camera pass-through
+    async function toggleAR() {
+      arActive = !arActive;
+      const video = document.getElementById('video-ar');
+      const btn = document.getElementById('btn-ar');
+      const arOverlay = document.getElementById('ar-overlay');
+      const t = getT();
+
+      if (arActive) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+          video.srcObject = stream;
+          video.style.display = 'block';
+          arOverlay.style.display = 'flex';
+          btn.classList.add('btn-active');
+          if (renderer) renderer.setClearColor(0x000000, 0); // Transparent canvas for AR overlay
+          playSound('nodeSelect');
+        } catch (err) {
+          alert("Camara no disponible para AR: " + err.message);
+          arActive = false;
+        }
+      } else {
+        if (video.srcObject) {
+          video.srcObject.getTracks().forEach(track => track.stop());
+        }
+        video.style.display = 'none';
+        arOverlay.style.display = 'none';
+        btn.classList.remove('btn-active');
+        if (renderer) renderer.setClearColor(0x0d0f12, 1);
+        playSound('click');
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // THREE.JS 3D SCENE & ANIMATION SETUP
+    // -----------------------------------------------------------------
+    let scene, camera, renderer, controls;
+    let earthMesh, dacTurbines = [], orbitRings = [], swarmBots = [], particleSystem;
+    let satLed;
+    let raycaster = new THREE.Raycaster();
+    let mouse = new THREE.Vector2();
+    let interactiveObjects = [];
+    let targetCamPos = new THREE.Vector3(0, 24, 46);
+    let targetLookAt = new THREE.Vector3(0, 3, 0);
+
+    const modeCamTargets = {
+      'architectural': { pos: [0, 24, 46], target: [0, 3, 0] },
+      'mrv_simulator': { pos: [-9, 11, 18], target: [-5, 3, 4] },
+      'quantum_ai': { pos: [0, 8, 16], target: [0, 5, 0] },
+      'dex_trading': { pos: [8, 14, 22], target: [4, 4, 0] },
+      'climate_staking': { pos: [10, 10, -6], target: [5, 2, -5] },
+      'ar_mode': { pos: [0, 32, 28], target: [0, 0, 0] }
+    };
+
+    function init3D() {
+      const container = document.getElementById('canvas-container');
+      if (!container) return;
+
+      scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x0d0f12, 0.012);
+
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 24, 42);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.setClearColor(0x0d0f12, 1);
+      container.appendChild(renderer.domElement);
+
+      if (typeof THREE.OrbitControls !== 'undefined') {
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 + 0.1;
+      }
+
+      // LIGHTING (Cinematic Satin Titanium & Luminous Cyan)
+      const ambientLight = new THREE.AmbientLight(0x2a303c, 1.3);
+      scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1.8);
+      dirLight.position.set(30, 50, 30);
+      dirLight.castShadow = true;
+      scene.add(dirLight);
+
+      const cyanPointLight = new THREE.PointLight(0x00E5FF, 3.5, 50);
+      cyanPointLight.position.set(0, 6, 0);
+      scene.add(cyanPointLight);
+
+      const bluePointLight = new THREE.PointLight(0x4FC3F7, 2.2, 40);
+      bluePointLight.position.set(-15, 8, 15);
+      scene.add(bluePointLight);
+
+      // BASE CHASSIS (Titanium Satin Graphite Platform)
+      const baseGeo = new THREE.CylinderGeometry(20, 22, 1.5, 64);
+      const baseMat = new THREE.MeshStandardMaterial({
+        color: 0x21252d, metalness: 0.85, roughness: 0.25
+      });
+      const platform = new THREE.Mesh(baseGeo, baseMat);
+      platform.position.y = -1;
+      platform.receiveShadow = true;
+      scene.add(platform);
+
+      // Outer Cyan Glowing Ring Accent
+      const ringGeo = new THREE.TorusGeometry(20.5, 0.18, 16, 100);
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0x00E5FF });
+      const outerRing = new THREE.Mesh(ringGeo, ringMat);
+      outerRing.rotation.x = Math.PI / 2;
+      outerRing.position.y = -0.2;
+      scene.add(outerRing);
+
+      // CENTRAL ELEMENT: QUANTUM EARTH CORE ($245.73)
+      const earthGeo = new THREE.SphereGeometry(4.5, 32, 32);
+      const earthMat = new THREE.MeshStandardMaterial({
+        color: 0x1e3a5f, metalness: 0.3, roughness: 0.5, wireframe: true
+      });
+      earthMesh = new THREE.Mesh(earthGeo, earthMat);
+      earthMesh.position.set(0, 5, 0);
+      scene.add(earthMesh);
+      earthMesh.userData = { name: "Procesador Cuántico Central (IA-Q Core)", desc: "Calcula en tiempo real el valor dinámico del TER Token e Índice WTI según parámetros climáticos, geopolíticos y energéticos." };
+      interactiveObjects.push(earthMesh);
+
+      // Inner Core Glow
+      const coreGeo = new THREE.SphereGeometry(3.2, 24, 24);
+      const coreMat = new THREE.MeshBasicMaterial({ color: 0x00E5FF, transparent: true, opacity: 0.65 });
+      const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+      earthMesh.add(coreMesh);
+
+      // Holographic Orbital Rings around Central Core
+      for (let i = 0; i < 3; i++) {
+        const oGeo = new THREE.TorusGeometry(6 + i * 1.5, 0.06, 16, 80);
+        const oMat = new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0x00E5FF : 0x4FC3F7, transparent: true, opacity: 0.75 });
+        const oMesh = new THREE.Mesh(oGeo, oMat);
+        oMesh.rotation.x = Math.PI / 3 * i;
+        oMesh.rotation.y = Math.PI / 4 * i;
+        scene.add(oMesh);
+        orbitRings.push(oMesh);
+      }
+
+      // ---------------------------------------------------------------
+      // CAPTURE MODULES
+      // ---------------------------------------------------------------
+
+      // 1. DAC TOWERS (Direct Air Capture)
+      const dacGroup = new THREE.Group();
+      dacGroup.position.set(-12, 0, 8);
+      for (let i = 0; i < 2; i++) {
+        const towerGeo = new THREE.CylinderGeometry(1.2, 1.4, 6, 24);
+        const towerMat = new THREE.MeshStandardMaterial({ color: 0x323843, metalness: 0.9, roughness: 0.2 });
+        const tower = new THREE.Mesh(towerGeo, towerMat);
+        tower.position.x = i * 3.2;
+        tower.position.y = 3;
+        tower.castShadow = true;
+        dacGroup.add(tower);
+
+        // Turbine Fan Top
+        const fanGeo = new THREE.CylinderGeometry(1.0, 1.0, 0.3, 16);
+        const fanMat = new THREE.MeshStandardMaterial({ color: 0x00E5FF, metalness: 0.6, roughness: 0.1 });
+        const fan = new THREE.Mesh(fanGeo, fanMat);
+        fan.position.set(i * 3.2, 6.2, 0);
+        dacGroup.add(fan);
+        dacTurbines.push(fan);
+      }
+      dacGroup.userData = { name: "Direct Air Capture (DAC) Module", desc: "Torres de contacto químico de alta eficiencia con turbinas giratorias y almacenamiento geológico profundo." };
+      scene.add(dacGroup);
+      interactiveObjects.push(dacGroup);
+
+      // 2. REFORESTATION TREES & SAT SENSORS
+      const forestGroup = new THREE.Group();
+      forestGroup.position.set(12, 0, 8);
+      for (let i = 0; i < 4; i++) {
+        const trunk = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.3, 0.4, 2.5, 8),
+          new THREE.MeshStandardMaterial({ color: 0x4a3728 })
+        );
+        trunk.position.set((i % 2) * 2.2 - 1, 1.25, Math.floor(i / 2) * 2.2 - 1);
+        forestGroup.add(trunk);
+
+        const canopy = new THREE.Mesh(
+          new THREE.ConeGeometry(1.5, 3.5, 8),
+          new THREE.MeshStandardMaterial({ color: 0x1b4d3e, roughness: 0.8 })
+        );
+        canopy.position.set((i % 2) * 2.2 - 1, 3.5, Math.floor(i / 2) * 2.2 - 1);
+        forestGroup.add(canopy);
+      }
+      // Satellite MRV Pole with LED tip
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 7, 8), new THREE.MeshBasicMaterial({ color: 0x00E5FF }));
+      pole.position.set(0, 3.5, 0);
+      forestGroup.add(pole);
+
+      satLed = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 12), new THREE.MeshBasicMaterial({ color: 0x00E5FF }));
+      satLed.position.set(0, 7, 0);
+      forestGroup.add(satLed);
+
+      forestGroup.userData = { name: "Reforestación Acreditada MRV", desc: "Área bioingenieril supervisada mediante sensores de flujo de carbono y enlace telemétrico satelital." };
+      scene.add(forestGroup);
+      interactiveObjects.push(forestGroup);
+
+      // 3. OCEAN BIOREACTOR & FITOPLANCTON
+      const oceanGroup = new THREE.Group();
+      oceanGroup.position.set(-11, 0, -10);
+      const poolGeo = new THREE.CylinderGeometry(3.6, 3.9, 0.8, 32);
+      const poolMat = new THREE.MeshStandardMaterial({ color: 0x0f2b46, metalness: 0.5, roughness: 0.2 });
+      const pool = new THREE.Mesh(poolGeo, poolMat);
+      pool.position.y = 0.4;
+      oceanGroup.add(pool);
+
+      const waterGeo = new THREE.CylinderGeometry(3.4, 3.4, 0.1, 32);
+      const waterMat = new THREE.MeshStandardMaterial({ color: 0x00E5FF, transparent: true, opacity: 0.8, roughness: 0.1 });
+      const water = new THREE.Mesh(waterGeo, waterMat);
+      water.position.y = 0.85;
+      oceanGroup.add(water);
+
+      oceanGroup.userData = { name: "Secuestro Oceánico / Fitoplancton", desc: "Plataforma de alcalinización marina y biorreactor de fitoplancton para hundimiento biológico de carbono en aguas profundas." };
+      scene.add(oceanGroup);
+      interactiveObjects.push(oceanGroup);
+
+      // 4. BECCS / INDUSTRIAL PLANT
+      const beccsGroup = new THREE.Group();
+      beccsGroup.position.set(11, 0, -10);
+      const bMain = new THREE.Mesh(new THREE.BoxGeometry(4.2, 3.2, 3.2), new THREE.MeshStandardMaterial({ color: 0x2a2e35, metalness: 0.85 }));
+      bMain.position.y = 1.6;
+      beccsGroup.add(bMain);
+
+      const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 6, 16), new THREE.MeshStandardMaterial({ color: 0x383e48, metalness: 0.9 }));
+      stack.position.set(1, 4, 0);
+      beccsGroup.add(stack);
+
+      beccsGroup.userData = { name: "BECCS Biomasa & Captura Industrial", desc: "Planta de bioenergía con captura de carbono post-combustión que genera energía net-negative." };
+      scene.add(beccsGroup);
+      interactiveObjects.push(beccsGroup);
+
+      // 5. GEOLOGICAL MINERALIZATION (BASALT ROCK / OLIVINE)
+      const minGroup = new THREE.Group();
+      minGroup.position.set(0, 0, -13);
+      const minWell = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 3.2, 0.6, 24), new THREE.MeshStandardMaterial({ color: 0x1f232b, metalness: 0.8 }));
+      minWell.position.y = 0.3;
+      minGroup.add(minWell);
+      for (let i = 0; i < 5; i++) {
+        const crystal = new THREE.Mesh(
+          new THREE.ConeGeometry(0.8 + (i % 2) * 0.3, 3 + (i % 3), 6),
+          new THREE.MeshStandardMaterial({ color: 0x00E5FF, metalness: 0.9, roughness: 0.1, transparent: true, opacity: 0.85 })
+        );
+        crystal.position.set((i - 2) * 1.1, 1.8 + (i % 2) * 0.3, (i % 2) * 0.6 - 0.3);
+        crystal.rotation.z = (i - 2) * 0.15;
+        minGroup.add(crystal);
+      }
+      minGroup.userData = { name: "Mineralización Geológica en Basalto", desc: "Conversión de CO₂ en minerales carbonatados sólidos permanentes mediante reacción con roca ultramáfica (>1000 años)." };
+      scene.add(minGroup);
+      interactiveObjects.push(minGroup);
+
+      // ---------------------------------------------------------------
+      // SWARM AI PARTICLES & CO2 STREAM
+      // ---------------------------------------------------------------
+      const swarmGeo = new THREE.BufferGeometry();
+      const botCount = 120;
+      const posArray = new Float32Array(botCount * 3);
+      for (let i = 0; i < botCount * 3; i += 3) {
+        let r = 8 + Math.random() * 12;
+        let theta = Math.random() * Math.PI * 2;
+        let phi = (Math.random() - 0.5) * Math.PI;
+        posArray[i] = r * Math.cos(theta) * Math.cos(phi);
+        posArray[i+1] = 2 + r * Math.sin(phi);
+        posArray[i+2] = r * Math.sin(theta) * Math.cos(phi);
+      }
+      swarmGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+      const swarmMat = new THREE.PointsMaterial({ size: 0.28, color: 0x00E5FF, transparent: true, opacity: 0.9 });
+      const swarmSystem = new THREE.Points(swarmGeo, swarmMat);
+      scene.add(swarmSystem);
+      swarmBots.push(swarmSystem);
+
+      // CO2 Particle Stream Flowing into Central Processor
+      const co2Geo = new THREE.BufferGeometry();
+      const pCount = 220;
+      const pPos = new Float32Array(pCount * 3);
+      for (let i = 0; i < pCount * 3; i += 3) {
+        pPos[i] = (Math.random() - 0.5) * 36;
+        pPos[i+1] = Math.random() * 16;
+        pPos[i+2] = (Math.random() - 0.5) * 36;
+      }
+      co2Geo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+      const co2Mat = new THREE.PointsMaterial({ size: 0.2, color: 0x4FC3F7, transparent: true, opacity: 0.65 });
+      particleSystem = new THREE.Points(co2Geo, co2Mat);
+      scene.add(particleSystem);
+
+      // Event listeners
+      window.addEventListener('resize', onWindowResize);
+      window.addEventListener('click', onCanvasClick);
+
+      animate();
+    }
+
+    function onWindowResize() {
+      if (!camera || !renderer) return;
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function onCanvasClick(e) {
+      // Ignore click if clicking UI controls
+      if (e.target.closest('.header') || e.target.closest('.header-right') || e.target.closest('.tactical-hud') || e.target.closest('.sim-panel') || e.target.closest('.modes-bar') || e.target.closest('.wti-banner') || e.target.closest('.node-modal')) {
+        return;
+      }
+
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      const intersects = raycaster.intersectObjects(interactiveObjects, true);
+      if (intersects.length > 0) {
+        let obj = intersects[0].object;
+        while (obj.parent && !obj.userData.name) {
+          obj = obj.parent;
+        }
+        if (obj.userData.name) {
+          playSound('nodeSelect');
+          showModal(obj.userData.name, obj.userData.desc);
+        }
+      }
+    }
+
+    function showModal(title, desc) {
+      const modal = document.getElementById('node-modal');
+      document.getElementById('modal-title').innerText = title;
+      document.getElementById('modal-desc').innerText = desc;
+      document.getElementById('modal-stats').innerHTML = `
+        <div>STATUS: <strong style="color:#4fe3c1;">100% OPERATIONAL</strong></div>
+        <div>MRV PROTOCOL: <strong style="color:#00E5FF;">SHA-256 VERIFIED</strong></div>
+        <div>HASH: <span style="color:#cbd5e1;">0x7f8a9b2c...3e9c</span></div>
+      `;
+      modal.style.display = 'block';
+    }
+
+    function closeModal() {
+      document.getElementById('node-modal').style.display = 'none';
+      playSound('click');
+    }
+
+    // Animation Loop
+    let clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const elapsedTime = clock.getElapsedTime();
+
+      // Smooth Camera & Orbit Target Lerp
+      if (camera && targetCamPos) {
+        camera.position.lerp(targetCamPos, 0.06);
+      }
+      if (controls && targetLookAt) {
+        controls.target.lerp(targetLookAt, 0.06);
+      }
+
+      // Mode-based simulation parameters
+      let fanSpeed = 0.08;
+      let ringSpeedMult = 1.0;
+      let particleSpeedMult = 0.02;
+
+      if (currentMode === 'mrv_simulator') {
+        fanSpeed = 0.28; // Rapid spinning turbines during MRV simulation
+        particleSpeedMult = 0.04;
+      } else if (currentMode === 'quantum_ai') {
+        ringSpeedMult = 2.5; // High velocity quantum AI orbit
+      }
+
+      // Rotate Earth & Core
+      if (earthMesh) {
+        earthMesh.rotation.y = elapsedTime * (0.2 * ringSpeedMult);
+      }
+
+      // Rotate Turbine Blades on DAC Towers
+      dacTurbines.forEach(f => {
+        f.rotation.y += fanSpeed;
+      });
+
+      // Pulse Satellite Sensor LED
+      if (satLed) {
+        let scale = 1 + Math.sin(elapsedTime * 6) * 0.3;
+        satLed.scale.set(scale, scale, scale);
+      }
+
+      // Rotate Orbital Hologram Rings
+      orbitRings.forEach((ring, idx) => {
+        ring.rotation.z = elapsedTime * (0.3 + idx * 0.1) * ringSpeedMult;
+        ring.rotation.x = Math.PI / 3 * idx + Math.sin(elapsedTime * 0.5) * 0.2;
+      });
+
+      // Animate Swarm AI bots
+      swarmBots.forEach(s => {
+        s.rotation.y = elapsedTime * (0.35 * ringSpeedMult);
+      });
+
+      // Animate CO2 Particles
+      if (particleSystem) {
+        const positions = particleSystem.geometry.attributes.position.array;
+        for (let i = 0; i < positions.length; i += 3) {
+          positions[i+1] += Math.sin(elapsedTime + i) * particleSpeedMult;
+          positions[i] *= 0.998;
+          positions[i+2] *= 0.998;
+          if (Math.abs(positions[i]) < 0.6) {
+            positions[i] = (Math.random() - 0.5) * 36;
+            positions[i+2] = (Math.random() - 0.5) * 36;
+          }
+        }
+        particleSystem.geometry.attributes.position.needsUpdate = true;
+      }
+
+      if (controls) controls.update();
+      if (renderer && scene && camera) renderer.render(scene, camera);
+    }
+
+    // -----------------------------------------------------------------
+    // SIMULATOR PANELS & MODES
+    // -----------------------------------------------------------------
+    function setMode(mode) {
+      playSound('click');
+      playSound('quantumPulse');
+      currentMode = mode;
+      
+      const target = modeCamTargets[mode];
+      if (target) {
+        targetCamPos.set(target.pos[0], target.pos[1], target.pos[2]);
+        targetLookAt.set(target.target[0], target.target[1], target.target[2]);
+      }
+
+      document.querySelectorAll('#modes-bar .btn').forEach(b => b.classList.remove('btn-active'));
+      let btnMap = {
+        'architectural': 'm-architectural',
+        'mrv_simulator': 'm-mrv',
+        'quantum_ai': 'm-quantum',
+        'dex_trading': 'm-dex',
+        'climate_staking': 'm-staking',
+        'ar_mode': 'm-ar'
+      };
+      let btn = document.getElementById(btnMap[mode]);
+      if (btn) btn.classList.add('btn-active');
+
+      if (mode === 'ar_mode' && !arActive) {
+        toggleAR();
+      }
+
+      renderSimPanel();
+    }
+
+    function calculateWTIVal() {
+      let base = 245.73;
+      let diff = (wtiParams.alpha * (wtiParams.co2Ppm - 400) * 0.5) +
+                 (wtiParams.beta * wtiParams.geo * 0.8) +
+                 (wtiParams.gamma * (wtiParams.energy - 50) * 0.4) +
+                 (wtiParams.delta * wtiParams.tech * 0.6);
+      let calculated = (base + diff * 0.15).toFixed(2);
+      document.getElementById('wti-display').innerText = '$' + calculated;
+      return calculated;
+    }
+
+    function renderSimPanel() {
+      const t = getT();
+      const titleEl = document.getElementById('sim-title');
+      const contentEl = document.getElementById('sim-content');
+
+      if (currentMode === 'architectural') {
+        titleEl.innerHTML = '🏛️ ' + t.modes.architectural;
+        contentEl.innerHTML = `
+          <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.5;">
+            Representación visual y prototipo 3D interactivo del proyecto <strong>CO₂ WTI QUANTUM</strong> diseñado por el <strong>${t.authorTitle}</strong>.
+          </p>
+          <div style="margin-top:12px; background:rgba(0,229,255,0.08); border-left:3px solid #00E5FF; padding:10px; border-radius:6px; font-size:0.75rem;">
+            <strong style="color:#00E5FF;">5 Métodos de Captura Aceptados (Cap. 3.2.1):</strong>
+            <ul style="margin-left:16px; margin-top:6px; color:#94a3b8; line-height:1.6;">
+              <li>• ${t.modules.dac}</li>
+              <li>• ${t.modules.reforestation}</li>
+              <li>• ${t.modules.ocean}</li>
+              <li>• ${t.modules.beccs}</li>
+              <li>• Mineralización Geológica en Basalto</li>
+            </ul>
+          </div>
+          <p style="font-size:0.7rem; color:#94a3b8; margin-top:10px; font-style:italic;">
+            💡 ${t.hud.clickToInspect}
+          </p>
+        `;
+      } else if (currentMode === 'mrv_simulator') {
+        titleEl.innerHTML = '⚙️ ' + t.simulator.mrvTitle;
+        contentEl.innerHTML = `
+          <div class="slider-group">
+            <label><span>${t.simulator.dacSpeed}</span><span id="v-dac">85%</span></label>
+            <input type="range" min="10" max="100" value="85" oninput="document.getElementById('v-dac').innerText=this.value+'%'; updateCapture();">
+          </div>
+          <div class="slider-group">
+            <label><span>${t.simulator.oceanAlkalinity}</span><span id="v-ocean">72%</span></label>
+            <input type="range" min="10" max="100" value="72" oninput="document.getElementById('v-ocean').innerText=this.value+'%'; updateCapture();">
+          </div>
+          <div class="slider-group">
+            <label><span>${t.simulator.forestDensity}</span><span id="v-forest">90%</span></label>
+            <input type="range" min="10" max="100" value="90" oninput="document.getElementById('v-forest').innerText=this.value+'%'; updateCapture();">
+          </div>
+          <div class="slider-group">
+            <label><span>Mineralización Geológica (Basalto)</span><span id="v-min">80%</span></label>
+            <input type="range" min="10" max="100" value="80" oninput="document.getElementById('v-min').innerText=this.value+'%'; updateCapture();">
+          </div>
+          <div style="margin-top:14px; background:rgba(26,29,34,0.85); border:1px solid rgba(79,195,247,0.3); padding:10px; border-radius:8px; font-size:0.75rem; line-height:1.6;">
+            <div>Tasa de Captura Simulada: <strong id="sim-net-cap" style="color:#00E5FF;">1,450,000 Ton/año</strong></div>
+            <div>Validación Satelital & IoT: <strong style="color:#4fe3c1;">PASS (99.8%)</strong></div>
+            <div>MRV Crypto Hash: <span style="color:#cbd5e1; font-family:monospace;">SHA-256 Verified</span></div>
+          </div>
+        `;
+      } else if (currentMode === 'quantum_ai') {
+        titleEl.innerHTML = '🧠 ' + t.simulator.quantumAiTitle;
+        contentEl.innerHTML = `
+          <div style="font-size:0.72rem; color:#94a3b8; margin-bottom:12px; background:rgba(15,17,21,0.8); padding:8px; border-radius:6px; border:1px solid rgba(79,195,247,0.2); font-family:monospace;">${t.simulator.wtiFormula}</div>
+          <div class="slider-group">
+            <label><span>${t.simulator.climateWeight}</span><span id="v-a">0.35</span></label>
+            <input type="range" min="0.1" max="1.0" step="0.05" value="0.35" oninput="wtiParams.alpha=parseFloat(this.value); document.getElementById('v-a').innerText=this.value; calculateWTIVal();">
+          </div>
+          <div class="slider-group">
+            <label><span>${t.simulator.geopoliticalWeight}</span><span id="v-b">0.25</span></label>
+            <input type="range" min="0.1" max="1.0" step="0.05" value="0.25" oninput="wtiParams.beta=parseFloat(this.value); document.getElementById('v-b').innerText=this.value; calculateWTIVal();">
+          </div>
+          <div class="slider-group">
+            <label><span>${t.simulator.energyWeight}</span><span id="v-c">0.20</span></label>
+            <input type="range" min="0.1" max="1.0" step="0.05" value="0.20" oninput="wtiParams.gamma=parseFloat(this.value); document.getElementById('v-c').innerText=this.value; calculateWTIVal();">
+          </div>
+          <div class="slider-group">
+            <label><span>${t.simulator.techWeight}</span><span id="v-d">0.20</span></label>
+            <input type="range" min="0.1" max="1.0" step="0.05" value="0.20" oninput="wtiParams.delta=parseFloat(this.value); document.getElementById('v-d').innerText=this.value; calculateWTIVal();">
+          </div>
+          <div style="margin-top:12px; padding-top:8px; border-top:1px dashed rgba(79,195,247,0.3);">
+            <div style="font-size:0.75rem; font-weight:800; color:#00E5FF; margin-bottom:4px;">🗳️ DAO Climática (Cap. 5.2)</div>
+            <div style="background:rgba(15,17,21,0.8); border:1px solid rgba(79,195,247,0.2); border-radius:6px; font-size:0.7rem; color:#cbd5e1; padding:6px;">
+              <div>PROP-042: Validar Sub-Red Mineralización Basáltica</div>
+              <div style="display:flex; gap:6px; margin-top:6px;">
+                <button class="btn btn-active" style="flex:1; padding:3px;" onclick="alert('Voto registrado en blockchain!')">Sí (1,421)</button>
+                <button class="btn" style="flex:1; padding:3px;" onclick="alert('Voto No registrado')">No (180)</button>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (currentMode === 'dex_trading') {
+        titleEl.innerHTML = '📈 ' + t.simulator.dexTitle;
+        contentEl.innerHTML = `
+          <p style="font-size:0.75rem; color:#cbd5e1; margin-bottom:10px;">${t.simulator.mintDescription}</p>
+          <div style="margin-bottom:8px;">
+            <label style="font-size:0.75rem; color:#94a3b8;">${t.simulator.amountTons}</label>
+            <input type="number" id="mint-amt" value="100" style="width:100%; background:#1a1d22; border:1px solid rgba(79,195,247,0.3); color:#fff; padding:8px; border-radius:6px; margin-top:2px;">
+          </div>
+          <div style="margin-bottom:12px;">
+            <label style="font-size:0.75rem; color:#94a3b8;">${t.simulator.selectMethod}</label>
+            <select id="mint-method" style="width:100%; background:#1a1d22; border:1px solid rgba(79,195,247,0.3); color:#fff; padding:8px; border-radius:6px; margin-top:2px;">
+              <option>Mineralización Geológica / Basalto</option>
+              <option>${t.modules.dac}</option>
+              <option>${t.modules.reforestation}</option>
+              <option>${t.modules.ocean}</option>
+              <option>${t.modules.beccs}</option>
+            </select>
+          </div>
+          <button class="btn btn-active" style="width:100%; justify-content:center; padding:10px;" onclick="mintTERToken()">${t.simulator.mintButton}</button>
+          <div id="mint-result" style="margin-top:12px; font-size:0.75rem; color:#00E5FF; text-align:center;"></div>
+        `;
+      } else if (currentMode === 'climate_staking') {
+        titleEl.innerHTML = '🏦 ' + t.simulator.stakingTitle;
+        contentEl.innerHTML = `
+          <div style="margin-bottom:8px;">
+            <label style="font-size:0.75rem; color:#94a3b8;">${t.simulator.companyName}</label>
+            <input type="text" value="EcoEnergy Global Corp" style="width:100%; background:#1a1d22; border:1px solid rgba(79,195,247,0.3); color:#fff; padding:8px; border-radius:6px; margin-top:2px;">
+          </div>
+          <div style="margin-bottom:8px;">
+            <label style="font-size:0.75rem; color:#94a3b8;">${t.simulator.lockAmount}</label>
+            <input type="number" id="stake-amt" value="5000" style="width:100%; background:#1a1d22; border:1px solid rgba(79,195,247,0.3); color:#fff; padding:8px; border-radius:6px; margin-top:2px;">
+          </div>
+          <div style="margin-bottom:12px;">
+            <label style="font-size:0.75rem; color:#94a3b8;">${t.simulator.durationYears}</label>
+            <select id="stake-yrs" style="width:100%; background:#1a1d22; border:1px solid rgba(79,195,247,0.3); color:#fff; padding:8px; border-radius:6px; margin-top:2px;">
+              <option value="1">1 Año (3.5% WTI Boost)</option>
+              <option value="3" selected>3 Años (12.8% WTI Boost)</option>
+              <option value="5">5 Años (24.5% WTI Boost)</option>
+            </select>
+          </div>
+          <button class="btn btn-active" style="width:100%; justify-content:center; padding:10px;" onclick="calcStaking()">${t.simulator.calculateTaxCredit}</button>
+          <div id="stake-result" style="margin-top:12px; font-size:0.75rem; background:rgba(0,229,255,0.1); border:1px solid #00E5FF; padding:10px; border-radius:8px; display:none; line-height:1.6;"></div>
+        `;
+      } else if (currentMode === 'ar_mode') {
+        titleEl.innerHTML = '📷 ' + t.modes.ar_mode;
+        contentEl.innerHTML = `
+          <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.5;">
+            ${t.arInstructions}
+          </p>
+          <div style="margin-top:12px; background:rgba(0,229,255,0.08); border:1px solid rgba(0,229,255,0.3); padding:10px; border-radius:8px; font-size:0.75rem; color:#00E5FF;">
+            <strong>Modo Cámara Activo:</strong> El lienzo 3D se vuelve transparente para superponer la estructura sobre su mesa de trabajo en tiempo real.
+          </div>
+        `;
+      }
+    }
+
+    function updateCapture() {
+      let d = parseInt(document.getElementById('v-dac').innerText);
+      let o = parseInt(document.getElementById('v-ocean').innerText);
+      let f = parseInt(document.getElementById('v-forest').innerText);
+      let total = Math.round((d * 5000 + o * 4500 + f * 6000) * 1.1);
+      document.getElementById('hud-capture').innerText = total.toLocaleString() + ' Ton/año';
+      if (document.getElementById('sim-net-cap')) {
+        document.getElementById('sim-net-cap').innerText = total.toLocaleString() + ' Ton/año';
+      }
+      playSound('click');
+    }
+
+    function mintTERToken() {
+      playSound('mint');
+      let amt = document.getElementById('mint-amt').value;
+      let method = document.getElementById('mint-method').value;
+      let wti = document.getElementById('wti-display').innerText.replace('$','');
+      let totalVal = (parseFloat(wti) * parseInt(amt)).toFixed(2);
+      document.getElementById('mint-result').innerHTML = '✅ <strong>Token TER Acuñado con Éxito!</strong><br>ID: #TER-2026-' + Math.floor(Math.random()*90000+10000) + '<br>Valor Certificado: $' + totalVal + ' USD';
+    }
+
+    function calcStaking() {
+      playSound('mint');
+      let t = getT();
+      let amt = parseInt(document.getElementById('stake-amt').value);
+      let yrs = parseInt(document.getElementById('stake-yrs').value);
+      let wti = parseFloat(document.getElementById('wti-display').innerText.replace('$',''));
+      let taxCredit = (amt * wti * 0.18 * yrs).toFixed(2);
+      let esgScore = Math.min(100, Math.round(70 + yrs * 5.5));
+
+      let res = document.getElementById('stake-result');
+      res.style.display = 'block';
+      res.innerHTML = `
+        <div>${t.simulator.taxIncentiveResult} <strong style="color:#00E5FF;">$${taxCredit} USD</strong></div>
+        <div>${t.simulator.esgBoostResult} <strong style="color:#4fe3c1;">+${esgScore} Ptos (Ranking AAA)</strong></div>
+      `;
+    }
+
+    function changeLanguage(newLang) {
+      currentLang = newLang;
+      playSound('click');
+      const t = getT();
+
+      // Update Header Text
+      document.getElementById('lbl-author').innerText = t.authorTitle;
+      document.getElementById('lbl-title').innerText = t.projectTitle;
+      document.getElementById('lbl-subtitle').innerText = t.projectSubtitle;
+      if (document.getElementById('lbl-btn-ar')) document.getElementById('lbl-btn-ar').innerText = t.arMode;
+
+      // Update HUD Labels
+      document.getElementById('lbl-hud-telemetry').innerText = t.hud.telemetry;
+      document.getElementById('lbl-hud-co2').innerText = t.hud.co2Concentration + ':';
+      document.getElementById('lbl-hud-temp').innerText = t.hud.globalTemp + ':';
+      document.getElementById('lbl-hud-netcap').innerText = t.hud.netCapture + ':';
+      document.getElementById('lbl-hud-efficiency').innerText = t.hud.energyEfficiency + ':';
+      document.getElementById('lbl-hud-georisk').innerText = t.hud.geopoliticalRisk + ':';
+      document.getElementById('lbl-hud-gauge').innerText = t.hud.hybridEnergyGauge;
+      document.getElementById('lbl-hud-input').innerText = t.hud.powerInput + ':';
+      document.getElementById('lbl-hud-output').innerText = t.hud.captureOutput + ':';
+      document.getElementById('lbl-hud-swarm').innerText = t.swarmAiNodes;
+      document.getElementById('lbl-hud-bots').innerText = t.activeBots + ':';
+
+      // Update Modes Buttons
+      document.getElementById('m-architectural').innerText = t.modes.architectural;
+      document.getElementById('m-mrv').innerText = t.modes.mrv_simulator;
+      document.getElementById('m-quantum').innerText = t.modes.quantum_ai;
+      document.getElementById('m-dex').innerText = t.modes.dex_trading;
+      document.getElementById('m-staking').innerText = t.modes.climate_staking;
+      document.getElementById('m-ar').innerText = t.modes.ar_mode;
+
+      // Re-render simulator panel
+      renderSimPanel();
+    }
+
+    // Initialize on page load
+    window.onload = () => {
+      init3D();
+      renderSimPanel();
+      // Mostrar el modal por defecto con la información del núcleo central
+      if (earthMesh && earthMesh.userData) {
+        showModal(earthMesh.userData.name, earthMesh.userData.desc);
+      }
+    };
+  </script>
+</body>
+</html>
