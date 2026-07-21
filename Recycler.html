@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quantum Recycler Genesis - Dr. Julio César Oporta Barrera</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background-color: #121519;
+      color: #ECEFF1;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #ar-video {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      object-fit: cover;
+      z-index: 0;
+      display: none;
+    }
+
+    #canvas-container {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 1;
+      cursor: grab;
+    }
+    #canvas-container:active { cursor: grabbing; }
+
+    .hud-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px;
+    }
+
+    .interactive { pointer-events: auto; }
+
+    /* Header Bar */
+    .header-bar {
+      background: rgba(28, 32, 38, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(79, 195, 247, 0.35);
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+      flex-wrap: wrap;
+    }
+
+    .author-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: #4FC3F7;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .author-pulse {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #00E5FF;
+      box-shadow: 0 0 8px #00E5FF;
+      animation: pulsePing 1.5s infinite;
+    }
+
+    @keyframes pulsePing {
+      0% { transform: scale(0.9); opacity: 1; }
+      50% { transform: scale(1.4); opacity: 0.4; }
+      100% { transform: scale(0.9); opacity: 1; }
+    }
+
+    .project-name {
+      font-size: 17px;
+      font-weight: 900;
+      color: #FFFFFF;
+      letter-spacing: -0.2px;
+    }
+
+    .project-sub {
+      font-size: 11px;
+      color: #B0BEC5;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      background: rgba(79, 195, 247, 0.15);
+      color: #00E5FF;
+      border: 1px solid rgba(79, 195, 247, 0.4);
+    }
+
+    .btn {
+      background: rgba(42, 46, 51, 0.9);
+      border: 1px solid rgba(79, 195, 247, 0.35);
+      color: #FFFFFF;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover {
+      border-color: #00E5FF;
+      background: rgba(79, 195, 247, 0.25);
+      box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+    }
+    .btn-active {
+      background: #00E5FF !important;
+      color: #121519 !important;
+      border-color: #00E5FF !important;
+      font-weight: 800;
+    }
+
+    /* Grid Layout */
+    .hud-middle {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .hud-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .hud-card {
+      background: rgba(28, 32, 38, 0.88);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(79, 195, 247, 0.3);
+      border-radius: 8px;
+      padding: 12px;
+      width: 300px;
+      max-width: 100%;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .hud-card-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: #4FC3F7;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      border-bottom: 1px solid rgba(79, 195, 247, 0.2);
+      padding-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(18, 21, 25, 0.6);
+      padding: 5px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 11px;
+    }
+    .stat-label { color: #B0BEC5; }
+    .stat-val { color: #FFFFFF; font-weight: 700; font-family: monospace; }
+
+    /* Progress bar */
+    .bar-bg { width: 100%; height: 5px; background: #121519; border-radius: 3px; overflow: hidden; }
+    .bar-fill { height: 100%; background: linear-gradient(90deg, #4FC3F7, #00E5FF); width: 60%; transition: width 0.3s; }
+
+    /* Mode selector buttons */
+    .mode-btn {
+      width: 100%;
+      text-align: left;
+      padding: 7px 10px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(18, 21, 25, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #B0BEC5;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .mode-btn:hover { border-color: #4FC3F7; color: #FFF; }
+    .mode-btn-active {
+      background: linear-gradient(135deg, rgba(79, 195, 247, 0.25), rgba(0, 229, 255, 0.35));
+      border-color: #00E5FF;
+      color: #FFFFFF;
+      font-weight: 800;
+    }
+
+    /* Trigger Action Buttons */
+    .trigger-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .trig-btn {
+      padding: 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid transparent;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    /* Range slider custom styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      background: #121519;
+      height: 4px;
+      border-radius: 2px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #00E5FF;
+      cursor: pointer;
+      box-shadow: 0 0 6px #00E5FF;
+    }
+
+    /* Tabs */
+    .tab-bar { display: flex; gap: 4px; border-bottom: 1px solid rgba(79,195,247,0.2); pb: 4px; }
+    .tab-btn {
+      flex: 1;
+      padding: 4px;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 4px;
+      background: #121519;
+      color: #B0BEC5;
+      cursor: pointer;
+      border: none;
+    }
+    .tab-btn-active { background: #4FC3F7; color: #121519; }
+
+    /* Footer Ticker */
+    .footer-bar {
+      position: relative;
+      z-index: 20;
+      background: rgba(28, 32, 38, 0.95);
+      border-top: 1px solid rgba(79, 195, 247, 0.3);
+      padding: 6px 16px;
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #B0BEC5;
+    }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(79, 195, 247, 0.4); border-radius: 2px; }
+  </style>
+</head>
+<body>
+  <!-- Background video for AR camera mode -->
+  <video id="ar-video" playsinline muted></video>
+
+  <!-- 3D Canvas -->
+  <div id="canvas-container"></div>
+
+  <!-- HUD Overlay -->
+  <div class="hud-overlay">
+    <!-- Header -->
+    <div class="header-bar interactive">
+      <div>
+        <div class="author-title">
+          <span id="author-label">Dr. Julio César Oporta Barrera</span>
+          <span class="author-pulse"></span>
+        </div>
+        <div class="project-name" id="proj-title">Quantum Recycler Genesis (QRG)</div>
+        <div class="project-sub" id="proj-sub">Reconstrucción Atómica con IA Ontológica - Prototipo 3D Autónomo</div>
+      </div>
+
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <span class="badge" id="state-badge">REPOSO ESTABILIZADO</span>
+
+        <button class="btn" id="ar-btn" onclick="toggleAR()">
+          <span>Realidad Aumentada (AR)</span>
+        </button>
+
+        <button class="btn" id="audio-btn" onclick="toggleAudio()">
+          <span id="audio-label">Audio Activo</span>
+        </button>
+
+        <!-- Lang Switcher -->
+        <div style="display: flex; background: #2A2E33; padding: 2px; border-radius: 6px; border: 1px solid rgba(79,195,247,0.3);">
+          <button class="btn btn-active" id="lang-es" style="padding: 3px 8px; font-size: 10px;" onclick="setLang('es')">ES</button>
+          <button class="btn" id="lang-en" style="padding: 3px 8px; font-size: 10px;" onclick="setLang('en')">EN</button>
+          <button class="btn" id="lang-zh" style="padding: 3px 8px; font-size: 10px;" onclick="setLang('zh')">ZH</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Middle Row: Telemetry (Left), Swarm Graph (Right) -->
+    <div class="hud-middle">
+      <!-- Left: Telemetry Panel -->
+      <div class="hud-card interactive">
+        <div class="hud-card-title">
+          <span id="txt-telemetry-title">Telemetría & Física Cuántica</span>
+          <span style="width: 6px; height: 6px; border-radius: 50%; background: #00E5FF;"></span>
+        </div>
+
+        <div class="stat-row">
+          <span class="stat-label" id="lbl-vac">Vacío UHV:</span>
+          <span class="stat-val">1.00e-9 Pa</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label" id="lbl-temp">Temp. Criogénica:</span>
+          <span class="stat-val" id="val-temp" style="color: #00E5FF;">0.05 K</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label" id="lbl-mag">Campo Magnético:</span>
+          <span class="stat-val" id="val-mag">14.5 T</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label" id="lbl-laser">Láser Femtosegundo:</span>
+          <span class="stat-val" id="val-laser">50 fs</span>
+        </div>
+
+        <div>
+          <div style="display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px;">
+            <span class="stat-label" id="lbl-coh">Coherencia Cuántica:</span>
+            <span class="stat-val" id="val-coh" style="color: #00E5FF;">1.28 ms</span>
+          </div>
+          <div class="bar-bg"><div class="bar-fill" id="fill-coh" style="width: 64%;"></div></div>
+        </div>
+
+        <div class="stat-row" style="background: rgba(42,46,51,0.8); border-color: rgba(79,195,247,0.4);">
+          <span class="stat-label" id="lbl-atom">Átomo Objetivo:</span>
+          <span class="stat-val" id="val-atom" style="color: #FFF;">Cu (Z=29)</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 10px; text-align: center;">
+          <div style="background: #121519; padding: 4px; border-radius: 4px; border: 1px solid rgba(255,160,0,0.3);">
+            <div class="stat-label" id="lbl-ext">Extraídos</div>
+            <div id="val-ext" style="font-weight: 800; color: #FFB74D; font-family: monospace;">1420</div>
+          </div>
+          <div style="background: #121519; padding: 4px; border-radius: 4px; border: 1px solid rgba(0,229,255,0.3);">
+            <div class="stat-label" id="lbl-syn">Sintetizados</div>
+            <div id="val-syn" style="font-weight: 800; color: #00E5FF; font-family: monospace;">1390</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: AI Swarm, Atomic Process, Pillars, Apps & Roadmap Graph -->
+      <div class="hud-card interactive">
+        <div class="tab-bar" style="display: flex; gap: 2px; border-bottom: 1px solid rgba(79,195,247,0.2); padding-bottom: 4px; overflow-x: auto;">
+          <button class="tab-btn tab-btn-active" id="tb-nodes" onclick="setTab('nodes')">Nodos IA</button>
+          <button class="tab-btn" id="tb-atomic" onclick="setTab('atomic')">Proceso</button>
+          <button class="tab-btn" id="tb-pillars" onclick="setTab('pillars')">Pilares</button>
+          <button class="tab-btn" id="tb-apps" onclick="setTab('apps')">Apps</button>
+          <button class="tab-btn" id="tb-roadmap" onclick="setTab('roadmap')">Ruta 1-4</button>
+        </div>
+
+        <!-- Tab 1: AI Swarm & SPARQL Triplets -->
+        <div id="tab-content-nodes">
+          <div class="hud-card-title" style="margin-bottom: 6px;">
+            <span id="txt-graph-title">Red de Nodos IA & SPARQL</span>
+            <span style="font-size: 9px; color: #00E5FF; font-family: monospace;">OWL 2 DL</span>
+          </div>
+          <div style="font-family: monospace; font-size: 10px; color: #B0BEC5; background: #121519; padding: 8px; border-radius: 4px; height: 95px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.05);" id="triplets-box">
+            <span style="color: #FFB74D;">qrg:Cu_Atom_29</span> <span style="color: #4FC3F7;">qrg:selectiveExtractFrom</span> <span style="color: #81C784;">qrg:Cu_Zn_Matrix</span> .<br>
+            <span style="color: #FFB74D;">qrg:LaserFemto</span> <span style="color: #4FC3F7;">qrg:cleavesBond</span> <span style="color: #81C784;">qrg:CovalentBond</span> .<br>
+            <span style="color: #FFB74D;">qrg:SwarmIA</span> <span style="color: #4FC3F7;">qrg:preservesCoherence</span> <span style="color: #81C784;">qrg:1.28ms</span> .
+          </div>
+          <button onclick="runSparqlSim()" class="trig-btn" style="width:100%; margin-top:4px; background: rgba(0,229,255,0.2); color: #00E5FF; border: 1px solid rgba(0,229,255,0.4);">
+            Ejecutar Inferencia SPARQL
+          </button>
+        </div>
+
+        <!-- Tab 2: Proceso Atómico (1-5) -->
+        <div id="tab-content-atomic" style="display: none; font-size: 10px;">
+          <div class="hud-card-title" style="margin-bottom: 4px;">
+            <span>Simulador Proceso Atómico</span>
+            <span id="atomic-step-label" style="color:#00E5FF; font-family:monospace;">Paso 1/5</span>
+          </div>
+          <div style="background:#121519; padding:6px; border-radius:4px; border:1px solid rgba(255,255,255,0.05); height:85px; overflow-y:auto;" id="atomic-step-desc">
+            <strong>1. Ruptura de Enlaces:</strong> Láser femtosegundo selective rompe enlaces covalentes Cu-Zn.
+          </div>
+          <div style="display:flex; gap:4px; margin-top:4px;">
+            <button onclick="nextAtomicStep()" class="trig-btn" style="flex:1; background:rgba(79,195,247,0.2); color:#4FC3F7; border:1px solid rgba(79,195,247,0.4);">Avanzar Paso</button>
+            <button onclick="autoRunAtomicPipeline()" class="trig-btn" style="flex:1; background:rgba(0,229,255,0.25); color:#00E5FF; border:1px solid #00E5FF;">Auto-Simular</button>
+          </div>
+        </div>
+
+        <!-- Tab 3: Pilares QRG -->
+        <div id="tab-content-pillars" style="display: none; font-size: 10px; line-height: 1.5;">
+          • <strong style="color:#00E5FF;">IA Ontológica:</strong> Inferencia abductiva y grafos OWL DL.<br>
+          • <strong style="color:#4FC3F7;">Física Cuántica:</strong> Confinamiento iónico UHV y 0.05K.<br>
+          • <strong style="color:#81C784;">Ciencia Materiales:</strong> Reconfiguración atómica enjambre.<br>
+          • <strong style="color:#FFB74D;">Sistemas Complejos:</strong> Retroalimentación cibernética.
+        </div>
+
+        <!-- Tab 4: Aplicaciones -->
+        <div id="tab-content-apps" style="display: none; font-size: 10px;">
+          <div class="hud-card-title" style="margin-bottom: 4px;">Modos de Aplicación Industrial</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; height:105px; overflow-y:auto;">
+            <button class="mode-btn" onclick="setMode('cu')">Cu-Zn Reciclado</button>
+            <button class="mode-btn" onclick="setMode('battery')">Batería Si-G-Li 5x</button>
+            <button class="mode-btn" onclick="setMode('polymer')">Polímero Auto-Reparable</button>
+            <button class="mode-btn" onclick="setMode('quantum')">Substrato SiC Cuántico</button>
+            <button class="mode-btn" onclick="setMode('alloy')">Aleación Ti-Al-Cu</button>
+          </div>
+        </div>
+
+        <!-- Tab 5: Hoja de Ruta 1, 2, 3, 4 -->
+        <div id="tab-content-roadmap" style="display: none; font-size: 10px;">
+          <div class="hud-card-title" style="margin-bottom: 4px;">
+            <span>Hoja de Ruta QRG</span>
+            <span id="roadmap-phase-label" style="color:#81C784; font-family:monospace;">Fase 1/4</span>
+          </div>
+          <div style="background:#121519; padding:6px; border-radius:4px; border:1px solid rgba(255,255,255,0.05); height:85px; overflow-y:auto;" id="roadmap-phase-desc">
+            <strong>Fase 1: Lab Cuántico & UHV (1e-9 Pa)</strong><br>Validación en prototipo de cámara única a 0.05K.
+          </div>
+          <button onclick="nextRoadmapPhase()" class="trig-btn" style="width:100%; margin-top:4px; background:rgba(76,175,80,0.25); color:#81C784; border:1px solid #81C784;">Simular Evolución Hoja de Ruta</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom Row: Mode Selector (Left), Physics Sliders (Right) -->
+    <div class="hud-bottom">
+      <!-- Left: Mode Selector & Actions -->
+      <div class="hud-card interactive">
+        <div class="hud-card-title">
+          <span id="txt-modes-title">Modos Operativos de Simulación</span>
+        </div>
+
+        <button class="mode-btn mode-btn-active" id="mb-cu" onclick="setMode('cu')">1. Desmat. Selectiva Cu-Zn (Extraer Cobre)</button>
+        <button class="mode-btn" id="mb-battery" onclick="setMode('battery')">2. Batería Silicio-Grafeno-Litio (5x)</button>
+        <button class="mode-btn" id="mb-polymer" onclick="setMode('polymer')">3. Polímero Auto-Reparable (Reversible)</button>
+        <button class="mode-btn" id="mb-quantum" onclick="setMode('quantum')">4. Substrato SiC Cuántico (Bi-P)</button>
+        <button class="mode-btn" id="mb-alloy" onclick="setMode('alloy')">5. Aleación Ti-Al-Cu (-40% Peso)</button>
+
+        <div class="trigger-grid">
+          <button class="trig-btn" style="background: rgba(255,160,0,0.2); color: #FFB74D; border-color: rgba(255,160,0,0.4);" onclick="triggerAction('demat')" id="btn-trig-demat">Disparar Láser</button>
+          <button class="trig-btn" style="background: rgba(0,229,255,0.2); color: #00E5FF; border-color: rgba(0,229,255,0.4);" onclick="triggerAction('remat')" id="btn-trig-remat">Activar Enjambre</button>
+          <button class="trig-btn" style="background: rgba(76,175,80,0.2); color: #81C784; border-color: rgba(76,175,80,0.4);" onclick="triggerAction('repair')" id="btn-trig-repair">Simular Corte</button>
+          <button class="trig-btn" style="background: rgba(103,58,183,0.2); color: #B388FF; border-color: rgba(103,58,183,0.4);" onclick="triggerAction('toggle')" id="btn-trig-sim">Iniciar Simulación</button>
+        </div>
+      </div>
+
+      <!-- Right: Physics Sliders -->
+      <div class="hud-card interactive">
+        <div class="hud-card-title">
+          <span id="txt-physics-title">Física & Controles Modulares</span>
+        </div>
+
+        <div>
+          <div style="display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px;">
+            <span class="stat-label" id="lbl-[#fs]">Frecuencia Láser (fs):</span>
+            <span class="stat-val" id="disp-fs">50 fs</span>
+          </div>
+          <input type="range" min="10" max="200" value="50" oninput="updatePhysics('laser', this.value)">
+        </div>
+
+        <div>
+          <div style="display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px;">
+            <span class="stat-label" id="lbl-[#mag]">Campo Magnético (T):</span>
+            <span class="stat-val" id="disp-mag">14.5 T</span>
+          </div>
+          <input type="range" min="1" max="30" step="0.5" value="14.5" oninput="updatePhysics('mag', this.value)">
+        </div>
+
+        <div>
+          <div style="display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px;">
+            <span class="stat-label" id="lbl-[#cryo]">Enfriamiento Criogénico (K):</span>
+            <span class="stat-val" id="disp-temp" style="color:#00E5FF;">0.05 K</span>
+          </div>
+          <input type="range" min="0.01" max="4.20" step="0.05" value="0.05" oninput="updatePhysics('temp', this.value)">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer Log Bar -->
+  <div class="footer-bar">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="width: 6px; height: 6px; border-radius: 50%; background: #00E5FF;"></span>
+      <span style="color: #00E5FF; font-weight: 800;">QRG Status Log:</span>
+      <span id="log-ticker">Reposo Estabilizado (UHV + 0.05K)</span>
+    </div>
+    <div style="font-family: monospace; font-size: 10px; color: #4FC3F7;">
+      UHV 1e-9 Pa | 0.05 K Cryo | 14.5 T Mag | OWLDL / SPARQL Ontological Engine Active
+    </div>
+  </div>
+
+  <script>
+    // --- Internationalization Translations (ES, EN, ZH) ---
+    const i18n = {
+      es: {
+        projTitle: 'Quantum Recycler Genesis (QRG)',
+        projSub: 'Reconstrucción Atómica con IA Ontológica - Prototipo 3D Autónomo',
+        standby: 'Reposo Estabilizado (UHV + 0.05K)',
+        demat: 'Desmaterialización Selectiva: Ruptura Láser',
+        remat: 'Rematerialización Guiada: Síntesis Híbrida',
+        repair: 'Prueba Biomecánica: Auto-Reparación',
+        scan: 'Escaneando Matriz Ontológica...',
+        telemetryTitle: 'Telemetría & Física Cuántica',
+        graphTitle: 'Red de Nodos IA & SPARQL',
+        modesTitle: 'Modos Operativos de Simulación',
+        physicsTitle: 'Física & Controles Modulares',
+        btnDemat: 'Disparar Láser',
+        btnRemat: 'Activar Enjambre',
+        btnRepair: 'Simular Corte',
+        btnStart: 'Iniciar Simulación',
+        btnPause: 'Pausar',
+        arClose: 'Cerrar AR',
+        arOpen: 'Realidad Aumentada (AR)',
+        audioOn: 'Audio Activo',
+        audioOff: 'Audio Silenciado'
+      },
+      en: {
+        projTitle: 'Quantum Recycler Genesis (QRG)',
+        projSub: 'Atomic Reconstruction with Ontological AI - Standalone 3D Prototype',
+        standby: 'Stabilized Standby (UHV + 0.05K)',
+        demat: 'Selective Dematerialization: Laser Cleavage',
+        remat: 'Guided Rematerialization: Hybrid Synthesis',
+        repair: 'Biomechanical Test: Reversible Self-Healing',
+        scan: 'Scanning Ontological Matrix...',
+        telemetryTitle: 'Telemetry & Quantum Physics',
+        graphTitle: 'AI Node Network & SPARQL',
+        modesTitle: 'Operational Simulation Modes',
+        physicsTitle: 'Modular Physics & Controls',
+        btnDemat: 'Fire Laser',
+        btnRemat: 'Activate Swarm',
+        btnRepair: 'Simulate Cut',
+        btnStart: 'Start Simulation',
+        btnPause: 'Pause',
+        arClose: 'Close AR',
+        arOpen: 'Augmented Reality (AR)',
+        audioOn: 'Audio Active',
+        audioOff: 'Audio Muted'
+      },
+      zh: {
+        projTitle: 'Quantum Recycler Genesis (QRG) 量子回收器',
+        projSub: '基于本体论 AI 的原子级重构 - 3D 单机原型',
+        standby: '稳定待机状态 (超高真空 UHV + 0.05K)',
+        demat: '选择性解体：飞秒激光化学键断裂',
+        remat: '引导式重构：新型混合材料合成',
+        repair: '生物力学测试：可逆化学键自愈',
+        scan: '正在扫描本体论化学矩阵...',
+        telemetryTitle: '遥测 & 量子物理',
+        graphTitle: 'AI 节点网络 & SPARQL',
+        modesTitle: '模拟操作模式',
+        physicsTitle: '模块化物理参数控制',
+        btnDemat: '发射激光',
+        btnRemat: '激活群集',
+        btnRepair: '模拟切割',
+        btnStart: '启动模拟',
+        btnPause: '暂停',
+        arClose: '关闭 AR',
+        arOpen: '增强现实 (AR)',
+        audioOn: '声音开启',
+        audioOff: '静音'
+      }
+    };
+
+    let curLang = 'es';
+    let isAudioMuted = false;
+    let isARActive = false;
+    let currentMode = 'cu';
+    let currentState = 'standby';
+
+    // --- Web Audio Synthesizer Engine ---
+    let audioCtx = null;
+    function getAudioCtx() {
+      if (!audioCtx) {
+        const CtxClass = window.AudioContext || window.webkitAudioContext;
+        if (CtxClass) audioCtx = new CtxClass();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+
+    function playLaserSound() {
+      if (isAudioMuted) return;
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      try {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(1200, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+      } catch(e){}
+    }
+
+    function playChimeSound() {
+      if (isAudioMuted) return;
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      try {
+        [523, 659, 783, 1046].forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.06);
+          gain.gain.setValueAtTime(0.08, ctx.currentTime + idx * 0.06);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.06 + 0.35);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime + idx * 0.06);
+          osc.stop(ctx.currentTime + idx * 0.06 + 0.35);
+        });
+      } catch(e){}
+    }
+
+    function playSnapSound() {
+      if (isAudioMuted) return;
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      try {
+        const bufSize = ctx.sampleRate * 0.08;
+        const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = ctx.createBufferSource();
+        noise.buffer = buf;
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+        noise.connect(gain);
+        gain.connect(ctx.destination);
+        noise.start();
+      } catch(e){}
+    }
+
+    // --- State Handlers ---
+    function setLang(l) {
+      curLang = l;
+      ['es', 'en', 'zh'].forEach(k => {
+        const btn = document.getElementById('lang-' + k);
+        if (btn) btn.className = k === l ? 'btn btn-active' : 'btn';
+      });
+
+      const dict = i18n[l];
+      document.getElementById('proj-title').innerText = dict.projTitle;
+      document.getElementById('proj-sub').innerText = dict.projSub;
+      document.getElementById('txt-telemetry-title').innerText = dict.telemetryTitle;
+      document.getElementById('txt-graph-title').innerText = dict.graphTitle;
+      document.getElementById('txt-modes-title').innerText = dict.modesTitle;
+      document.getElementById('txt-physics-title').innerText = dict.physicsTitle;
+      document.getElementById('btn-trig-demat').innerText = dict.btnDemat;
+      document.getElementById('btn-trig-remat').innerText = dict.btnRemat;
+      document.getElementById('btn-trig-repair').innerText = dict.btnRepair;
+      document.getElementById('btn-trig-sim').innerText = currentState === 'standby' ? dict.btnStart : dict.btnPause;
+      document.getElementById('ar-btn').innerText = isARActive ? dict.arClose : dict.arOpen;
+      document.getElementById('audio-label').innerText = isAudioMuted ? dict.audioOff : dict.audioOn;
+      updateTicker();
+    }
+
+    function toggleAudio() {
+      isAudioMuted = !isAudioMuted;
+      const dict = i18n[curLang];
+      document.getElementById('audio-label').innerText = isAudioMuted ? dict.audioOff : dict.audioOn;
+    }
+
+    function toggleAR() {
+      isARActive = !isARActive;
+      const vid = document.getElementById('ar-video');
+      const dict = i18n[curLang];
+      document.getElementById('ar-btn').innerText = isARActive ? dict.arClose : dict.arOpen;
+
+      if (isARActive) {
+        vid.style.display = 'block';
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(s => { vid.srcObject = s; vid.play(); })
+            .catch(e => console.log('AR video camera access fallback:', e));
+        }
+      } else {
+        vid.style.display = 'none';
+        if (vid.srcObject) {
+          vid.srcObject.getTracks().forEach(t => t.stop());
+          vid.srcObject = null;
+        }
+      }
+    }
+
+    let currentAtomicStep = 1;
+    let currentRoadmapPhase = 1;
+
+    function setTab(tabKey) {
+      ['nodes', 'atomic', 'pillars', 'apps', 'roadmap'].forEach(k => {
+        const btn = document.getElementById('tb-' + k);
+        const cnt = document.getElementById('tab-content-' + k);
+        if (btn) btn.className = k === tabKey ? 'tab-btn tab-btn-active' : 'tab-btn';
+        if (cnt) cnt.style.display = k === tabKey ? 'block' : 'none';
+      });
+    }
+
+    function runSparqlSim() {
+      playChimeSound();
+      const box = document.getElementById('triplets-box');
+      if (box) {
+        box.innerHTML += '<br><span style="color:#00E5FF;">SPARQL Query Result:</span> <span style="color:#81C784;">1,420 Cu atoms matched in OWL ontology</span>.';
+      }
+    }
+
+    function nextAtomicStep() {
+      currentAtomicStep = (currentAtomicStep % 5) + 1;
+      updateAtomicStepUI();
+      playSnapSound();
+    }
+
+    function updateAtomicStepUI() {
+      const lbl = document.getElementById('atomic-step-label');
+      const desc = document.getElementById('atomic-step-desc');
+      if (lbl) lbl.innerText = 'Paso ' + currentAtomicStep + '/5';
+
+      const descs = {
+        1: '<strong>1. Ruptura de Enlaces:</strong> Láser femtosegundo selective rompe enlaces covalentes.',
+        2: '<strong>2. Confinamiento Iónico:</strong> Trampa electromagnética UHV a 0.05 Kelvin.',
+        3: '<strong>3. Clasificación Ontológica:</strong> Razonamiento abductivo SPARQL/OWL DL.',
+        4: '<strong>4. Ensamblaje Atómico:</strong> Recombinación enjambre IA en matriz híbrida.',
+        5: '<strong>5. Verificación Coherencia:</strong> Medición cuántica no destructiva (>1.2ms).'
+      };
+
+      if (desc) desc.innerHTML = descs[currentAtomicStep];
+
+      if (currentAtomicStep === 1) triggerAction('demat');
+      else if (currentAtomicStep === 4) triggerAction('remat');
+      else if (currentAtomicStep === 5) triggerAction('repair');
+    }
+
+    function autoRunAtomicPipeline() {
+      let step = 1;
+      currentAtomicStep = 1;
+      updateAtomicStepUI();
+      playLaserSound();
+
+      const timer = setInterval(() => {
+        step++;
+        currentAtomicStep = step;
+        updateAtomicStepUI();
+        if (step >= 5) {
+          clearInterval(timer);
+        }
+      }, 1600);
+    }
+
+    function nextRoadmapPhase() {
+      currentRoadmapPhase = (currentRoadmapPhase % 4) + 1;
+      updateRoadmapUI();
+      playChimeSound();
+    }
+
+    function updateRoadmapUI() {
+      const lbl = document.getElementById('roadmap-phase-label');
+      const desc = document.getElementById('roadmap-phase-desc');
+      if (lbl) lbl.innerText = 'Fase ' + currentRoadmapPhase + '/4';
+
+      const descs = {
+        1: '<strong>Fase 1: Lab Cuántico & UHV (1e-9 Pa)</strong><br>Validación en prototipo de cámara única a 0.05K.',
+        2: '<strong>Fase 2: Enjambre IA 10k Nodos & Grafo OWL</strong><br>Escalamiento masivo de la red de procesamiento ontológico.',
+        3: '<strong>Fase 3: Fabricación Atómica Continua (12.5 kg/h)</strong><br>Síntesis industrial de baterías 5x y aleaciones aeroespaciales.',
+        4: '<strong>Fase 4: Economía Circular Global Zero-Waste</strong><br>Despliegue distribuido internacional para reciclaje atómico directo.'
+      };
+
+      if (desc) desc.innerHTML = descs[currentRoadmapPhase];
+    }
+
+    function setMode(m) {
+      currentMode = m;
+      ['cu', 'battery', 'polymer', 'quantum', 'alloy'].forEach(k => {
+        document.getElementById('mb-' + k).className = k === m ? 'mode-btn mode-btn-active' : 'mode-btn';
+      });
+
+      const atomVal = document.getElementById('val-atom');
+      const box = document.getElementById('triplets-box');
+
+      if (m === 'cu') {
+        atomVal.innerText = 'Cu (Z=29, A=63.5)';
+        box.innerHTML = `<span style="color: #FFB74D;">qrg:Cu_Atom_29</span> <span style="color: #4FC3F7;">qrg:selectiveExtractFrom</span> <span style="color: #81C784;">qrg:Cu_Zn_Matrix</span> .<br><span style="color: #FFB74D;">qrg:LaserFemto</span> <span style="color: #4FC3F7;">qrg:cleavesBond</span> <span style="color: #81C784;">qrg:CovalentBond</span> .`;
+      } else if (m === 'battery') {
+        atomVal.innerText = 'Si-C-Li (Híbrido)';
+        box.innerHTML = `<span style="color: #FFB74D;">qrg:SiliconCore</span> <span style="color: #4FC3F7;">qrg:encapsulatedBy</span> <span style="color: #81C784;">qrg:GrapheneLayer</span> .<br><span style="color: #FFB74D;">qrg:LithiumIon</span> <span style="color: #4FC3F7;">qrg:intercalatesIn</span> <span style="color: #81C784;">qrg:CarbonMatrix</span> .`;
+      } else if (m === 'polymer') {
+        atomVal.innerText = 'Polímero S-N (Reversible)';
+        box.innerHTML = `<span style="color: #FFB74D;">qrg:ReversibleBond</span> <span style="color: #4FC3F7;">qrg:stimulusTrigger</span> <span style="color: #81C784;">qrg:Thermal_Cryo</span> .<br><span style="color: #FFB74D;">qrg:PolymerChain</span> <span style="color: #4FC3F7;">qrg:selfHealsRatio</span> <span style="color: #81C784;">qrg:90_Percent</span> .`;
+      } else if (m === 'quantum') {
+        atomVal.innerText = 'SiC + Bi + P';
+        box.innerHTML = `<span style="color: #FFB74D;">qrg:SiC_Substrate</span> <span style="color: #4FC3F7;">qrg:dopedWith</span> <span style="color: #81C784;">qrg:Bismuth_Phosphorus</span> .<br><span style="color: #FFB74D;">qrg:PhotonicQubit</span> <span style="color: #4FC3F7;">qrg:coherenceTime</span> <span style="color: #81C784;">qrg:1.2ms_at_4K</span> .`;
+      } else if (m === 'alloy') {
+        atomVal.innerText = 'Ti-Al-Cu (Aeroespacial)';
+        box.innerHTML = `<span style="color: #FFB74D;">qrg:TitaniumAlloy</span> <span style="color: #4FC3F7;">qrg:weightReduction</span> <span style="color: #81C784;">qrg:Minus40Percent</span> .<br><span style="color: #FFB74D;">qrg:AtomicLattice</span> <span style="color: #4FC3F7;">qrg:optimizedFor</span> <span style="color: #81C784;">qrg:AerospaceStress</span> .`;
+      }
+      updateSwarmTargets();
+    }
+
+    function triggerAction(act) {
+      if (act === 'demat') {
+        currentState = 'demat';
+        playLaserSound();
+      } else if (act === 'remat') {
+        currentState = 'remat';
+        playChimeSound();
+      } else if (act === 'repair') {
+        currentState = 'repair';
+        playSnapSound();
+      } else if (act === 'toggle') {
+        currentState = currentState === 'standby' ? 'scan' : 'standby';
+      }
+      updateTicker();
+      updateSwarmTargets();
+    }
+
+    function updateTicker() {
+      const dict = i18n[curLang];
+      const ticker = document.getElementById('log-ticker');
+      const badge = document.getElementById('state-badge');
+      const btnSim = document.getElementById('btn-trig-sim');
+
+      if (currentState === 'demat') {
+        ticker.innerText = dict.demat;
+        badge.innerText = 'DESMATERIALIZACIÓN LÁSER';
+      } else if (currentState === 'remat') {
+        ticker.innerText = dict.remat;
+        badge.innerText = 'SÍNTESIS HÍBRIDA ATÓMICA';
+      } else if (currentState === 'repair') {
+        ticker.innerText = dict.repair;
+        badge.innerText = 'AUTO-REPARACIÓN BIOMECÁNICA';
+      } else if (currentState === 'scan') {
+        ticker.innerText = dict.scan;
+        badge.innerText = 'ESCANEO ONTOLÓGICO';
+      } else {
+        ticker.innerText = dict.standby;
+        badge.innerText = 'REPOSO ESTABILIZADO';
+      }
+      btnSim.innerText = currentState === 'standby' ? dict.btnStart : dict.btnPause;
+    }
+
+    function updatePhysics(type, val) {
+      if (type === 'laser') document.getElementById('disp-fs').innerText = val + ' fs';
+      if (type === 'mag') document.getElementById('disp-mag').innerText = Number(val).toFixed(1) + ' T';
+      if (type === 'temp') document.getElementById('disp-temp').innerText = Number(val).toFixed(2) + ' K';
+    }
+
+    // --- THREE.JS 3D SCENE & ATOMIC SWARM SYSTEM ---
+    let scene, camera, renderer, coreSphere, innerCore, orbitalRings = [], laserBeams = [], swarmParticles, particleTargets;
+
+    function init3D() {
+      const container = document.getElementById('canvas-container');
+      scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x121519, 0.025);
+
+      camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 2.5, 13);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      container.appendChild(renderer.domElement);
+
+      // Lights
+      scene.add(new THREE.AmbientLight(0x2A2E33, 2.5));
+
+      const cyanPoint = new THREE.PointLight(0x4FC3F7, 5.0, 30);
+      cyanPoint.position.set(0, 0, 0);
+      scene.add(cyanPoint);
+
+      const topDir = new THREE.DirectionalLight(0xECEFF1, 2.0);
+      topDir.position.set(8, 12, 10);
+      scene.add(topDir);
+
+      // Base & Titanium Columns
+      const chamberGroup = new THREE.Group();
+      const baseMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(5, 5.5, 0.6, 32),
+        new THREE.MeshStandardMaterial({ color: 0x1C2026, metalness: 0.85, roughness: 0.35 })
+      );
+      baseMesh.position.y = -3.2;
+      chamberGroup.add(baseMesh);
+
+      const ringAccent = new THREE.Mesh(
+        new THREE.TorusGeometry(5.2, 0.08, 16, 100),
+        new THREE.MeshStandardMaterial({ color: 0x4FC3F7, emissive: 0x4FC3F7, emissiveIntensity: 0.8 })
+      );
+      ringAccent.rotation.x = Math.PI / 2;
+      ringAccent.position.y = -2.9;
+      chamberGroup.add(ringAccent);
+
+      const colMat = new THREE.MeshStandardMaterial({ color: 0x2A2E33, metalness: 0.9, roughness: 0.2 });
+      [-3.8, 3.8].forEach(x => {
+        [-3.8, 3.8].forEach(z => {
+          const col = new THREE.Mesh(new THREE.BoxGeometry(0.35, 6, 0.35), colMat);
+          col.position.set(x, 0, z);
+          chamberGroup.add(col);
+        });
+      });
+      scene.add(chamberGroup);
+
+      // Core Outer Wireframe & Inner Solid Sphere
+      coreSphere = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(1.6, 2),
+        new THREE.MeshStandardMaterial({ color: 0x4FC3F7, wireframe: true, emissive: 0x00E5FF, emissiveIntensity: 0.5, metalness: 0.9 })
+      );
+      scene.add(coreSphere);
+
+      innerCore = new THREE.Mesh(
+        new THREE.SphereGeometry(0.9, 32, 32),
+        new THREE.MeshStandardMaterial({ color: 0x00E5FF, emissive: 0x00E5FF, emissiveIntensity: 1.2 })
+      );
+      scene.add(innerCore);
+
+      // Concentric Rings
+      [2.6, 3.4, 4.2].forEach((r, idx) => {
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(r, 0.05, 16, 120),
+          new THREE.MeshStandardMaterial({ color: idx % 2 === 0 ? 0x4FC3F7 : 0xB0BEC5, emissive: 0x4FC3F7, emissiveIntensity: 0.4 })
+        );
+        ring.rotation.x = (Math.PI / 3) * (idx + 1);
+        ring.rotation.y = idx * 0.8;
+        orbitalRings.push(ring);
+        scene.add(ring);
+      });
+
+      // 6 Laser Emitters
+      for (let i = 0; i < 6; i++) {
+        const angle = (i * Math.PI * 2) / 6;
+        const x = Math.cos(angle) * 3.8;
+        const z = Math.sin(angle) * 3.8;
+        const beam = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.025, 0.025, 3.8, 8),
+          new THREE.MeshBasicMaterial({ color: 0x00E5FF, transparent: true, opacity: 0.75 })
+        );
+        beam.position.set(x / 2, 0, z / 2);
+        beam.rotation.x = Math.PI / 2;
+        beam.lookAt(0, 0, 0);
+        laserBeams.push(beam);
+        scene.add(beam);
+      }
+
+      // 700 Particle Swarm System
+      const pCount = 700;
+      const swarmGeo = new THREE.BufferGeometry();
+      const posArr = new Float32Array(pCount * 3);
+      particleTargets = new Float32Array(pCount * 3);
+
+      for (let p = 0; p < pCount; p++) {
+        const radius = 0.8 + Math.random() * 3.2;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        posArr[p * 3] = radius * Math.sin(phi) * Math.cos(theta);
+        posArr[p * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+        posArr[p * 3 + 2] = radius * Math.cos(phi);
+        particleTargets[p * 3] = posArr[p * 3];
+        particleTargets[p * 3 + 1] = posArr[p * 3 + 1];
+        particleTargets[p * 3 + 2] = posArr[p * 3 + 2];
+      }
+
+      swarmGeo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+      swarmParticles = new THREE.Points(
+        swarmGeo,
+        new THREE.PointsMaterial({ size: 0.09, color: 0x00E5FF, transparent: true, opacity: 0.85 })
+      );
+      scene.add(swarmParticles);
+
+      // Drag to rotate camera
+      let isDragging = false, prevMouse = { x: 0, y: 0 };
+      let orbitAngles = { theta: 0, phi: 0.3, distance: 13 };
+
+      container.addEventListener('mousedown', e => { isDragging = true; prevMouse = { x: e.clientX, y: e.clientY }; });
+      window.addEventListener('mousemove', e => {
+        if (!isDragging) return;
+        const dx = e.clientX - prevMouse.x;
+        const dy = e.clientY - prevMouse.y;
+        orbitAngles.theta -= dx * 0.006;
+        orbitAngles.phi = Math.max(-1.2, Math.min(1.2, orbitAngles.phi + dy * 0.006));
+        prevMouse = { x: e.clientX, y: e.clientY };
+      });
+      window.addEventListener('mouseup', () => isDragging = false);
+      container.addEventListener('wheel', e => {
+        orbitAngles.distance = Math.max(6, Math.min(22, orbitAngles.distance + e.deltaY * 0.01));
+      });
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      // Render loop
+      const clock = new THREE.Clock();
+      function animate() {
+        requestAnimationFrame(animate);
+        const t = clock.getElapsedTime();
+
+        // Update camera position
+        camera.position.x = orbitAngles.distance * Math.cos(orbitAngles.phi) * Math.sin(orbitAngles.theta);
+        camera.position.y = orbitAngles.distance * Math.sin(orbitAngles.phi);
+        camera.position.z = orbitAngles.distance * Math.cos(orbitAngles.phi) * Math.cos(orbitAngles.theta);
+        camera.lookAt(0, 0, 0);
+
+        // Rotations
+        if (coreSphere) {
+          coreSphere.rotation.x = t * 0.4;
+          coreSphere.rotation.y = t * 0.6;
+        }
+        if (innerCore) {
+          const s = 1.0 + Math.sin(t * 4) * 0.08;
+          innerCore.scale.set(s, s, s);
+        }
+
+        orbitalRings.forEach((r, idx) => {
+          r.rotation.z = t * (0.3 + idx * 0.1);
+          r.rotation.y = t * (0.2 + idx * 0.15);
+        });
+
+        laserBeams.forEach((b, idx) => {
+          b.material.opacity = 0.4 + Math.sin(t * 8 + idx) * 0.35;
+        });
+
+        // Particle Swarm Morphing
+        if (swarmParticles && particleTargets) {
+          const posAttr = swarmParticles.geometry.attributes.position;
+          const arr = posAttr.array;
+          for (let i = 0; i < arr.length; i++) {
+            arr[i] += (particleTargets[i] - arr[i]) * 0.04;
+            arr[i] += Math.sin(t * 5 + i) * 0.003;
+          }
+          posAttr.needsUpdate = true;
+        }
+
+        renderer.render(scene, camera);
+      }
+
+      animate();
+    }
+
+    function updateSwarmTargets() {
+      if (!particleTargets) return;
+      const count = particleTargets.length / 3;
+
+      if (currentState === 'demat') {
+        for (let i = 0; i < count; i++) {
+          const p = i / count;
+          particleTargets[i * 3] = -5.0 + p * 5.0;
+          particleTargets[i * 3 + 1] = (Math.random() - 0.5) * 2.0;
+          particleTargets[i * 3 + 2] = (Math.random() - 0.5) * 2.0;
+        }
+      } else if (currentState === 'remat') {
+        for (let i = 0; i < count; i++) {
+          if (currentMode === 'battery') {
+            const col = i % 20, layer = Math.floor(i / 400), row = Math.floor(i / 20) % 20;
+            particleTargets[i * 3] = (col - 10) * 0.25;
+            particleTargets[i * 3 + 1] = (layer - 0.5) * 0.8;
+            particleTargets[i * 3 + 2] = (row - 10) * 0.25;
+          } else if (currentMode === 'polymer') {
+            const t = i * 0.08;
+            particleTargets[i * 3] = Math.cos(t) * 1.8;
+            particleTargets[i * 3 + 1] = (i - count / 2) * 0.012;
+            particleTargets[i * 3 + 2] = Math.sin(t) * 1.8;
+          } else {
+            const side = Math.cbrt(count);
+            const x = (i % side) - side / 2, y = (Math.floor(i / side) % side) - side / 2, z = Math.floor(i / (side * side)) - side / 2;
+            particleTargets[i * 3] = x * 0.4;
+            particleTargets[i * 3 + 1] = y * 0.4;
+            particleTargets[i * 3 + 2] = z * 0.4;
+          }
+        }
+      } else if (currentState === 'repair') {
+        for (let i = 0; i < count; i++) {
+          const side = i % 2 === 0 ? -1.8 : 1.8;
+          particleTargets[i * 3] = side + (Math.random() - 0.5) * 1.2;
+          particleTargets[i * 3 + 1] = (Math.random() - 0.5) * 2.0;
+          particleTargets[i * 3 + 2] = (Math.random() - 0.5) * 1.2;
+        }
+      } else {
+        for (let i = 0; i < count; i++) {
+          const radius = 0.8 + Math.random() * 3.2;
+          const theta = Math.random() * Math.PI * 2;
+          const phi = Math.acos(2 * Math.random() - 1);
+          particleTargets[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+          particleTargets[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+          particleTargets[i * 3 + 2] = radius * Math.cos(phi);
+        }
+      }
+    }
+
+    // Auto increment counters
+    setInterval(() => {
+      if (currentState === 'standby') return;
+      const ext = document.getElementById('val-ext');
+      const syn = document.getElementById('val-syn');
+      if (ext) ext.innerText = Number(ext.innerText) + Math.floor(Math.random() * 8 + 2);
+      if (syn) syn.innerText = Number(syn.innerText) + Math.floor(Math.random() * 7 + 2);
+    }, 1200);
+
+    window.onload = function() {
+      init3D();
+      setLang(curLang);
+    };
+  </script>
+</body>
+</html>
