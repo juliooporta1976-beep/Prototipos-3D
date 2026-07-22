@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ThermoHarvest Grid 3D Prototype - Dr. Julio César Oporta Barrera</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    body { background-color: #0f1318; color: #f4f6f9; overflow: hidden; height: 100vh; width: 100vw; display: flex; flex-direction: column; user-select: none; }
+    
+    /* HEADER BAR */
+    header { background: rgba(18, 21, 24, 0.95); border-bottom: 1px solid rgba(79, 195, 247, 0.3); padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; z-index: 20; backdrop-filter: blur(8px); flex-wrap: wrap; gap: 8px; }
+    .author-badge { font-size: 11px; font-weight: 700; color: #4FC3F7; letter-spacing: 0.8px; text-transform: uppercase; }
+    .patent-tag { font-size: 10px; font-family: monospace; background: rgba(79, 195, 247, 0.2); color: #4FC3F7; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(79, 195, 247, 0.4); margin-left: 6px; }
+    .project-title { font-size: 16px; font-weight: 900; color: #ffffff; letter-spacing: -0.3px; }
+    .project-sub { font-size: 11px; color: #94a3b8; }
+    
+    .header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .hdr-btn { background: #2a2e35; border: 1px solid rgba(79, 195, 247, 0.5); color: #4FC3F7; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+    .hdr-btn:hover { background: #3a3f47; color: #ffffff; border-color: #4FC3F7; transform: translateY(-1px); }
+    .hdr-btn-primary { background: #4FC3F7; color: #0f1318; border-color: #4FC3F7; box-shadow: 0 0 12px rgba(79, 195, 247, 0.4); }
+    .hdr-btn-primary:hover { background: #29b6f6; color: #0f1318; }
+    
+    select.lang-select { background: #1a1e24; color: #4FC3F7; border: 1px solid rgba(79, 195, 247, 0.4); padding: 5px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; outline: none; }
+
+    /* MAIN CONTAINER & CANVAS */
+    #main-container { flex: 1; position: relative; width: 100%; height: 100%; overflow: hidden; }
+    #canvas3d { width: 100%; height: 100%; display: block; cursor: grab; }
+    #canvas3d:active { cursor: grabbing; }
+
+    /* HUD PANELS */
+    .hud-panel { position: absolute; background: rgba(18, 21, 24, 0.88); border: 1px solid rgba(79, 195, 247, 0.3); border-radius: 14px; padding: 12px 14px; backdrop-filter: blur(10px); box-shadow: 0 8px 32px rgba(0,0,0,0.6); z-index: 10; pointer-events: auto; }
+    .hud-title { font-size: 11px; font-weight: 800; color: #4FC3F7; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid rgba(79, 195, 247, 0.2); padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+    
+    #modes-panel { top: 16px; left: 16px; width: 250px; }
+    #telemetry-panel { top: 230px; left: 16px; width: 250px; }  /* bajado para evitar solapamiento */
+    #states-panel { top: 16px; right: 16px; width: 260px; }
+    #controls-panel { bottom: 16px; right: 16px; width: 380px; }
+
+    .mode-btn { width: 100%; text-align: left; padding: 6px 10px; margin-bottom: 3px; border-radius: 8px; font-size: 11px; font-weight: 600; background: rgba(30, 35, 42, 0.7); color: #cbd5e1; border: 1px solid transparent; cursor: pointer; transition: all 0.2s; display: flex; justify-content: space-between; align-items: center; }
+    .mode-btn:hover { background: #2a2e35; color: #ffffff; }
+    .mode-btn.active { background: #4FC3F7; color: #0f1318; font-weight: 800; border-color: #4FC3F7; box-shadow: 0 0 10px rgba(79, 195, 247, 0.5); }
+
+    .state-badge { display: inline-block; padding: 4px 8px; margin: 2px; border-radius: 6px; font-size: 10px; font-weight: 700; border: 1px solid rgba(255,255,255,0.15); cursor: pointer; transition: all 0.2s; background: rgba(30, 35, 42, 0.5); color: #94a3b8; }
+    .state-badge.active { background: rgba(79, 195, 247, 0.2); color: #4FC3F7; border-color: #4FC3F7; }
+
+    .control-row { margin-bottom: 8px; }
+    .control-header { display: flex; justify-content: space-between; font-size: 11px; color: #cbd5e1; margin-bottom: 2px; }
+    .val-disp { font-family: monospace; font-weight: bold; color: #4FC3F7; }
+    input[type="range"] { width: 100%; accent-color: #4FC3F7; cursor: pointer; height: 5px; background: #1e232a; border-radius: 4px; }
+
+    .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 6px; }
+    .metric-card { background: #1a1e24; padding: 4px 6px; border-radius: 6px; border: 1px solid #2a2e35; }
+    .metric-lbl { font-size: 7px; color: #94a3b8; display: block; }
+    .metric-val { font-size: 12px; font-weight: 900; font-family: monospace; color: #4FC3F7; }
+
+    canvas#oscilloscope { width: 100%; height: 32px; background: #0a0d10; border-radius: 6px; border: 1px solid rgba(79, 195, 247, 0.2); margin-bottom: 4px; }
+
+    .extra-canvas-row { display: flex; gap: 6px; margin-top: 4px; }
+    .thermal-map-container { flex: 1; background: #0a0d10; border-radius: 6px; border: 1px solid rgba(79, 195, 247, 0.2); padding: 3px; text-align: center; }
+    .thermal-map-container canvas { width: 100%; height: auto; aspect-ratio: 1/1; display: block; border-radius: 4px; max-width: 60px; }
+    .health-indicator { display: flex; align-items: center; gap: 4px; background: #0a0d10; border-radius: 6px; border: 1px solid rgba(79, 195, 247, 0.2); padding: 4px 8px; }
+    .health-led { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); }
+    .health-led.green { background: #00e676; box-shadow: 0 0 6px #00e676; }
+    .health-led.amber { background: #ffab00; box-shadow: 0 0 6px #ffab00; }
+    .health-led.red { background: #ff1744; box-shadow: 0 0 6px #ff1744; }
+    .health-label { font-size: 7px; font-weight: 700; color: #cbd5e1; }
+
+    .energy-graph-container { background: #0a0d10; border-radius: 6px; border: 1px solid rgba(79, 195, 247, 0.2); padding: 3px; margin-top: 4px; }
+    .energy-graph-container canvas { width: 100%; height: 30px; display: block; border-radius: 4px; }
+
+    .state-description { font-size: 10px; color: #94a3b8; margin-top: 6px; padding: 4px 8px; background: rgba(0,0,0,0.3); border-radius: 6px; border-left: 2px solid #4FC3F7; }
+
+    .action-btn { background: #2a2e35; border: 1px solid rgba(79, 195, 247, 0.4); color: #4FC3F7; padding: 5px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+    .action-btn:hover { background: #4FC3F7; color: #0f1318; }
+    .action-btn.active { background: #4FC3F7; color: #0f1318; }
+
+    /* MODALS */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 50; display: none; align-items: center; justify-content: center; padding: 16px; }
+    .modal-card { background: #121518; border: 2px solid rgba(79, 195, 247, 0.4); border-radius: 16px; width: 100%; max-width: 700px; padding: 24px; color: #f4f6f9; box-shadow: 0 0 40px rgba(79,195,247,0.3); max-height: 85vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a2e35; padding-bottom: 12px; margin-bottom: 16px; }
+    .modal-close { background: #1e232a; border: 1px solid #2a2e35; color: #a0aec0; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    .modal-close:hover { color: #ff1744; border-color: #ff1744; }
+
+    /* AR CONTAINER */
+    #ar-viewport { position: relative; width: 100%; height: 320px; background: #05070a; border-radius: 12px; overflow: hidden; border: 1px dashed rgba(79, 195, 247, 0.4); display: flex; align-items: center; justify-content: center; margin-top: 12px; cursor: move; }
+    #ar-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
+    #ar-target-3d { position: relative; z-index: 10; padding: 16px; background: rgba(42, 46, 53, 0.9); border: 2px solid #4FC3F7; border-radius: 14px; text-align: center; box-shadow: 0 0 25px rgba(79, 195, 247, 0.4); }
+
+    @media (max-width: 1024px) {
+      .hud-panel { position: relative; inset: auto !important; transform: none !important; width: 100% !important; margin-bottom: 8px; }
+      #main-container { display: flex; flex-direction: column; overflow-y: auto; }
+      #canvas3d { height: 350px; flex: none; }
+      .extra-canvas-row { flex-direction: row; flex-wrap: wrap; }
+      .thermal-map-container canvas { max-width: 50px; }
+      #telemetry-panel { top: auto; left: auto; }
+    }
+  </style>
+  
+  <!-- Three.js + OrbitControls CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="author-badge">Dr. Julio César Oporta Barrera <span class="patent-tag">Solicitud de Patente Sept 2025</span></div>
+      <div class="project-title">ThermoHarvest Grid — Captura de Energía Residual con IA</div>
+      <div class="project-sub">Prototipo 3D Interactivo y Simulación Modular Standalone (.html)</div>
+    </div>
+    <div class="header-actions">
+      <button class="hdr-btn hdr-btn-primary" id="btn-ar" onclick="openARModal()">
+        <span>📷 Realidad Aumentada (AR)</span>
+      </button>
+      <button class="hdr-btn" id="btn-specs" onclick="openSpecsModal()">
+        <span>📄 Ficha Técnica</span>
+      </button>
+      <select class="lang-select" id="langSelect" onchange="switchLang(this.value)">
+        <option value="es">Español</option>
+        <option value="en">English</option>
+        <option value="zh">中文 (Mandarín)</option>
+      </select>
+    </div>
+  </header>
+
+  <div id="main-container">
+    <div id="canvas3d"></div>
+
+    <!-- Operating Modes Panel -->
+    <div class="hud-panel" id="modes-panel">
+      <div class="hud-title">
+        <span id="lbl-modes-title">Modos Operativos en 3D</span>
+      </div>
+      <button class="mode-btn active" id="mbtn-core" onclick="setMode('core')">
+        <span id="lbl-m1">01. Núcleo Piezo-Memoria</span>
+      </button>
+      <button class="mode-btn" id="mbtn-motor" onclick="setMode('motor')">
+        <span id="lbl-m2">02. Motor Trifásico Industrial</span>
+      </button>
+      <button class="mode-btn" id="mbtn-bearing" onclick="setMode('bearing')">
+        <span id="lbl-m3">03. Rodamiento de Maquinaria</span>
+      </button>
+      <button class="mode-btn" id="mbtn-bridge" onclick="setMode('bridge')">
+        <span id="lbl-m4">04. Infraestructura Urbana</span>
+      </button>
+      <button class="mode-btn" id="mbtn-testbench" onclick="setMode('testbench')">
+        <span id="lbl-m5">05. Banco Pruebas Térmicas</span>
+      </button>
+    </div>
+
+    <!-- Telemetry & Oscilloscope Panel (debajo de modos, con separación) -->
+    <div class="hud-panel" id="telemetry-panel">
+      <div class="hud-title">
+        <span id="lbl-telemetry-title">Telemetría y Energía en Tiempo Real</span>
+        <span style="color: #00e676; font-size: 8px; font-family: monospace;">● LIVE</span>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <span class="metric-lbl" id="lbl-vgen">Voltaje</span>
+          <span class="metric-val" id="val-voltage">2.48 V</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-lbl" id="lbl-pden">Densidad</span>
+          <span class="metric-val" style="color: #ffb74d;" id="val-power">1.62 mW/cm²</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-lbl" id="lbl-rfreq">Resonancia</span>
+          <span class="metric-val" style="color: #ffffff;" id="val-freq">120 Hz</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-lbl" id="lbl-lat">Latencia</span>
+          <span class="metric-val" style="color: #80deea;" id="val-lat">42 ms</span>
+        </div>
+      </div>
+      <canvas id="oscilloscope" width="310" height="32"></canvas>
+      
+      <div class="extra-canvas-row">
+        <div class="thermal-map-container">
+          <canvas id="thermalMap" width="60" height="60"></canvas>
+          <div style="font-size: 6px; color: #94a3b8; margin-top: 1px;" id="thermal-map-label">Mapa Térmico</div>
+        </div>
+        <div class="health-indicator">
+          <div class="health-led green" id="health-led"></div>
+          <div>
+            <div style="font-size: 7px; color: #94a3b8;" id="health-label">Salud</div>
+            <div style="font-size: 10px; font-weight: 700; color: #cbd5e1;" id="health-status">Óptimo</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dynamic States & Presets Panel -->
+    <div class="hud-panel" id="states-panel">
+      <div class="hud-title">
+        <span id="lbl-states-title">Estado Dinámico Sistémico</span>
+      </div>
+      <div>
+        <span class="state-badge" id="sbtn-idle" onclick="setState('idle')">Reposo</span>
+        <span class="state-badge" id="sbtn-tuning" onclick="setState('tuning')">Ajuste SMA</span>
+        <span class="state-badge active" id="sbtn-harvesting" onclick="setState('harvesting')">Captura Energética</span>
+        <span class="state-badge" id="sbtn-ai_sync" onclick="setState('ai_sync')">Enjambre IA</span>
+        <span class="state-badge" id="sbtn-overheat_warning" onclick="setState('overheat_warning')">Alerta Anomalía</span>
+      </div>
+      <div id="state-description-container" class="state-description">
+        <span id="state-desc-text">Captura energética óptima: frecuencia y gradiente equilibrados.</span>
+      </div>
+      <div style="margin-top: 10px; display: flex; gap: 4px;">
+        <button class="action-btn" id="btn-shock" style="flex:1; border-color: #f44336; color: #ff8a80;" onclick="simShock()">Simular Choque Térmico</button>
+        <button class="action-btn" id="btn-resonance" style="flex:1;" onclick="simResonance()">Auto-Resonancia</button>
+      </div>
+    </div>
+
+    <!-- Biomechanics Controls Panel -->
+    <div class="hud-panel" id="controls-panel">
+      <div class="hud-title">
+        <span id="lbl-physics-title">Biomecánica y Física Modular</span>
+        <div style="display: flex; gap: 4px;">
+          <button class="action-btn" id="btn-heatmap" onclick="toggleHeatmap()">Mapa Térmico</button>
+          <button class="action-btn" id="btn-wireframe" onclick="toggleWireframe()">Alámbrico</button>
+        </div>
+      </div>
+
+      <div class="control-row">
+        <div class="control-header">
+          <span id="lbl-freq-ctrl">Frecuencia Vibracional (Hz)</span>
+          <span class="val-disp" id="disp-freq">120 Hz</span>
+        </div>
+        <input type="range" id="slider-freq" min="10" max="1000" value="120" oninput="updatePhysics()">
+      </div>
+
+      <div class="control-row">
+        <div class="control-header">
+          <span id="lbl-dt-ctrl">Gradiente Térmico ΔT (°C)</span>
+          <span class="val-disp" style="color: #ffb74d;" id="disp-dt">65 °C</span>
+        </div>
+        <input type="range" id="slider-dt" min="0" max="150" value="65" oninput="updatePhysics()">
+      </div>
+
+      <div class="control-row">
+        <div class="control-header">
+          <span id="lbl-sma-ctrl">Fase SMA Nitinol</span>
+          <span class="val-disp" style="color: #80deea;" id="disp-sma">70% Austenita</span>
+        </div>
+        <input type="range" id="slider-sma" min="0" max="100" value="70" oninput="updatePhysics()">
+      </div>
+
+      <div class="control-row">
+        <div class="control-header">
+          <span id="lbl-nodes-ctrl">Nodos en Enjambre IA</span>
+          <span class="val-disp" style="color: #00e676;" id="disp-nodes">6 Nodos</span>
+        </div>
+        <input type="range" id="slider-nodes" min="1" max="12" value="6" oninput="updatePhysics()">
+      </div>
+
+      <!-- Gráfica de energía capturada -->
+      <div class="energy-graph-container">
+        <canvas id="energyGraph" width="310" height="30"></canvas>
+        <div style="display: flex; justify-content: space-between; font-size: 7px; color: #94a3b8; padding: 0 2px;">
+          <span id="energy-label">Energía Capturada (mJ)</span>
+          <span id="energy-current">0.0</span>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; margin-top: 6px;">
+        <button class="action-btn" id="btn-autorot" onclick="toggleAutoRotate()">Rotación Auto: ON</button>
+        <button class="action-btn" id="btn-resetcam" onclick="resetCam()">Restablecer Cámara 3D</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPECS MODAL -->
+  <div class="modal-overlay" id="specs-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="specs-title" style="color: #4FC3F7; font-size: 16px; font-weight: 800;">Ficha Técnica & Solicitud de Patente</h3>
+        <button class="modal-close" onclick="closeSpecsModal()">✕</button>
+      </div>
+      <div id="specs-body" style="font-size: 12px; line-height: 1.6; color: #cbd5e1; space-y-3;">
+        <p><strong>PROYECTO:</strong> THERMOHARVEST GRID — Captura de Energía Residual con IA de Microflujos</p>
+        <p><strong>AUTOR:</strong> Dr. Julio César Oporta Barrera — Septiembre 2025</p>
+        <hr style="border-color: #2a2e35; margin: 12px 0;">
+        <h4 style="color: #4FC3F7; margin-bottom: 6px;">1. Componentes Físicos y Digitales</h4>
+        <ul style="padding-left: 18px;">
+          <li><strong>Materiales Piezoeléctricos:</strong> Cerámica PZT (d33: 250–400 pC/N) y Polímero PVDF para conversión electro-mecánica.</li>
+          <li><strong>Materiales Memoria Estructural:</strong> Aleación Nitinol (NiTi) con temperatura de activación 60-90°C y polímeros SMP.</li>
+          <li><strong>Microflujos Térmicos:</strong> Canales microfluidicos con efectos Knudsen para transferencia de calor a microescala.</li>
+          <li><strong>Unidad MCU Edge AI:</strong> Microcontroladores STM32/ESP32 ejecutando redes cuantizadas TinyML con inferencia en &lt;100ms.</li>
+        </ul>
+        <hr style="border-color: #2a2e35; margin: 12px 0;">
+        <h4 style="color: #4FC3F7; margin-bottom: 6px;">2. Paleta de Colores de Estética Aeroespacial</h4>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+          <div style="background: #2a2e35; padding: 6px 12px; border-radius: 6px; font-size: 10px;">Titanio Satinado (#2A2E35)</div>
+          <div style="background: #4FC3F7; color: #0f1318; font-weight: bold; padding: 6px 12px; border-radius: 6px; font-size: 10px;">Azul Cian (#4FC3F7)</div>
+          <div style="background: #c0c5ce; color: #0f1318; padding: 6px 12px; border-radius: 6px; font-size: 10px;">Plata Metálica (#C0C5CE)</div>
+          <div style="background: #f4f6f9; color: #0f1318; padding: 6px 12px; border-radius: 6px; font-size: 10px;">Blanco Clínico (#F4F6F9)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AR MODAL -->
+  <div class="modal-overlay" id="ar-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="ar-title" style="color: #4FC3F7; font-size: 16px; font-weight: 800;">Realidad Aumentada (AR) en Mesa de Trabajo</h3>
+        <button class="modal-close" onclick="closeARModal()">✕</button>
+      </div>
+      <p id="ar-desc" style="font-size: 11px; color: #94a3b8;">
+        Arrastra, escala y posiciona el prototipo 3D sobre tu superficie o escritorio. Usa la cámara de tu celular o el entorno virtual.
+      </p>
+
+      <div id="ar-viewport" onpointerdown="startArDrag(event)" onpointermove="doArDrag(event)" onpointerup="stopArDrag()">
+        <video id="ar-video" playsinline muted></video>
+        <div id="ar-target-3d">
+          <div id="ar-core-label" style="font-size: 9px; font-family: monospace; color: #4FC3F7; text-transform: uppercase; margin-bottom: 4px;">ThermoHarvest AR Core</div>
+          <div style="width: 160px; height: 90px; background: #1f2328; border-radius: 8px; border: 1px solid #4FC3F7; display: flex; align-items: center; justify-content: center; position: relative;">
+            <div style="width: 100px; height: 10px; background: #37474f; border-radius: 4px;"></div>
+            <div style="width: 80px; height: 4px; background: #4FC3F7; position: absolute;"></div>
+          </div>
+          <div style="font-size: 10px; font-weight: bold; color: #ffffff; margin-top: 6px;">Dr. Julio C. Oporta Barrera</div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px; justify-content: center; margin-top: 12px;">
+        <button class="action-btn" id="ar-zoom-out" onclick="zoomAr(-0.15)">- Zoom</button>
+        <button class="action-btn" id="ar-rotate" onclick="rotateAr(45)">↻ Rotar 45°</button>
+        <button class="action-btn" id="ar-zoom-in" onclick="zoomAr(0.15)">+ Zoom</button>
+        <button class="action-btn" id="ar-reset" onclick="resetAr()">Centrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==================== INTERNACIONALIZACIÓN ====================
+    const i18n = {
+      es: {
+        modesTitle: 'Modos Operativos en 3D',
+        statesTitle: 'Estado Dinámico Sistémico',
+        telemetryTitle: 'Telemetría y Energía en Tiempo Real',
+        physicsTitle: 'Biomecánica y Física Modular',
+        m1: '01. Núcleo Piezo-Memoria',
+        m2: '02. Motor Trifásico Industrial',
+        m3: '03. Rodamiento de Maquinaria',
+        m4: '04. Infraestructura Urbana',
+        m5: '05. Banco Pruebas Térmicas',
+        st_idle: 'Reposo',
+        st_tuning: 'Ajuste SMA',
+        st_harvesting: 'Captura Energética',
+        st_ai_sync: 'Enjambre IA',
+        st_overheat_warning: 'Alerta Anomalía',
+        btn_shock: 'Simular Choque Térmico',
+        btn_resonance: 'Auto-Resonancia',
+        lbl_vgen: 'Voltaje',
+        lbl_pden: 'Densidad',
+        lbl_rfreq: 'Resonancia',
+        lbl_lat: 'Latencia',
+        lbl_freq_ctrl: 'Frecuencia Vibracional (Hz)',
+        lbl_dt_ctrl: 'Gradiente Térmico ΔT (°C)',
+        lbl_sma_ctrl: 'Fase SMA Nitinol',
+        lbl_nodes_ctrl: 'Nodos en Enjambre IA',
+        btn_heatmap: 'Mapa Térmico',
+        btn_wireframe: 'Alámbrico',
+        btn_autorot: 'Rotación Auto: ON',
+        btn_resetcam: 'Restablecer Cámara 3D',
+        btn_ar: '📷 Realidad Aumentada (AR)',
+        btn_specs: '📄 Ficha Técnica',
+        ar_title: 'Realidad Aumentada (AR) en Mesa de Trabajo',
+        ar_desc: 'Arrastra, escala y posiciona el prototipo 3D sobre tu superficie o escritorio. Usa la cámara de tu celular o el entorno virtual.',
+        ar_core_label: 'ThermoHarvest AR Core',
+        ar_zoom_out: '- Zoom',
+        ar_rotate: '↻ Rotar 45°',
+        ar_zoom_in: '+ Zoom',
+        ar_reset: 'Centrar',
+        specs_title: 'Ficha Técnica & Solicitud de Patente',
+        thermal_map: 'Mapa Térmico',
+        health_label: 'Salud',
+        health_optimal: 'Óptimo',
+        health_warning: 'Precaución',
+        health_critical: 'Crítico',
+        energy_label: 'Energía Capturada (mJ)',
+        desc_idle: 'Sistema en reposo. Baja actividad térmica y vibracional.',
+        desc_tuning: 'Ajuste fino de la fase SMA para maximizar resonancia.',
+        desc_harvesting: 'Captura energética óptima: frecuencia y gradiente equilibrados.',
+        desc_ai_sync: 'Enjambre IA activo: múltiples nodos coordinando mapeo térmico.',
+        desc_overheat: 'Alerta por anomalía térmica. Riesgo de sobrecalentamiento.',
+      },
+      en: {
+        modesTitle: '3D Operating Modes',
+        statesTitle: 'Systemic Dynamic State',
+        telemetryTitle: 'Real‑time Telemetry & Energy',
+        physicsTitle: 'Biomechanics & Modular Physics',
+        m1: '01. Piezo-Memory Core',
+        m2: '02. Industrial 3‑Phase Motor',
+        m3: '03. Heavy Machinery Bearing',
+        m4: '04. Urban Infrastructure',
+        m5: '05. Thermal Test Bench',
+        st_idle: 'Idle',
+        st_tuning: 'SMA Tuning',
+        st_harvesting: 'Energy Harvesting',
+        st_ai_sync: 'AI Swarm',
+        st_overheat_warning: 'Anomaly Alert',
+        btn_shock: 'Simulate Thermal Shock',
+        btn_resonance: 'Auto‑Resonance',
+        lbl_vgen: 'Voltage',
+        lbl_pden: 'Density',
+        lbl_rfreq: 'Resonance',
+        lbl_lat: 'Latency',
+        lbl_freq_ctrl: 'Vibration Frequency (Hz)',
+        lbl_dt_ctrl: 'Thermal Gradient ΔT (°C)',
+        lbl_sma_ctrl: 'SMA Nitinol Phase',
+        lbl_nodes_ctrl: 'AI Swarm Nodes',
+        btn_heatmap: 'Heat Map',
+        btn_wireframe: 'Wireframe',
+        btn_autorot: 'Auto‑Rotate: ON',
+        btn_resetcam: 'Reset 3D Camera',
+        btn_ar: '📷 Augmented Reality (AR)',
+        btn_specs: '📄 Technical Sheet',
+        ar_title: 'Augmented Reality (AR) on Workbench',
+        ar_desc: 'Drag, scale and place the 3D prototype on your surface or desk. Use your phone camera or the virtual environment.',
+        ar_core_label: 'ThermoHarvest AR Core',
+        ar_zoom_out: '- Zoom',
+        ar_rotate: '↻ Rotate 45°',
+        ar_zoom_in: '+ Zoom',
+        ar_reset: 'Center',
+        specs_title: 'Technical Sheet & Patent Application',
+        thermal_map: 'Thermal Map',
+        health_label: 'Health',
+        health_optimal: 'Optimal',
+        health_warning: 'Warning',
+        health_critical: 'Critical',
+        energy_label: 'Harvested Energy (mJ)',
+        desc_idle: 'System idle. Low thermal and vibrational activity.',
+        desc_tuning: 'Fine‑tuning SMA phase to maximize resonance.',
+        desc_harvesting: 'Optimal energy harvesting: balanced frequency and gradient.',
+        desc_ai_sync: 'AI swarm active: multiple nodes coordinating thermal mapping.',
+        desc_overheat: 'Thermal anomaly alert. Overheating risk.',
+      },
+      zh: {
+        modesTitle: '3D 运行模式',
+        statesTitle: '系统动态状态',
+        telemetryTitle: '实时遥测与能量',
+        physicsTitle: '生物力学与模块化物理',
+        m1: '01. 压电-记忆核心',
+        m2: '02. 工业三相电机',
+        m3: '03. 重型机械轴承',
+        m4: '04. 城市基础设施',
+        m5: '05. 热震测试台',
+        st_idle: '待机',
+        st_tuning: 'SMA 调整',
+        st_harvesting: '能量采集',
+        st_ai_sync: 'AI 群集',
+        st_overheat_warning: '异常警报',
+        btn_shock: '模拟热冲击',
+        btn_resonance: '自谐振',
+        lbl_vgen: '电压',
+        lbl_pden: '密度',
+        lbl_rfreq: '共振',
+        lbl_lat: '延迟',
+        lbl_freq_ctrl: '振动频率 (Hz)',
+        lbl_dt_ctrl: '热梯度 ΔT (°C)',
+        lbl_sma_ctrl: 'SMA 镍钛相',
+        lbl_nodes_ctrl: 'AI 群集节点',
+        btn_heatmap: '热图',
+        btn_wireframe: '线框',
+        btn_autorot: '自动旋转: 开',
+        btn_resetcam: '重置 3D 相机',
+        btn_ar: '📷 增强现实 (AR)',
+        btn_specs: '📄 技术规格',
+        ar_title: '工作台上的增强现实 (AR)',
+        ar_desc: '拖动、缩放和放置 3D 原型在您的表面或桌面上。使用手机摄像头或虚拟环境。',
+        ar_core_label: 'ThermoHarvest AR 核心',
+        ar_zoom_out: '- 缩放',
+        ar_rotate: '↻ 旋转 45°',
+        ar_zoom_in: '+ 缩放',
+        ar_reset: '居中',
+        specs_title: '技术规格与专利申请',
+        thermal_map: '热图',
+        health_label: '健康',
+        health_optimal: '最佳',
+        health_warning: '警告',
+        health_critical: '危急',
+        energy_label: '采集能量 (mJ)',
+        desc_idle: '系统待机。低热和振动活动。',
+        desc_tuning: '微调 SMA 相以最大化共振。',
+        desc_harvesting: '最佳能量采集：平衡频率和梯度。',
+        desc_ai_sync: 'AI 群集激活：多个节点协调热图。',
+        desc_overheat: '热异常警报。过热风险。',
+      }
+    };
+
+    let currentLang = 'es';
+
+    function switchLang(lang) {
+      currentLang = lang;
+      const t = i18n[lang] || i18n.es;
+
+      document.getElementById('lbl-modes-title').innerText = t.modesTitle;
+      document.getElementById('lbl-states-title').innerText = t.statesTitle;
+      document.getElementById('lbl-telemetry-title').innerText = t.telemetryTitle;
+      document.getElementById('lbl-physics-title').innerText = t.physicsTitle;
+
+      document.getElementById('lbl-m1').innerText = t.m1;
+      document.getElementById('lbl-m2').innerText = t.m2;
+      document.getElementById('lbl-m3').innerText = t.m3;
+      document.getElementById('lbl-m4').innerText = t.m4;
+      document.getElementById('lbl-m5').innerText = t.m5;
+
+      document.getElementById('sbtn-idle').innerText = t.st_idle;
+      document.getElementById('sbtn-tuning').innerText = t.st_tuning;
+      document.getElementById('sbtn-harvesting').innerText = t.st_harvesting;
+      document.getElementById('sbtn-ai_sync').innerText = t.st_ai_sync;
+      document.getElementById('sbtn-overheat_warning').innerText = t.st_overheat_warning;
+
+      document.getElementById('btn-shock').innerText = t.btn_shock;
+      document.getElementById('btn-resonance').innerText = t.btn_resonance;
+
+      document.getElementById('lbl-vgen').innerText = t.lbl_vgen;
+      document.getElementById('lbl-pden').innerText = t.lbl_pden;
+      document.getElementById('lbl-rfreq').innerText = t.lbl_rfreq;
+      document.getElementById('lbl-lat').innerText = t.lbl_lat;
+
+      document.getElementById('lbl-freq-ctrl').innerText = t.lbl_freq_ctrl;
+      document.getElementById('lbl-dt-ctrl').innerText = t.lbl_dt_ctrl;
+      document.getElementById('lbl-sma-ctrl').innerText = t.lbl_sma_ctrl;
+      document.getElementById('lbl-nodes-ctrl').innerText = t.lbl_nodes_ctrl;
+
+      document.getElementById('btn-heatmap').innerText = t.btn_heatmap;
+      document.getElementById('btn-wireframe').innerText = t.btn_wireframe;
+      document.getElementById('btn-resetcam').innerText = t.btn_resetcam;
+
+      document.getElementById('btn-ar').innerHTML = `<span>${t.btn_ar}</span>`;
+      document.getElementById('btn-specs').innerHTML = `<span>${t.btn_specs}</span>`;
+
+      document.getElementById('ar-title').innerText = t.ar_title;
+      document.getElementById('ar-desc').innerText = t.ar_desc;
+      document.getElementById('ar-core-label').innerText = t.ar_core_label;
+      document.getElementById('ar-zoom-out').innerText = t.ar_zoom_out;
+      document.getElementById('ar-rotate').innerText = t.ar_rotate;
+      document.getElementById('ar-zoom-in').innerText = t.ar_zoom_in;
+      document.getElementById('ar-reset').innerText = t.ar_reset;
+
+      document.getElementById('specs-title').innerText = t.specs_title;
+
+      document.getElementById('thermal-map-label').innerText = t.thermal_map;
+      document.getElementById('health-label').innerText = t.health_label;
+      document.getElementById('energy-label').innerText = t.energy_label;
+
+      updateAutorotLabel();
+      updateStateDescription(currentState);
+    }
+
+    function updateAutorotLabel() {
+      const t = i18n[currentLang] || i18n.es;
+      const label = autoRotate ? t.btn_autorot.replace('ON', 'ON') : t.btn_autorot.replace('ON', 'OFF');
+      document.getElementById('btn-autorot').innerText = label;
+    }
+
+    function updateStateDescription(state) {
+      const t = i18n[currentLang] || i18n.es;
+      const descMap = {
+        idle: t.desc_idle,
+        tuning: t.desc_tuning,
+        harvesting: t.desc_harvesting,
+        ai_sync: t.desc_ai_sync,
+        overheat_warning: t.desc_overheat
+      };
+      document.getElementById('state-desc-text').innerText = descMap[state] || '';
+    }
+
+    // ==================== ESTADOS Y SIMULACIONES ====================
+    let currentState = 'harvesting';
+
+    function setState(state) {
+      document.querySelectorAll('.state-badge').forEach(b => b.classList.remove('active'));
+      document.getElementById('sbtn-' + state).classList.add('active');
+      currentState = state;
+      updateStateDescription(state);
+
+      switch(state) {
+        case 'idle': setSliders(30, 10, 10, 2); break;
+        case 'tuning': setSliders(80, 40, 90, 4); break;
+        case 'harvesting': setSliders(120, 65, 70, 6); break;
+        case 'ai_sync': setSliders(220, 90, 85, 12); break;
+        case 'overheat_warning': setSliders(480, 130, 50, 6); break;
+        default: break;
+      }
+    }
+
+    function setSliders(freq, dt, sma, nodes) {
+      document.getElementById('slider-freq').value = freq;
+      document.getElementById('slider-dt').value = dt;
+      document.getElementById('slider-sma').value = sma;
+      document.getElementById('slider-nodes').value = nodes;
+      updatePhysics();
+    }
+
+    // ==================== FUNCIONES PRINCIPALES ====================
+    let scene, camera, renderer, controls;
+    let coreGroup, envGroup, swarmGroup, particles;
+    let flexBeamLeft, flexBeamRight, mpptLed, thermalPointLight;
+    
+    let currentMode = 'core';
+    let isWireframe = false;
+    let isHeatmap = false;
+    let autoRotate = true;
+
+    let freqVal = 120, dtVal = 65, smaVal = 70, nodesCount = 6;
+    let simTime = 0;
+    let energyHistory = [];
+
+    function initEngine() {
+      const container = document.getElementById('canvas3d');
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color('#0f1318');
+      scene.fog = new THREE.FogExp2('#0f1318', 0.025);
+
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+      camera.position.set(3.5, 2.5, 4.5);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      container.appendChild(renderer.domElement);
+
+      const OrbitControlsClass = THREE.OrbitControls || window.OrbitControls;
+      if (OrbitControlsClass) {
+        controls = new OrbitControlsClass(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.target.set(0, 0.8, 0);
+      }
+
+      const ambient = new THREE.AmbientLight(0x1e232a, 1.8);
+      scene.add(ambient);
+
+      const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
+      keyLight.position.set(5, 8, 5);
+      keyLight.castShadow = true;
+      scene.add(keyLight);
+
+      const rimLight = new THREE.DirectionalLight(0x4fc3f7, 3.5);
+      rimLight.position.set(-6, 4, -5);
+      scene.add(rimLight);
+
+      thermalPointLight = new THREE.PointLight(0xff6d00, 2.0, 8);
+      thermalPointLight.position.set(0, 1.2, 0);
+      scene.add(thermalPointLight);
+
+      const grid = new THREE.GridHelper(20, 40, 0x4fc3f7, 0x2a323d);
+      grid.position.y = -0.01;
+      scene.add(grid);
+
+      coreGroup = new THREE.Group();
+      coreGroup.position.set(0, 0.8, 0);
+      scene.add(coreGroup);
+
+      envGroup = new THREE.Group();
+      scene.add(envGroup);
+
+      swarmGroup = new THREE.Group();
+      scene.add(swarmGroup);
+
+      buildCoreModel();
+      rebuildModeEnvironment();
+      rebuildSwarm();
+
+      window.addEventListener('resize', () => {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+      });
+
+      animate();
+    }
+
+    function buildCoreModel() {
+      const titaniumMat = new THREE.MeshStandardMaterial({ color: 0x2a2e35, roughness: 0.35, metalness: 0.85 });
+      const silverMat = new THREE.MeshStandardMaterial({ color: 0xc0c5ce, roughness: 0.25, metalness: 0.9 });
+      const nitinolMat = new THREE.MeshStandardMaterial({ color: 0x37474f, roughness: 0.2, metalness: 0.95 });
+      const piezoMat = new THREE.MeshPhysicalMaterial({ color: 0x29b6f6, transmission: 0.6, transparent: true, opacity: 0.9 });
+
+      const baseGeo = new THREE.BoxGeometry(1.8, 0.18, 1.0);
+      const baseMesh = new THREE.Mesh(baseGeo, titaniumMat);
+      baseMesh.name = 'heat_surface';
+      coreGroup.add(baseMesh);
+
+      const trimGeo = new THREE.BoxGeometry(1.84, 0.04, 1.04);
+      const trimMesh = new THREE.Mesh(trimGeo, silverMat);
+      trimMesh.position.y = -0.07;
+      coreGroup.add(trimMesh);
+
+      const beamGeo = new THREE.BoxGeometry(0.7, 0.04, 0.25);
+      flexBeamLeft = new THREE.Mesh(beamGeo, nitinolMat);
+      flexBeamLeft.position.set(-0.4, 0.25, 0.2);
+      coreGroup.add(flexBeamLeft);
+
+      const pWaferGeo = new THREE.BoxGeometry(0.5, 0.02, 0.2);
+      const pLeft = new THREE.Mesh(pWaferGeo, piezoMat);
+      pLeft.position.y = 0.03;
+      flexBeamLeft.add(pLeft);
+
+      flexBeamRight = new THREE.Mesh(beamGeo, nitinolMat);
+      flexBeamRight.position.set(0.4, 0.25, -0.2);
+      coreGroup.add(flexBeamRight);
+
+      const pRight = new THREE.Mesh(pWaferGeo, piezoMat);
+      pRight.position.y = 0.03;
+      flexBeamRight.add(pRight);
+
+      const pcbGeo = new THREE.BoxGeometry(0.6, 0.05, 0.4);
+      const pcbMat = new THREE.MeshStandardMaterial({ color: 0x0f2b1d, roughness: 0.4 });
+      const pcb = new THREE.Mesh(pcbGeo, pcbMat);
+      pcb.position.set(0, 0.24, 0);
+      coreGroup.add(pcb);
+
+      const mcuGeo = new THREE.BoxGeometry(0.22, 0.04, 0.22);
+      const mcu = new THREE.Mesh(mcuGeo, titaniumMat);
+      mcu.position.set(0, 0.28, 0);
+      coreGroup.add(mcu);
+
+      const ledGeo = new THREE.SphereGeometry(0.03, 16, 16);
+      const ledMat = new THREE.MeshBasicMaterial({ color: 0x4fc3f7 });
+      mpptLed = new THREE.Mesh(ledGeo, ledMat);
+      mpptLed.position.set(0.24, 0.28, 0.15);
+      coreGroup.add(mpptLed);
+
+      const pGeo = new THREE.BufferGeometry();
+      const pCount = 200;
+      const pos = new Float32Array(pCount * 3);
+      for (let i = 0; i < pCount; i++) {
+        pos[i * 3] = (Math.random() - 0.5) * 1.6;
+        pos[i * 3 + 1] = 0.15 + Math.random() * 0.1;
+        pos[i * 3 + 2] = (Math.random() - 0.5) * 0.8;
+      }
+      pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const pMat = new THREE.PointsMaterial({ color: 0x4fc3f7, size: 0.035, transparent: true, opacity: 0.85 });
+      particles = new THREE.Points(pGeo, pMat);
+      coreGroup.add(particles);
+    }
+
+    function rebuildModeEnvironment() {
+      while (envGroup.children.length > 0) envGroup.remove(envGroup.children[0]);
+
+      if (currentMode === 'motor') {
+        const mMat = new THREE.MeshStandardMaterial({ color: 0x22262b, roughness: 0.6, metalness: 0.7 });
+        const bodyGeo = new THREE.CylinderGeometry(1.2, 1.2, 2.5, 32);
+        const body = new THREE.Mesh(bodyGeo, mMat);
+        body.rotation.z = Math.PI / 2;
+        body.position.set(0, 1.2, 0);
+        envGroup.add(body);
+
+        const shaftGeo = new THREE.CylinderGeometry(0.3, 0.3, 3.8, 32);
+        const sMat = new THREE.MeshStandardMaterial({ color: 0xe0e6ed, metalness: 0.95 });
+        const shaft = new THREE.Mesh(shaftGeo, sMat);
+        shaft.rotation.z = Math.PI / 2;
+        shaft.position.set(0, 1.2, 0);
+        envGroup.add(shaft);
+      } else if (currentMode === 'bearing') {
+        const bMat = new THREE.MeshStandardMaterial({ color: 0xd0d7de, roughness: 0.1, metalness: 0.95 });
+        const ringGeo = new THREE.TorusGeometry(1.2, 0.2, 32, 64);
+        const ring = new THREE.Mesh(ringGeo, bMat);
+        ring.position.set(0, 1.2, 0);
+        envGroup.add(ring);
+      } else if (currentMode === 'bridge') {
+        const cMat = new THREE.MeshStandardMaterial({ color: 0x4a525d, roughness: 0.8 });
+        const deckLeftGeo = new THREE.BoxGeometry(2.5, 0.6, 2.5);
+        const deckLeft = new THREE.Mesh(deckLeftGeo, cMat);
+        deckLeft.position.set(-1.4, 0.6, 0);
+        envGroup.add(deckLeft);
+
+        const deckRight = new THREE.Mesh(deckLeftGeo, cMat);
+        deckRight.position.set(1.4, 0.6, 0);
+        envGroup.add(deckRight);
+      } else if (currentMode === 'testbench') {
+        const benchMat = new THREE.MeshStandardMaterial({ color: 0x1a1e24, roughness: 0.4 });
+        const table = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.2, 2.0), benchMat);
+        table.position.set(0, 0.1, 0);
+        envGroup.add(table);
+      }
+    }
+
+    function rebuildSwarm() {
+      while (swarmGroup.children.length > 0) swarmGroup.remove(swarmGroup.children[0]);
+
+      const nGeo = new THREE.IcosahedronGeometry(0.12, 2);
+      const nMat = new THREE.MeshStandardMaterial({ color: 0x4fc3f7, wireframe: true });
+      const pos = [
+        [0, 1.2, 0], [-1.4, 1.5, 0.8], [1.4, 1.5, -0.8],
+        [-1.2, 1.0, -1.2], [1.2, 1.0, 1.2], [0, 2.2, 0.5],
+        [-0.8, 1.8, -0.6], [0.8, 1.8, 0.6], [-1.6, 0.8, 0],
+        [1.6, 0.8, 0], [0, 1.5, -1.5], [0, 1.5, 1.5]
+      ].slice(0, nodesCount);
+
+      pos.forEach(p => {
+        const m = new THREE.Mesh(nGeo, nMat);
+        m.position.set(...p);
+        swarmGroup.add(m);
+      });
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      simTime += 0.02;
+
+      if (controls) {
+        controls.autoRotate = autoRotate;
+        controls.autoRotateSpeed = 1.2;
+        controls.update();
+      } else {
+        if (autoRotate) coreGroup.rotation.y += 0.005;
+      }
+
+      const amp = (freqVal / 1000) * 0.08;
+      if (flexBeamLeft) flexBeamLeft.rotation.z = Math.sin(simTime * (freqVal * 0.1)) * amp;
+      if (flexBeamRight) flexBeamRight.rotation.z = -Math.sin(simTime * (freqVal * 0.1)) * amp;
+
+      if (particles) {
+        const pArray = particles.geometry.attributes.position.array;
+        for (let i = 0; i < pArray.length; i += 3) {
+          pArray[i] += (0.004 + (dtVal / 150) * 0.015);
+          if (pArray[i] > 0.8) pArray[i] = -0.8;
+        }
+        particles.geometry.attributes.position.needsUpdate = true;
+      }
+
+      if (mpptLed) {
+        if (currentState === 'overheat_warning') mpptLed.material.color.setHex(0xff1744);
+        else mpptLed.material.color.setHex(0x00e676);
+      }
+
+      // Telemetry
+      const voltage = (0.8 + (freqVal / 500) * 1.1 + (dtVal / 100) * 0.9).toFixed(2);
+      const power = (0.3 + (freqVal / 400) * 1.2 + (dtVal / 120) * 0.7).toFixed(2);
+      const lat = Math.round(35 + Math.sin(simTime * 2) * 10 + nodesCount * 1.2);
+
+      document.getElementById('val-voltage').innerText = voltage + ' V';
+      document.getElementById('val-power').innerText = power + ' mW/cm²';
+      document.getElementById('val-freq').innerText = Math.round(freqVal) + ' Hz';
+      document.getElementById('val-lat').innerText = lat + ' ms';
+
+      updateThermalMap();
+      updateEnergyGraph(parseFloat(power));
+
+      renderer.render(scene, camera);
+      drawOscilloscope();
+    }
+
+    function updatePhysics() {
+      freqVal = parseFloat(document.getElementById('slider-freq').value);
+      dtVal = parseFloat(document.getElementById('slider-dt').value);
+      smaVal = parseFloat(document.getElementById('slider-sma').value);
+      nodesCount = parseInt(document.getElementById('slider-nodes').value);
+
+      document.getElementById('disp-freq').innerText = freqVal + ' Hz';
+      document.getElementById('disp-dt').innerText = dtVal + ' °C';
+      document.getElementById('disp-sma').innerText = smaVal + '% Austenita';
+      document.getElementById('disp-nodes').innerText = nodesCount + ' Nodos';
+
+      rebuildSwarm();
+      updateHealthIndicator();
+    }
+
+    function setMode(m) {
+      currentMode = m;
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('mbtn-' + m).classList.add('active');
+      rebuildModeEnvironment();
+    }
+
+    function simShock() {
+      document.getElementById('slider-freq').value = 450;
+      document.getElementById('slider-dt').value = 120;
+      updatePhysics();
+      setState('overheat_warning');
+    }
+
+    function simResonance() {
+      document.getElementById('slider-freq').value = 180;
+      document.getElementById('slider-dt').value = 45;
+      document.getElementById('slider-sma').value = 90;
+      updatePhysics();
+      setState('tuning');
+    }
+
+    function toggleWireframe() {
+      isWireframe = !isWireframe;
+      coreGroup.traverse(c => { if (c.material) c.material.wireframe = isWireframe; });
+    }
+
+    function toggleHeatmap() {
+      isHeatmap = !isHeatmap;
+      coreGroup.traverse(c => {
+        if (c.material) c.material.color.setHex(isHeatmap ? 0xff3d00 : 0x2a2e35);
+      });
+    }
+
+    function toggleAutoRotate() {
+      autoRotate = !autoRotate;
+      updateAutorotLabel();
+    }
+
+    function resetCam() {
+      camera.position.set(3.5, 2.5, 4.5);
+      if (controls) controls.target.set(0, 0.8, 0);
+    }
+
+    // ==================== FUNCIONES VISUALES ====================
+    function updateThermalMap() {
+      const canvas = document.getElementById('thermalMap');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width, h = canvas.height;
+      const intensity = Math.min(1, (dtVal / 150) * 0.8 + (freqVal / 1000) * 0.4);
+      const imageData = ctx.createImageData(w, h);
+      const data = imageData.data;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          const cx = w/2, cy = h/2;
+          const dist = Math.sqrt((x-cx)**2 + (y-cy)**2) / (w/2);
+          const val = Math.max(0, 1 - dist) * intensity + Math.random() * 0.1;
+          const r = Math.min(255, 200 * val + 55);
+          const g = Math.min(255, 150 * (1 - val) + 40);
+          const b = Math.min(255, 100 * (1 - val) + 20);
+          data[i] = r;
+          data[i+1] = g * 0.6;
+          data[i+2] = b * 0.8;
+          data[i+3] = 255;
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
+      ctx.strokeStyle = 'rgba(79,195,247,0.3)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(0, 0, w, h);
+    }
+
+    function updateEnergyGraph(power) {
+      const energyIncrement = power * 0.5;
+      energyHistory.push(energyIncrement);
+      if (energyHistory.length > 80) energyHistory.shift();
+
+      const canvas = document.getElementById('energyGraph');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width, h = canvas.height;
+      ctx.fillStyle = '#0a0d10';
+      ctx.fillRect(0, 0, w, h);
+
+      if (energyHistory.length < 2) return;
+      const maxVal = Math.max(3, ...energyHistory);
+      ctx.strokeStyle = '#4FC3F7';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < energyHistory.length; i++) {
+        const x = (i / energyHistory.length) * w;
+        const y = h - (energyHistory[i] / maxVal) * (h - 2);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      const current = energyHistory[energyHistory.length-1] || 0;
+      document.getElementById('energy-current').innerText = current.toFixed(2);
+    }
+
+    function updateHealthIndicator() {
+      const led = document.getElementById('health-led');
+      const status = document.getElementById('health-status');
+      const t = i18n[currentLang] || i18n.es;
+
+      let level = 'green';
+      let text = t.health_optimal;
+
+      if (currentState === 'overheat_warning' || freqVal > 400 || dtVal > 120) {
+        level = 'red';
+        text = t.health_critical;
+      } else if (freqVal > 250 || dtVal > 90 || currentState === 'tuning') {
+        level = 'amber';
+        text = t.health_warning;
+      }
+
+      led.className = 'health-led ' + level;
+      status.innerText = text;
+    }
+
+    function drawOscilloscope() {
+      const cvs = document.getElementById('oscilloscope');
+      if (!cvs) return;
+      const ctx = cvs.getContext('2d');
+      ctx.fillStyle = '#0a0d10';
+      ctx.fillRect(0, 0, cvs.width, cvs.height);
+
+      ctx.strokeStyle = '#4FC3F7';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      const w = cvs.width, h = cvs.height;
+
+      for (let x = 0; x < w; x++) {
+        const y = h / 2 + Math.sin((x * 0.05) + simTime * (freqVal * 0.1)) * (h * 0.35);
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    // ==================== MODALES Y AR ====================
+    function openSpecsModal() { document.getElementById('specs-modal').style.display = 'flex'; }
+    function closeSpecsModal() { document.getElementById('specs-modal').style.display = 'none'; }
+    function openARModal() { document.getElementById('ar-modal').style.display = 'flex'; }
+    function closeARModal() { document.getElementById('ar-modal').style.display = 'none'; }
+
+    let arPos = { x: 0, y: 0 }, arScale = 1.0, arRot = 0, isArDrag = false, arStart = { x: 0, y: 0 };
+    function startArDrag(e) { isArDrag = true; arStart = { x: e.clientX - arPos.x, y: e.clientY - arPos.y }; }
+    function doArDrag(e) {
+      if (!isArDrag) return;
+      arPos = { x: e.clientX - arStart.x, y: e.clientY - arStart.y };
+      applyArTransform();
+    }
+    function stopArDrag() { isArDrag = false; }
+    function zoomAr(delta) { arScale = Math.max(0.4, Math.min(2.5, arScale + delta)); applyArTransform(); }
+    function rotateAr(deg) { arRot = (arRot + deg) % 360; applyArTransform(); }
+    function resetAr() { arPos = { x: 0, y: 0 }; arScale = 1.0; arRot = 0; applyArTransform(); }
+    function applyArTransform() {
+      const el = document.getElementById('ar-target-3d');
+      if (el) el.style.transform = `translate(${arPos.x}px, ${arPos.y}px) scale(${arScale}) rotate(${arRot}deg)`;
+    }
+
+    // ==================== INICIALIZACIÓN ====================
+    window.onload = () => {
+      initEngine();
+      updatePhysics();
+      switchLang('es');
+      for (let i = 0; i < 20; i++) energyHistory.push(0.5 + Math.random() * 0.8);
+      updateEnergyGraph(1.2);
+      updateHealthIndicator();
+    };
+  </script>
+</body>
+</html>
