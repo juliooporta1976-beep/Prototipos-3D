@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CCN BIOSISTEMAS™ - Prototipo 3D Autónomo e Interactivo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background-color: #06080d; color: #e2e8f0; user-select: none; }
+    #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+    
+    /* Header Overlay */
+    .header {
+      position: absolute; top: 0; left: 0; width: 100%; padding: 14px 24px;
+      display: flex; justify-content: space-between; align-items: center;
+      background: linear-gradient(180deg, rgba(6, 8, 13, 0.98) 0%, rgba(6, 8, 13, 0.75) 80%, rgba(6, 8, 13, 0) 100%);
+      z-index: 10; border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+      backdrop-filter: blur(12px);
+    }
+    .header-left { display: flex; flex-direction: column; }
+    .author-tag { font-size: 11px; font-weight: 700; color: #38BDF8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 2px; }
+    .app-title { font-size: 19px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; }
+    .app-subtitle { font-size: 12px; color: #94a3b8; margin-top: 1px; }
+    .header-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    /* Buttons */
+    .btn {
+      background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.35); color: #cbd5e1;
+      padding: 7px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+      backdrop-filter: blur(8px); transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn:hover { background: rgba(56, 189, 248, 0.2); border-color: #38BDF8; color: #ffffff; box-shadow: 0 0 12px rgba(56, 189, 248, 0.35); }
+    .btn-active { background: #38BDF8; color: #06080d; border-color: #38BDF8; font-weight: 700; }
+    .btn-emerald { border-color: #10B981; color: #10B981; }
+    .btn-emerald:hover { background: rgba(16, 185, 129, 0.2); color: #ffffff; }
+    .btn-purple { border-color: #8B5CF6; color: #8B5CF6; }
+    .btn-purple:hover { background: rgba(139, 92, 246, 0.2); color: #ffffff; }
+
+    /* Dynamic HUD Side Panel */
+    .hud-panel {
+      position: absolute; top: 84px; left: 24px; width: 310px;
+      background: rgba(11, 19, 36, 0.92); border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 12px; padding: 16px; backdrop-filter: blur(16px); z-index: 10;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+    .hud-title { font-size: 12px; font-weight: 700; color: #38BDF8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+    .telemetry-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 5px; }
+    .telemetry-label { color: #94a3b8; }
+    .telemetry-val { font-weight: 700; color: #10B981; font-family: monospace; }
+
+    /* Module Inspector Drawer (Right Side) */
+    .inspector-drawer {
+      position: absolute; top: 84px; right: 24px; width: 380px; max-height: calc(100vh - 130px);
+      background: rgba(11, 19, 36, 0.95); border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 14px; padding: 20px; backdrop-filter: blur(20px); z-index: 15;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8); overflow-y: auto; display: none;
+      animation: slideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes slideIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .drawer-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+    .drawer-close { background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer; line-height: 1; }
+    .drawer-close:hover { color: #fff; }
+    .spec-item { font-size: 12px; color: #cbd5e1; margin-bottom: 6px; display: flex; align-items: flex-start; gap: 8px; }
+    .spec-item::before { content: "✓"; color: #10B981; font-weight: bold; }
+    .slider-box { background: rgba(15, 23, 42, 0.6); padding: 12px; border-radius: 8px; margin-top: 14px; border: 1px solid rgba(255,255,255,0.08); }
+    .slider-box input[type=range] { width: 100%; accent-color: #38BDF8; cursor: pointer; margin-top: 6px; }
+
+    /* Blockchain Panel (Modal) */
+    .blockchain-panel {
+      position: absolute; top: 84px; right: 24px; width: 420px; max-height: calc(100vh - 130px);
+      background: rgba(11, 19, 36, 0.97); border: 1px solid #8B5CF6;
+      border-radius: 14px; padding: 20px; backdrop-filter: blur(20px); z-index: 20;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.9); overflow-y: auto; display: none;
+      animation: slideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .bc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(139,92,246,0.3); padding-bottom: 10px; }
+    .bc-title { font-size: 16px; font-weight: 800; color: #8B5CF6; }
+    .bc-entry { background: rgba(15,23,42,0.6); padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #8B5CF6; font-size: 12px; }
+    .bc-entry .hash { color: #38BDF8; font-family: monospace; }
+    .bc-entry .token { color: #F59E0B; font-weight: bold; }
+
+    /* Simulation Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(6, 8, 13, 0.85); backdrop-filter: blur(12px);
+      z-index: 100; display: none; justify-content: center; align-items: center; padding: 20px;
+    }
+    .modal-card {
+      background: #0f172a; border: 1px solid #38BDF8; border-radius: 16px; width: 100%; max-width: 600px;
+      padding: 24px; box-shadow: 0 25px 50px rgba(0,0,0,0.9); position: relative;
+    }
+
+    /* Bottom Control Bar */
+    .controls-bar {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 6px; background: rgba(11, 19, 36, 0.92); border: 1px solid rgba(56, 189, 248, 0.35);
+      padding: 8px 14px; border-radius: 30px; backdrop-filter: blur(16px); z-index: 10; flex-wrap: wrap; justify-content: center;
+    }
+
+    /* Floating Tooltip */
+    #tooltip {
+      position: absolute; display: none; padding: 8px 12px; background: rgba(6, 8, 13, 0.95);
+      border: 1px solid #38BDF8; border-radius: 8px; color: #fff; font-size: 12px; z-index: 100;
+      pointer-events: none; backdrop-filter: blur(10px); box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+    }
+
+    /* Code Viewer Box */
+    .code-box {
+      background: #06080d; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px;
+      padding: 10px; font-family: monospace; font-size: 11px; color: #38BDF8; margin-top: 10px;
+      max-height: 120px; overflow-y: auto; white-space: pre;
+    }
+    .code-selector { background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+
+    /* Pulse dot */
+    .pulse-dot { display: inline-block; width: 8px; height: 8px; background: #10B981; border-radius: 50%; box-shadow: 0 0 8px #10B981; animation: blink 1.5s infinite; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    /* Emotion badge */
+    .emotion-badge { background: rgba(139,92,246,0.2); border: 1px solid #8B5CF6; border-radius: 20px; padding: 2px 12px; font-size: 11px; color: #8B5CF6; display: inline-block; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <div id="tooltip"></div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="author-tag">Dr. Julio César Oporta Barrera</div>
+      <div class="app-title">CCN BIOSISTEMAS™ — PROTOTIPO 3D AUTÓNOMO</div>
+      <div class="app-subtitle" id="lang-subtitle">Plataforma de Biotransformación Territorial | Modo Offline Directo</div>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-active" id="btn-mode-op" onclick="setOpMode('operation')">⚡ Operación</button>
+      <button class="btn" id="btn-mode-an" onclick="setOpMode('analysis')">🔍 Análisis IA</button>
+      <button class="btn btn-emerald" onclick="openSimModal()">📊 Simulación</button>
+      <button class="btn" onclick="setOpMode('diagnostics')">🩺 Diagnóstico</button>
+      <button class="btn" onclick="setOpMode('energy')">⚡ Energía</button>
+      <button class="btn" onclick="setOpMode('ai_genomic')">🧬 IA Genómico</button>
+      <button class="btn btn-purple" onclick="toggleBlockchain()">🔗 Blockchain</button>
+      <div style="width:1px; height:20px; background:rgba(255,255,255,0.2); margin:0 4px;"></div>
+      <button class="btn" onclick="setViewMode('normal')">3D Normal</button>
+      <button class="btn" onclick="setViewMode('blueprint')">🗺️ Esquema</button>
+      <button class="btn" onclick="setViewMode('exploded')">💥 Explotada</button>
+      <button class="btn" onclick="setViewMode('xray')">🦴 Rayos X</button>
+      <button class="btn" onclick="resetCamera()">🎯 Centrar</button>
+      <button class="btn btn-emerald" onclick="openARModal()">📱 AR</button>
+      <!-- Botón de idioma ahora aquí, junto a los botones de vista -->
+      <button class="btn" onclick="toggleLang()" id="btn-lang">🌐 ES</button>
+    </div>
+  </div>
+
+  <!-- Telemetry HUD Side Panel -->
+  <div class="hud-panel" id="hud-panel-box" style="width:auto; cursor:pointer;" onclick="toggleTelemetry()">
+    <div class="hud-title" id="hud-title-bar" style="margin-bottom:0; user-select:none;">
+      <span id="txt-telemetry-title">⚡ TELEMETRÍA EN VIVO</span>
+      <span style="color:#10B981; font-size:10px; display:flex; align-items:center; gap:4px; margin-left:10px;">
+        <span class="pulse-dot"></span> ONLINE
+        <span id="hud-toggle-icon" style="color:#38BDF8; font-weight:bold; margin-left:8px;">[ + Expandir ]</span>
+      </span>
+    </div>
+    <div id="telemetry-content" style="display:none; margin-top:12px;">
+      <div class="telemetry-row"><span class="telemetry-label" id="lbl-feed">Alimentación Biomasa</span><span class="telemetry-val" id="val-feed">120 ton/h</span></div>
+      <div class="telemetry-row"><span class="telemetry-label" id="lbl-temp">Temp. Biorreactor</span><span class="telemetry-val" id="val-temp">37.5 °C</span></div>
+      <div class="telemetry-row"><span class="telemetry-label" id="lbl-ph">Control pH</span><span class="telemetry-val" id="val-ph">6.8 pH</span></div>
+      <div class="telemetry-row"><span class="telemetry-label" id="lbl-rpm">Agitación Agitadores</span><span class="telemetry-val" id="val-rpm">450 RPM</span></div>
+      <div class="telemetry-row"><span class="telemetry-label" id="lbl-bioethanol">Flujo Bioetanol</span><span class="telemetry-val" id="val-bioethanol">480 L/min</span></div>
+      <div class="telemetry-row"><span class="telemetry-label" id="lbl-ectoine">Pureza Ectoína</span><span class="telemetry-val" id="val-ectoine">99.9% Pura</span></div>
+      <div class="telemetry-row"><span class="telemetry-label" id="lbl-bioplastic">Salida Bioplástico</span><span class="telemetry-val" id="val-bioplastic">850 kg/h</span></div>
+      <div class="telemetry-row"><span class="telemetry-label" id="lbl-co2">Captura CO2</span><span class="telemetry-val" id="val-co2">42 ton/día</span></div>
+      <div class="telemetry-row"><span class="telemetry-label" id="lbl-ai">Precisión IA Genómica</span><span class="telemetry-val" id="val-ai">99.4%</span></div>
+      <div class="telemetry-row"><span class="telemetry-label" id="lbl-ferm">Rendimiento Fermentación</span><span class="telemetry-val" id="val-ferm">92.3%</span></div>
+      <div class="telemetry-row"><span class="telemetry-label" id="lbl-purity">Pureza Producto</span><span class="telemetry-val" id="val-purity">98.5%</span></div>
+      <div class="telemetry-row"><span class="telemetry-label" id="lbl-trace">Trazabilidad Blockchain</span><span class="telemetry-val" id="val-trace">100%</span></div>
+      <div style="margin-top:12px; background:rgba(56,189,248,0.1); padding:10px; border-radius:8px; border:1px solid rgba(56,189,248,0.3);">
+        <div style="font-size:10px; color:#94a3b8; text-transform:uppercase;" id="lbl-rev-title">INGRESOS PROYECTADOS PLANTA</div>
+        <div style="font-size:18px; font-weight:800; color:#38BDF8; font-family:monospace;" id="val-rev-total">>$3,000M USD / mes</div>
+      </div>
+      <div style="margin-top:10px; text-align:center; font-size:11px; color:#94a3b8; font-weight:bold;">▲ Clic para contraer</div>
+    </div>
+  </div>
+
+  <!-- Blockchain Panel -->
+  <div class="blockchain-panel" id="blockchain-panel">
+    <div class="bc-header">
+      <span class="bc-title">🔗 TRAZABILIDAD BLOCKCHAIN</span>
+      <button class="drawer-close" onclick="toggleBlockchain()">✕</button>
+    </div>
+    <div style="font-size:12px; color:#94a3b8; margin-bottom:12px;">Certificados de trazabilidad ecológica y tokens de biofirma generados.</div>
+    <div id="bc-entries">
+      <div class="bc-entry"><span class="hash">#0x7F3A...9B1C</span> — Bioetanol Matagalpa-01 · Certificado <span class="token">CCN-BIO-001</span></div>
+      <div class="bc-entry"><span class="hash">#0x2D8E...4F5A</span> — Ectoína León-03 · Certificado <span class="token">CCN-BIO-002</span></div>
+      <div class="bc-entry"><span class="hash">#0x9C4B...6E7D</span> — Bioplástico Estelí-07 · Certificado <span class="token">CCN-BIO-003</span></div>
+    </div>
+    <div style="margin-top:12px; background:rgba(139,92,246,0.1); border-radius:8px; padding:10px; border:1px solid #8B5CF6;">
+      <div style="display:flex; justify-content:space-between; font-size:12px;">
+        <span style="color:#94a3b8;">Total Biofirmas Tokenizadas:</span>
+        <span style="color:#F59E0B; font-weight:bold;" id="bc-token-count">3</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:12px; margin-top:4px;">
+        <span style="color:#94a3b8;">Ingresos por Licenciamiento:</span>
+        <span style="color:#10B981; font-weight:bold;" id="bc-license-revenue">$85M / mes</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interactive Module Inspector Drawer -->
+  <div class="inspector-drawer" id="inspector-drawer">
+    <div class="drawer-header">
+      <div>
+        <div style="font-size:10px; color:#38BDF8; font-weight:700; text-transform:uppercase;" id="insp-number">MÓDULO 1</div>
+        <div style="font-size:16px; font-weight:800; color:#fff;" id="insp-title">Pretratamiento de Biomasa</div>
+      </div>
+      <button class="drawer-close" onclick="closeInspector()">✕</button>
+    </div>
+    <div style="font-size:12px; color:#38BDF8; font-weight:600; margin-bottom:8px;" id="insp-subtitle">Molienda y Selección Óptica</div>
+    <div style="font-size:12px; color:#cbd5e1; line-height:1.5; margin-bottom:14px;" id="insp-desc">Descripción del módulo...</div>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+      <span class="emotion-badge" id="insp-emotion">💜 Emoción: Resiliencia</span>
+      <span style="font-size:11px; color:#94a3b8;" id="insp-cert">Certificación: ISO 22000</span>
+    </div>
+    <div style="font-size:12px; color:#cbd5e1; margin-bottom:14px; padding:8px; background:rgba(15,23,42,0.4); border-radius:6px; border-left:3px solid #8B5CF6;" id="insp-narrative">
+      <span style="color:#94a3b8;">📖 Narrativa:</span> Molienda que transforma el pasado en energía.
+    </div>
+    <div style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:8px;" id="lbl-insp-metrics">METRICAS CLAVE</div>
+    <div id="insp-metrics-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;"></div>
+    <div style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:8px;" id="lbl-insp-specs">ESPECIFICACIONES TÉCNICAS</div>
+    <div id="insp-specs-list" style="margin-bottom:14px;"></div>
+
+    <div class="slider-box">
+      <div style="display:flex; justify-content:space-between; font-size:12px;">
+        <span style="color:#cbd5e1;" id="lbl-cap-title">Capacidad Operativa:</span>
+        <span style="color:#38BDF8; font-weight:bold;" id="val-cap-percent">100%</span>
+      </div>
+      <input type="range" min="50" max="150" value="100" id="slider-capacity" oninput="updateCapacity(this.value)">
+    </div>
+
+    <div style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;">
+      <button class="btn btn-emerald" style="flex:1; justify-content:center;" onclick="runModuleDiag()" id="btn-run-diag">🩺 Diagnóstico IA</button>
+      <button class="btn btn-purple" style="flex:1; justify-content:center;" onclick="tokenizeBiofirma()">🔗 Tokenizar Biofirma</button>
+    </div>
+
+    <div style="margin-top:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase;" id="lbl-code-title">PSEUDOCÓDIGO</span>
+        <select class="code-selector" id="code-selector" onchange="updateCodeView()">
+          <option value="ferment">Fermentación Inteligente</option>
+          <option value="biofirma">Generación de Biofirma</option>
+          <option value="blockchain">Trazabilidad Blockchain</option>
+        </select>
+      </div>
+      <div class="code-box" id="code-viewer">// Fermentación Inteligente
+sequence FermentCascade {
+  applyEnzyme("Ligninase_v4");
+  maintainTemp(37.5);
+  editCRISPR("Halophilic_Str_07");
+}</div>
+    </div>
+  </div>
+
+  <!-- Bioeconomic Simulation Modal -->
+  <div class="modal-overlay" id="sim-modal">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="color:#fff; font-size:18px; font-weight:800;" id="sim-modal-title">📊 Simulación Bioeconómica CCN Biosistemas™</h3>
+        <button class="drawer-close" onclick="closeSimModal()">✕</button>
+      </div>
+      <p style="font-size:12px; color:#cbd5e1; margin-bottom:16px;" id="sim-modal-desc">Ajuste las variables globales para recalcular la proyección de ingresos mensuales en tiempo real.</p>
+      <div class="slider-box" style="margin-top:0; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; font-size:12px;">
+          <span style="color:#cbd5e1;" id="lbl-sim-feed">Entrada de Biomasa Territorial:</span>
+          <span style="color:#38BDF8; font-weight:bold;" id="val-sim-feed">100%</span>
+        </div>
+        <input type="range" min="50" max="200" value="100" id="slider-sim-feed" oninput="recalcSim()">
+      </div>
+      <div class="slider-box" style="margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; font-size:12px;">
+          <span style="color:#cbd5e1;" id="lbl-sim-cat">Eficiencia Biocatalítica IA:</span>
+          <span style="color:#38BDF8; font-weight:bold;" id="val-sim-cat">1.0x</span>
+        </div>
+        <input type="range" min="80" max="150" value="100" id="slider-sim-cat" oninput="recalcSim()">
+      </div>
+      <div class="slider-box" style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; font-size:12px;">
+          <span style="color:#cbd5e1;" id="lbl-sim-mkt">Demanda de Mercado Global:</span>
+          <span style="color:#38BDF8; font-weight:bold;" id="val-sim-mkt">1.0x</span>
+        </div>
+        <input type="range" min="50" max="200" value="100" id="slider-sim-mkt" oninput="recalcSim()">
+      </div>
+      <div style="background:rgba(56,189,248,0.1); border:1px solid #38BDF8; border-radius:10px; padding:14px; text-align:center;">
+        <div style="font-size:11px; color:#94a3b8; text-transform:uppercase;" id="lbl-sim-total">PROYECCIÓN DE INGRESOS TOTALES</div>
+        <div style="font-size:26px; font-weight:900; color:#38BDF8; margin-top:4px;" id="val-sim-total">$3,000M USD / mes</div>
+        <div style="font-size:11px; color:#10B981; margin-top:4px;" id="lbl-sim-detail">Bioetanol ($75M) + Nutracéuticos ($115M) + Bioplásticos ($69M) + Biofirmas ($85M)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AR Modal -->
+  <div class="modal-overlay" id="ar-modal">
+    <div class="modal-card" style="max-width:480px; text-align:center;">
+      <h3 style="color:#fff; font-size:18px; font-weight:800; margin-bottom:12px;">📱 Experiencia Holo / AR WebXR</h3>
+      <p style="font-size:13px; color:#cbd5e1; line-height:1.5; margin-bottom:16px;">
+        Para proyectar este prototipo 3D en escala real sobre superficies físicas con dispositivos móviles Android/iOS o gafas WebXR, asegúrese de tener activado el sensor de cámara.
+      </p>
+      <button class="btn btn-active" style="width:100%; justify-content:center; padding:10px;" onclick="closeARModal()">Entendido / Cerrar</button>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation Dock -->
+  <div class="controls-bar">
+    <button class="btn" onclick="focusModule(0)" id="dock-mod-0">1. Pretratamiento</button>
+    <button class="btn" onclick="focusModule(1)" id="dock-mod-1">2. Biorreactores</button>
+    <button class="btn" onclick="focusModule(2)" id="dock-mod-2">3. Bioetanol</button>
+    <button class="btn" onclick="focusModule(3)" id="dock-mod-3">4. Nutracéuticos</button>
+    <button class="btn" onclick="focusModule(4)" id="dock-mod-4">5. Bioplásticos</button>
+    <button class="btn" onclick="focusModule(5)" id="dock-mod-5">6. Nodos Territoriales</button>
+    <button class="btn btn-active" onclick="resetCamera()" id="dock-reset">Vista General</button>
+  </div>
+
+  <script>
+    // --- MODULES DATA BUNDLE (ampliado con emociones, narrativas, certificaciones) ---
+    const modulesData = [
+      {
+        id: 'mod_1', number: 1, color: '#10B981', position: [-10, 0, 0], revenue: '$45M / mes',
+        title: { es: 'Módulo 1: Pretratamiento de Biomasa', en: 'Module 1: Biomass Pretreatment', zh: '模块 1: 生物质预处理' },
+        subtitle: { es: 'Molienda, Selección Óptica y Desestructuración de Lignocelulosa', en: 'Grinding, Optical Sorting & Lignocellulose Deconstruction', zh: '磨碎、光学筛选与木质纤维素解构' },
+        description: { es: 'Tolva de carga continua para bagazo de caña, cáscara de cacao y residuos agrícolas. Clasificador acústico-óptico con IA y triturador hidromecánico de alta frecuencia.', en: 'Continuous loading hopper for sugarcane bagasse, cacao husks, and agricultural residues. Optical-acoustic AI sorter and high-frequency shredder.', zh: '甘蔗渣、可可壳和农作物废料的连续加料斗。结合 AI 光声筛选器与高频水力机械破碎机。' },
+        emotion: { es: 'Resiliencia', en: 'Resilience', zh: '韧性' },
+        narrative: { es: 'Molienda que transforma el pasado en energía. Cada fibra cuenta una historia de resistencia.', en: 'Grinding that transforms the past into energy. Every fiber tells a story of resilience.', zh: '将过去转化为能量的研磨。每一根纤维都诉说着坚韧的故事。' },
+        certification: 'ISO 22000, USDA Organic',
+        metrics: [{ l: 'Flujo Entrada', v: '120 ton/h' }, { l: 'Eficiencia Molienda', v: '98.4%' }, { l: 'Humedad Óptima', v: '42%' }],
+        specs: ['Filtro óptico multispectral 850nm - 1550nm', 'Molienda de impacto con rodillos de carburo de tungsteno', 'Sensor de densidad e infrarrojo cercano (NIR)', 'Inyección preliminar de vapor termomecánico']
+      },
+      {
+        id: 'mod_2', number: 2, color: '#38BDF8', position: [-4, 0, 0], revenue: 'Núcleo Base ($3000M Total)',
+        title: { es: 'Módulo 2: Biotransformación Avanzada', en: 'Module 2: Advanced Biotransformation', zh: '模块 2: 高级生物转化反应器' },
+        subtitle: { es: 'Cascada de Biorreactores de Fermentación Modular con IA Genómica', en: 'Cascade of Modular Fermentation Bioreactors with Genomic AI', zh: '基因组 AI 级联模块化发酵反应器' },
+        description: { es: 'Sistema central compuesto por 4 tanques de acero 316L y vidrio borosilicato. Agitadores magnéticos de levitación, inyección enzimática automatizada y núcleo genómico.', en: 'Central system of 4 stainless steel 316L and borosilicate pressure vessels. Magnetic levitation impellers and automated enzymatic dosage.', zh: '由4个316L不锈钢和高压硼硅酸盐玻璃罐组成的核心系统。配有磁悬浮搅拌器与自动酶注入。' },
+        emotion: { es: 'Innovación', en: 'Innovation', zh: '创新' },
+        narrative: { es: 'Reactor donde la vida se acelera. La IA genómica orquesta la sinfonía de la biotransformación.', en: 'Reactor where life accelerates. Genomic AI orchestrates the symphony of biotransformation.', zh: '生命加速的反应器。基因组 AI 指挥着生物转化的交响乐。' },
+        certification: 'ISO 9001, GMP',
+        metrics: [{ l: 'Temperatura', v: '37.5 °C' }, { l: 'Control pH', v: '6.8 pH' }, { l: 'Agitación', v: '450 RPM' }],
+        specs: ['Chaqueta de intercambio térmico biomimético', 'Sensor bioelectroquímico de oxígeno disuelto (DO)', 'Algoritmo de edición genómica sintética en tiempo real', 'Inóculo bacteriano halo-tolerante de alta densidad']
+      },
+      {
+        id: 'mod_3', number: 3, color: '#F59E0B', position: [2, 0, 0], revenue: '$75M / mes (Petrobras / Shell / Repsol)',
+        title: { es: 'Módulo 3: Refinería de Bioetanol & Biocombustibles', en: 'Module 3: Bioethanol Refinery', zh: '模块 3: 生物乙醇精炼厂' },
+        subtitle: { es: 'Destilación Continua de Múltiples Efectos & Deshidratación Molecular', en: 'Multi-Effect Continuous Distillation & Molecular Sieves', zh: '多效连续蒸馏与分子筛脱水' },
+        description: { es: 'Columna de destilación con placas perforadas y condensadores de recuperación térmica. Producción de bioetanol anhidro de alta pureza (99.8%).', en: 'Distillation column with high-efficiency perforated plates. Produces high-purity anhydrous bioethanol (99.8%).', zh: '配备高效孔板的蒸馏塔。生产 99.8% 无水高纯度生物乙醇。' },
+        emotion: { es: 'Libertad', en: 'Freedom', zh: '自由' },
+        narrative: { es: 'Destilación que quema el futuro. Cada gota de bioetanol es soberanía energética.', en: 'Distillation that burns the future. Each drop of bioethanol is energy sovereignty.', zh: '燃烧未来的蒸馏。每一滴生物乙醇都是能源主权。' },
+        certification: 'ISO 14001, Carbon Trust',
+        metrics: [{ l: 'Rendimiento', v: '480 L/min' }, { l: 'Pureza Anhidra', v: '99.8%' }, { l: 'Recuperación Calor', v: '91.2%' }],
+        specs: ['Tamiz molecular zeolítico de regeneración continua', 'Columna de rectificación de 24 platos de titanium-alloy', 'Sistema de recirculación de vinaza con evaporación MVR', 'Análisis espectrométrico de flujo en línea']
+      },
+      {
+        id: 'mod_4', number: 4, color: '#EC4899', position: [8, 0, 0], revenue: '$115M / mes (Nestlé, Unilever, P&G)',
+        title: { es: 'Módulo 4: Extracción de Nutracéuticos & Cosméticos', en: 'Module 4: Nutraceutical Extraction', zh: '模块 4: 营养保健品与化妆品提取' },
+        subtitle: { es: 'Extracción Supercrítica con CO₂ y Purificación de Ectoína & Proteína', en: 'Supercritical CO₂ Extraction & Ectoine / Protein Purification', zh: '超临界 CO₂ 萃取与四氢嘧啶纯化' },
+        description: { es: 'Unidad biofarmacéutica de aislamiento de osmoprotectores (Ectoína), biomóvilas activas y proteína microbiana pura para la industria cosmética.', en: 'Biopharmaceutical isolation unit for osmoprotectants (Ectoine) and microbial protein for premium cosmetics.', zh: '用于分离极性渗透保护剂（四氢嘧啶）和纯微生物蛋白的生物制药隔离单元。' },
+        emotion: { es: 'Serenidad', en: 'Serenity', zh: '宁静' },
+        narrative: { es: 'Extracción de la memoria del suelo. Ectoína que regenera piel y espíritu.', en: 'Extraction of the memory of the soil. Ectoine that regenerates skin and spirit.', zh: '提取大地的记忆。四氢嘧啶再生肌肤与精神。' },
+        certification: 'EU EcoLabel, Fair Trade',
+        metrics: [{ l: 'Pureza Ectoína', v: '99.9%' }, { l: 'Concentrado Proteico', v: '78.5 g/L' }, { l: 'Lote Farmacéutico', v: '450 kg/día' }],
+        specs: ['Extractor fluido supercrítico CO₂ a 350 bar', 'Centrífuga de disco continuo de 15,000 RPM', 'Cristalizador continuo con control criogénico', 'Envasado estéril robótico bajo atmósfera inerte N₂']
+      },
+      {
+        id: 'mod_5', number: 5, color: '#6366F1', position: [14, 0, 0], revenue: '$69M / mes (Johnson & Johnson)',
+        title: { es: 'Módulo 5: Unidad Formadora de Bioplásticos Inteligentes', en: 'Module 5: Smart Bioplastic Formative Unit', zh: '模块 5: 智能生物塑料成型单元' },
+        subtitle: { es: 'Polimerización de PHAs/PLAs, Peletizado y Empaque Médico Compostable', en: 'PHA/PLA Polymerization & Compostable Packaging', zh: 'PHA/PLA 聚合物反应与可降解包装' },
+        description: { es: 'Transforma los monómeros bio-sintetizados en pélets de bioplástico biodegradable y películas de sellado médico. Compostabilidad total en 180 días.', en: 'Transforms biosynthesized monomers into biodegradable bioplastic pellets and medical film packaging.', zh: '将生物合成单体转化为可降解生物塑料颗粒和医疗级封口薄膜。' },
+        emotion: { es: 'Conexión', en: 'Connection', zh: '连接' },
+        narrative: { es: 'Polímeros que abrazan el ciclo. Bioplásticos que regresan a la tierra en 180 días.', en: 'Polymers that embrace the cycle. Bioplastics that return to the earth in 180 days.', zh: '拥抱循环的聚合物。180 天内回归大地的生物塑料。' },
+        certification: 'Cradle to Cradle, B Corp',
+        metrics: [{ l: 'Producción Pélets', v: '850 kg/h' }, { l: 'Resistencia Tracción', v: '65 MPa' }, { l: 'Compostabilidad', v: '180 días' }],
+        specs: ['Extrusora monohuso twin-screw de torque controlado', 'Granuladora submarina con corte térmico circular', 'Calandradora de película fina para ampollas quirúrgicas', 'Inspección láser en línea de micro-porosidades']
+      },
+      {
+        id: 'mod_6', number: 6, color: '#3B82F6', position: [20, 0, 0], revenue: '$85M / mes (Mercados / Tokens)',
+        title: { es: 'Módulo 6: Nodos Territoriales & Biofirmas Tokenizadas', en: 'Module 6: Territorial Nodes & Bio-Signatures', zh: '模块 6: 区域农业节点与代币化生物签名' },
+        subtitle: { es: 'Red de Captación Agrícola (Matagalpa-01, Estelí-07) y Trazabilidad Blockchain', en: 'Agricultural Nodes Network & Blockchain Traceability', zh: '农业采集节点网络与区块链溯源' },
+        description: { es: 'Interconexión inteligente de comunidades agrícolas locales con nodos bioclimáticos, financiamiento verde y certificación ecológica transparente.', en: 'Smart interconnection of local farming communities with bioclimatic nodes, green financing, and eco-certification.', zh: '将当地农业社区与生物气候节点、绿色融资及生态认证智能互联。' },
+        emotion: { es: 'Territorio', en: 'Territory', zh: '领地' },
+        narrative: { es: 'Red de comunidades entrelazadas. Cada nodo es un latido de soberanía biocultural.', en: 'Network of intertwined communities. Each node is a heartbeat of biocultural sovereignty.', zh: '交织的社区网络。每个节点都是生物文化主权的心跳。' },
+        certification: 'Blockchain Verified, Fair Trade',
+        metrics: [{ l: 'Nodos Activos', v: '14 nodos' }, { l: 'Biofirmas Minteadas', v: '1250/día' }, { l: 'Acceso Financiación', v: '100%' }],
+        specs: ['Nodos satelitales IoT Matagalpa-01 y Estelí-07', 'Smart contracts de trazabilidad genética y carbono', 'Módem telemétrico 5G bioclimático de bajo consumo', 'Diplomacia biocultural con México, Colombia, EE. UU., Chile, UE']
+      }
+    ];
+
+    // Pseudocódigos
+    const codeSnippets = {
+      ferment: `// Fermentación Inteligente
+sequence FermentCascade {
+  applyEnzyme("Ligninase_v4");
+  maintainTemp(37.5);
+  editCRISPR("Halophilic_Str_07");
+  monitor(DO, pH, pressure);
+  if (yield < threshold) trigger(AlgOptimizer);
+}`,
+      biofirma: `// Generación de Biofirma
+function generateBiofirma(ingredients, emotion, territory) {
+  let base = combine(ingredients);
+  let profile = encodeEmotion(emotion);
+  let signature = hash(territory + profile);
+  return tokenize(signature, base);
+}`,
+      blockchain: `// Trazabilidad Blockchain
+function certifyBiofirma(biofirma) {
+  let tx = new Transaction({
+    from: "CCN-Nodo-01",
+    to: "Blockchain-Eco",
+    data: biofirma.hash,
+    proof: proofOfWork(biofirma)
+  });
+  addBlock(tx);
+  return tx.certificate;
+}`
+    };
+
+    let currentLang = 'es';
+    let currentOpMode = 'operation';
+    let currentViewMode = 'normal';
+    let selectedModIdx = null;
+    let tokenCount = 3;
+
+    // Three.js Globals
+    let scene, camera, renderer, modulesGroup = [], pipesGroup, laserBeam, particles = [], neuralNodes = [];
+    let cameraTarget = new THREE.Vector3(5, 0, 0);
+    let cameraPosTarget = new THREE.Vector3(5, 12, 32);
+    let isMouseDown = false, mouseX = 0, mouseY = 0;
+    let raycaster = new THREE.Raycaster(), mouse = new THREE.Vector2();
+
+    function init() {
+      const container = document.getElementById('canvas-container');
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x06080d);
+      scene.fog = new THREE.FogExp2(0x06080d, 0.015);
+
+      camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(5, 12, 32);
+      camera.lookAt(cameraTarget);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      // Lights
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+      scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0x38BDF8, 1.4);
+      dirLight.position.set(20, 30, 20);
+      dirLight.castShadow = true;
+      scene.add(dirLight);
+
+      const greenPoint = new THREE.PointLight(0x10B981, 1.8, 30);
+      greenPoint.position.set(-8, 5, 4);
+      scene.add(greenPoint);
+
+      const amberPoint = new THREE.PointLight(0xF59E0B, 1.5, 30);
+      amberPoint.position.set(2, 8, 4);
+      scene.add(amberPoint);
+
+      // Floor Platform with Diagram
+      const diagTexture = new THREE.CanvasTexture(drawDiagramCanvas());
+      diagTexture.minFilter = THREE.LinearFilter;
+      diagTexture.magFilter = THREE.LinearFilter;
+      diagTexture.needsUpdate = true;
+
+      const floorGeo = new THREE.PlaneGeometry(60, 33.75);
+      const floorMat = new THREE.MeshStandardMaterial({
+        map: diagTexture, roughness: 0.3, metalness: 0.2, emissive: 0x0f172a, emissiveIntensity: 0.15
+      });
+      const floor = new THREE.Mesh(floorGeo, floorMat);
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.set(5, -1.98, 0);
+      floor.receiveShadow = true;
+      scene.add(floor);
+
+      const grid = new THREE.GridHelper(80, 40, 0x38BDF8, 0x1e293b);
+      grid.position.y = -1.99;
+      scene.add(grid);
+
+      // Laser Scanner
+      const laserGeo = new THREE.CylinderGeometry(0.04, 0.04, 30, 8);
+      laserGeo.rotateZ(Math.PI / 2);
+      const laserMat = new THREE.MeshBasicMaterial({ color: 0x38BDF8, transparent: true, opacity: 0.8 });
+      laserBeam = new THREE.Mesh(laserGeo, laserMat);
+      laserBeam.position.set(5, 3, 0);
+      laserBeam.visible = false;
+      scene.add(laserBeam);
+
+      // Create 6 Industrial 3D Modules
+      modulesData.forEach((mod, idx) => {
+        const group = new THREE.Group();
+        group.position.set(mod.position[0], 0, mod.position[2]);
+        group.userData = { modIdx: idx, name: mod.title.es };
+
+        // Base Platform
+        const baseGeo = new THREE.BoxGeometry(4.5, 0.4, 4.5);
+        const baseMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.2 });
+        const base = new THREE.Mesh(baseGeo, baseMat);
+        base.position.y = -1.8;
+        base.receiveShadow = true;
+        group.add(base);
+
+        let mainMesh;
+        const colorHex = parseInt(mod.color.replace('#', '0x'));
+
+        if (idx === 0) {
+          const hopperGeo = new THREE.CylinderGeometry(1.6, 0.8, 2.2, 16);
+          const hopperMat = new THREE.MeshStandardMaterial({ color: colorHex, metalness: 0.7, roughness: 0.3 });
+          mainMesh = new THREE.Mesh(hopperGeo, hopperMat);
+          mainMesh.position.y = 0.5;
+          group.add(mainMesh);
+          const convGeo = new THREE.BoxGeometry(3.5, 0.3, 1.2);
+          const convMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.9, roughness: 0.2 });
+          const conv = new THREE.Mesh(convGeo, convMat);
+          conv.position.set(0, -0.6, 1.2);
+          conv.rotation.z = -0.15;
+          group.add(conv);
+        } else if (idx === 1) {
+          for (let i = 0; i < 4; i++) {
+            const tankGeo = new THREE.CylinderGeometry(0.55, 0.55, 2.4, 16);
+            const tankMat = new THREE.MeshStandardMaterial({ color: colorHex, transparent: true, opacity: 0.8, metalness: 0.9, roughness: 0.1 });
+            const tank = new THREE.Mesh(tankGeo, tankMat);
+            const xOffset = (i % 2 === 0 ? -1 : 1) * 0.9;
+            const zOffset = (i < 2 ? -1 : 1) * 0.9;
+            tank.position.set(xOffset, 0.6, zOffset);
+            group.add(tank);
+            const shaftGeo = new THREE.CylinderGeometry(0.04, 0.04, 2.2, 8);
+            const shaftMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1 });
+            const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+            shaft.position.set(xOffset, 0.6, zOffset);
+            shaft.userData = { isAgitator: true };
+            group.add(shaft);
+          }
+          const coreGeo = new THREE.OctahedronGeometry(0.6, 0);
+          const coreMat = new THREE.MeshStandardMaterial({ color: 0x38BDF8, emissive: 0x38BDF8, emissiveIntensity: 0.8, roughness: 0.1 });
+          mainMesh = new THREE.Mesh(coreGeo, coreMat);
+          mainMesh.position.y = 2.2;
+          group.add(mainMesh);
+        } else if (idx === 2) {
+          const colGeo = new THREE.CylinderGeometry(0.7, 0.7, 4.4, 20);
+          const colMat = new THREE.MeshStandardMaterial({ color: colorHex, metalness: 0.9, roughness: 0.1 });
+          mainMesh = new THREE.Mesh(colGeo, colMat);
+          mainMesh.position.y = 1.3;
+          group.add(mainMesh);
+          for (let r = 0; r < 5; r++) {
+            const ringGeo = new THREE.TorusGeometry(0.82, 0.06, 8, 20);
+            const ringMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1 });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = Math.PI / 2;
+            ring.position.set(0, -0.4 + r * 0.8, 0);
+            group.add(ring);
+          }
+        } else if (idx === 3) {
+          const extGeo = new THREE.SphereGeometry(1.2, 16, 16);
+          const extMat = new THREE.MeshStandardMaterial({ color: colorHex, metalness: 0.6, roughness: 0.2 });
+          mainMesh = new THREE.Mesh(extGeo, extMat);
+          mainMesh.position.y = 0.6;
+          group.add(mainMesh);
+          for (let v = 0; v < 6; v++) {
+            const vialGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.6, 12);
+            const vialMat = new THREE.MeshStandardMaterial({ color: 0xEC4899, emissive: 0xEC4899, emissiveIntensity: 0.5 });
+            const vial = new THREE.Mesh(vialGeo, vialMat);
+            vial.position.set(-1.2 + v * 0.4, -1.0, 1.4);
+            group.add(vial);
+          }
+        } else if (idx === 4) {
+          const extGeo = new THREE.BoxGeometry(3.2, 1.4, 1.4);
+          const extMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.3, metalness: 0.7 });
+          mainMesh = new THREE.Mesh(extGeo, extMat);
+          mainMesh.position.y = 0.2;
+          group.add(mainMesh);
+          const rollGeo = new THREE.CylinderGeometry(0.8, 0.8, 1.6, 20);
+          rollGeo.rotateX(Math.PI / 2);
+          const rollMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, roughness: 0.1 });
+          const roll = new THREE.Mesh(rollGeo, rollMat);
+          roll.position.set(1.2, 1.2, 0);
+          group.add(roll);
+        } else {
+          // Módulo 6: Nodos Territoriales - más puntos y líneas
+          const holoGeo = new THREE.IcosahedronGeometry(1.3, 1);
+          const holoMat = new THREE.MeshStandardMaterial({ color: colorHex, wireframe: true, emissive: colorHex, emissiveIntensity: 0.6 });
+          mainMesh = new THREE.Mesh(holoGeo, holoMat);
+          mainMesh.position.y = 0.8;
+          group.add(mainMesh);
+
+          // Crear múltiples nodos (comunidades)
+          const nodePositions = [
+            [-0.8, 1.6, 0.5], [0.8, 0.2, -0.6], [0.0, -0.5, 1.2],
+            [-1.2, -0.8, -0.4], [1.4, 1.0, 0.3], [-0.4, 1.8, -0.3],
+            [0.6, -1.2, -0.8], [-1.6, 0.6, -0.2], [1.8, -0.2, 0.7]
+          ];
+          nodePositions.forEach(pos => {
+            const pinGeo = new THREE.SphereGeometry(0.15, 8, 8);
+            const pinMat = new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0x10B981 : 0x38BDF8 });
+            const pin = new THREE.Mesh(pinGeo, pinMat);
+            pin.position.set(pos[0], pos[1]+0.3, pos[2]);
+            group.add(pin);
+          });
+
+          // Líneas de conexión entre nodos (simples)
+          const lineMat = new THREE.LineBasicMaterial({ color: 0x3B82F6, transparent: true, opacity: 0.3 });
+          for (let i = 0; i < nodePositions.length-1; i++) {
+            const p1 = nodePositions[i];
+            const p2 = nodePositions[i+1];
+            const points = [
+              new THREE.Vector3(p1[0], p1[1]+0.3, p1[2]),
+              new THREE.Vector3(p2[0], p2[1]+0.3, p2[2])
+            ];
+            const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+            const line = new THREE.Line(lineGeo, lineMat);
+            group.add(line);
+          }
+        }
+
+        scene.add(group);
+        modulesGroup.push(group);
+      });
+
+      // Connecting Pipe Pipeline
+      pipesGroup = new THREE.Group();
+      const pipeGeo = new THREE.CylinderGeometry(0.12, 0.12, 32, 12);
+      pipeGeo.rotateZ(Math.PI / 2);
+      const pipeMat = new THREE.MeshStandardMaterial({ color: 0x38BDF8, metalness: 0.9, roughness: 0.1 });
+      const mainPipe = new THREE.Mesh(pipeGeo, pipeMat);
+      mainPipe.position.set(5, -1, 0);
+      pipesGroup.add(mainPipe);
+      scene.add(pipesGroup);
+
+      // Particle Flow System
+      const pCount = 80;
+      const pGeo = new THREE.BufferGeometry();
+      const pPos = new Float32Array(pCount * 3);
+      for (let i = 0; i < pCount; i++) {
+        pPos[i * 3] = -10 + Math.random() * 30;
+        pPos[i * 3 + 1] = -1.0;
+        pPos[i * 3 + 2] = (Math.random() - 0.5) * 0.2;
+      }
+      pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+      const pMat = new THREE.PointsMaterial({ color: 0x38BDF8, size: 0.25, transparent: true, opacity: 0.8 });
+      particles = new THREE.Points(pGeo, pMat);
+      scene.add(particles);
+
+      // Neural Synaptic Nodes Overlay
+      for (let n = 0; n < 15; n++) {
+        const nodeGeo = new THREE.SphereGeometry(0.15, 8, 8);
+        const nodeMat = new THREE.MeshBasicMaterial({ color: 0x38BDF8 });
+        const nodeMesh = new THREE.Mesh(nodeGeo, nodeMat);
+        nodeMesh.position.set(-12 + Math.random() * 34, 2 + Math.random() * 4, -4 + Math.random() * 8);
+        scene.add(nodeMesh);
+        neuralNodes.push(nodeMesh);
+      }
+
+      // Event Listeners
+      window.addEventListener('resize', onWindowResize);
+      container.addEventListener('mousedown', onMouseDown);
+      container.addEventListener('mousemove', onMouseMove);
+      container.addEventListener('mouseup', onMouseUp);
+      container.addEventListener('click', onClickCanvas);
+
+      animate();
+    }
+
+    // Dynamic Diagram Canvas (igual que antes, pero se puede mantener)
+    function drawDiagramCanvas() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 2048; canvas.height = 1152;
+      const ctx = canvas.getContext('2d');
+      const bgGrad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      bgGrad.addColorStop(0, '#060d12'); bgGrad.addColorStop(0.5, '#0a1a1d'); bgGrad.addColorStop(1, '#040b0d');
+      ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.98)'; ctx.fillRect(0, 0, canvas.width, 90);
+      ctx.strokeStyle = '#38BDF8'; ctx.lineWidth = 4; ctx.strokeRect(0, 0, canvas.width, 90);
+      ctx.fillStyle = '#FFFFFF'; ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 8;
+      ctx.font = 'bold 36px "Segoe UI", Roboto, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('CCN BIOSISTEMAS™: PLATAFORMA DE BIOTRANSFORMACIÓN TERRITORIAL', canvas.width/2, 58);
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
+      ctx.beginPath(); ctx.roundRect(40, 110, 840, 52, 8); ctx.fill();
+      ctx.strokeStyle = '#10B981'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#38BDF8'; ctx.font = 'bold 22px "Segoe UI", Roboto, sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText('Transformación de Residuos en Activos Bioeconómicos de Alto Valor', 60, 144);
+
+      const projGrad = ctx.createLinearGradient(1400, 0, 2000, 0);
+      projGrad.addColorStop(0, '#0284c7'); projGrad.addColorStop(1, '#0f766e');
+      ctx.fillStyle = projGrad; ctx.beginPath(); ctx.roundRect(1420, 520, 580, 160, 16); ctx.fill();
+      ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 4; ctx.stroke();
+      ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 24px "Segoe UI", Roboto, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('INGRESOS PROYECTADOS', 1710, 565);
+      ctx.font = '900 52px "Segoe UI", Roboto, sans-serif'; ctx.fillStyle = '#38BDF8';
+      ctx.fillText('>$3,000M / MES', 1710, 630);
+
+      ctx.strokeStyle = '#38BDF8'; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.beginPath(); ctx.moveTo(340, 360); ctx.lineTo(520, 360); ctx.lineTo(520, 480); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(780, 480); ctx.lineTo(920, 480); ctx.lineTo(920, 300); ctx.lineTo(1080, 300); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(920, 480); ctx.lineTo(1080, 520); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(920, 480); ctx.lineTo(920, 720); ctx.lineTo(1080, 720); ctx.stroke();
+
+      function drawCard(x,y,w,h,col,title,sub) {
+        ctx.fillStyle = 'rgba(11, 19, 36, 0.96)'; ctx.beginPath(); ctx.roundRect(x,y,w,h,14); ctx.fill();
+        ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke();
+        ctx.fillStyle = col; ctx.beginPath(); ctx.roundRect(x+10, y+10, w-20, 38, 8); ctx.fill();
+        ctx.fillStyle = '#090d16'; ctx.font = 'bold 16px "Segoe UI", Roboto, sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText(title, x+20, y+35);
+        ctx.fillStyle = '#F1F5F9'; ctx.font = 'bold 14px "Segoe UI", Roboto, sans-serif';
+        sub.forEach((s, idx) => {
+          ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 4;
+          ctx.fillText('• ' + s, x+20, y+76 + idx*26);
+        });
+        ctx.shadowBlur = 0;
+      }
+
+      drawCard(60, 240, 320, 220, '#10B981', '1. Pretratamiento de Biomasa', ['Residuos Cerveceros / Agrícolas', '(Bagazo, Cáscara Cacao, Excedentes)', 'Filtrado Acústico & Molienda']);
+      drawCard(480, 380, 340, 260, '#38BDF8', '2. Biotransformación Avanzada', ['Cascada Biorreactores (4x)', 'Cultivos Celulares Diseñados', 'Ingeniería Genómica Sintética', 'Intercambio Térmico Biocatalítico']);
+      drawCard(1080, 220, 320, 160, '#F59E0B', '3. Bioetanol - $75M/mes', ['Destilación Anhidra (99.8%)', 'Petrobras / Shell / Repsol']);
+      drawCard(1080, 440, 340, 180, '#EC4899', '4. Nutracéuticos - $115M/mes', ['Ectoína, Proteína Microbiana', 'Extracción Supercrítica con CO₂', 'Nestlé, Unilever, P&G']);
+      drawCard(1080, 660, 340, 170, '#6366F1', '5. Bioplásticos - $69M/mes', ['Pélets y Películas Compostables', 'Empaque Médico Técnico (J&J)', 'Compostabilidad en 180 Días']);
+      drawCard(1420, 220, 380, 220, '#3B82F6', '6. Biofirmas & Nodos - $85M/mes', ['Trazabilidad Blockchain Verificada', 'Nodos Agrícolas: Matagalpa-01 / Estelí-07', 'Diplomacia Biocultural (MX, CO, USA, CL, UE)']);
+
+      return canvas;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      camera.position.lerp(cameraPosTarget, 0.05);
+      camera.lookAt(cameraTarget);
+
+      modulesGroup.forEach((modGroup, idx) => {
+        modGroup.children.forEach(child => {
+          if (child.userData && child.userData.isAgitator) {
+            child.rotation.y += 0.08;
+          }
+        });
+        if (idx === 5 && modGroup.children[1]) {
+          modGroup.children[1].rotation.y += 0.01;
+        }
+      });
+
+      if (currentOpMode === 'analysis' || currentOpMode === 'diagnostics') {
+        laserBeam.visible = true;
+        laserBeam.position.x = 5 + Math.sin(Date.now() * 0.002) * 16;
+      } else {
+        laserBeam.visible = false;
+      }
+
+      const pPos = particles.geometry.attributes.position.array;
+      for (let i = 0; i < pPos.length / 3; i++) {
+        pPos[i * 3] += 0.08;
+        if (pPos[i * 3] > 22) pPos[i * 3] = -10;
+      }
+      particles.geometry.attributes.position.needsUpdate = true;
+
+      // Telemetry live micro-fluctuations
+      if (Math.random() < 0.05) {
+        document.getElementById('val-feed').innerText = (118 + Math.random() * 4).toFixed(1) + ' ton/h';
+        document.getElementById('val-temp').innerText = (37.2 + Math.random() * 0.6).toFixed(1) + ' °C';
+        document.getElementById('val-ph').innerText = (6.75 + Math.random() * 0.1).toFixed(2) + ' pH';
+        document.getElementById('val-ferm').innerText = (91 + Math.random() * 2).toFixed(1) + '%';
+        document.getElementById('val-purity').innerText = (97.5 + Math.random() * 1.5).toFixed(1) + '%';
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    // Camera Orbit Mouse Drag
+    function onMouseDown(e) { isMouseDown = true; mouseX = e.clientX; mouseY = e.clientY; }
+    function onMouseUp() { isMouseDown = false; }
+    function onMouseMove(e) {
+      if (isMouseDown && currentViewMode !== 'blueprint') {
+        const dx = (e.clientX - mouseX) * 0.005;
+        const dy = (e.clientY - mouseY) * 0.005;
+        cameraPosTarget.x -= dx * 10;
+        cameraPosTarget.y += dy * 10;
+        cameraPosTarget.y = Math.max(1, Math.min(40, cameraPosTarget.y));
+        mouseX = e.clientX; mouseY = e.clientY;
+      }
+
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      const intersects = raycaster.intersectObjects(modulesGroup, true);
+      const tooltip = document.getElementById('tooltip');
+      if (intersects.length > 0) {
+        let root = intersects[0].object;
+        while (root.parent && root.parent.type !== 'Scene' && !root.userData.modIdx && root.userData.modIdx !== 0) {
+          root = root.parent;
+        }
+        if (root.userData && (root.userData.modIdx || root.userData.modIdx === 0)) {
+          const mod = modulesData[root.userData.modIdx];
+          tooltip.style.display = 'block';
+          tooltip.style.left = e.clientX + 15 + 'px';
+          tooltip.style.top = e.clientY + 15 + 'px';
+          tooltip.innerHTML = '<strong>' + mod.title[currentLang] + '</strong><br><span style="color:#10B981;">' + mod.revenue + '</span>';
+        }
+      } else {
+        tooltip.style.display = 'none';
+      }
+    }
+
+    function onClickCanvas(e) {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      const intersects = raycaster.intersectObjects(modulesGroup, true);
+      if (intersects.length > 0) {
+        let root = intersects[0].object;
+        while (root.parent && root.parent.type !== 'Scene' && !root.userData.modIdx && root.userData.modIdx !== 0) {
+          root = root.parent;
+        }
+        if (root.userData && (root.userData.modIdx || root.userData.modIdx === 0)) {
+          focusModule(root.userData.modIdx);
+        }
+      }
+    }
+
+    function focusModule(idx) {
+      selectedModIdx = idx;
+      const mod = modulesData[idx];
+
+      if (currentViewMode === 'blueprint') {
+        cameraTarget.set(mod.position[0], -1.98, mod.position[2]);
+        cameraPosTarget.set(mod.position[0], 20, mod.position[2] + 0.1);
+      } else {
+        cameraTarget.set(mod.position[0], 1, mod.position[2]);
+        cameraPosTarget.set(mod.position[0], 5, mod.position[2] + 12);
+      }
+
+      openInspector(idx);
+    }
+
+    function resetCamera() {
+      selectedModIdx = null;
+      closeInspector();
+      if (currentViewMode === 'blueprint') {
+        cameraTarget.set(5, -1.98, 0);
+        cameraPosTarget.set(5, 26, 0.1);
+      } else {
+        cameraTarget.set(5, 0, 0);
+        cameraPosTarget.set(5, 12, 32);
+      }
+      // Ejecutar simulación general al centrar
+      simulateGeneral();
+    }
+
+    function setViewMode(mode) {
+      currentViewMode = mode;
+      if (mode === 'blueprint') {
+        cameraTarget.set(5, -1.98, 0);
+        cameraPosTarget.set(5, 26, 0.1);
+      } else {
+        if (!selectedModIdx && selectedModIdx !== 0) {
+          cameraTarget.set(5, 0, 0);
+          cameraPosTarget.set(5, 12, 32);
+        }
+      }
+
+      modulesGroup.forEach((modGroup, idx) => {
+        if (mode === 'exploded') {
+          modGroup.position.y = idx * 0.8;
+        } else {
+          modGroup.position.y = 0;
+        }
+
+        modGroup.traverse(child => {
+          if (child.isMesh && child.material) {
+            child.material.wireframe = (mode === 'xray');
+          }
+        });
+      });
+    }
+
+    function setOpMode(mode) {
+      currentOpMode = mode;
+      document.getElementById('btn-mode-op').className = mode === 'operation' ? 'btn btn-active' : 'btn';
+      document.getElementById('btn-mode-an').className = mode === 'analysis' ? 'btn btn-active' : 'btn';
+      
+      // Ejecutar simulaciones según el modo
+      if (mode === 'ai_genomic') {
+        simulateGenomic();
+      } else if (mode === 'energy') {
+        simulateEnergy();
+      }
+    }
+
+    // --- SIMULACIONES ---
+    function simulateGenomic() {
+      // Simular análisis genómico: mejorar rendimiento y pureza
+      const ai = 99.5 + Math.random() * 0.4;
+      const ferm = 94 + Math.random() * 2;
+      const purity = 98 + Math.random() * 1.5;
+      document.getElementById('val-ai').innerText = ai.toFixed(1) + '%';
+      document.getElementById('val-ferm').innerText = ferm.toFixed(1) + '%';
+      document.getElementById('val-purity').innerText = purity.toFixed(1) + '%';
+      showTemporaryMessage('🧬 Simulación IA Genómica completada: nuevas cepas optimizadas');
+    }
+
+    function simulateEnergy() {
+      // Simular balance energético
+      const bioet = 480 + Math.random() * 40;
+      const co2 = 42 + Math.random() * 5;
+      const temp = 37.2 + Math.random() * 0.8;
+      document.getElementById('val-bioethanol').innerText = bioet.toFixed(0) + ' L/min';
+      document.getElementById('val-co2').innerText = co2.toFixed(1) + ' ton/día';
+      document.getElementById('val-temp').innerText = temp.toFixed(1) + ' °C';
+      showTemporaryMessage('⚡ Simulación Energética: eficiencia mejorada en un 12%');
+    }
+
+    function simulateGeneral() {
+      // Vista general: resumen de rendimiento
+      const feed = 120 + Math.random() * 10;
+      const rev = 3000 + Math.random() * 200;
+      document.getElementById('val-feed').innerText = feed.toFixed(0) + ' ton/h';
+      document.getElementById('val-rev-total').innerText = '>$' + rev.toFixed(0) + 'M USD / mes';
+      showTemporaryMessage('🎯 Vista General: estado óptimo de la planta');
+    }
+
+    function showTemporaryMessage(msg) {
+      const title = document.getElementById('txt-telemetry-title');
+      const original = title.innerText;
+      title.innerText = msg;
+      setTimeout(() => {
+        title.innerText = original;
+      }, 3000);
+    }
+
+    // Inspector Drawer
+    function openInspector(idx) {
+      const mod = modulesData[idx];
+      document.getElementById('insp-number').innerText = 'MÓDULO ' + mod.number;
+      document.getElementById('insp-title').innerText = mod.title[currentLang];
+      document.getElementById('insp-subtitle').innerText = mod.subtitle[currentLang];
+      document.getElementById('insp-desc').innerText = mod.description[currentLang];
+      document.getElementById('insp-emotion').innerText = '💜 ' + (currentLang === 'es' ? 'Emoción: ' : currentLang === 'en' ? 'Emotion: ' : '情感: ') + mod.emotion[currentLang];
+      document.getElementById('insp-cert').innerText = 'Certificación: ' + mod.certification;
+      document.getElementById('insp-narrative').innerHTML = '<span style="color:#94a3b8;">📖 Narrativa:</span> ' + mod.narrative[currentLang];
+
+      const metricsGrid = document.getElementById('insp-metrics-grid');
+      metricsGrid.innerHTML = '';
+      mod.metrics.forEach(m => {
+        const box = document.createElement('div');
+        box.style.background = 'rgba(15,23,42,0.6)';
+        box.style.padding = '8px'; box.style.borderRadius = '6px'; box.style.border = '1px solid rgba(255,255,255,0.08)';
+        box.innerHTML = '<div style="font-size:10px; color:#94a3b8;">' + m.l + '</div><div style="font-size:14px; font-weight:bold; color:#10B981;">' + m.v + '</div>';
+        metricsGrid.appendChild(box);
+      });
+
+      const specsList = document.getElementById('insp-specs-list');
+      specsList.innerHTML = '';
+      mod.specs.forEach(s => {
+        const item = document.createElement('div');
+        item.className = 'spec-item';
+        item.innerText = s;
+        specsList.appendChild(item);
+      });
+
+      // Reset code selector to ferment
+      document.getElementById('code-selector').value = 'ferment';
+      updateCodeView();
+
+      document.getElementById('inspector-drawer').style.display = 'block';
+    }
+
+    function closeInspector() {
+      document.getElementById('inspector-drawer').style.display = 'none';
+    }
+
+    function updateCapacity(val) {
+      document.getElementById('val-cap-percent').innerText = val + '%';
+      document.getElementById('val-feed').innerText = (120 * (val / 100)).toFixed(0) + ' ton/h';
+    }
+
+    function runModuleDiag() {
+      const btn = document.getElementById('btn-run-diag');
+      btn.innerText = '⏳ Escaneando...';
+      setTimeout(() => {
+        btn.innerText = '✅ Diagnóstico Óptimo (100%)';
+        setTimeout(() => btn.innerText = '🩺 Diagnóstico IA', 2500);
+      }, 1500);
+    }
+
+    // Tokenización de Biofirma
+    function tokenizeBiofirma() {
+      if (selectedModIdx === null) return;
+      const mod = modulesData[selectedModIdx];
+      const tokenId = 'CCN-BIO-' + String(tokenCount+1).padStart(3, '0');
+      const hash = '#0x' + Math.random().toString(16).substring(2, 8).toUpperCase() + '...' + Math.random().toString(16).substring(2, 6).toUpperCase();
+      const entry = document.createElement('div');
+      entry.className = 'bc-entry';
+      entry.innerHTML = `<span class="hash">${hash}</span> — ${mod.title.es} · Certificado <span class="token">${tokenId}</span>`;
+      document.getElementById('bc-entries').appendChild(entry);
+      tokenCount++;
+      document.getElementById('bc-token-count').innerText = tokenCount;
+      // Simular ingreso por licenciamiento (85M base + incremento)
+      const revenue = 85 + (tokenCount - 3) * 2;
+      document.getElementById('bc-license-revenue').innerText = '$' + revenue + 'M / mes';
+      // Notificación visual
+      const btn = document.querySelector('.btn-purple');
+      btn.innerText = '✅ Tokenizado!';
+      setTimeout(() => btn.innerText = '🔗 Tokenizar Biofirma', 1500);
+    }
+
+    // Blockchain Panel toggle
+    function toggleBlockchain() {
+      const panel = document.getElementById('blockchain-panel');
+      panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+      // Cerrar inspector si está abierto
+      if (panel.style.display === 'block') closeInspector();
+    }
+
+    // Code viewer update
+    function updateCodeView() {
+      const sel = document.getElementById('code-selector').value;
+      document.getElementById('code-viewer').innerText = codeSnippets[sel] || codeSnippets.ferment;
+    }
+
+    // Simulation Modal
+    function openSimModal() { document.getElementById('sim-modal').style.display = 'flex'; }
+    function closeSimModal() { document.getElementById('sim-modal').style.display = 'none'; }
+    function recalcSim() {
+      const feed = document.getElementById('slider-sim-feed').value / 100;
+      const cat = document.getElementById('slider-sim-cat').value / 100;
+      const mkt = document.getElementById('slider-sim-mkt').value / 100;
+
+      document.getElementById('val-sim-feed').innerText = (feed * 100).toFixed(0) + '%';
+      document.getElementById('val-sim-cat').innerText = cat.toFixed(2) + 'x';
+      document.getElementById('val-sim-mkt').innerText = mkt.toFixed(2) + 'x';
+
+      const total = Math.round(3000 * feed * cat * mkt);
+      document.getElementById('val-sim-total').innerText = '>$' + total.toLocaleString() + 'M USD / mes';
+      document.getElementById('val-rev-total').innerText = '>$' + total.toLocaleString() + 'M USD / mes';
+    }
+
+    // Collapsible Telemetry Panel
+    function toggleTelemetry() {
+      const content = document.getElementById('telemetry-content');
+      const icon = document.getElementById('hud-toggle-icon');
+      const titleBar = document.getElementById('hud-title-bar');
+      if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.innerText = '[ - Contraer ]';
+        titleBar.style.marginBottom = '12px';
+      } else {
+        content.style.display = 'none';
+        icon.innerText = '[ + Expandir ]';
+        titleBar.style.marginBottom = '0px';
+      }
+    }
+
+    // AR Modal
+    function openARModal() { document.getElementById('ar-modal').style.display = 'flex'; }
+    function closeARModal() { document.getElementById('ar-modal').style.display = 'none'; }
+
+    // Multi-Language
+    function toggleLang() {
+      if (currentLang === 'es') currentLang = 'en';
+      else if (currentLang === 'en') currentLang = 'zh';
+      else currentLang = 'es';
+
+      document.getElementById('btn-lang').innerText = '🌐 ' + currentLang.toUpperCase();
+
+      modulesData.forEach((mod, i) => {
+        const btn = document.getElementById('dock-mod-' + i);
+        if (btn) {
+          const title = mod.title[currentLang];
+          btn.innerText = mod.number + '. ' + (title.split(':')[1] || title);
+        }
+      });
+
+      const sub = document.getElementById('lang-subtitle');
+      if (sub) {
+        if (currentLang === 'es') sub.innerText = 'Plataforma de Biotransformación Territorial | Modo Offline Directo';
+        else if (currentLang === 'en') sub.innerText = 'Territorial Biotransformation Platform | Direct Offline Mode';
+        else sub.innerText = '区域生物转化平台 | 直接离线模式';
+      }
+
+      if (selectedModIdx !== null) openInspector(selectedModIdx);
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
