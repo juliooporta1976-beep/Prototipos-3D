@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="page-title">UrbanLogix+ Prototipo 3D Autónomo - Dr. Julio César Oporta Barrera</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js & OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body { background-color: #04060a; color: #f0f4f8; overflow: hidden; width: 100vw; height: 100vh; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 0; }
+    
+    /* Custom Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: rgba(18, 22, 28, 0.5); }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(79, 195, 247, 0.4); border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(79, 195, 247, 0.7); }
+
+    .pulse-glow { animation: pulseGlow 2s infinite ease-in-out; }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.8; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.05); }
+    }
+
+    .toggle-btn {
+      cursor: pointer;
+      transition: transform 0.25s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      background: rgba(79, 195, 247, 0.08);
+      border: 1px solid rgba(79, 195, 247, 0.15);
+      color: #94a3b8;
+      font-size: 12px;
+      line-height: 1;
+    }
+    .toggle-btn:hover {
+      background: rgba(79, 195, 247, 0.2);
+      color: #e2e8f0;
+      border-color: rgba(79, 195, 247, 0.4);
+    }
+    .toggle-btn.rotated {
+      transform: rotate(180deg);
+    }
+
+    .section-collapsible {
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+    .section-collapsible.collapsed {
+      max-height: 0 !important;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      margin-top: 0 !important;
+      margin-bottom: 0 !important;
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body class="bg-[#04060a] text-slate-100 overflow-hidden relative w-screen h-screen">
+
+  <!-- 3D Canvas Background Container -->
+  <div id="canvas-container"></div>
+
+  <!-- TOP HEADER BAR - Ajustado para que el badge suba y sea más compacto -->
+  <header class="absolute top-0 left-0 right-0 z-40 p-1.5 sm:p-2 pointer-events-none">
+    <div class="flex flex-wrap items-center gap-1.5 md:gap-2">
+      <!-- Author Credit Badge - Reducido y con nuevo formato -->
+      <div class="pointer-events-auto bg-[#12161c]/90 backdrop-blur-md border border-[#4FC3F7]/40 rounded-xl p-1.5 sm:px-3 sm:py-1.5 shadow-2xl flex items-center gap-2.5 transition-all hover:border-[#4FC3F7]">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#0284c7] to-[#0f172a] border border-[#38bdf8] flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4 text-[#4FC3F7] animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs sm:text-sm font-bold text-[#4FC3F7] tracking-wide whitespace-nowrap" id="txt-author">Dr. Julio César Oporta Barrera</span>
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-semibold bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/30 whitespace-nowrap" id="badge-prototype">● PROTOTIPO 3D</span>
+          </div>
+          <div class="text-[10px] sm:text-xs text-slate-300 font-medium leading-tight" id="txt-subtitle">UrbanLogix+ micro almacenes autónomos con Neuro IA predictiva</div>
+        </div>
+      </div>
+
+      <!-- Header Actions - AHORA CON ml-auto PARA MOVERLOS A LA DERECHA -->
+      <div class="pointer-events-auto flex flex-wrap items-center gap-1.5 ml-auto">
+        <button onclick="openModal('techModal')" class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#1e293b]/80 border border-slate-700 hover:border-[#4FC3F7] text-slate-200 hover:text-white text-[10px] sm:text-xs font-semibold transition-all shadow-md backdrop-blur-md whitespace-nowrap">
+          <svg class="w-3 h-3 text-[#38bdf8]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+          <span id="btn-tech">Planos & Especificaciones</span>
+        </button>
+
+        <!-- Language Switcher -->
+        <div class="flex items-center bg-[#181c24]/90 border border-slate-700/80 rounded-lg p-0.5 backdrop-blur-md">
+          <svg class="w-3 h-3 text-[#4FC3F7] ml-1 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1 4h6m-1 10l4-8M11 19l4-8m-7 8a9 9 0 01-9-9 9 9 0 019-9 9 9 0 019 9 9 9 0 01-9 9z"></path></svg>
+          <button onclick="changeLang('es')" id="lang-es" class="px-1.5 py-0.5 text-[10px] font-bold rounded uppercase bg-[#0284c7] text-white">ES</button>
+          <button onclick="changeLang('en')" id="lang-en" class="px-1.5 py-0.5 text-[10px] font-bold rounded uppercase text-slate-400 hover:text-white">EN</button>
+          <button onclick="changeLang('zh')" id="lang-zh" class="px-1.5 py-0.5 text-[10px] font-bold rounded uppercase text-slate-400 hover:text-white">ZH</button>
+        </div>
+
+        <!-- Clock -->
+        <div class="hidden lg:flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#12161c]/80 border border-slate-800 text-slate-300 text-[10px] font-mono backdrop-blur-md">
+          <span id="clock-display">--:--:--</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN HUD OVERLAY -->
+  <div class="absolute inset-0 z-30 pointer-events-none flex flex-col justify-between p-3 sm:p-4">
+    <div class="h-14 sm:h-10"></div> <!-- Ajuste para compensar el badge más compacto -->
+
+    <!-- HUD GRID -->
+    <div class="flex-1 flex flex-col lg:flex-row justify-between items-start gap-3 pointer-events-none overflow-hidden">
+      
+      <!-- LEFT PANEL -->
+      <div class="pointer-events-auto bg-[#12161c]/88 backdrop-blur-md border border-slate-800 rounded-xl p-3 shadow-2xl w-full sm:w-72 space-y-3 max-h-[calc(100vh-160px)] overflow-y-auto custom-scrollbar">
+        <!-- Operating Mode -->
+        <div>
+          <div class="flex items-center gap-1.5 text-xs font-bold text-[#4FC3F7] mb-2 border-b border-slate-800 pb-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            <span id="title-opmode">SIMULACIÓN DE MODOS OPERATIVOS</span>
+          </div>
+          <select id="select-opmode" onchange="setOperatingMode(this.value)" class="w-full bg-[#181c24] border border-[#38bdf8]/50 rounded-lg p-2 text-xs font-semibold text-white focus:outline-none focus:border-[#4FC3F7] hover:border-[#4FC3F7]">
+            <option value="simulacion">⚡ Modo Simulación Operativa</option>
+            <option value="reposo">💤 Modo Reposo / Standby</option>
+            <option value="analisis">🔍 Modo Análisis Multimodal</option>
+            <option value="diagnostico">📡 Modo Diagnóstico IoT</option>
+            <option value="operacion">🤖 Modo Operación Autónoma</option>
+            <option value="mantenimiento">⚠️ Modo Mantenimiento (ISO 15066)</option>
+            <option value="emergencia">🚨 Modo Emergencia / Fail-Safe</option>
+            <option value="energetico">☀️ Modo Energético Solar-Batería</option>
+            <option value="neuro_ia">🧠 Modo Neuro IA (LSTM + BERT)</option>
+            <option value="hibrido">🔄 Modo Híbrido Sincronizado</option>
+          </select>
+        </div>
+
+        <!-- View Modes - Collapsible -->
+        <div>
+          <div class="flex items-center justify-between text-xs font-bold text-[#38bdf8] mb-2 border-b border-slate-800 pb-1">
+            <div class="flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+              <span id="title-viewmode">MODO DE VISUALIZACIÓN</span>
+            </div>
+            <button onclick="toggleSection('viewModes')" class="toggle-btn" id="viewModes-toggle">▼</button>
+          </div>
+          <div id="viewModes-content" class="section-collapsible space-y-2" style="max-height: 500px;">
+            <div class="grid grid-cols-2 gap-1.5">
+              <button onclick="setViewMode('normal')" id="btn-view-normal" class="p-1.5 rounded-lg text-[11px] font-semibold border text-left bg-[#0284c7] border-[#38bdf8] text-white" data-i18n="view-normal">Vista Estándar</button>
+              <button onclick="setViewMode('exploded')" id="btn-view-exploded" class="p-1.5 rounded-lg text-[11px] font-semibold border text-left bg-[#181c24] border-slate-800 text-slate-300 hover:border-slate-700" data-i18n="view-exploded">Vista Explotada</button>
+              <button onclick="setViewMode('xray')" id="btn-view-xray" class="p-1.5 rounded-lg text-[11px] font-semibold border text-left bg-[#181c24] border-slate-800 text-slate-300 hover:border-slate-700" data-i18n="view-xray">Rayos X Transparente</button>
+              <button onclick="setViewMode('section')" id="btn-view-section" class="p-1.5 rounded-lg text-[11px] font-semibold border text-left bg-[#181c24] border-slate-800 text-slate-300 hover:border-slate-700" data-i18n="view-section">Vista Seccionada</button>
+            </div>
+
+            <!-- Sliders -->
+            <div id="slider-exploded-container" class="hidden mt-2.5 p-2 rounded-lg bg-[#181c24] border border-slate-800">
+              <div class="flex justify-between text-[10px] text-slate-300 font-bold mb-1">
+                <span data-i18n="slider-exploded-label">Distancia Explotada</span>
+                <span id="val-exploded" class="text-[#38bdf8]">50%</span>
+              </div>
+              <input type="range" min="0" max="1" step="0.05" value="0.5" id="slider-exploded" oninput="updateExploded(this.value)" class="w-full accent-[#4FC3F7] cursor-pointer">
+            </div>
+
+            <div id="slider-xray-container" class="hidden mt-2.5 p-2 rounded-lg bg-[#181c24] border border-slate-800">
+              <div class="flex justify-between text-[10px] text-slate-300 font-bold mb-1">
+                <span data-i18n="slider-xray-label">Opacidad Transparente</span>
+                <span id="val-xray" class="text-[#38bdf8]">30%</span>
+              </div>
+              <input type="range" min="0.1" max="0.9" step="0.05" value="0.3" id="slider-xray" oninput="updateXray(this.value)" class="w-full accent-[#4FC3F7] cursor-pointer">
+            </div>
+          </div>
+        </div>
+
+        <!-- Camera Presets - Collapsible -->
+        <div>
+          <div class="flex items-center justify-between text-xs font-bold text-slate-300 mb-2 border-b border-slate-800 pb-1">
+            <div class="flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-[#4FC3F7]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h0.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
+              <span id="title-cam">ENFOQUE CÁMARA 360°</span>
+            </div>
+            <button onclick="toggleSection('cameraPresets')" class="toggle-btn" id="cameraPresets-toggle">▼</button>
+          </div>
+          <div id="cameraPresets-content" class="section-collapsible" style="max-height: 500px;">
+            <div class="grid grid-cols-2 gap-1.5 text-[10px]">
+              <button onclick="setCameraPreset('overview')" class="px-2 py-1.5 rounded font-semibold text-left border bg-[#0369a1] border-[#38bdf8] text-white" data-i18n="cam-overview">Vista General 360°</button>
+              <button onclick="setCameraPreset('warehouse')" class="px-2 py-1.5 rounded font-semibold text-left border bg-[#181c24] border-slate-800 text-slate-400 hover:text-white" data-i18n="cam-warehouse">Módulo Hexagonal</button>
+              <button onclick="setCameraPreset('cobot')" class="px-2 py-1.5 rounded font-semibold text-left border bg-[#181c24] border-slate-800 text-slate-400 hover:text-white" data-i18n="cam-cobot">Cobot UR5e</button>
+              <button onclick="setCameraPreset('biorreactor')" class="px-2 py-1.5 rounded font-semibold text-left border bg-[#181c24] border-slate-800 text-slate-400 hover:text-white" data-i18n="cam-biorreactor">Biorreactor Neuro-IA</button>
+              <button onclick="setCameraPreset('agv')" class="px-2 py-1.5 rounded font-semibold text-left border bg-[#181c24] border-slate-800 text-slate-400 hover:text-white" data-i18n="cam-agv">AGV Terrestre</button>
+              <button onclick="setCameraPreset('drone')" class="px-2 py-1.5 rounded font-semibold text-left border bg-[#181c24] border-slate-800 text-slate-400 hover:text-white" data-i18n="cam-drone">Dron Hexacóptero</button>
+              <button onclick="setCameraPreset('neural')" class="px-2 py-1.5 rounded font-semibold text-left border bg-[#181c24] border-slate-800 text-slate-400 hover:text-white" data-i18n="cam-neural">Red Neuronal 3D</button>
+              <button onclick="setCameraPreset('solar')" class="px-2 py-1.5 rounded font-semibold text-left border bg-[#181c24] border-slate-800 text-slate-400 hover:text-white" data-i18n="cam-solar">Paneles Techo</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL: Telemetry - CON SIMULACIÓN DINÁMICA -->
+      <div class="pointer-events-auto bg-[#12161c]/88 backdrop-blur-md border border-slate-800 rounded-xl p-3 shadow-2xl w-full sm:w-80 space-y-2.5">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+          <span class="text-xs font-bold text-[#4FC3F7] tracking-wider flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse"></span>
+            <span id="title-telemetry">TELEMETRÍA EN TIEMPO REAL</span>
+          </span>
+          <span class="text-[10px] text-slate-400 font-mono" data-i18n="module-label">2.5m³ MODULE</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-[11px]">
+          <div class="p-2 rounded-lg bg-[#181c24] border border-slate-800">
+            <span class="text-slate-400 text-[10px] block" data-i18n="stat-solar-label">Solar Rooftop</span>
+            <span class="text-sm font-extrabold text-amber-400" id="stat-solar">100 W</span>
+          </div>
+          <div class="p-2 rounded-lg bg-[#181c24] border border-slate-800">
+            <span class="text-slate-400 text-[10px] block" data-i18n="stat-battery-label">Baterías Ion-Litio</span>
+            <span class="text-sm font-extrabold text-emerald-400" id="stat-battery">98%</span>
+          </div>
+          <div class="p-2 rounded-lg bg-[#181c24] border border-slate-800">
+            <span class="text-slate-400 text-[10px] block" data-i18n="stat-temp-label">Temp. Peltier</span>
+            <span class="text-sm font-extrabold text-cyan-300" id="stat-temp">18.4 °C</span>
+          </div>
+          <div class="p-2 rounded-lg bg-[#181c24] border border-slate-800">
+            <span class="text-slate-400 text-[10px] block" data-i18n="stat-cap-label">Ocupación m³</span>
+            <span class="text-sm font-extrabold text-white" id="stat-cap">64%</span>
+          </div>
+        </div>
+
+        <div class="p-2.5 rounded-lg bg-[#181c24] border border-purple-500/30 space-y-1.5">
+          <div class="flex justify-between items-center text-[10px]">
+            <span class="text-purple-300 font-bold" data-i18n="sentiment-label">Sentimiento BERT:</span>
+            <span class="text-emerald-400 font-bold uppercase" id="stat-sent">POSITIVO (+0.82)</span>
+          </div>
+          <div class="flex justify-between items-center text-[10px]">
+            <span class="text-purple-300 font-bold" data-i18n="demand-label">Predicción Demanda (LSTM):</span>
+            <span class="text-amber-400 font-extrabold" id="stat-demand">124 unidades</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- BOTTOM DOCK: Simulator & Serial Console & Node-RED -->
+    <div class="pointer-events-auto mt-3 bg-[#12161c]/95 backdrop-blur-md border border-[#4FC3F7]/30 rounded-2xl p-3 shadow-2xl space-y-3">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <div class="flex items-center gap-2">
+          <button onclick="setDockTab('simulation')" id="tab-btn-sim" class="px-3 py-1 rounded-lg text-xs font-bold bg-[#0284c7] text-white shadow-md" data-i18n="tab-sim">Simulador & Disparadores</button>
+          <button onclick="setDockTab('nodered')" id="tab-btn-nodered" class="px-3 py-1 rounded-lg text-xs font-bold bg-[#181c24] text-slate-400 hover:text-slate-200" data-i18n="tab-nodered">Flujo Node-RED (PDF 4.7)</button>
+        </div>
+        <button onclick="toggleDock()" class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white" id="dock-toggle-btn">▼</button>
+      </div>
+
+      <div id="dock-body" class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
+        <div class="lg:col-span-5 space-y-2">
+          <div id="tab-content-sim" class="space-y-2">
+            <span class="text-xs font-bold text-[#4FC3F7] block" data-i18n="sim-title">SIMULADOR DE EVENTOS Y DEMANDA</span>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <button onclick="triggerSpike()" class="p-2 rounded-lg bg-rose-950/40 border border-rose-500/50 hover:border-rose-400 text-rose-200 font-bold text-[11px] hover:bg-rose-900/60 transition-all" data-i18n="btn-spike">⚡ Pico Demanda (+45%)</button>
+              <button onclick="triggerSentiment('positivo')" class="p-2 rounded-lg bg-purple-950/40 border border-purple-500/50 hover:border-purple-400 text-purple-200 font-bold text-[11px] hover:bg-purple-900/60 transition-all" data-i18n="btn-sentiment">📈 Sentimiento Positivo</button>
+              <button onclick="dispatchAGV()" class="p-2 rounded-lg bg-[#1e293b] border border-[#38bdf8]/40 hover:border-[#38bdf8] text-slate-200 font-semibold text-[11px] hover:bg-[#334155] transition-all" data-i18n="btn-agv">🚛 Despachar AGV</button>
+              <button onclick="dispatchDrone()" class="p-2 rounded-lg bg-[#1e293b] border border-[#38bdf8]/40 hover:border-[#38bdf8] text-slate-200 font-semibold text-[11px] hover:bg-[#334155] transition-all" data-i18n="btn-drone">🚁 Lanzar Dron</button>
+            </div>
+            <button onclick="reconfigureShelves()" class="w-full p-2 rounded-lg bg-[#0284c7]/20 border border-[#38bdf8]/50 hover:border-[#38bdf8] text-[#38bdf8] font-bold text-xs hover:bg-[#0284c7]/40 transition-all" data-i18n="btn-reconfigure">🧱 Reconfigurar Rieles & Estanterías</button>
+          </div>
+
+          <div id="tab-content-nodered" class="hidden space-y-2 text-xs">
+            <div class="flex items-center justify-between pb-1 border-b border-slate-800">
+              <span class="font-bold text-white" data-i18n="nodered-title">Flujo Lógico IoT (Node-RED)</span>
+              <div class="flex items-center gap-1 text-[10px]">
+                <button onclick="triggerNodeRed('HIGH')" class="px-1.5 py-0.5 rounded font-bold bg-rose-500 text-white" data-i18n="nodered-high">Alta</button>
+                <button onclick="triggerNodeRed('MED')" class="px-1.5 py-0.5 rounded font-bold bg-slate-800 text-slate-300" data-i18n="nodered-med">Media</button>
+                <button onclick="triggerNodeRed('LOW')" class="px-1.5 py-0.5 rounded font-bold bg-slate-800 text-slate-300" data-i18n="nodered-low">Baja</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5 text-[10px]">
+              <div class="p-2 bg-[#1e293b] rounded border border-[#0284c7]/50"><span class="font-bold text-[#38bdf8]" data-i18n="node-http">HTTP Input:</span> <span data-i18n="node-http-desc">Recibe JSON ventas</span></div>
+              <div class="p-2 bg-[#1e293b] rounded border border-purple-500/50"><span class="font-bold text-purple-300" data-i18n="node-neuro">Neuro IA Function:</span> <span data-i18n="node-neuro-desc">LSTM + BERT</span></div>
+              <div class="p-2 bg-[#1e293b] rounded border border-amber-500/50"><span class="font-bold text-amber-300" data-i18n="node-switch">Switch Node:</span> <span data-i18n="node-switch-desc">Evalúa Umbral</span></div>
+              <div class="p-2 bg-[#1e293b] rounded border border-emerald-500/50"><span class="font-bold text-emerald-300" data-i18n="node-mqtt">MQTT Output:</span> <span data-i18n="node-mqtt-desc">Comando Cobot UR5e</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Serial Log Console -->
+        <div class="lg:col-span-7 bg-[#0a0d14]/90 border border-[#4FC3F7]/30 rounded-xl overflow-hidden flex flex-col h-48 font-mono text-[11px]">
+          <div class="bg-[#12161c] px-3 py-1.5 border-b border-slate-800 flex justify-between items-center text-xs">
+            <span class="font-bold text-[#38bdf8]" id="console-title">MONITOR SERIAL EN TIEMPO REAL (PDF 4.6)</span>
+            <button onclick="clearLogs()" class="text-slate-400 hover:text-rose-400 text-[10px]" data-i18n="console-clear">Limpiar</button>
+          </div>
+          <div id="serial-logs" class="p-2 overflow-y-auto flex-1 space-y-1 custom-scrollbar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TECHNICAL SPECS MODAL -->
+  <div id="techModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+    <div class="bg-[#12161c] border border-[#4FC3F7]/40 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden text-slate-200">
+      <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-[#181c24]">
+        <h2 class="font-bold text-base text-white" id="modal-title">Documento Técnico & Planos – UrbanLogix+ (Dr. Julio César Oporta Barrera)</h2>
+        <button onclick="closeModal('techModal')" class="text-slate-400 hover:text-white font-bold">✕</button>
+      </div>
+      <div class="p-5 overflow-y-auto space-y-4 text-xs leading-relaxed custom-scrollbar">
+        <div class="p-4 rounded-xl bg-[#1e293b] border border-slate-700">
+          <h3 class="font-bold text-sm text-[#4FC3F7] mb-1" id="modal-layer1-title">Capa 1: Infraestructura y Mecatrónica</h3>
+          <p class="text-slate-300" id="modal-layer1-desc">Módulos hexagonales de acero reciclado, rieles motorizados para paredes móviles, estanterías adaptativas y Cobot UR5e.</p>
+        </div>
+        <div class="p-4 rounded-xl bg-[#1e293b] border border-slate-700">
+          <h3 class="font-bold text-sm text-[#38bdf8] mb-1" id="modal-layer2-title">Capa 2: Robótica Móvil y Sensores IoT</h3>
+          <p class="text-slate-300" id="modal-layer2-desc">Flota de AGVs eléctricos, drones hexacópteros, cámaras RealSense 3D con YOLO y anillos LiDAR 360°.</p>
+        </div>
+        <div class="p-4 rounded-xl bg-[#1e293b] border border-slate-700">
+          <h3 class="font-bold text-sm text-purple-400 mb-1" id="modal-layer3-title">Capa 3: Neuro IA y Software Predictivo</h3>
+          <p class="text-slate-300" id="modal-layer3-desc">Motor cognitivo híbrido (LSTM + BERT) con aprendizaje por refuerzo Deep Q-Learning y arquitectura SGA.</p>
+        </div>
+        <div class="p-4 rounded-xl bg-[#1e293b] border border-emerald-500/30">
+          <h3 class="font-bold text-sm text-emerald-400 mb-1" id="modal-finance-title">Proyección Financiera & ROI</h3>
+          <p id="modal-finance-desc">Reducción Costos Última Milla: -40% | ROI Estimado: 35% en 12 meses (Punto Equilibrio: Mes 10).</p>
+        </div>
+      </div>
+      <div class="p-4 border-t border-slate-800 bg-[#181c24] flex justify-end">
+        <button onclick="closeModal('techModal')" class="px-4 py-2 rounded bg-[#0284c7] text-white font-bold text-xs" data-i18n="modal-close">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- THREE.JS HIGH-TECH REALISTIC 3D LOGIC -->
+  <script>
+    // ============================================================
+    // TRADUCCIONES COMPLETAS Y MEJORADAS
+    // ============================================================
+    const translations = {
+      es: {
+        'page-title': 'UrbanLogix+ Prototipo 3D Autónomo - Dr. Julio César Oporta Barrera',
+        'txt-author': 'Dr. Julio César Oporta Barrera',
+        'txt-subtitle': 'UrbanLogix+ micro almacenes autónomos con Neuro IA predictiva',
+        'badge-prototype': '● PROTOTIPO 3D',
+        'btn-tech': 'Planos & Especificaciones',
+        'title-opmode': 'SIMULACIÓN DE MODOS OPERATIVOS',
+        'title-viewmode': 'MODO DE VISUALIZACIÓN',
+        'title-cam': 'ENFOQUE CÁMARA 360°',
+        'title-telemetry': 'TELEMETRÍA EN TIEMPO REAL',
+        'module-label': '2.5m³ MODULE',
+        'stat-solar-label': 'Solar Rooftop',
+        'stat-battery-label': 'Baterías Ion-Litio',
+        'stat-temp-label': 'Temp. Peltier',
+        'stat-cap-label': 'Ocupación m³',
+        'sentiment-label': 'Sentimiento BERT:',
+        'demand-label': 'Predicción Demanda (LSTM):',
+        'tab-sim': 'Simulador & Disparadores',
+        'tab-nodered': 'Flujo Node-RED (PDF 4.7)',
+        'sim-title': 'SIMULADOR DE EVENTOS Y DEMANDA',
+        'btn-spike': '⚡ Pico Demanda (+45%)',
+        'btn-sentiment': '📈 Sentimiento Positivo',
+        'btn-agv': '🚛 Despachar AGV',
+        'btn-drone': '🚁 Lanzar Dron',
+        'btn-reconfigure': '🧱 Reconfigurar Rieles & Estanterías',
+        'nodered-title': 'Flujo Lógico IoT (Node-RED)',
+        'nodered-high': 'Alta',
+        'nodered-med': 'Media',
+        'nodered-low': 'Baja',
+        'node-http': 'HTTP Input:',
+        'node-http-desc': 'Recibe JSON ventas',
+        'node-neuro': 'Neuro IA Function:',
+        'node-neuro-desc': 'LSTM + BERT',
+        'node-switch': 'Switch Node:',
+        'node-switch-desc': 'Evalúa Umbral',
+        'node-mqtt': 'MQTT Output:',
+        'node-mqtt-desc': 'Comando Cobot UR5e',
+        'console-title': 'MONITOR SERIAL EN TIEMPO REAL (PDF 4.6)',
+        'console-clear': 'Limpiar',
+        'modal-title': 'Documento Técnico & Planos – UrbanLogix+ (Dr. Julio César Oporta Barrera)',
+        'modal-layer1-title': 'Capa 1: Infraestructura y Mecatrónica',
+        'modal-layer1-desc': 'Módulos hexagonales de acero reciclado, rieles motorizados para paredes móviles, estanterías adaptativas y Cobot UR5e.',
+        'modal-layer2-title': 'Capa 2: Robótica Móvil y Sensores IoT',
+        'modal-layer2-desc': 'Flota de AGVs eléctricos, drones hexacópteros, cámaras RealSense 3D con YOLO y anillos LiDAR 360°.',
+        'modal-layer3-title': 'Capa 3: Neuro IA y Software Predictivo',
+        'modal-layer3-desc': 'Motor cognitivo híbrido (LSTM + BERT) con aprendizaje por refuerzo Deep Q-Learning y arquitectura SGA.',
+        'modal-finance-title': 'Proyección Financiera & ROI',
+        'modal-finance-desc': 'Reducción Costos Última Milla: -40% | ROI Estimado: 35% en 12 meses (Punto Equilibrio: Mes 10).',
+        'modal-close': 'Cerrar',
+        'view-normal': 'Vista Estándar',
+        'view-exploded': 'Vista Explotada',
+        'view-xray': 'Rayos X Transparente',
+        'view-section': 'Vista Seccionada',
+        'slider-exploded-label': 'Distancia Explotada',
+        'slider-xray-label': 'Opacidad Transparente',
+        'cam-overview': 'Vista General 360°',
+        'cam-warehouse': 'Módulo Hexagonal',
+        'cam-cobot': 'Cobot UR5e',
+        'cam-biorreactor': 'Biorreactor Neuro-IA',
+        'cam-agv': 'AGV Terrestre',
+        'cam-drone': 'Dron Hexacóptero',
+        'cam-neural': 'Red Neuronal 3D',
+        'cam-solar': 'Paneles Techo'
+      },
+      en: {
+        'page-title': 'UrbanLogix+ Autonomous 3D Prototype - Dr. Julio César Oporta Barrera',
+        'txt-author': 'Dr. Julio César Oporta Barrera',
+        'txt-subtitle': 'UrbanLogix+ autonomous micro-warehouses with predictive Neuro AI',
+        'badge-prototype': '● 3D PROTOTYPE',
+        'btn-tech': 'Blueprints & Specs',
+        'title-opmode': 'OPERATING MODES SIMULATION',
+        'title-viewmode': 'VIEW MODE',
+        'title-cam': '360° CAMERA FOCUS',
+        'title-telemetry': 'REAL-TIME TELEMETRY',
+        'module-label': '2.5m³ MODULE',
+        'stat-solar-label': 'Solar Rooftop',
+        'stat-battery-label': 'Li-Ion Batteries',
+        'stat-temp-label': 'Peltier Temp.',
+        'stat-cap-label': 'Occupancy m³',
+        'sentiment-label': 'BERT Sentiment:',
+        'demand-label': 'Demand Forecast (LSTM):',
+        'tab-sim': 'Simulator & Triggers',
+        'tab-nodered': 'Node-RED Flow (PDF 4.7)',
+        'sim-title': 'EVENT & DEMAND SIMULATOR',
+        'btn-spike': '⚡ Demand Spike (+45%)',
+        'btn-sentiment': '📈 Positive Sentiment',
+        'btn-agv': '🚛 Dispatch AGV',
+        'btn-drone': '🚁 Launch Drone',
+        'btn-reconfigure': '🧱 Reconfigure Rails & Shelves',
+        'nodered-title': 'IoT Logic Flow (Node-RED)',
+        'nodered-high': 'High',
+        'nodered-med': 'Medium',
+        'nodered-low': 'Low',
+        'node-http': 'HTTP Input:',
+        'node-http-desc': 'Receives sales JSON',
+        'node-neuro': 'Neuro IA Function:',
+        'node-neuro-desc': 'LSTM + BERT',
+        'node-switch': 'Switch Node:',
+        'node-switch-desc': 'Evaluates Threshold',
+        'node-mqtt': 'MQTT Output:',
+        'node-mqtt-desc': 'Cobot UR5e Command',
+        'console-title': 'REAL-TIME SERIAL MONITOR (PDF 4.6)',
+        'console-clear': 'Clear',
+        'modal-title': 'Technical Document & Blueprints – UrbanLogix+ (Dr. Julio César Oporta Barrera)',
+        'modal-layer1-title': 'Layer 1: Infrastructure & Mechatronics',
+        'modal-layer1-desc': 'Hexagonal modules made of recycled steel, motorized rails for mobile walls, adaptive shelving and UR5e Cobot.',
+        'modal-layer2-title': 'Layer 2: Mobile Robotics & IoT Sensors',
+        'modal-layer2-desc': 'Fleet of electric AGVs, hexacopter drones, RealSense 3D cameras with YOLO and 360° LiDAR rings.',
+        'modal-layer3-title': 'Layer 3: Neuro IA & Predictive Software',
+        'modal-layer3-desc': 'Hybrid cognitive engine (LSTM + BERT) with Deep Q-Learning reinforcement and SGA architecture.',
+        'modal-finance-title': 'Financial Projection & ROI',
+        'modal-finance-desc': 'Last Mile Cost Reduction: -40% | Estimated ROI: 35% in 12 months (Break-even: Month 10).',
+        'modal-close': 'Close',
+        'view-normal': 'Standard View',
+        'view-exploded': 'Exploded View',
+        'view-xray': 'X-Ray Transparent',
+        'view-section': 'Section View',
+        'slider-exploded-label': 'Exploded Distance',
+        'slider-xray-label': 'Transparent Opacity',
+        'cam-overview': '360° Overview',
+        'cam-warehouse': 'Hexagonal Module',
+        'cam-cobot': 'UR5e Cobot',
+        'cam-biorreactor': 'Neuro-IA Bioreactor',
+        'cam-agv': 'Ground AGV',
+        'cam-drone': 'Hexacopter Drone',
+        'cam-neural': '3D Neural Network',
+        'cam-solar': 'Roof Panels'
+      },
+      zh: {
+        'page-title': 'UrbanLogix+ 自主3D原型 - 胡利奥·塞萨尔·奥波尔塔·巴雷拉博士',
+        'txt-author': '胡利奥·塞萨尔·奥波尔塔·巴雷拉博士',
+        'txt-subtitle': 'UrbanLogix+ 基于神经预测人工智能的自主微型仓库',
+        'badge-prototype': '● 3D 原型',
+        'btn-tech': '技术图纸与规格',
+        'title-opmode': '操作模式模拟',
+        'title-viewmode': '视图模式',
+        'title-cam': '360° 相机视角',
+        'title-telemetry': '实时遥测数据',
+        'module-label': '2.5m³ 模块',
+        'stat-solar-label': '太阳能屋顶',
+        'stat-battery-label': '锂离子电池',
+        'stat-temp-label': '珀耳帖温度',
+        'stat-cap-label': '占用空间 m³',
+        'sentiment-label': 'BERT 情感分析:',
+        'demand-label': '需求预测 (LSTM):',
+        'tab-sim': '模拟器与触发器',
+        'tab-nodered': 'Node-RED 流程 (PDF 4.7)',
+        'sim-title': '事件与需求模拟器',
+        'btn-spike': '⚡ 需求峰值 (+45%)',
+        'btn-sentiment': '📈 积极情绪',
+        'btn-agv': '🚛 派遣 AGV',
+        'btn-drone': '🚁 发射无人机',
+        'btn-reconfigure': '🧱 重新配置导轨与货架',
+        'nodered-title': '物联网逻辑流程 (Node-RED)',
+        'nodered-high': '高',
+        'nodered-med': '中',
+        'nodered-low': '低',
+        'node-http': 'HTTP 输入:',
+        'node-http-desc': '接收销售 JSON',
+        'node-neuro': '神经 IA 功能:',
+        'node-neuro-desc': 'LSTM + BERT',
+        'node-switch': '开关节点:',
+        'node-switch-desc': '评估阈值',
+        'node-mqtt': 'MQTT 输出:',
+        'node-mqtt-desc': 'Cobot UR5e 命令',
+        'console-title': '实时串行监视器 (PDF 4.6)',
+        'console-clear': '清除',
+        'modal-title': '技术文档与图纸 – UrbanLogix+ (胡利奥·塞萨尔·奥波尔塔·巴雷拉博士)',
+        'modal-layer1-title': '第1层：基础设施与机电一体化',
+        'modal-layer1-desc': '再生钢六角模块，电动导轨用于移动墙壁，自适应货架和 UR5e 协作机器人。',
+        'modal-layer2-title': '第2层：移动机器人技术与物联网传感器',
+        'modal-layer2-desc': '电动 AGV 车队，六旋翼无人机，带 YOLO 的 RealSense 3D 摄像头和 360° LiDAR 环。',
+        'modal-layer3-title': '第3层：神经 IA 与预测软件',
+        'modal-layer3-desc': '混合认知引擎 (LSTM + BERT)，结合深度 Q 学习强化和 SGA 架构。',
+        'modal-finance-title': '财务预测与投资回报率',
+        'modal-finance-desc': '最后一公里成本降低：-40% | 预估投资回报率：12个月内35%（盈亏平衡点：第10个月）。',
+        'modal-close': '关闭',
+        'view-normal': '标准视图',
+        'view-exploded': '分解视图',
+        'view-xray': 'X射线透明视图',
+        'view-section': '剖面视图',
+        'slider-exploded-label': '分解距离',
+        'slider-xray-label': '透明不透明度',
+        'cam-overview': '360° 全景',
+        'cam-warehouse': '六角模块',
+        'cam-cobot': 'UR5e 协作机器人',
+        'cam-biorreactor': '神经-IA 生物反应器',
+        'cam-agv': '地面 AGV',
+        'cam-drone': '六旋翼无人机',
+        'cam-neural': '3D 神经网络',
+        'cam-solar': '屋顶面板'
+      }
+    };
+
+    let currentLang = 'es';
+
+    function changeLang(lang) {
+      currentLang = lang;
+      // Actualizar botones de idioma
+      ['es', 'en', 'zh'].forEach(l => {
+        document.getElementById('lang-' + l).className = (l === lang) ? 'px-1.5 py-0.5 text-[10px] font-bold rounded uppercase bg-[#0284c7] text-white' : 'px-1.5 py-0.5 text-[10px] font-bold rounded uppercase text-slate-400 hover:text-white';
+      });
+
+      // Actualizar título de la página
+      const titleKey = 'page-title';
+      if (translations[lang] && translations[lang][titleKey]) {
+        document.title = translations[lang][titleKey];
+      }
+
+      // Actualizar elementos con IDs específicos
+      const ids = ['txt-author', 'txt-subtitle', 'badge-prototype', 'btn-tech',
+                   'title-opmode', 'title-viewmode', 'title-cam', 'title-telemetry', 'console-title',
+                   'modal-title', 'modal-layer1-title', 'modal-layer1-desc', 'modal-layer2-title',
+                   'modal-layer2-desc', 'modal-layer3-title', 'modal-layer3-desc', 'modal-finance-title',
+                   'modal-finance-desc'];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && translations[lang] && translations[lang][id] !== undefined) {
+          el.textContent = translations[lang][id];
+        }
+      });
+
+      // Actualizar elementos con data-i18n
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[lang] && translations[lang][key] !== undefined) {
+          el.textContent = translations[lang][key];
+        }
+      });
+
+      addLog('IDIOMA', 'Idioma cambiado a: ' + lang.toUpperCase());
+    }
+
+    // ============================================================
+    // RESTO DEL CÓDIGO (Three.js, controles, simulador, etc.)
+    // ============================================================
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x04060a);
+    scene.fog = new THREE.FogExp2(0x04060a, 0.012);
+
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(16, 12, 22);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.35;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2 + 0.01;
+    controls.minDistance = 3;
+    controls.maxDistance = 80;
+
+    // Environmental Lights
+    const ambientLight = new THREE.AmbientLight(0x1e293b, 1.8);
+    scene.add(ambientLight);
+
+    const mainLight = new THREE.DirectionalLight(0xffffff, 2.8);
+    mainLight.position.set(30, 45, 25);
+    mainLight.castShadow = true;
+    mainLight.shadow.mapSize.width = 2048;
+    mainLight.shadow.mapSize.height = 2048;
+    scene.add(mainLight);
+
+    const cyanLight = new THREE.PointLight(0x38bdf8, 5.0, 45);
+    cyanLight.position.set(0, 7.5, 0);
+    scene.add(cyanLight);
+
+    const emergencyLight = new THREE.PointLight(0xef4444, 0, 45);
+    emergencyLight.position.set(0, 5, 0);
+    scene.add(emergencyLight);
+
+    const purpleGlow = new THREE.PointLight(0xa855f7, 3.5, 40);
+    purpleGlow.position.set(-8, 10, -8);
+    scene.add(purpleGlow);
+
+    const emeraldGlow = new THREE.PointLight(0x10b981, 2.5, 35);
+    emeraldGlow.position.set(12, 6, -10);
+    scene.add(emeraldGlow);
+
+    // Smart City Environment Background
+    const cityGroup = new THREE.Group();
+    const bldgMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.85, roughness: 0.2 });
+    const bldgWindowMat = new THREE.MeshBasicMaterial({ color: 0x0284c7, transparent: true, opacity: 0.6 });
+
+    const bldgCoords = [
+      { x: -22, z: -20, w: 6, h: 22, d: 6 },
+      { x: -28, z: -10, w: 7, h: 30, d: 7 },
+      { x: 24, z: -22, w: 8, h: 26, d: 6 },
+      { x: 26, z: 18, w: 7, h: 32, d: 8 },
+      { x: -25, z: 22, w: 6, h: 20, d: 6 },
+      { x: 0, z: -30, w: 10, h: 35, d: 8 },
+    ];
+
+    bldgCoords.forEach((b) => {
+      const building = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), bldgMat);
+      building.position.set(b.x, b.h / 2, b.z);
+      building.castShadow = true;
+      building.receiveShadow = true;
+      cityGroup.add(building);
+
+      const winGrid = new THREE.Mesh(new THREE.BoxGeometry(b.w + 0.1, b.h * 0.8, b.d + 0.1), bldgWindowMat);
+      winGrid.position.set(b.x, b.h / 2, b.z);
+      cityGroup.add(winGrid);
+
+      const roofPad = new THREE.Mesh(new THREE.CylinderGeometry(b.w * 0.35, b.w * 0.35, 0.2, 16), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+      roofPad.position.set(b.x, b.h + 0.1, b.z);
+      cityGroup.add(roofPad);
+    });
+    scene.add(cityGroup);
+
+    // Floor Grid & Road Network
+    const gridHelper = new THREE.GridHelper(80, 80, 0x0284c7, 0x1e293b);
+    gridHelper.position.y = 0;
+    scene.add(gridHelper);
+
+    const roadGroup = new THREE.Group();
+    const roadMat = new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.8, metalness: 0.2 });
+    const ringRoad = new THREE.Mesh(new THREE.RingGeometry(8.5, 12.5, 48), roadMat);
+    ringRoad.rotation.x = -Math.PI / 2; ringRoad.position.y = 0.01;
+    roadGroup.add(ringRoad);
+
+    const roadMarking = new THREE.Mesh(new THREE.RingGeometry(10.5, 10.6, 48), new THREE.MeshBasicMaterial({ color: 0x00e5ff, side: THREE.DoubleSide }));
+    roadMarking.rotation.x = -Math.PI / 2; roadMarking.position.y = 0.02;
+    roadGroup.add(roadMarking);
+
+    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 2) {
+      const highway = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 30), roadMat);
+      highway.rotation.x = -Math.PI / 2;
+      highway.rotation.z = angle;
+      highway.position.set(Math.sin(angle) * 22, 0.01, Math.cos(angle) * 22);
+      roadGroup.add(highway);
+    }
+    scene.add(roadGroup);
+
+    // Laser Floor Bar
+    const laserSweepBar = new THREE.Mesh(new THREE.BoxGeometry(80, 0.02, 0.15), new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.75 }));
+    laserSweepBar.position.y = 0.03;
+    scene.add(laserSweepBar);
+
+    // Particles
+    const particleCount = 600;
+    const particleGeo = new THREE.BufferGeometry();
+    const particlePositions = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount * 3; i += 3) {
+      particlePositions[i] = (Math.random() - 0.5) * 70;
+      particlePositions[i + 1] = Math.random() * 25;
+      particlePositions[i + 2] = (Math.random() - 0.5) * 70;
+    }
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+    const particleMat = new THREE.PointsMaterial({ size: 0.14, color: 0x38bdf8, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending });
+    scene.add(new THREE.Points(particleGeo, particleMat));
+
+    // Connected Network of Micro-Warehouses
+    const hexClusterGroup = new THREE.Group();
+    let mainHexMat, mainRoof, mainWalls, mainShelves, mainRadar;
+
+    function createWarehouseNode(isMain) {
+      const g = new THREE.Group();
+      const pad = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.5, 0.28, 6), new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.95 }));
+      pad.position.y = 0.14; pad.receiveShadow = true; g.add(pad);
+
+      const hexMatNode = new THREE.MeshStandardMaterial({ color: isMain ? 0x1e293b : 0x0f172a, metalness: 0.9, transparent: true, opacity: isMain ? 0.75 : 0.85, side: THREE.DoubleSide });
+      if (isMain) mainHexMat = hexMatNode;
+
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.8, 4.4, 6, 1, true), hexMatNode);
+      body.position.y = 2.4; g.add(body);
+
+      // Structural Pillars with LED Strips
+      for (let i = 0; i < 6; i++) {
+        const angle = (i * Math.PI) / 3;
+        const pillarGroup = new THREE.Group();
+        pillarGroup.position.set(Math.sin(angle) * 3.82, 2.4, Math.cos(angle) * 3.82);
+        pillarGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 4.4, 12), new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.95 })));
+        pillarGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.04, 4.3, 0.04), new THREE.MeshBasicMaterial({ color: isMain ? 0x00e5ff : 0x38bdf8 })));
+        g.add(pillarGroup);
+      }
+
+      const roof = new THREE.Group();
+      roof.position.y = 4.7;
+      if (isMain) mainRoof = roof;
+
+      const roofMesh = new THREE.Mesh(new THREE.CylinderGeometry(3.9, 3.9, 0.3, 6), new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.95 }));
+      roof.add(roofMesh);
+
+      const solarGrid = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 5.4), new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.95, wireframe: true }));
+      solarGrid.rotation.x = -Math.PI / 2; solarGrid.position.y = 0.16; roof.add(solarGrid);
+
+      if (isMain) {
+        const radarDish = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.05, 0.16, 16), new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.95 }));
+        radarDish.position.set(1.5, 1.3, -1.2); radarDish.rotation.x = 0.4; roof.add(radarDish); mainRadar = radarDish;
+      }
+      g.add(roof);
+
+      return { g, hexMatNode, roof };
+    }
+
+    const mainNode = createWarehouseNode(true);
+    hexClusterGroup.add(mainNode.g);
+
+    const clusterPositions = [{ x: -8.2, z: 0 }, { x: 8.2, z: 0 }, { x: -4.1, z: -7.1 }, { x: 4.1, z: -7.1 }];
+    clusterPositions.forEach(pos => {
+      const sub = createWarehouseNode(false);
+      sub.g.position.set(pos.x, 0, pos.z);
+      sub.g.scale.set(0.72, 0.72, 0.72);
+      hexClusterGroup.add(sub.g);
+
+      // Energy / Data Bridge Tube
+      const bridgeGeo = new THREE.CylinderGeometry(0.12, 0.12, Math.hypot(pos.x, pos.z), 12);
+      const bridgeMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.6 });
+      const bridge = new THREE.Mesh(bridgeGeo, bridgeMat);
+      bridge.position.set(pos.x / 2, 0.3, pos.z / 2);
+      bridge.rotation.z = Math.PI / 2;
+      bridge.rotation.y = -Math.atan2(pos.z, pos.x);
+      hexClusterGroup.add(bridge);
+    });
+    scene.add(hexClusterGroup);
+
+    // Movable Walls
+    const wallsGroup = new THREE.Group();
+    mainWalls = wallsGroup;
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * Math.PI) / 3;
+      const wallMesh = new THREE.Mesh(new THREE.BoxGeometry(3.4, 4.0, 0.16), new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.85, roughness: 0.25 }));
+      wallMesh.position.set(Math.sin(angle) * 3.75, 2.4, Math.cos(angle) * 3.75);
+      wallMesh.rotation.y = angle + Math.PI / 2;
+      wallsGroup.add(wallMesh);
+    }
+    mainNode.g.add(wallsGroup);
+
+    // Adaptive Shelves
+    const shelvesGroup = new THREE.Group();
+    mainShelves = shelvesGroup;
+    const shelfFrameMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.9 });
+    const crateMatCyan = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.6 });
+    const crateMatGold = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.7 });
+    const crateMatRed = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.5 });
+    const crateMatPurple = new THREE.MeshStandardMaterial({ color: 0xa855f7, metalness: 0.5 });
+
+    // Guardar referencias a las cajas para reconfiguración
+    let crateMeshes = [];
+
+    for (let side = -1; side <= 1; side += 2) {
+      if (side === 0) continue;
+      const rackGroup = new THREE.Group();
+      rackGroup.position.set(side * 1.9, 0.4, 0);
+      for (let level = 1; level <= 3; level++) {
+        const board = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.09, 3.4), shelfFrameMat);
+        board.position.y = level * 0.95; rackGroup.add(board);
+        for (let cz = -1.2; cz <= 1.2; cz += 0.8) {
+          const mat = (Math.abs(cz) < 0.5) ? crateMatCyan : (Math.random() > 0.6 ? crateMatRed : crateMatGold);
+          const crate = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.5, 0.55), mat);
+          crate.position.set(0, level * 0.95 + 0.3, cz);
+          crate.userData = { originalPos: crate.position.clone(), side: side, level: level, cz: cz };
+          const ledDot = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), new THREE.MeshBasicMaterial({ color: 0x22c55e }));
+          ledDot.position.set(0.28, 0.15, 0.28); crate.add(ledDot);
+          rackGroup.add(crate);
+          crateMeshes.push(crate);
+        }
+      }
+      shelvesGroup.add(rackGroup);
+    }
+    mainNode.g.add(shelvesGroup);
+
+    // ===== SENSORES IoT y LIDAR (NUEVO) =====
+    const sensorGroup = new THREE.Group();
+    // Cámaras en las esquinas del módulo
+    const camMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.9, roughness: 0.2 });
+    const lensMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, emissive: 0x38bdf8, emissiveIntensity: 0.3 });
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * Math.PI) / 3;
+      const camGroup = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.2, 0.12, 8), camMat);
+      base.position.set(0, 0.06, 0);
+      camGroup.add(base);
+      const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.08, 8), lensMat);
+      lens.position.set(0, 0.12, 0.15);
+      lens.rotation.x = Math.PI / 2;
+      camGroup.add(lens);
+      camGroup.position.set(Math.sin(angle) * 4.0, 3.0, Math.cos(angle) * 4.0);
+      camGroup.rotation.y = -angle + Math.PI/2;
+      sensorGroup.add(camGroup);
+    }
+    // Anillo LiDAR en el techo
+    const lidarRing = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.04, 12, 24), new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.7 }));
+    lidarRing.position.set(0, 4.9, 0);
+    lidarRing.rotation.x = Math.PI / 2;
+    sensorGroup.add(lidarRing);
+    // Sensor LiDAR en AGV
+    const lidarAGV = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.05, 12), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+    lidarAGV.position.set(0, 0.65, 0);
+    // Ya se añadirá a cada AGV
+
+    mainNode.g.add(sensorGroup);
+
+    // Añadir LiDAR a los AGVs (modificación de la función createAGV)
+    // Se actualizará más abajo.
+
+    // ===== MEJORA DE LA RED NEURONAL CON FLUJO DE DATOS =====
+    const neuralGroup = new THREE.Group();
+    neuralGroup.position.set(0, 7.2, 0);
+    const nodeMat2 = new THREE.MeshStandardMaterial({ color: 0x00e5ff, emissive: 0x00b0ff, emissiveIntensity: 0.8 });
+    const neuralNodes = [];
+    const nodePositions = [];
+    for (let i = 0; i < 12; i++) {
+      const angle = (i * Math.PI * 2) / 12;
+      const radius = 2.2 + Math.sin(i * 1.5) * 0.4;
+      const pos = new THREE.Vector3(Math.cos(angle) * radius, (i % 4) * 0.5 - 0.8, Math.sin(angle) * radius);
+      const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.35, 12, 12), nodeMat2);
+      sphere.position.copy(pos);
+      neuralGroup.add(sphere);
+      neuralNodes.push(sphere);
+      nodePositions.push(pos);
+    }
+    // Conectar nodos con líneas
+    const lineMat2 = new THREE.LineBasicMaterial({ color: 0x4FC3F7, transparent: true, opacity: 0.2 });
+    for (let i = 0; i < neuralNodes.length; i++) {
+      for (let j = i+1; j < neuralNodes.length; j++) {
+        if (Math.random() > 0.7) continue;
+        const geo = new THREE.BufferGeometry().setFromPoints([nodePositions[i], nodePositions[j]]);
+        const line = new THREE.Line(geo, lineMat2);
+        neuralGroup.add(line);
+      }
+    }
+
+    // Partículas de flujo de datos (viajan entre nodos)
+    const flowParticlesGeo = new THREE.BufferGeometry();
+    const flowCount = 60;
+    const flowPos = new Float32Array(flowCount * 3);
+    const flowTarget = new Float32Array(flowCount * 3);
+    const flowProgress = new Float32Array(flowCount);
+    const flowSpeed = new Float32Array(flowCount);
+    for (let i = 0; i < flowCount; i++) {
+      const from = Math.floor(Math.random() * neuralNodes.length);
+      let to = Math.floor(Math.random() * neuralNodes.length);
+      while (to === from) to = Math.floor(Math.random() * neuralNodes.length);
+      const p1 = nodePositions[from];
+      const p2 = nodePositions[to];
+      flowPos[i*3] = p1.x; flowPos[i*3+1] = p1.y; flowPos[i*3+2] = p1.z;
+      flowTarget[i*3] = p2.x; flowTarget[i*3+1] = p2.y; flowTarget[i*3+2] = p2.z;
+      flowProgress[i] = Math.random();
+      flowSpeed[i] = 0.005 + Math.random() * 0.015;
+    }
+    flowParticlesGeo.setAttribute('position', new THREE.BufferAttribute(flowPos, 3));
+    const flowMat = new THREE.PointsMaterial({ color: 0x00e5ff, size: 0.08, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending });
+    const flowParticles = new THREE.Points(flowParticlesGeo, flowMat);
+    neuralGroup.add(flowParticles);
+
+    scene.add(neuralGroup);
+
+    // ===== COBOT (ya existente) =====
+    const cobotGroup = new THREE.Group(); cobotGroup.position.set(0, 0.25, -1);
+    cobotGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.52, 0.45, 20), new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.95 })));
+    const cobotArm1 = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.5, 0.24), new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.85 }));
+    cobotArm1.position.set(0, 1.0, 0); cobotArm1.rotation.z = -0.3; cobotGroup.add(cobotArm1);
+    const cobotArm2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.3, 0.2), new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.9 }));
+    cobotArm2.position.set(0.4, 1.7, 0); cobotArm2.rotation.z = 0.6; cobotGroup.add(cobotArm2);
+    
+    const cobotGripper = new THREE.Group(); cobotGripper.position.set(0.75, 2.1, 0);
+    cobotGripper.add(new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 16), new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.95 })));
+    const laserBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.5, 2.8, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.4, side: THREE.DoubleSide }));
+    laserBeam.position.set(0, -1.4, 0); cobotGripper.add(laserBeam);
+    cobotGroup.add(cobotGripper);
+    mainNode.g.add(cobotGroup);
+
+    // ===== BIORREACTOR MEJORADO =====
+    const biorreactorGroup = new THREE.Group(); biorreactorGroup.position.set(0, 0.26, 2.3);
+    const pcbMat = new THREE.MeshStandardMaterial({ color: 0x047857, metalness: 0.4 });
+    const pcb = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.09, 1.4), pcbMat);
+    biorreactorGroup.add(pcb);
+    const chip = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.5), new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.95, emissive: 0x38bdf8, emissiveIntensity: 0.5 }));
+    chip.position.y = 0.06;
+    biorreactorGroup.add(chip);
+    // LEDs de actividad
+    const ledMat = new THREE.MeshBasicMaterial({ color: 0x22c55e });
+    for (let i = 0; i < 8; i++) {
+      const led = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), ledMat);
+      const angle = (i / 8) * Math.PI * 2;
+      led.position.set(Math.sin(angle) * 0.6, 0.06, Math.cos(angle) * 0.6);
+      biorreactorGroup.add(led);
+    }
+    mainNode.g.add(biorreactorGroup);
+
+    // Esfera holográfica (se mantiene)
+    const holoBrainGroup = new THREE.Group(); holoBrainGroup.position.set(0, 7.8, 0);
+    holoBrainGroup.add(new THREE.Mesh(new THREE.IcosahedronGeometry(1.2, 2), new THREE.MeshBasicMaterial({ color: 0xa855f7, wireframe: true, transparent: true, opacity: 0.85 })));
+    holoBrainGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.65, 20, 20), new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.9 })));
+    const textCanvas = document.createElement('canvas'); textCanvas.width = 512; textCanvas.height = 128;
+    const ctx = textCanvas.getContext('2d');
+    if (ctx) {
+      ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, 512, 128);
+      ctx.font = 'Bold 36px monospace'; ctx.fillStyle = '#00e5ff'; ctx.fillText('P_demanda = f(V,S,C)', 20, 50);
+      ctx.fillStyle = '#a855f7'; ctx.fillText('[BERT + RNN/LSTM + DQL]', 20, 100);
+    }
+    const textTex = new THREE.CanvasTexture(textCanvas);
+    const textPlane = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.8), new THREE.MeshBasicMaterial({ map: textTex, transparent: true, side: THREE.DoubleSide }));
+    textPlane.position.set(0, 1.8, 0); holoBrainGroup.add(textPlane);
+    scene.add(holoBrainGroup);
+
+    // ===== AGVs (modificados para incluir LiDAR) =====
+    const agvList = []; const agvLidars = [];
+    function createAGV(colorHex, startPos) {
+      const g = new THREE.Group();
+      const chassis = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.45, 1.3), new THREE.MeshStandardMaterial({ color: colorHex, metalness: 0.9 }));
+      chassis.position.y = 0.28; g.add(chassis);
+      const hl1 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.2), new THREE.MeshBasicMaterial({ color: 0x00e5ff })); hl1.position.set(0.92, 0.28, 0.42); g.add(hl1);
+      const hl2 = hl1.clone(); hl2.position.set(0.92, 0.28, -0.42); g.add(hl2);
+      const lidar = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.22, 16), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+      lidar.position.set(0.55, 0.58, 0); g.add(lidar);
+      // Sensor LiDAR adicional (anillo)
+      const lidarRingAGV = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.02, 8, 16), new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.5 }));
+      lidarRingAGV.position.set(0.55, 0.65, 0);
+      lidarRingAGV.rotation.x = Math.PI / 2;
+      g.add(lidarRingAGV);
+      const parcel = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.8), new THREE.MeshStandardMaterial({ color: 0xf59e0b })); parcel.position.set(-0.25, 0.78, 0); g.add(parcel);
+      g.position.copy(startPos);
+      return { g, lidar, lidarRing: lidarRingAGV };
+    }
+    const a1 = createAGV(0x0284c7, new THREE.Vector3(10.5, 0, 0)); agvList.push(a1.g); agvLidars.push(a1.lidar); scene.add(a1.g);
+    const a2 = createAGV(0x38bdf8, new THREE.Vector3(-10.5, 0, 0)); agvList.push(a2.g); agvLidars.push(a2.lidar); scene.add(a2.g);
+    const a3 = createAGV(0x0f172a, new THREE.Vector3(0, 0, 10.5)); agvList.push(a3.g); agvLidars.push(a3.lidar); scene.add(a3.g);
+
+    // ===== Drones =====
+    const droneList = [];
+    function createDrone(w1, w2) {
+      const g = new THREE.Group();
+      g.add(new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 16), new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.95 })));
+      const rotors = [];
+      for (let i = 0; i < 6; i++) {
+        const angle = (i * Math.PI) / 3;
+        const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.2), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+        arm.rotation.z = Math.PI / 2; arm.rotation.y = angle; arm.position.set(Math.cos(angle) * 0.6, 0, Math.sin(angle) * 0.6); g.add(arm);
+        const rotor = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.02, 12), new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.85 }));
+        rotor.position.set(Math.cos(angle) * 1.2, 0.1, Math.sin(angle) * 1.2); g.add(rotor); rotors.push(rotor);
+      }
+      const cargo = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.45, 0.5), new THREE.MeshStandardMaterial({ color: 0x0284c7 }));
+      cargo.position.y = -0.42; g.add(cargo);
+      g.position.copy(w1);
+      return { g, rotors, w1, w2 };
+    }
+    const d1 = createDrone(new THREE.Vector3(-4.5, 5.5, 3.5), new THREE.Vector3(-18, 12, 15)); droneList.push(d1); scene.add(d1.g);
+    const d2 = createDrone(new THREE.Vector3(5.0, 6.2, -4.5), new THREE.Vector3(20, 14, -18)); droneList.push(d2); scene.add(d2.g);
+
+    // ===== Serial Logging =====
+    const serialLogs = document.getElementById('serial-logs');
+    function addLog(tag, msg) {
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'flex items-start gap-2 border-l-2 border-[#38bdf8] pl-2 hover:bg-slate-900/40 py-0.5';
+      div.innerHTML = '<span class="text-slate-500">['+time+']</span> <span class="font-bold text-[#38bdf8]">['+tag+']</span> <span class="text-slate-200">'+msg+'</span>';
+      serialLogs.appendChild(div);
+      serialLogs.scrollTop = serialLogs.scrollHeight;
+    }
+
+    addLog('URBANLOGIX+', 'Prototipo 3D Autónomo en Alta Fidelidad iniciado con éxito.');
+    addLog('NEURO IA', 'Red Neuronal y Cerebro Digital P_demanda = f(V,S,C) sincronizados.');
+    addLog('SENSOR', 'Sensores IoT y LiDAR desplegados en el módulo.');
+
+    function clearLogs() { serialLogs.innerHTML = ''; }
+
+    // ===== Estados =====
+    let currentView = 'normal';
+    let currentExp = 0.5;
+    let currentXray = 0.3;
+    let isReconfiguring = false;
+
+    // ===== TELEMETRÍA: variables de simulación =====
+    let solarValue = 100;
+    let batteryValue = 98;
+    let tempValue = 18.4;
+    let capValue = 64;
+    let sentimentText = 'POSITIVO (+0.82)';
+    let demandValue = 124;
+    let batteryDirection = -1; // -1 para descarga, +1 para carga
+    let tempDirection = 0.05; // variación
+
+    // ===== Funciones de visualización =====
+    function setViewMode(mode) {
+      currentView = mode;
+      document.getElementById('slider-exploded-container').classList.toggle('hidden', mode !== 'exploded');
+      document.getElementById('slider-xray-container').classList.toggle('hidden', mode !== 'xray');
+
+      ['normal', 'exploded', 'xray', 'section'].forEach(m => {
+        const btn = document.getElementById('btn-view-' + m);
+        btn.className = (m === mode) ? 'p-1.5 rounded-lg text-[11px] font-semibold border text-left bg-[#0284c7] border-[#38bdf8] text-white' : 'p-1.5 rounded-lg text-[11px] font-semibold border text-left bg-[#181c24] border-slate-800 text-slate-300 hover:border-slate-700';
+      });
+
+      if (mode === 'exploded') {
+        updateExploded(currentExp);
+        addLog('VISTA', 'Modo Explotado activado: descomposición de capas.');
+      } else if (mode === 'xray') {
+        mainHexMat.wireframe = true;
+        mainHexMat.opacity = currentXray;
+        addLog('VISTA', 'Modo Rayos X activado: transparencia holográfica.');
+      } else if (mode === 'section') {
+        mainHexMat.wireframe = false;
+        mainHexMat.opacity = 0.75;
+        mainRoof.position.y = 4.7;
+        cobotGroup.position.y = 0.25;
+        biorreactorGroup.position.z = 2.3;
+        // Ocultar paredes laterales (0 y 5) para ver el interior
+        mainWalls.children.forEach((wall, idx) => {
+          const angle = (idx * Math.PI) / 3;
+          wall.position.set(Math.sin(angle) * 3.75, 2.4, Math.cos(angle) * 3.75);
+          wall.visible = (idx !== 0 && idx !== 5);
+        });
+        addLog('VISTA', 'Vista Seccionada: mostrando interior del módulo.');
+      } else {
+        mainHexMat.wireframe = false;
+        mainHexMat.opacity = 0.75;
+        mainRoof.position.y = 4.7;
+        cobotGroup.position.y = 0.25;
+        biorreactorGroup.position.z = 2.3;
+        mainWalls.children.forEach((wall, idx) => {
+          const angle = (idx * Math.PI) / 3;
+          wall.position.set(Math.sin(angle) * 3.75, 2.4, Math.cos(angle) * 3.75);
+          wall.visible = true;
+        });
+        addLog('VISTA', 'Vista Estándar restablecida.');
+      }
+    }
+
+    function updateExploded(val) {
+      currentExp = val;
+      document.getElementById('val-exploded').innerText = Math.round(val * 100) + '%';
+      if (currentView === 'exploded') {
+        mainRoof.position.y = 4.7 + val * 3.8;
+        cobotGroup.position.y = 0.25 + val * 1.6;
+        biorreactorGroup.position.z = 2.3 + val * 2.2;
+        mainWalls.children.forEach((wall, idx) => {
+          const angle = (idx * Math.PI) / 3;
+          wall.position.set(Math.sin(angle) * (3.75 + val * 2.4), 2.4, Math.cos(angle) * (3.75 + val * 2.4));
+          wall.visible = true;
+        });
+      }
+    }
+
+    function updateXray(val) {
+      currentXray = val;
+      document.getElementById('val-xray').innerText = Math.round(val * 100) + '%';
+      if (currentView === 'xray') mainHexMat.opacity = parseFloat(val);
+    }
+
+    function setCameraPreset(preset) {
+      if (preset === 'overview') { camera.position.set(16, 12, 22); controls.target.set(0, 2, 0); }
+      else if (preset === 'warehouse') { camera.position.set(6.5, 4.5, 7.5); controls.target.set(0, 2, 0); }
+      else if (preset === 'cobot') { camera.position.set(1.8, 2.4, 2.8); controls.target.set(0, 1.2, 0); }
+      else if (preset === 'biorreactor') { camera.position.set(0, 2.0, 3.8); controls.target.set(0, 0.3, 2.3); }
+      else if (preset === 'agv') { camera.position.set(12, 3.5, 8.5); controls.target.set(10, 0.5, 0); }
+      else if (preset === 'drone') { camera.position.set(-6, 9.5, 8.5); controls.target.set(-10, 8, 8); }
+      else if (preset === 'neural') { camera.position.set(0, 11, 7.5); controls.target.set(0, 7.8, 0); }
+      else if (preset === 'solar') { camera.position.set(0, 8.5, 4.5); controls.target.set(0, 4.7, 0); }
+      controls.update();
+      addLog('CÁMARA', 'Enfoque: ' + preset.toUpperCase());
+    }
+
+    // ===== Modos operativos mejorados =====
+    function setOperatingMode(mode) {
+      if (mode === 'emergencia') {
+        cyanLight.intensity = 0; emergencyLight.intensity = 7.0;
+        addLog('MODO', '🚨 Emergencia activada: luces rojas y protocolos fail-safe.');
+      } else if (mode === 'energetico') {
+        cyanLight.color.setHex(0xf59e0b); cyanLight.intensity = 5.5; emergencyLight.intensity = 0;
+        // Resaltar paneles solares
+        mainRoof.children.forEach(child => {
+          if (child.isMesh && child.material && child.material.color) {
+            child.material.emissive = new THREE.Color(0xf59e0b);
+            child.material.emissiveIntensity = 0.4;
+          }
+        });
+        addLog('MODO', '☀️ Modo Energético: absorción solar optimizada.');
+      } else if (mode === 'neuro_ia') {
+        cyanLight.color.setHex(0xa855f7); cyanLight.intensity = 6.0; emergencyLight.intensity = 0;
+        // Acelerar partículas de la red neuronal
+        flowSpeed.forEach((v, i) => flowSpeed[i] = 0.02 + Math.random() * 0.03);
+        addLog('MODO', '🧠 Neuro IA activa: procesamiento cognitivo en alta demanda.');
+      } else if (mode === 'mantenimiento') {
+        cyanLight.color.setHex(0xeab308); cyanLight.intensity = 4.5; emergencyLight.intensity = 0;
+        // Abrir paredes (simular acceso)
+        mainWalls.children.forEach((wall, idx) => {
+          const angle = (idx * Math.PI) / 3;
+          wall.position.set(Math.sin(angle) * (3.75 + 0.8), 2.4, Math.cos(angle) * (3.75 + 0.8));
+        });
+        addLog('MODO', '⚠️ Mantenimiento ISO 15066: acceso a componentes.');
+      } else if (mode === 'reposo') {
+        cyanLight.color.setHex(0x1e293b); cyanLight.intensity = 1.5; emergencyLight.intensity = 0;
+        // Bajar intensidad de luces
+        addLog('MODO', '💤 Modo Reposo: sistema en standby.');
+      } else {
+        cyanLight.color.setHex(0x38bdf8); cyanLight.intensity = 5.0; emergencyLight.intensity = 0;
+        // Restaurar paredes
+        if (currentView === 'normal') {
+          mainWalls.children.forEach((wall, idx) => {
+            const angle = (idx * Math.PI) / 3;
+            wall.position.set(Math.sin(angle) * 3.75, 2.4, Math.cos(angle) * 3.75);
+            wall.visible = true;
+          });
+        }
+        // Restaurar paneles solares
+        mainRoof.children.forEach(child => {
+          if (child.isMesh && child.material && child.material.emissive) {
+            child.material.emissive = new THREE.Color(0x000000);
+            child.material.emissiveIntensity = 0;
+          }
+        });
+        // Restaurar velocidad de partículas
+        flowSpeed.forEach((v, i) => flowSpeed[i] = 0.005 + Math.random() * 0.015);
+        addLog('MODO', 'Modo operativo estándar: ' + mode.toUpperCase());
+      }
+    }
+
+    // ===== SIMULACIÓN DE TELEMETRÍA EN TIEMPO REAL =====
+    function updateTelemetry() {
+      // Simular variaciones realistas
+      // Solar: variación suave entre 80 y 120 W
+      solarValue += (Math.random() - 0.5) * 4;
+      solarValue = Math.min(120, Math.max(80, solarValue));
+      document.getElementById('stat-solar').textContent = Math.round(solarValue) + ' W';
+
+      // Batería: ciclo de carga/descarga
+      batteryValue += batteryDirection * (0.1 + Math.random() * 0.2);
+      if (batteryValue >= 100) { batteryValue = 100; batteryDirection = -1; }
+      if (batteryValue <= 20) { batteryValue = 20; batteryDirection = 1; }
+      document.getElementById('stat-battery').textContent = Math.round(batteryValue) + '%';
+      // Cambiar color según nivel
+      const batteryEl = document.getElementById('stat-battery');
+      if (batteryValue < 30) batteryEl.className = 'text-sm font-extrabold text-rose-400';
+      else if (batteryValue < 60) batteryEl.className = 'text-sm font-extrabold text-amber-400';
+      else batteryEl.className = 'text-sm font-extrabold text-emerald-400';
+
+      // Temperatura: fluctuación suave
+      tempValue += (Math.random() - 0.5) * 0.3;
+      tempValue = Math.min(22, Math.max(15, tempValue));
+      document.getElementById('stat-temp').textContent = tempValue.toFixed(1) + ' °C';
+
+      // Ocupación: variación entre 40% y 85%
+      capValue += (Math.random() - 0.5) * 2;
+      capValue = Math.min(85, Math.max(40, capValue));
+      document.getElementById('stat-cap').textContent = Math.round(capValue) + '%';
+
+      // Sentimiento: cambio aleatorio ocasional
+      if (Math.random() < 0.05) {
+        const sentiments = [
+          'POSITIVO (+0.82)', 'NEUTRAL (+0.05)', 'POSITIVO (+0.95)', 
+          'NEGATIVO (-0.45)', 'POSITIVO (+0.73)', 'NEUTRAL (-0.10)'
+        ];
+        sentimentText = sentiments[Math.floor(Math.random() * sentiments.length)];
+        document.getElementById('stat-sent').textContent = sentimentText;
+      }
+
+      // Demanda: fluctuación entre 90 y 160
+      demandValue += (Math.random() - 0.5) * 3;
+      demandValue = Math.min(165, Math.max(85, demandValue));
+      document.getElementById('stat-demand').textContent = Math.round(demandValue) + ' unidades';
+    }
+
+    // Iniciar simulación de telemetría cada 2 segundos
+    setInterval(updateTelemetry, 2000);
+
+    // ===== Simulación de eventos =====
+    let isSimSpike = false; let isSimAGV = false; let isSimDrone = false; let isSimShelves = false;
+
+    function triggerSpike() {
+      isSimSpike = true;
+      // Afectar telemetría: aumento de demanda, temperatura y ocupación
+      demandValue = Math.min(200, demandValue + 45);
+      document.getElementById('stat-demand').textContent = Math.round(demandValue) + ' unidades (CRÍTICA)';
+      tempValue = Math.min(28, tempValue + 2);
+      document.getElementById('stat-temp').textContent = tempValue.toFixed(1) + ' °C';
+      capValue = Math.min(90, capValue + 10);
+      document.getElementById('stat-cap').textContent = Math.round(capValue) + '%';
+      addLog('NEURO IA', '⚡ Pico de demanda (+45%). Reentrenando red neuronal.');
+      // Acelerar partículas de la red
+      flowSpeed.forEach((v, i) => flowSpeed[i] = 0.03 + Math.random() * 0.04);
+      setTimeout(() => { 
+        isSimSpike = false;
+        flowSpeed.forEach((v, i) => flowSpeed[i] = 0.005 + Math.random() * 0.015);
+      }, 6000);
+    }
+
+    function triggerSentiment(s) {
+      sentimentText = 'POSITIVO (+0.94)';
+      document.getElementById('stat-sent').textContent = sentimentText;
+      addLog('BERT', 'Sentimiento inyectado: ' + s.toUpperCase());
+    }
+
+    function dispatchAGV() {
+      isSimAGV = true;
+      // Afecta batería y ocupación
+      batteryValue = Math.max(20, batteryValue - 3);
+      document.getElementById('stat-battery').textContent = Math.round(batteryValue) + '%';
+      capValue = Math.min(85, capValue + 2);
+      document.getElementById('stat-cap').textContent = Math.round(capValue) + '%';
+      addLog('AGV', 'Despachando AGV con navegación LiDAR.');
+      setTimeout(() => { isSimAGV = false; }, 6000);
+    }
+
+    function dispatchDrone() {
+      isSimDrone = true;
+      // Afecta batería y demanda
+      batteryValue = Math.max(20, batteryValue - 2);
+      document.getElementById('stat-battery').textContent = Math.round(batteryValue) + '%';
+      demandValue = Math.min(165, demandValue + 5);
+      document.getElementById('stat-demand').textContent = Math.round(demandValue) + ' unidades';
+      addLog('DRON', 'Lanzando dron hexacóptero a ruta aérea.');
+      setTimeout(() => { isSimDrone = false; }, 6000);
+    }
+
+    function reconfigureShelves() {
+      if (isReconfiguring) return;
+      isReconfiguring = true;
+      // Afecta ocupación
+      capValue = Math.min(85, capValue + 5);
+      document.getElementById('stat-cap').textContent = Math.round(capValue) + '%';
+      addLog('MECATRÓNICA', '🧱 Reconfigurando rieles y estanterías adaptativas (Packing Problem).');
+      
+      // Mover las cajas a nuevas posiciones aleatorias (simulación de optimización)
+      crateMeshes.forEach((crate, idx) => {
+        const orig = crate.userData.originalPos;
+        const offset = (Math.random() - 0.5) * 0.6;
+        const targetPos = new THREE.Vector3(orig.x + offset, orig.y + (Math.random() - 0.5) * 0.3, orig.z + (Math.random() - 0.5) * 0.6);
+        const startPos = crate.position.clone();
+        const duration = 800;
+        const startTime = Date.now();
+        const animateCrate = () => {
+          const elapsed = Date.now() - startTime;
+          const t = Math.min(elapsed / duration, 1);
+          const ease = t * t * (3 - 2 * t);
+          crate.position.lerpVectors(startPos, targetPos, ease);
+          if (t < 1) requestAnimationFrame(animateCrate);
+          else {
+            crate.userData.originalPos.copy(targetPos);
+            if (idx === crateMeshes.length - 1) {
+              isReconfiguring = false;
+              addLog('MECATRÓNICA', 'Reconfiguración completada. Espacio optimizado.');
+            }
+          }
+        };
+        animateCrate();
+      });
+    }
+
+    function triggerNodeRed(val) {
+      addLog('NODE-RED', 'Trigger enviado: ' + val);
+      if (val === 'HIGH') triggerSpike();
+    }
+
+    // ===== Dock y modales =====
+    function setDockTab(tab) {
+      document.getElementById('tab-content-sim').classList.toggle('hidden', tab !== 'simulation');
+      document.getElementById('tab-content-nodered').classList.toggle('hidden', tab !== 'nodered');
+      document.getElementById('tab-btn-sim').className = tab === 'simulation' ? 'px-3 py-1 rounded-lg text-xs font-bold bg-[#0284c7] text-white shadow-md' : 'px-3 py-1 rounded-lg text-xs font-bold bg-[#181c24] text-slate-400 hover:text-slate-200';
+      document.getElementById('tab-btn-nodered').className = tab === 'nodered' ? 'px-3 py-1 rounded-lg text-xs font-bold bg-[#0284c7] text-white shadow-md' : 'px-3 py-1 rounded-lg text-xs font-bold bg-[#181c24] text-slate-400 hover:text-slate-200';
+    }
+    function toggleDock() { document.getElementById('dock-body').classList.toggle('hidden'); }
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    // ===== Collapsible sections =====
+    function toggleSection(sectionId) {
+      const content = document.getElementById(sectionId + '-content');
+      const toggleBtn = document.getElementById(sectionId + '-toggle');
+      if (!content || !toggleBtn) return;
+      const isCollapsed = content.classList.contains('collapsed');
+      if (isCollapsed) {
+        content.classList.remove('collapsed');
+        toggleBtn.classList.remove('rotated');
+        content.style.maxHeight = content.scrollHeight + 'px';
+      } else {
+        content.style.maxHeight = '0px';
+        content.classList.add('collapsed');
+        toggleBtn.classList.add('rotated');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      ['viewModes', 'cameraPresets'].forEach(id => {
+        const content = document.getElementById(id + '-content');
+        if (content) {
+          content.classList.remove('collapsed');
+          content.style.maxHeight = content.scrollHeight + 'px';
+        }
+      });
+      changeLang('es');
+    });
+
+    setInterval(() => {
+      document.getElementById('clock-display').innerText = new Date().toLocaleTimeString();
+    }, 1000);
+
+    // ===== Animation Loop =====
+    let clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const time = clock.getElapsedTime();
+
+      // Laser sweep
+      laserSweepBar.position.z = Math.sin(time * (isSimSpike ? 2.5 : 0.8)) * 20;
+
+      // Cobot
+      const cobotSpeedMult = isSimSpike ? 3.2 : 1.0;
+      cobotArm1.rotation.y = Math.sin(time * 0.9 * cobotSpeedMult) * 0.45;
+      cobotArm2.rotation.z = 0.6 + Math.sin(time * 1.3 * cobotSpeedMult) * 0.25;
+      cobotGripper.rotation.y = Math.cos(time * 1.5 * cobotSpeedMult) * 0.6;
+      laserBeam.rotation.y = time * (isSimSpike ? 8.0 : 2.5);
+
+      // Radar
+      if (mainRadar) mainRadar.rotation.y = time * 1.4;
+
+      // Holographic brain
+      holoBrainGroup.rotation.y = time * (isSimSpike ? 1.5 : 0.4);
+      const brainScale = isSimSpike ? 1.35 + Math.sin(time * 12.0) * 0.15 : 1.0 + Math.sin(time * 2.0) * 0.05;
+      holoBrainGroup.scale.set(brainScale, brainScale, brainScale);
+
+      // Biorreactor LEDs parpadeo
+      biorreactorGroup.children.forEach((child, idx) => {
+        if (child.isMesh && child.geometry.type === 'SphereGeometry' && child.material.color.getHex() === 0x22c55e) {
+          child.material.color.setHex(Math.random() > 0.3 ? 0x22c55e : 0x00ff00);
+        }
+      });
+
+      // Red neuronal - flujo de datos
+      const positions = flowParticles.geometry.attributes.position.array;
+      for (let i = 0; i < flowCount; i++) {
+        flowProgress[i] += flowSpeed[i];
+        if (flowProgress[i] >= 1) {
+          flowProgress[i] = 0;
+          // Nuevo destino aleatorio
+          const from = Math.floor(Math.random() * neuralNodes.length);
+          let to = Math.floor(Math.random() * neuralNodes.length);
+          while (to === from) to = Math.floor(Math.random() * neuralNodes.length);
+          const p1 = nodePositions[from];
+          const p2 = nodePositions[to];
+          positions[i*3] = p1.x; positions[i*3+1] = p1.y; positions[i*3+2] = p1.z;
+          flowTarget[i*3] = p2.x; flowTarget[i*3+1] = p2.y; flowTarget[i*3+2] = p2.z;
+        }
+        const t = flowProgress[i];
+        const p1 = new THREE.Vector3(positions[i*3], positions[i*3+1], positions[i*3+2]);
+        const p2 = new THREE.Vector3(flowTarget[i*3], flowTarget[i*3+1], flowTarget[i*3+2]);
+        const current = new THREE.Vector3().lerpVectors(p1, p2, t);
+        positions[i*3] = current.x; positions[i*3+1] = current.y; positions[i*3+2] = current.z;
+      }
+      flowParticles.geometry.attributes.position.needsUpdate = true;
+
+      // AGVs
+      agvList.forEach((agv, idx) => {
+        const agvSpeedMult = isSimAGV && idx === 0 ? 2.8 : 1.0;
+        const angle = time * 0.4 * agvSpeedMult + idx * ((Math.PI * 2) / 3);
+        agv.position.set(Math.cos(angle) * 10.5, 0.28, Math.sin(angle) * 10.5);
+        agv.rotation.y = -angle + Math.PI / 2;
+      });
+      agvLidars.forEach(lidar => lidar.rotation.y = time * (isSimAGV ? 12 : 5));
+
+      // Drones
+      droneList.forEach((droneData, idx) => {
+        const isTriggeredDrone = isSimDrone && idx === 0;
+        const flightTime = (time * (isTriggeredDrone ? 1.2 : 0.5) + idx * 2) % 1;
+        const w1 = isTriggeredDrone ? new THREE.Vector3(-4.5, 5.5, 3.5) : droneData.w1;
+        const w2 = isTriggeredDrone ? new THREE.Vector3(-22, 18, 22) : droneData.w2;
+        droneData.g.position.lerpVectors(w1, w2, Math.sin(flightTime * Math.PI));
+        droneData.rotors.forEach(rotor => rotor.rotation.y += isTriggeredDrone ? 1.4 : 0.6);
+      });
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
