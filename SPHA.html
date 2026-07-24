@@ -1,0 +1,1834 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>SPHA-Q Prototipo 3D</title>
+  <style>
+    /* Reset y base */
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background: #0a0c10;
+      font-family: 'Segoe UI', 'Roboto', system-ui, sans-serif;
+      overflow: hidden;
+      color: #d0d7e6;
+      user-select: none;
+    }
+    #info-top {
+      position: absolute;
+      top: 18px;
+      left: 24px;
+      z-index: 100;
+      font-size: 14px;
+      font-weight: 400;
+      letter-spacing: 0.5px;
+      color: #8e9aaf;
+      background: rgba(10,12,16,0.6);
+      backdrop-filter: blur(6px);
+      padding: 6px 16px 8px 16px;
+      border-radius: 30px;
+      border: 1px solid rgba(79,195,247,0.2);
+      pointer-events: none;
+    }
+    #info-top strong { color: #4fc3f7; font-weight:500; }
+
+    /* HUD inferior (Estado y H2) */
+    #hud-bottom {
+      position: absolute;
+      bottom: 28px;
+      left: 28px;
+      right: 28px;
+      z-index: 50;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      justify-content: space-between;
+      align-items: flex-end;
+      pointer-events: none;
+    }
+
+    /* Paneles superiores derecha (Eficiencia y Temp) */
+    #hud-top-right {
+      position: absolute;
+      top: 80px;
+      right: 28px;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    /* Paneles superiores izquierda (Presión, Flujo, Carga, Pot. Láser) */
+    #hud-top-left {
+      position: absolute;
+      top: 80px;
+      left: 28px;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    /* Paneles superiores centrales (4 paneles en horizontal) - SUBIDOS MÁS ARRIBA */
+    #hud-top-center {
+      position: absolute;
+      top: 22px; /* antes 35px, ahora más arriba */
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      display: flex;
+      gap: 12px;
+      pointer-events: none;
+      flex-wrap: nowrap;
+      justify-content: center;
+    }
+
+    .hud-panel {
+      background: rgba(14,18,24,0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(79,195,247,0.15);
+      border-radius: 16px;
+      padding: 8px 14px;
+      min-width: 110px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      pointer-events: auto;
+      transition: border-color 0.3s, transform 0.2s;
+      cursor: pointer;
+    }
+    .hud-panel:hover {
+      transform: scale(1.02);
+      border-color: rgba(79,195,247,0.5);
+    }
+    .hud-panel .label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #6a7a8e;
+      margin-bottom: 1px;
+    }
+    .hud-panel .value {
+      font-size: 18px;
+      font-weight: 600;
+      color: #e8edf5;
+      font-variant-numeric: tabular-nums;
+    }
+    .hud-panel .value .unit {
+      font-size: 11px;
+      color: #6a7a8e;
+      margin-left: 2px;
+      font-weight: 400;
+    }
+    .hud-panel .sub {
+      font-size: 10px;
+      color: #8e9aaf;
+      margin-top: 1px;
+    }
+    .hud-panel.highlight { border-color: #4fc3f7; }
+    .hud-panel.warn { border-color: #ffb74d; }
+
+    /* Slider + botones extras (se mantienen en su lugar) */
+    #slider-container {
+      position: absolute;
+      top: 90px; /* sin cambios */
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 65;
+      background: rgba(14,18,24,0.6);
+      backdrop-filter: blur(12px);
+      border-radius: 30px;
+      padding: 6px 18px;
+      border: 1px solid rgba(79,195,247,0.15);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      pointer-events: auto;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    #slider-container label {
+      font-size: 11px;
+      color: #8e9aaf;
+      letter-spacing: 0.5px;
+    }
+    #slider-container input {
+      width: 100px;
+      accent-color: #4fc3f7;
+      background: #1a2a3a;
+      border-radius: 8px;
+      height: 4px;
+    }
+    #slider-container span {
+      font-size: 13px;
+      color: #4fc3f7;
+      font-weight: 500;
+      min-width: 35px;
+      text-align: center;
+    }
+    #slider-container .extra-btn {
+      background: rgba(79,195,247,0.15);
+      border: 1px solid rgba(79,195,247,0.3);
+      color: #c8d2e0;
+      padding: 4px 14px;
+      border-radius: 30px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    #slider-container .extra-btn:hover {
+      background: rgba(79,195,247,0.25);
+      border-color: #4fc3f7;
+      color: #fff;
+    }
+    #slider-container .extra-btn.active {
+      background: rgba(79,195,247,0.3);
+      border-color: #4fc3f7;
+      color: #4fc3f7;
+      box-shadow: 0 0 20px rgba(79,195,247,0.2);
+    }
+
+    /* Selector de idioma */
+    #lang-selector {
+      position: absolute;
+      top: 18px;
+      right: 24px;
+      z-index: 100;
+      display: flex;
+      gap: 6px;
+      background: rgba(10,12,16,0.6);
+      backdrop-filter: blur(6px);
+      padding: 6px 12px;
+      border-radius: 30px;
+      border: 1px solid rgba(79,195,247,0.15);
+    }
+    #lang-selector button {
+      background: transparent;
+      border: none;
+      color: #6a7a8e;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 2px 8px;
+      border-radius: 20px;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    #lang-selector button.active {
+      color: #4fc3f7;
+      background: rgba(79,195,247,0.1);
+    }
+    #lang-selector button:hover { color: #e8edf5; }
+
+    /* Botón AR */
+    #ar-btn {
+      position: absolute;
+      bottom: 160px;
+      right: 28px;
+      z-index: 70;
+      background: rgba(14,18,24,0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(79,195,247,0.25);
+      border-radius: 40px;
+      padding: 10px 20px;
+      color: #e8edf5;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: auto;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    #ar-btn:hover {
+      border-color: #4fc3f7;
+      background: rgba(79,195,247,0.1);
+      box-shadow: 0 0 30px rgba(79,195,247,0.05);
+    }
+    #ar-btn svg { width:20px; height:20px; fill:currentColor; }
+
+    /* IA overlay */
+    #ia-overlay {
+      position: absolute;
+      top: 80px;
+      right: 28px;
+      z-index: 40;
+      width: 200px;
+      background: rgba(14,18,24,0.5);
+      backdrop-filter: blur(8px);
+      border-radius: 16px;
+      padding: 14px 16px;
+      border: 1px solid rgba(79,195,247,0.1);
+      pointer-events: none;
+      display: none;
+    }
+    #ia-overlay .title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #6a7a8e;
+      margin-bottom: 6px;
+    }
+    #ia-overlay .node-status {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    #ia-overlay .node-status span {
+      background: rgba(79,195,247,0.1);
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 10px;
+      border: 1px solid rgba(79,195,247,0.1);
+    }
+
+    /* Panel de información de módulo */
+    #module-info {
+      position: absolute;
+      bottom: 160px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 80;
+      width: 90%;
+      max-width: 600px;
+      background: rgba(10,12,16,0.85);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(79,195,247,0.3);
+      border-radius: 20px;
+      padding: 20px 26px;
+      box-shadow: 0 16px 64px rgba(0,0,0,0.7);
+      display: none;
+      pointer-events: auto;
+      transition: opacity 0.3s;
+    }
+    #module-info h3 {
+      color: #4fc3f7;
+      font-weight: 500;
+      font-size: 18px;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+    #module-info .mod-desc {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #c8d2e0;
+      margin-top: 6px;
+    }
+    #module-info .mod-detail {
+      font-size: 13px;
+      color: #8e9aaf;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(79,195,247,0.1);
+      white-space: pre-wrap;
+    }
+    #module-info .mod-detail strong {
+      color: #4fc3f7;
+    }
+    #module-info .close-btn {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      background: none;
+      border: none;
+      color: #6a7a8e;
+      font-size: 22px;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    #module-info .close-btn:hover { color: #e8edf5; }
+
+    /* Loader */
+    #loader {
+      position: fixed;
+      inset: 0;
+      background: #0a0c10;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 20px;
+      transition: opacity 0.2s;
+    }
+    #loader .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid rgba(79,195,247,0.1);
+      border-top-color: #4fc3f7;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loader p { color: #6a7a8e; font-size:14px; letter-spacing:1px; }
+    #loader.hidden { opacity: 0; pointer-events: none; }
+
+    /* Controles de estado (sin cambios, quedan abajo) */
+    #controls {
+      position: absolute;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 60;
+      display: flex;
+      gap: 12px;
+      background: rgba(14,18,24,0.6);
+      backdrop-filter: blur(12px);
+      padding: 10px 18px;
+      border-radius: 40px;
+      border: 1px solid rgba(79,195,247,0.15);
+      pointer-events: auto;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    #controls button {
+      background: transparent;
+      border: 1px solid rgba(79,195,247,0.3);
+      color: #c8d2e0;
+      padding: 6px 16px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.2s;
+      backdrop-filter: blur(4px);
+      background: rgba(10,12,16,0.3);
+      font-family: inherit;
+    }
+    #controls button:hover {
+      background: rgba(79,195,247,0.15);
+      border-color: #4fc3f7;
+      color: #fff;
+      box-shadow: 0 0 20px rgba(79,195,247,0.1);
+    }
+    #controls button.active {
+      background: rgba(79,195,247,0.2);
+      border-color: #4fc3f7;
+      color: #4fc3f7;
+    }
+
+    /* Responsive */
+    @media (max-width: 700px) {
+      #hud-bottom { bottom:80px; left:12px; right:12px; gap:8px; }
+      #hud-top-right { top:70px; right:12px; gap:8px; }
+      #hud-top-left { top:70px; left:12px; gap:8px; }
+      #hud-top-center { top:20px; gap:6px; flex-wrap:wrap; }
+      #hud-top-center .hud-panel { min-width:80px; padding:6px 10px; }
+      #hud-top-center .hud-panel .value { font-size:15px; }
+      #hud-top-center .hud-panel .label { font-size:8px; }
+      .hud-panel { padding:8px 12px; min-width:80px; }
+      .hud-panel .value { font-size:16px; }
+      #controls { bottom:12px; padding:8px 12px; gap:6px; width:90%; }
+      #controls button { font-size:10px; padding:4px 12px; }
+      #info-top { font-size:11px; top:12px; left:12px; padding:4px 12px; }
+      #lang-selector { top:12px; right:12px; padding:4px 8px; }
+      #ar-btn { bottom:140px; right:12px; padding:8px 14px; font-size:11px; }
+      #module-info { bottom:140px; padding:16px; }
+      #slider-container { top:85px; padding:6px 12px; gap:8px; }
+      #slider-container input { width:80px; }
+      #slider-container label { font-size:10px; }
+      #slider-container .extra-btn { font-size:10px; padding:3px 10px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loader -->
+  <div id="loader"><div class="spinner"></div><p>Inicializando SPHA-Q</p></div>
+
+  <!-- Info superior -->
+  <div id="info-top"><strong>Dr. Julio César Oporta Barrera</strong> &nbsp;·&nbsp; SPHA-Q v1.0</div>
+
+  <!-- Selector de idioma -->
+  <div id="lang-selector">
+    <button data-lang="es" class="active">ES</button>
+    <button data-lang="en">EN</button>
+    <button data-lang="zh">中文</button>
+  </div>
+
+  <!-- HUD inferior (Estado y H2) -->
+  <div id="hud-bottom">
+    <div class="hud-panel highlight" data-key="state">
+      <div class="label" data-i18n="hud_state">Estado</div>
+      <div class="value" id="state-value">ÓPTIMO</div>
+      <div class="sub" id="state-sub">Modo Operación</div>
+    </div>
+    <div class="hud-panel" data-key="h2">
+      <div class="label" data-i18n="hud_h2">H₂ producido</div>
+      <div class="value"><span id="h2-value">3.2</span><span class="unit">g/min</span></div>
+      <div class="sub" id="h2-sub">Demanda: 2.8 g/min</div>
+    </div>
+  </div>
+
+  <!-- HUD superior derecha (Eficiencia y Temp) -->
+  <div id="hud-top-right">
+    <div class="hud-panel" data-key="efficiency" id="hud-efficiency">
+      <div class="label" data-i18n="hud_efficiency">Eficiencia</div>
+      <div class="value"><span id="eff-value">87.4</span><span class="unit">%</span></div>
+      <div class="sub" id="eff-sub">Electro-Foto-Térmico</div>
+    </div>
+    <div class="hud-panel" data-key="temp" id="hud-temp">
+      <div class="label" data-i18n="hud_temp">Temp. Stack</div>
+      <div class="value"><span id="temp-value">42</span><span class="unit">°C</span></div>
+      <div class="sub" id="temp-sub">Óptima</div>
+    </div>
+  </div>
+
+  <!-- HUD superior izquierda (Presión, Flujo, Carga, Pot. Láser) -->
+  <div id="hud-top-left">
+    <div class="hud-panel" data-key="pressure" id="hud-pressure">
+      <div class="label" data-i18n="hud_pressure">Presión</div>
+      <div class="value"><span id="pressure-value">3.2</span><span class="unit">bar</span></div>
+      <div class="sub" id="pressure-sub">Estable</div>
+    </div>
+    <div class="hud-panel" data-key="flow" id="hud-flow">
+      <div class="label" data-i18n="hud_flow">Flujo agua</div>
+      <div class="value"><span id="flow-value">0.8</span><span class="unit">L/min</span></div>
+      <div class="sub" id="flow-sub">Nominal</div>
+    </div>
+    <div class="hud-panel" data-key="battery" id="hud-battery">
+      <div class="label" data-i18n="hud_battery">Carga</div>
+      <div class="value"><span id="battery-value">78</span><span class="unit">%</span></div>
+      <div class="sub" id="battery-sub">En uso</div>
+    </div>
+    <div class="hud-panel" data-key="laser-power" id="hud-laserpower">
+      <div class="label" data-i18n="hud_laser">Pot. Láser</div>
+      <div class="value"><span id="laser-value">1.2</span><span class="unit">W</span></div>
+      <div class="sub" id="laser-sub">Modulado</div>
+    </div>
+  </div>
+
+  <!-- HUD superior central (4 paneles en horizontal) – ahora más arriba -->
+  <div id="hud-top-center">
+    <div class="hud-panel" data-key="overpotential" id="hud-overpotential">
+      <div class="label" data-i18n="hud_overpotential">Reducción Sobrepotencial</div>
+      <div class="value"><span id="overpotential-value">16.2</span><span class="unit">%</span></div>
+      <div class="sub" id="overpotential-sub">Objetivo ≥15%</div>
+    </div>
+    <div class="hud-panel" data-key="recovery" id="hud-recovery">
+      <div class="label" data-i18n="hud_recovery">Recuperación Energética</div>
+      <div class="value"><span id="recovery-value">5.4</span><span class="unit">%</span></div>
+      <div class="sub" id="recovery-sub">Objetivo ≥5%</div>
+    </div>
+    <div class="hud-panel" data-key="h2-storage" id="hud-h2storage">
+      <div class="label" data-i18n="hud_h2storage">Nivel H₂ almacenado</div>
+      <div class="value"><span id="h2storage-value">67</span><span class="unit">%</span></div>
+      <div class="sub" id="h2storage-sub">Capacidad 5 kg</div>
+    </div>
+    <div class="hud-panel" data-key="catalyst" id="hud-catalyst">
+      <div class="label" data-i18n="hud_catalyst">Estado Catalizador</div>
+      <div class="value"><span id="catalyst-value">92</span><span class="unit">%</span></div>
+      <div class="sub" id="catalyst-sub">Actividad óptima</div>
+    </div>
+  </div>
+
+  <!-- Panel de información del módulo -->
+  <div id="module-info">
+    <button class="close-btn" id="info-close">✕</button>
+    <h3 id="info-title">Módulo</h3>
+    <div class="mod-desc" id="info-desc">Descripción</div>
+    <div class="mod-detail" id="info-detail">Detalle técnico</div>
+  </div>
+
+  <!-- IA overlay -->
+  <div id="ia-overlay">
+    <div class="title" id="ia-title">Sistema IA · Nodos Activos</div>
+    <div class="node-status">
+      <span id="tag-pred" style="border-color:#4fc3f7;">Predicción</span>
+      <span id="tag-mpc" style="border-color:#4fc3f7;">MPC</span>
+      <span id="tag-gemelo">Gemelo</span>
+      <span id="tag-aprendizaje" style="border-color:#ffb74d;">Aprendizaje</span>
+    </div>
+  </div>
+
+  <!-- AR button -->
+  <button id="ar-btn">
+    <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM4 6h16v12H4V6zm1 2v8h2V8H5zm3 0v8h2V8H8zm3 0v8h2V8h-2zm3 0v8h2V8h-2zm3 0v8h2V8h-2z"/></svg>
+    Realidad Aumentada
+  </button>
+
+  <!-- Slider + botones extras (se mantienen en su lugar) -->
+  <div id="slider-container">
+    <label data-i18n="slider_label">Potencia Láser</label>
+    <input type="range" id="laser-slider" min="0" max="100" value="60" />
+    <span id="slider-value">60%</span>
+
+    <label data-i18n="temp_label">Temp. Operación</label>
+    <input type="range" id="temp-slider" min="20" max="80" value="45" />
+    <span id="temp-slider-value">45°C</span>
+
+    <button id="eco-btn" class="extra-btn">Modo Eco</button>
+    <button id="rotate-btn" class="extra-btn">Rotar</button>
+  </div>
+
+  <!-- Controles de estado (abajo, sin cambios) -->
+  <div id="controls">
+    <button data-state="reposo" data-i18n-btn="reposo">Reposo</button>
+    <button data-state="operacion" class="active" data-i18n-btn="operacion">Operación</button>
+    <button data-state="diagnostico" data-i18n-btn="diagnostico">Diagnóstico</button>
+    <button data-state="simulacion" data-i18n-btn="simulacion">Simulación</button>
+    <button data-state="optimizacion" data-i18n-btn="optimizacion">Optimización</button>
+    <button data-state="emergencia" data-i18n-btn="emergencia">Emergencia</button>
+    <button data-state="mantenimiento" data-i18n-btn="mantenimiento">Mantenimiento</button>
+    <button data-state="ia" data-i18n-btn="ia">IA</button>
+  </div>
+
+  <!-- Contenedor Three.js -->
+  <div id="canvas-container" style="position:fixed;inset:0;z-index:1;"></div>
+
+  <!-- Import maps y módulos -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    // ============================================================
+    //  SPHA-Q PROTOTIPO 3D – CON NUEVOS MÓDULOS, HUD, ESTADO E INTERACCIONES
+    // ============================================================
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+    // ---- Traducciones (con nuevas entradas) ----
+    const i18n = {
+      es: {
+        hud_state: 'Estado',
+        hud_efficiency: 'Eficiencia',
+        hud_temp: 'Temp. Stack',
+        hud_h2: 'H₂ producido',
+        hud_pressure: 'Presión',
+        hud_flow: 'Flujo agua',
+        hud_battery: 'Carga',
+        hud_laser: 'Pot. Láser',
+        hud_overpotential: 'Reducción Sobrepotencial',
+        hud_recovery: 'Recuperación Energética',
+        hud_h2storage: 'Nivel H₂ almacenado',
+        hud_catalyst: 'Estado Catalizador',
+        slider_label: 'Potencia Láser',
+        temp_label: 'Temp. Operación',
+        states: {
+          reposo: 'Reposo',
+          operacion: 'Operación',
+          diagnostico: 'Diagnóstico',
+          simulacion: 'Simulación',
+          optimizacion: 'Optimización',
+          emergencia: 'Emergencia',
+          mantenimiento: 'Mantenimiento',
+          ia: 'IA'
+        },
+        subs: {
+          reposo: 'Sistema en espera',
+          operacion: 'Modo Operación',
+          diagnostico: 'Análisis activo',
+          simulacion: 'Simulación energética',
+          optimizacion: 'Ajuste de parámetros',
+          emergencia: 'Protocolo seguro',
+          mantenimiento: 'Regeneración catalítica',
+          ia: 'IA predictiva'
+        },
+        controls: {
+          reposo: 'Reposo',
+          operacion: 'Operación',
+          diagnostico: 'Diagnóstico',
+          simulacion: 'Simulación',
+          optimizacion: 'Optimización',
+          emergencia: 'Emergencia',
+          mantenimiento: 'Mantenimiento',
+          ia: 'IA'
+        },
+        modules: {
+          agua: {
+            title: 'Módulo 1 · Depósito de Agua y Nanopurificación',
+            desc: 'Almacenamiento y nanopurificación mediante ósmosis inversa de grafeno.',
+            detail: '• Capacidad: 12 L (moto) / 45 L (vehículo)\n• Pureza: ≥99.999% (calidad semiconductor)\n• Flujo: 1.2 L/min\n• Compatible con agua potable, salobre o lluvia'
+          },
+          bateria: {
+            title: 'Módulo 2 · Fuente de Energía Primaria Inteligente',
+            desc: 'Batería estructural de Li-ion + supercondensador de grafeno para picos de corriente.',
+            detail: '• Capacidad: 3.2 kWh (moto) / 18 kWh (vehículo)\n• Pico de corriente: 120 A (moto) / 400 A (vehículo)\n• Vida útil: ≥2.000 ciclos (moto) / ≥3.500 (vehículo)\n• Gestión térmica: PCM + ventilación/refrigeración líquida'
+          },
+          nucleo: {
+            title: 'Módulo 3A · Núcleo Cuántico (Electrólisis Plasmónica)',
+            desc: 'Disociación del agua asistida por resonancia plasmónica (Au/Ag@808 nm).',
+            detail: '• Celdas: 12 (moto) / 48 (vehículo)\n• Voltaje por celda: 1.4 V (con asistencia fotónica)\n• Corriente por celda: 5 A\n• Temperatura operativa: 35-45°C\n• Eficiencia de disociación: ≥85%'
+          },
+          laser: {
+            title: 'Módulo 3B · Gatillo Fotónico',
+            desc: 'Banco de láseres de diodo (808 nm) que activan la resonancia plasmónica.',
+            detail: '• Tipo: Diodo de estado sólido (GaAs)\n• Longitud de onda: 808 nm ±5 nm\n• Potencia por láser: 1.5 W\n• Número: 12 (moto) / 48 (vehículo)\n• Modulación: PWM sincronizado con ECU'
+          },
+          recuperacion: {
+            title: 'Módulo 4 · Recuperación de Energía por Fonones',
+            desc: 'Conversión termoeléctrica (Quantum Well) del calor residual en electricidad.',
+            detail: '• Pila de combustible: PEM integrada con electrolizador\n• Potencia nominal: 1.2 kW (moto) / 6 kW (vehículo)\n• Material termoeléctrico: Bi₂Te₃/Te (Quantum Well)\n• Recuperación térmica: ≥5% del calor residual\n• Salida auxiliar: 12 V / 5 A'
+          },
+          ecu: {
+            title: 'Módulo 5 · ECU Predictiva (IA)',
+            desc: 'Control predictivo multivariable con gemelo digital y MPC.',
+            detail: '• Algoritmo: MPC con IA adaptativa\n• Gemelo digital: simulación en tiempo real a 20 Hz\n• Predicción de demanda: 3-5 segundos\n• Precisión: ≥95% (RMSE ≤0.03)\n• Ahorro energético: ≥10% frente a control reactivo'
+          },
+          nanopurificacion: {
+            title: 'Módulo 6 · Nanopurificación',
+            desc: 'Sistema de filtración por ósmosis inversa con membrana de grafeno.',
+            detail: '• Membrana: grafeno con poros atómicos\n• Elimina partículas a escala atómica\n• Calidad de agua: tipo semiconductor\n• Compatible con diversas fuentes de agua'
+          },
+          fuelcell: {
+            title: 'Módulo 7 · Pila de Combustible',
+            desc: 'Pila PEM integrada que convierte H₂ en electricidad y recupera calor.',
+            detail: '• Potencia nominal: 1.2 kW (moto) / 6 kW (vehículo)\n• Integrada con termoeléctricos\n• Recuperación de calor para sistemas auxiliares'
+          },
+          termal: {
+            title: 'Módulo 8 · Gestión Térmica Avanzada',
+            desc: 'Sistema de control de temperatura con intercambiadores y bomba de calor.',
+            detail: '• Rango operativo: 20-80°C\n• Intercambiador de placas de titanio\n• Bomba de calor termoeléctrica\n• Eficiencia de transferencia ≥92%'
+          },
+          almacen: {
+            title: 'Módulo 9 · Almacenamiento de Hidrógeno',
+            desc: 'Tanques de hidrógeno de alta presión con materiales adsorbentes.',
+            detail: '• Capacidad: 5 kg (moto) / 20 kg (vehículo)\n• Presión de trabajo: 700 bar\n• Material: compuesto de carbono tipo IV\n• Seguridad: válvulas de alivio y sensores de fuga'
+          },
+          ia: {
+            title: 'Sistema IA · Red Neuronal',
+            desc: 'Red neuronal artificial que ejecuta el control predictivo (MPC) y el gemelo digital.',
+            detail: '• Procesa: GPS, aceleración, temperatura, flujo de H₂\n• Predice demanda energética con >95% de precisión\n• Optimización multivariable (corriente, láser, térmica)\n• Tolerancia a fallos: hasta 2 variables faltantes'
+          }
+        },
+        ia_overlay: {
+          title: 'Sistema IA · Nodos Activos',
+          tags: ['Predicción', 'MPC', 'Gemelo', 'Aprendizaje']
+        }
+      },
+      en: {
+        hud_state: 'State',
+        hud_efficiency: 'Efficiency',
+        hud_temp: 'Stack Temp',
+        hud_h2: 'H₂ produced',
+        hud_pressure: 'Pressure',
+        hud_flow: 'Water flow',
+        hud_battery: 'Charge',
+        hud_laser: 'Laser Power',
+        hud_overpotential: 'Overpotential Reduction',
+        hud_recovery: 'Energy Recovery',
+        hud_h2storage: 'H₂ Storage Level',
+        hud_catalyst: 'Catalyst Status',
+        slider_label: 'Laser Power',
+        temp_label: 'Operation Temp',
+        states: {
+          reposo: 'Idle',
+          operacion: 'Operation',
+          diagnostico: 'Diagnostic',
+          simulacion: 'Simulation',
+          optimizacion: 'Optimization',
+          emergencia: 'Emergency',
+          mantenimiento: 'Maintenance',
+          ia: 'AI'
+        },
+        subs: {
+          reposo: 'System standby',
+          operacion: 'Operation Mode',
+          diagnostico: 'Active analysis',
+          simulacion: 'Energy simulation',
+          optimizacion: 'Parameter tuning',
+          emergencia: 'Safety protocol',
+          mantenimiento: 'Catalytic regeneration',
+          ia: 'Predictive AI'
+        },
+        controls: {
+          reposo: 'Idle',
+          operacion: 'Operation',
+          diagnostico: 'Diagnostic',
+          simulacion: 'Simulation',
+          optimizacion: 'Optimization',
+          emergencia: 'Emergency',
+          mantenimiento: 'Maintenance',
+          ia: 'AI'
+        },
+        modules: {
+          agua: {
+            title: 'Module 1 · Water Tank & Nanopurification',
+            desc: 'Storage and nanopurification using graphene reverse osmosis.',
+            detail: '• Capacity: 12 L (moto) / 45 L (vehicle)\n• Purity: ≥99.999% (semiconductor grade)\n• Flow rate: 1.2 L/min\n• Compatible with potable, brackish or rainwater'
+          },
+          bateria: {
+            title: 'Module 2 · Smart Power Source',
+            desc: 'Structural Li-ion battery + graphene supercapacitor for current peaks.',
+            detail: '• Capacity: 3.2 kWh (moto) / 18 kWh (vehicle)\n• Peak current: 120 A (moto) / 400 A (vehicle)\n• Cycle life: ≥2,000 (moto) / ≥3,500 (vehicle)\n• Thermal management: PCM + forced air / liquid cooling'
+          },
+          nucleo: {
+            title: 'Module 3A · Quantum Core (Plasmonic Electrolysis)',
+            desc: 'Water dissociation assisted by plasmonic resonance (Au/Ag@808 nm).',
+            detail: '• Cells: 12 (moto) / 48 (vehicle)\n• Voltage per cell: 1.4 V (with photonic assistance)\n• Current per cell: 5 A\n• Operating temp: 35-45°C\n• Dissociation efficiency: ≥85%'
+          },
+          laser: {
+            title: 'Module 3B · Photonic Trigger',
+            desc: 'Diode laser bank (808 nm) that activates plasmonic resonance.',
+            detail: '• Type: Solid-state diode (GaAs)\n• Wavelength: 808 nm ±5 nm\n• Power per laser: 1.5 W\n• Count: 12 (moto) / 48 (vehicle)\n• Modulation: PWM synchronized with ECU'
+          },
+          recuperacion: {
+            title: 'Module 4 · Phonon Energy Recovery',
+            desc: 'Thermoelectric conversion (Quantum Well) of waste heat into electricity.',
+            detail: '• Fuel cell: PEM integrated with electrolyzer\n• Rated power: 1.2 kW (moto) / 6 kW (vehicle)\n• Thermoelectric material: Bi₂Te₃/Te (Quantum Well)\n• Thermal recovery: ≥5% of waste heat\n• Auxiliary output: 12 V / 5 A'
+          },
+          ecu: {
+            title: 'Module 5 · Predictive ECU (AI)',
+            desc: 'Multivariable predictive control with digital twin and MPC.',
+            detail: '• Algorithm: MPC with adaptive AI\n• Digital twin: real-time simulation at 20 Hz\n• Demand prediction: 3-5 seconds ahead\n• Accuracy: ≥95% (RMSE ≤0.03)\n• Energy savings: ≥10% vs reactive control'
+          },
+          nanopurificacion: {
+            title: 'Module 6 · Nanopurification',
+            desc: 'Reverse osmosis filtration system with graphene membrane.',
+            detail: '• Membrane: graphene with atomic pores\n• Removes atomic-scale particles\n• Water quality: semiconductor grade\n• Compatible with various water sources'
+          },
+          fuelcell: {
+            title: 'Module 7 · Fuel Cell',
+            desc: 'Integrated PEM fuel cell that converts H₂ to electricity and recovers heat.',
+            detail: '• Rated power: 1.2 kW (moto) / 6 kW (vehicle)\n• Integrated with thermoelectrics\n• Heat recovery for auxiliary systems'
+          },
+          termal: {
+            title: 'Module 8 · Advanced Thermal Management',
+            desc: 'Temperature control system with exchangers and heat pump.',
+            detail: '• Operating range: 20-80°C\n• Titanium plate heat exchanger\n• Thermoelectric heat pump\n• Transfer efficiency ≥92%'
+          },
+          almacen: {
+            title: 'Module 9 · Hydrogen Storage',
+            desc: 'High-pressure hydrogen tanks with adsorbent materials.',
+            detail: '• Capacity: 5 kg (moto) / 20 kg (vehicle)\n• Working pressure: 700 bar\n• Material: type IV carbon composite\n• Safety: relief valves and leak sensors'
+          },
+          ia: {
+            title: 'AI System · Neural Network',
+            desc: 'Artificial neural network that executes predictive control (MPC) and digital twin.',
+            detail: '• Processes: GPS, acceleration, temperature, H₂ flow\n• Predicts energy demand with >95% accuracy\n• Multivariable optimization (current, laser, thermal)\n• Fault tolerance: up to 2 missing variables'
+          }
+        },
+        ia_overlay: {
+          title: 'AI System · Active Nodes',
+          tags: ['Prediction', 'MPC', 'Twin', 'Learning']
+        }
+      },
+      zh: {
+        hud_state: '状态',
+        hud_efficiency: '效率',
+        hud_temp: '堆栈温度',
+        hud_h2: 'H₂ 产量',
+        hud_pressure: '压力',
+        hud_flow: '水流量',
+        hud_battery: '电量',
+        hud_laser: '激光功率',
+        hud_overpotential: '过电位降低',
+        hud_recovery: '能量回收',
+        hud_h2storage: '储氢量',
+        hud_catalyst: '催化剂状态',
+        slider_label: '激光功率',
+        temp_label: '操作温度',
+        states: {
+          reposo: '待机',
+          operacion: '运行',
+          diagnostico: '诊断',
+          simulacion: '模拟',
+          optimizacion: '优化',
+          emergencia: '紧急',
+          mantenimiento: '维护',
+          ia: '人工智能'
+        },
+        subs: {
+          reposo: '系统待机',
+          operacion: '运行模式',
+          diagnostico: '主动分析',
+          simulacion: '能量模拟',
+          optimizacion: '参数调整',
+          emergencia: '安全协议',
+          mantenimiento: '催化剂再生',
+          ia: '预测性AI'
+        },
+        controls: {
+          reposo: '待机',
+          operacion: '运行',
+          diagnostico: '诊断',
+          simulacion: '模拟',
+          optimizacion: '优化',
+          emergencia: '紧急',
+          mantenimiento: '维护',
+          ia: '人工智能'
+        },
+        modules: {
+          agua: {
+            title: '模块 1 · 水箱与纳米纯化',
+            desc: '通过石墨烯反渗透进行储存和纳米纯化。',
+            detail: '• 容量：12 升（摩托车）/ 45 升（车辆）\n• 纯度：≥99.999%（半导体级）\n• 流量：1.2 升/分钟\n• 兼容饮用水、苦咸水或雨水'
+          },
+          bateria: {
+            title: '模块 2 · 智能能源',
+            desc: '结构锂离子电池 + 石墨烯超级电容器，用于峰值电流。',
+            detail: '• 容量：3.2 千瓦时（摩托车）/ 18 千瓦时（车辆）\n• 峰值电流：120 A（摩托车）/ 400 A（车辆）\n• 循环寿命：≥2,000（摩托车）/ ≥3,500（车辆）\n• 热管理：PCM + 强制风冷/液冷'
+          },
+          nucleo: {
+            title: '模块 3A · 量子核心（等离子体电解）',
+            desc: '通过等离子体共振（Au/Ag@808 nm）辅助水分解。',
+            detail: '• 电池数：12（摩托车）/ 48（车辆）\n• 每节电压：1.4 V（光子辅助）\n• 每节电流：5 A\n• 工作温度：35-45°C\n• 分解效率：≥85%'
+          },
+          laser: {
+            title: '模块 3B · 光子触发器',
+            desc: '二极管激光器组（808 nm）激活等离子体共振。',
+            detail: '• 类型：固态二极管（GaAs）\n• 波长：808 nm ±5 nm\n• 每激光器功率：1.5 W\n• 数量：12（摩托车）/ 48（车辆）\n• 调制：PWM 与 ECU 同步'
+          },
+          recuperacion: {
+            title: '模块 4 · 声子能量回收',
+            desc: '热电转换（量子阱）将废热转化为电能。',
+            detail: '• 燃料电池：PEM 与电解槽集成\n• 额定功率：1.2 kW（摩托车）/ 6 kW（车辆）\n• 热电材料：Bi₂Te₃/Te（量子阱）\n• 热回收：≥5% 的废热\n• 辅助输出：12 V / 5 A'
+          },
+          ecu: {
+            title: '模块 5 · 预测性 ECU（人工智能）',
+            desc: '具有数字孪生和 MPC 的多变量预测控制。',
+            detail: '• 算法：MPC 与自适应 AI\n• 数字孪生：实时仿真，20 Hz\n• 需求预测：提前 3-5 秒\n• 准确率：≥95%（RMSE ≤0.03）\n• 节能：相比反应式控制 ≥10%'
+          },
+          nanopurificacion: {
+            title: '模块 6 · 纳米纯化',
+            desc: '采用石墨烯膜的反渗透过滤系统。',
+            detail: '• 膜：石墨烯，原子级孔隙\n• 去除原子级颗粒\n• 水质：半导体级\n• 兼容多种水源'
+          },
+          fuelcell: {
+            title: '模块 7 · 燃料电池',
+            desc: '集成式 PEM 燃料电池，将 H₂ 转化为电能并回收热量。',
+            detail: '• 额定功率：1.2 kW（摩托车）/ 6 kW（车辆）\n• 与热电模块集成\n• 为辅助系统回收热量'
+          },
+          termal: {
+            title: '模块 8 · 先进热管理',
+            desc: '带换热器和热泵的温度控制系统。',
+            detail: '• 工作范围：20-80°C\n• 钛板换热器\n• 热电热泵\n• 传热效率 ≥92%'
+          },
+          almacen: {
+            title: '模块 9 · 储氢',
+            desc: '带吸附材料的高压储氢罐。',
+            detail: '• 容量：5 千克（摩托车）/ 20 千克（车辆）\n• 工作压力：700 bar\n• 材料：IV 型碳复合材料\n• 安全：泄压阀和泄漏传感器'
+          },
+          ia: {
+            title: '人工智能系统 · 神经网络',
+            desc: '执行预测控制（MPC）和数字孪生的人工神经网络。',
+            detail: '• 处理：GPS、加速度、温度、H₂ 流量\n• 能量需求预测准确率 >95%\n• 多变量优化（电流、激光、热）\n• 容错：最多 2 个缺失变量'
+          }
+        },
+        ia_overlay: {
+          title: '人工智能系统 · 活动节点',
+          tags: ['预测', 'MPC', '孪生', '学习']
+        }
+      }
+    };
+
+    let lang = 'es';
+    let currentModuleKey = null;
+    let laserPower = 60;
+    let tempOper = 45;
+    let ecoMode = false;
+    let autoRotate = false;
+
+    // ---- DOM ----
+    const loader = document.getElementById('loader');
+    const stateEl = document.getElementById('state-value');
+    const stateSub = document.getElementById('state-sub');
+    const effVal = document.getElementById('eff-value');
+    const tempVal = document.getElementById('temp-value');
+    const h2Val = document.getElementById('h2-value');
+    const pressureVal = document.getElementById('pressure-value');
+    const flowVal = document.getElementById('flow-value');
+    const batteryVal = document.getElementById('battery-value');
+    const laserVal = document.getElementById('laser-value');
+    const overpotentialVal = document.getElementById('overpotential-value');
+    const recoveryVal = document.getElementById('recovery-value');
+    const h2storageVal = document.getElementById('h2storage-value');
+    const catalystVal = document.getElementById('catalyst-value');
+    const langBtns = document.querySelectorAll('#lang-selector button');
+    const stateBtns = document.querySelectorAll('#controls button');
+    const arBtn = document.getElementById('ar-btn');
+    const iaOverlay = document.getElementById('ia-overlay');
+    const infoPanel = document.getElementById('module-info');
+    const infoTitle = document.getElementById('info-title');
+    const infoDesc = document.getElementById('info-desc');
+    const infoDetail = document.getElementById('info-detail');
+    const infoClose = document.getElementById('info-close');
+    const hudEfficiency = document.getElementById('hud-efficiency');
+    const hudTemp = document.getElementById('hud-temp');
+    const hudPressure = document.getElementById('hud-pressure');
+    const hudFlow = document.getElementById('hud-flow');
+    const hudBattery = document.getElementById('hud-battery');
+    const hudLaserPower = document.getElementById('hud-laserpower');
+    const hudOverpotential = document.getElementById('hud-overpotential');
+    const hudRecovery = document.getElementById('hud-recovery');
+    const hudH2Storage = document.getElementById('hud-h2storage');
+    const hudCatalyst = document.getElementById('hud-catalyst');
+    const iaTitle = document.getElementById('ia-title');
+    const tagPred = document.getElementById('tag-pred');
+    const tagMpc = document.getElementById('tag-mpc');
+    const tagGemelo = document.getElementById('tag-gemelo');
+    const tagAprendizaje = document.getElementById('tag-aprendizaje');
+    const laserSlider = document.getElementById('laser-slider');
+    const sliderValue = document.getElementById('slider-value');
+    const tempSlider = document.getElementById('temp-slider');
+    const tempSliderValue = document.getElementById('temp-slider-value');
+    const ecoBtn = document.getElementById('eco-btn');
+    const rotateBtn = document.getElementById('rotate-btn');
+
+    // ---- Escena Three.js ----
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0c10);
+    scene.fog = new THREE.Fog(0x0a0c10, 15, 30);
+
+    const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 0.1, 50);
+    camera.position.set(7, 5, 12);
+    camera.lookAt(0, 0.5, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    container.appendChild(renderer.domElement);
+
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0';
+    labelRenderer.domElement.style.left = '0';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    container.appendChild(labelRenderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.rotateSpeed = 0.8;
+    controls.zoomSpeed = 1.0;
+    controls.minDistance = 4;
+    controls.maxDistance = 25;
+    controls.target.set(0, 0.5, 0);
+    controls.autoRotate = false;
+    controls.autoRotateSpeed = 2.0;
+    controls.update();
+
+    // ---- Luces ----
+    const ambientLight = new THREE.AmbientLight(0x223344, 0.6);
+    scene.add(ambientLight);
+    const mainLight = new THREE.DirectionalLight(0xffeedd, 2.8);
+    mainLight.position.set(5, 8, 6);
+    mainLight.castShadow = true;
+    mainLight.shadow.mapSize.width = 1024;
+    mainLight.shadow.mapSize.height = 1024;
+    mainLight.shadow.normalBias = 0.02;
+    scene.add(mainLight);
+    const fillLight = new THREE.DirectionalLight(0x4fc3f7, 0.6);
+    fillLight.position.set(-4, 2, -3);
+    scene.add(fillLight);
+    const rimLight = new THREE.DirectionalLight(0x88aaff, 0.4);
+    rimLight.position.set(-2, 1, 5);
+    scene.add(rimLight);
+    const pointLight = new THREE.PointLight(0x4fc3f7, 0.3, 8);
+    pointLight.position.set(0, 3, 2);
+    scene.add(pointLight);
+
+    // ---- Suelo ----
+    const groundGeo = new THREE.PlaneGeometry(16, 16);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x14181f, roughness: 0.8, metalness: 0.2, transparent: true, opacity: 0.6 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.45;
+    ground.receiveShadow = true;
+    scene.add(ground);
+    const gridHelper = new THREE.GridHelper(14, 24, 0x4fc3f7, 0x1a2a3a);
+    gridHelper.position.y = -0.4;
+    scene.add(gridHelper);
+
+    // ---- Módulos SPHA-Q (incluyendo dos nuevos) ----
+    const modulesGroup = new THREE.Group();
+    scene.add(modulesGroup);
+
+    const matTitanium = new THREE.MeshStandardMaterial({ color: 0x8899aa, metalness: 0.8, roughness: 0.3 });
+    const matTitaniumDark = new THREE.MeshStandardMaterial({ color: 0x4a5566, metalness: 0.7, roughness: 0.4 });
+    const matCarbon = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, metalness: 0.2, roughness: 0.7 });
+    const matGlass = new THREE.MeshStandardMaterial({ color: 0x88ccff, metalness: 0.0, roughness: 0.05, transparent: true, opacity: 0.35, envMapIntensity: 0.6 });
+    const matCyan = new THREE.MeshStandardMaterial({ color: 0x4fc3f7, emissive: 0x4fc3f7, emissiveIntensity: 0.15, metalness: 0.3, roughness: 0.2 });
+    const matGold = new THREE.MeshStandardMaterial({ color: 0xffaa33, metalness: 0.7, roughness: 0.25, emissive: 0xff8800, emissiveIntensity: 0.05 });
+
+    const clickableMeshes = [];
+
+    // 1. Depósito de agua
+    const tankGroup = new THREE.Group();
+    tankGroup.position.set(-2.5, 0.1, -1.5);
+    tankGroup.userData = { moduleKey: 'agua' };
+    const tankCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 1.1, 32), matGlass);
+    tankCyl.castShadow = true;
+    tankGroup.add(tankCyl);
+    const ringMat = new THREE.MeshStandardMaterial({ color: 0x7a8a9a, metalness: 0.6, roughness: 0.4 });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.78, 0.035, 16, 32), ringMat);
+    ring.position.y = 0.55; ring.rotation.x = Math.PI/2;
+    tankGroup.add(ring);
+    const ring2 = ring.clone(); ring2.position.y = -0.55; tankGroup.add(ring2);
+    const waterMat = new THREE.MeshPhysicalMaterial({ color: 0x2a7a9a, transparent: true, opacity: 0.5, roughness: 0.1, metalness: 0.0, envMapIntensity: 0.3 });
+    const water = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.7, 24), waterMat);
+    water.position.y = -0.1;
+    tankGroup.add(water);
+    modulesGroup.add(tankGroup);
+    tankGroup.children.forEach(child => { if (child.isMesh) clickableMeshes.push(child); });
+
+    // 2. Batería
+    const battGroup = new THREE.Group();
+    battGroup.position.set(2.8, 0.1, -1.2);
+    battGroup.userData = { moduleKey: 'bateria' };
+    const battBox = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 0.9), matTitaniumDark);
+    battBox.castShadow = true;
+    battGroup.add(battBox);
+    const detailMat = new THREE.MeshStandardMaterial({ color: 0x3a4a5a, metalness: 0.5, roughness: 0.4 });
+    for (let i = -0.4; i <= 0.4; i += 0.4) {
+      const rib = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.5, 0.8), detailMat);
+      rib.position.set(i, 0, 0);
+      battGroup.add(rib);
+    }
+    const ledMat = new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 0.5 });
+    const led = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), ledMat);
+    led.position.set(0.4, 0.25, 0.46);
+    battGroup.add(led);
+    modulesGroup.add(battGroup);
+    battGroup.children.forEach(child => { if (child.isMesh) clickableMeshes.push(child); });
+
+    // 3. Stack (Núcleo Cuántico)
+    const stackGroup = new THREE.Group();
+    stackGroup.position.set(0.0, 0.1, 0.0);
+    stackGroup.userData = { moduleKey: 'nucleo' };
+    const baseStack = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.4, 1.2), matTitaniumDark);
+    baseStack.castShadow = true;
+    stackGroup.add(baseStack);
+    const layerMat = new THREE.MeshStandardMaterial({ color: 0x5a6a7a, metalness: 0.7, roughness: 0.3 });
+    for (let i = 0; i < 4; i++) {
+      const layer = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.08, 1.0), layerMat);
+      layer.position.y = 0.2 + i * 0.12;
+      layer.castShadow = true;
+      stackGroup.add(layer);
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.02, 1.05), matCyan);
+      edge.position.y = 0.2 + i * 0.12;
+      edge.material = matCyan.clone();
+      edge.material.emissiveIntensity = 0.1;
+      stackGroup.add(edge);
+    }
+    const topMat = new THREE.MeshStandardMaterial({ color: 0x3a4a5a, metalness: 0.6, roughness: 0.3 });
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 1.1), topMat);
+    top.position.y = 0.7;
+    stackGroup.add(top);
+    const dotMat = new THREE.MeshStandardMaterial({ color: 0xff5500, emissive: 0xff4400, emissiveIntensity: 0.3 });
+    for (let x = -0.6; x <= 0.6; x += 0.3) {
+      for (let z = -0.4; z <= 0.4; z += 0.3) {
+        const dot = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), dotMat);
+        dot.position.set(x, 0.75, z);
+        stackGroup.add(dot);
+      }
+    }
+    modulesGroup.add(stackGroup);
+    stackGroup.children.forEach(child => { if (child.isMesh) clickableMeshes.push(child); });
+
+    // 4. Laser (Gatillo Fotónico)
+    const laserGroup = new THREE.Group();
+    laserGroup.position.set(1.8, 0.1, 1.8);
+    laserGroup.userData = { moduleKey: 'laser' };
+    const laserBox = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 0.6), matTitanium);
+    laserBox.castShadow = true;
+    laserGroup.add(laserBox);
+    const emitterMat = new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0xff2200, emissiveIntensity: 0.6 });
+    for (let i = -0.25; i <= 0.25; i += 0.25) {
+      const emitter = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.1, 8), emitterMat);
+      emitter.position.set(i, 0.2, 0.35);
+      emitter.rotation.x = Math.PI/2;
+      laserGroup.add(emitter);
+    }
+    const rayMat = new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xff2200, transparent: true, opacity: 0.3 });
+    for (let i = -0.25; i <= 0.25; i += 0.25) {
+      const ray = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 6), rayMat);
+      ray.position.set(i, 0.2, 0.7);
+      ray.rotation.x = Math.PI/2;
+      laserGroup.add(ray);
+    }
+    modulesGroup.add(laserGroup);
+    laserGroup.children.forEach(child => { if (child.isMesh) clickableMeshes.push(child); });
+
+    // 5. Recuperación (Módulo 4)
+    const tecGroup = new THREE.Group();
+    tecGroup.position.set(-1.8, 0.1, 2.2);
+    tecGroup.userData = { moduleKey: 'recuperacion' };
+    const tecBase = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.2, 0.7), matTitaniumDark);
+    tecBase.castShadow = true;
+    tecGroup.add(tecBase);
+    const tecLayerMat = new THREE.MeshStandardMaterial({ color: 0x88aacc, metalness: 0.4, roughness: 0.3 });
+    for (let i = 0; i < 3; i++) {
+      const layer = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.04, 0.5), tecLayerMat);
+      layer.position.y = 0.12 + i * 0.06;
+      tecGroup.add(layer);
+    }
+    modulesGroup.add(tecGroup);
+    tecGroup.children.forEach(child => { if (child.isMesh) clickableMeshes.push(child); });
+
+    // 6. ECU (Módulo 5)
+    const ecuGroup = new THREE.Group();
+    ecuGroup.position.set(-1.2, 0.1, -2.2);
+    ecuGroup.userData = { moduleKey: 'ecu' };
+    const ecuBox = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.35, 0.7), matCarbon);
+    ecuBox.castShadow = true;
+    ecuGroup.add(ecuBox);
+    const screenMat = new THREE.MeshStandardMaterial({ color: 0x001122, emissive: 0x004466, emissiveIntensity: 0.2 });
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.2), screenMat);
+    screen.position.set(0, 0.1, 0.36);
+    ecuGroup.add(screen);
+    const ledColors = [0x00ff88, 0x4fc3f7, 0xffaa44];
+    for (let i = 0; i < 3; i++) {
+      const l = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6),
+        new THREE.MeshStandardMaterial({ color: ledColors[i], emissive: ledColors[i], emissiveIntensity: 0.5 }));
+      l.position.set(-0.25 + i * 0.25, 0.18, 0.36);
+      ecuGroup.add(l);
+    }
+    modulesGroup.add(ecuGroup);
+    ecuGroup.children.forEach(child => { if (child.isMesh) clickableMeshes.push(child); });
+
+    // 7. Nanopurificación
+    const nanoGroup = new THREE.Group();
+    nanoGroup.position.set(-1.8, 0.1, -1.8);
+    nanoGroup.userData = { moduleKey: 'nanopurificacion' };
+    const nanoCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.9, 24), matGlass);
+    nanoCyl.castShadow = true;
+    nanoGroup.add(nanoCyl);
+    const membMat = new THREE.MeshStandardMaterial({ color: 0x2a4a6a, metalness: 0.1, roughness: 0.5 });
+    const memb = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.7, 24), membMat);
+    memb.position.y = 0.05;
+    nanoGroup.add(memb);
+    const ringNano = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.03, 12, 24), ringMat);
+    ringNano.position.y = 0.4;
+    ringNano.rotation.x = Math.PI/2;
+    nanoGroup.add(ringNano);
+    const ringNano2 = ringNano.clone(); ringNano2.position.y = -0.4; nanoGroup.add(ringNano2);
+    modulesGroup.add(nanoGroup);
+    nanoGroup.children.forEach(child => { if (child.isMesh) clickableMeshes.push(child); });
+
+    // 8. Pila de Combustible
+    const fcGroup = new THREE.Group();
+    fcGroup.position.set(1.2, 0.1, -2.0);
+    fcGroup.userData = { moduleKey: 'fuelcell' };
+    const fcBase = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.3, 0.7), matTitaniumDark);
+    fcBase.castShadow = true;
+    fcGroup.add(fcBase);
+    const fcLayerMat = new THREE.MeshStandardMaterial({ color: 0x6a8a9a, metalness: 0.5, roughness: 0.3 });
+    for (let i = 0; i < 3; i++) {
+      const layer = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.05, 0.5), fcLayerMat);
+      layer.position.y = 0.15 + i * 0.07;
+      fcGroup.add(layer);
+    }
+    const conMat = new THREE.MeshStandardMaterial({ color: 0xccaa44, metalness: 0.6, roughness: 0.3 });
+    const con1 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.2, 6), conMat);
+    con1.position.set(0.3, 0.3, 0.35);
+    fcGroup.add(con1);
+    const con2 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.2, 6), conMat);
+    con2.position.set(-0.3, 0.3, -0.35);
+    fcGroup.add(con2);
+    modulesGroup.add(fcGroup);
+    fcGroup.children.forEach(child => { if (child.isMesh) clickableMeshes.push(child); });
+
+    // ---- NUEVO MÓDULO 8: Gestión Térmica ----
+    const termalGroup = new THREE.Group();
+    termalGroup.position.set(2.5, 0.1, 2.5);
+    termalGroup.userData = { moduleKey: 'termal' };
+    const termalBase = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 0.6), matTitanium);
+    termalBase.castShadow = true;
+    termalGroup.add(termalBase);
+    // Detalles de intercambiador
+    const finsMat = new THREE.MeshStandardMaterial({ color: 0x88aacc, metalness: 0.6, roughness: 0.3 });
+    for (let i = -0.3; i <= 0.3; i+=0.3) {
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 0.4), finsMat);
+      fin.position.set(i, 0.1, 0);
+      termalGroup.add(fin);
+    }
+    // Tubos
+    const tubeMat = new THREE.MeshStandardMaterial({ color: 0xccaa88, metalness: 0.7, roughness: 0.3 });
+    for (let i = -0.2; i <= 0.2; i+=0.2) {
+      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 6), tubeMat);
+      tube.position.set(i, 0.0, 0.3);
+      tube.rotation.x = Math.PI/2;
+      termalGroup.add(tube);
+    }
+    modulesGroup.add(termalGroup);
+    termalGroup.children.forEach(child => { if (child.isMesh) clickableMeshes.push(child); });
+
+    // ---- NUEVO MÓDULO 9: Almacenamiento de H₂ ----
+    const almacenGroup = new THREE.Group();
+    almacenGroup.position.set(-2.8, 0.1, 2.8);
+    almacenGroup.userData = { moduleKey: 'almacen' };
+    // Tanque cilíndrico
+    const tankH2 = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.0, 24), matCarbon);
+    tankH2.castShadow = true;
+    almacenGroup.add(tankH2);
+    // Anillos de refuerzo
+    const ringH2 = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.04, 12, 24), ringMat);
+    ringH2.position.y = 0.4;
+    ringH2.rotation.x = Math.PI/2;
+    almacenGroup.add(ringH2);
+    const ringH2b = ringH2.clone(); ringH2b.position.y = -0.4; almacenGroup.add(ringH2b);
+    // Válvula
+    const valveMat = new THREE.MeshStandardMaterial({ color: 0xccaa44, metalness: 0.8, roughness: 0.2 });
+    const valve = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 0.15, 8), valveMat);
+    valve.position.set(0, 0.6, 0);
+    almacenGroup.add(valve);
+    modulesGroup.add(almacenGroup);
+    almacenGroup.children.forEach(child => { if (child.isMesh) clickableMeshes.push(child); });
+
+    // ---- Conexiones fijas ----
+    const lineMat = new THREE.LineBasicMaterial({ color: 0x4fc3f7, transparent: true, opacity: 0.15 });
+    const points = [
+      [-2.5, 0.0, -1.5], [-1.8, 0.0, -1.8],
+      [-1.8, 0.0, -1.8], [0.0, 0.0, 0.0],
+      [0.0, 0.0, 0.0], [1.8, 0.0, 1.8],
+      [1.8, 0.0, 1.8], [-1.8, 0.0, 2.2],
+      [-1.8, 0.0, 2.2], [2.8, 0.0, -1.2],
+      [2.8, 0.0, -1.2], [1.2, 0.0, -2.0],
+      [1.2, 0.0, -2.0], [-1.2, 0.0, -2.2],
+      [-1.2, 0.0, -2.2], [-2.5, 0.0, -1.5],
+      // Nuevas conexiones para módulos 8 y 9
+      [1.8, 0.0, 1.8], [2.5, 0.0, 2.5],
+      [-1.8, 0.0, 2.2], [-2.8, 0.0, 2.8],
+      [2.5, 0.0, 2.5], [-2.8, 0.0, 2.8]
+    ];
+    for (let i = 0; i < points.length - 1; i++) {
+      const geo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(points[i][0], points[i][1] + 0.2, points[i][2]),
+        new THREE.Vector3(points[i+1][0], points[i+1][1] + 0.2, points[i+1][2])
+      ]);
+      const line = new THREE.Line(geo, lineMat);
+      scene.add(line);
+    }
+
+    // ---- Sistema IA visual ----
+    const iaGroup = new THREE.Group();
+    iaGroup.position.set(3.5, 2.0, -0.5);
+    iaGroup.userData = { moduleKey: 'ia' };
+    scene.add(iaGroup);
+    const nodeMat = new THREE.MeshStandardMaterial({ color: 0x4fc3f7, emissive: 0x4fc3f7, emissiveIntensity: 0.2, metalness: 0.3, roughness: 0.2 });
+    const nodePositions = [];
+    const iaMeshes = [];
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      const r = 0.8 + Math.random() * 0.4;
+      const x = Math.cos(angle) * r, z = Math.sin(angle) * r, y = (Math.random() - 0.5) * 0.6;
+      const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), nodeMat.clone());
+      sphere.position.set(x, y, z);
+      iaGroup.add(sphere);
+      iaMeshes.push(sphere);
+      nodePositions.push(new THREE.Vector3(x, y, z));
+    }
+    const iaLineMat = new THREE.LineBasicMaterial({ color: 0x4fc3f7, transparent: true, opacity: 0.15 });
+    for (let i = 0; i < nodePositions.length; i++) {
+      for (let j = i + 1; j < nodePositions.length; j++) {
+        if (Math.random() > 0.6) continue;
+        const geo = new THREE.BufferGeometry().setFromPoints([nodePositions[i], nodePositions[j]]);
+        const line = new THREE.Line(geo, iaLineMat);
+        iaGroup.add(line);
+      }
+    }
+    const centerNode = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12),
+      new THREE.MeshStandardMaterial({ color: 0x4fc3f7, emissive: 0x4fc3f7, emissiveIntensity: 0.4 }));
+    iaGroup.add(centerNode);
+    iaMeshes.push(centerNode);
+    const iaHitArea = new THREE.Mesh(
+      new THREE.BoxGeometry(2.4, 1.8, 2.4),
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+    );
+    iaHitArea.position.set(0, 0, 0);
+    iaHitArea.userData = { isIaArea: true };
+    iaGroup.add(iaHitArea);
+    clickableMeshes.push(iaHitArea);
+    iaMeshes.forEach(m => clickableMeshes.push(m));
+
+    // ---- Partículas principales ----
+    const particleCount = 250;
+    const particleGeo = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const velocities = [];
+    for (let i = 0; i < particleCount; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 0.5 + Math.random() * 3.0;
+      positions[i*3] = Math.cos(angle) * radius;
+      positions[i*3+1] = (Math.random() - 0.5) * 0.6;
+      positions[i*3+2] = Math.sin(angle) * radius;
+      velocities.push({ angle, radius, speed: 0.005 + Math.random() * 0.02, yOff: (Math.random()-0.5)*0.5, ySpeed: 0.002 + Math.random() * 0.006 });
+    }
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const particleMat = new THREE.PointsMaterial({ color: 0x4fc3f7, size: 0.04, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
+    const particles = new THREE.Points(particleGeo, particleMat);
+    particles.position.set(0, 0.2, 0);
+    scene.add(particles);
+
+    // ---- Partículas de recuperación ----
+    const recoveryParticleCount = 120;
+    const recoveryGeo = new THREE.BufferGeometry();
+    const recoveryPos = new Float32Array(recoveryParticleCount * 3);
+    const recoveryVel = [];
+    for (let i = 0; i < recoveryParticleCount; i++) {
+      const t = Math.random();
+      const start = new THREE.Vector3(0, 0.2, 0);
+      const end1 = new THREE.Vector3(-1.8, 0.3, 2.2);
+      const end2 = new THREE.Vector3(2.8, 0.3, -1.2);
+      const target = Math.random() < 0.5 ? end1 : end2;
+      const pos = new THREE.Vector3().lerpVectors(start, target, t);
+      recoveryPos[i*3] = pos.x + (Math.random()-0.5)*0.3;
+      recoveryPos[i*3+1] = pos.y + (Math.random()-0.5)*0.3;
+      recoveryPos[i*3+2] = pos.z + (Math.random()-0.5)*0.3;
+      recoveryVel.push({
+        start: start.clone(),
+        target: target.clone(),
+        t: t,
+        speed: 0.002 + Math.random() * 0.004,
+        offset: new THREE.Vector3((Math.random()-0.5)*0.3, (Math.random()-0.5)*0.3, (Math.random()-0.5)*0.3)
+      });
+    }
+    recoveryGeo.setAttribute('position', new THREE.BufferAttribute(recoveryPos, 3));
+    const recoveryMat = new THREE.PointsMaterial({
+      color: 0xff8800,
+      size: 0.06,
+      transparent: true,
+      opacity: 0.7,
+      blending: THREE.AdditiveBlending
+    });
+    const recoveryParticles = new THREE.Points(recoveryGeo, recoveryMat);
+    recoveryParticles.position.set(0, 0, 0);
+    scene.add(recoveryParticles);
+
+    // ---- Funciones auxiliares ----
+    function updateModuleInfo(key) {
+      const data = i18n[lang].modules[key];
+      if (!data) return;
+      infoTitle.textContent = data.title;
+      infoDesc.textContent = data.desc;
+      infoDetail.textContent = data.detail;
+    }
+
+    function showModuleInfo(key) {
+      currentModuleKey = key;
+      updateModuleInfo(key);
+      infoPanel.style.display = 'block';
+    }
+
+    function hideModuleInfo() {
+      infoPanel.style.display = 'none';
+      currentModuleKey = null;
+    }
+    infoClose.addEventListener('click', hideModuleInfo);
+
+    // ---- Estados ----
+    let currentState = 'operacion';
+
+    function setState(state) {
+      currentState = state;
+      const t = i18n[lang];
+      stateEl.textContent = t.states[state] || state;
+      stateSub.textContent = t.subs[state] || '';
+
+      const panels = document.querySelectorAll('.hud-panel');
+      panels.forEach(p => p.classList.remove('highlight', 'warn'));
+      if (state === 'operacion') document.querySelector('.hud-panel[data-key="state"]')?.classList.add('highlight');
+      else if (state === 'emergencia') {
+        document.querySelector('.hud-panel[data-key="state"]')?.classList.add('warn');
+        document.querySelector('.hud-panel[data-key="temp"]')?.classList.add('warn');
+      } else if (state === 'diagnostico' || state === 'simulacion' || state === 'optimizacion' || state === 'mantenimiento' || state === 'ia') {
+        document.querySelector('.hud-panel[data-key="state"]')?.classList.add('highlight');
+      }
+      stateBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.state === state));
+
+      // Valores según estado
+      if (state === 'simulacion') {
+        effVal.textContent = (85 + Math.random() * 10).toFixed(1);
+        overpotentialVal.textContent = (15 + Math.random() * 8).toFixed(1);
+        recoveryVal.textContent = (5 + Math.random() * 4).toFixed(1);
+        pressureVal.textContent = (2.5 + Math.random() * 2.0).toFixed(1);
+        flowVal.textContent = (0.5 + Math.random() * 1.0).toFixed(1);
+        batteryVal.textContent = Math.floor(60 + Math.random() * 35);
+        laserVal.textContent = (0.5 + Math.random() * 1.8).toFixed(1);
+        h2storageVal.textContent = Math.floor(50 + Math.random() * 40);
+        catalystVal.textContent = Math.floor(80 + Math.random() * 15);
+      } else if (state === 'optimizacion') {
+        effVal.textContent = (88 + Math.random() * 6).toFixed(1);
+        overpotentialVal.textContent = (18 + Math.random() * 4).toFixed(1);
+        recoveryVal.textContent = (6 + Math.random() * 3).toFixed(1);
+        pressureVal.textContent = (3.0 + Math.random() * 1.5).toFixed(1);
+        flowVal.textContent = (0.7 + Math.random() * 0.6).toFixed(1);
+        batteryVal.textContent = Math.floor(70 + Math.random() * 25);
+        laserVal.textContent = (1.0 + Math.random() * 1.2).toFixed(1);
+        h2storageVal.textContent = Math.floor(60 + Math.random() * 30);
+        catalystVal.textContent = Math.floor(85 + Math.random() * 10);
+      } else if (state === 'emergencia') {
+        effVal.textContent = '42.0';
+        tempVal.textContent = '67';
+        overpotentialVal.textContent = '5.0';
+        recoveryVal.textContent = '1.0';
+        pressureVal.textContent = '1.2';
+        flowVal.textContent = '0.1';
+        batteryVal.textContent = '15';
+        laserVal.textContent = '0.0';
+        h2storageVal.textContent = '20';
+        catalystVal.textContent = '45';
+      } else if (state === 'reposo') {
+        effVal.textContent = '0.0';
+        tempVal.textContent = '22';
+        h2Val.textContent = '0.0';
+        pressureVal.textContent = '0.0';
+        flowVal.textContent = '0.0';
+        batteryVal.textContent = '0';
+        laserVal.textContent = '0.0';
+        overpotentialVal.textContent = '0.0';
+        recoveryVal.textContent = '0.0';
+        h2storageVal.textContent = '0';
+        catalystVal.textContent = '0';
+      } else if (state === 'mantenimiento') {
+        effVal.textContent = (70 + Math.random() * 5).toFixed(1);
+        tempVal.textContent = Math.floor(50 + Math.random() * 10);
+        overpotentialVal.textContent = (8 + Math.random() * 4).toFixed(1);
+        recoveryVal.textContent = (2 + Math.random() * 2).toFixed(1);
+        pressureVal.textContent = (1.5 + Math.random() * 1.0).toFixed(1);
+        flowVal.textContent = (0.3 + Math.random() * 0.3).toFixed(1);
+        batteryVal.textContent = Math.floor(50 + Math.random() * 20);
+        laserVal.textContent = (0.3 + Math.random() * 0.5).toFixed(1);
+        h2storageVal.textContent = Math.floor(30 + Math.random() * 20);
+        catalystVal.textContent = Math.floor(50 + Math.random() * 30);
+      } else {
+        effVal.textContent = (86 + Math.random() * 4).toFixed(1);
+        tempVal.textContent = Math.floor(38 + Math.random() * 8);
+        h2Val.textContent = (2.8 + Math.random() * 1.2).toFixed(1);
+        pressureVal.textContent = (2.8 + Math.random() * 1.2).toFixed(1);
+        flowVal.textContent = (0.6 + Math.random() * 0.5).toFixed(1);
+        batteryVal.textContent = Math.floor(70 + Math.random() * 25);
+        laserVal.textContent = (0.8 + Math.random() * 1.2).toFixed(1);
+        overpotentialVal.textContent = (14 + Math.random() * 6).toFixed(1);
+        recoveryVal.textContent = (4 + Math.random() * 3).toFixed(1);
+        h2storageVal.textContent = Math.floor(60 + Math.random() * 30);
+        catalystVal.textContent = Math.floor(85 + Math.random() * 10);
+      }
+      iaOverlay.style.display = (state === 'ia') ? 'block' : 'none';
+
+      // Efectos visuales por estado
+      switch (state) {
+        case 'reposo':
+          mainLight.color.setHex(0x335577);
+          pointLight.color.setHex(0x335577);
+          particleMat.color.setHex(0x446688);
+          break;
+        case 'operacion':
+          mainLight.color.setHex(0xffeedd);
+          pointLight.color.setHex(0x4fc3f7);
+          particleMat.color.setHex(0x4fc3f7);
+          break;
+        case 'diagnostico':
+          mainLight.color.setHex(0x88aaff);
+          pointLight.color.setHex(0x88aaff);
+          particleMat.color.setHex(0x88aaff);
+          break;
+        case 'simulacion':
+          mainLight.color.setHex(0x00ffaa);
+          pointLight.color.setHex(0x00ffaa);
+          particleMat.color.setHex(0x00ffaa);
+          break;
+        case 'optimizacion':
+          mainLight.color.setHex(0xffaa44);
+          pointLight.color.setHex(0xffaa44);
+          particleMat.color.setHex(0xffaa44);
+          break;
+        case 'emergencia':
+          mainLight.color.setHex(0xff3333);
+          pointLight.color.setHex(0xff3333);
+          particleMat.color.setHex(0xff4444);
+          break;
+        case 'mantenimiento':
+          mainLight.color.setHex(0xff8833);
+          pointLight.color.setHex(0xff8833);
+          particleMat.color.setHex(0xff8833);
+          break;
+        case 'ia':
+          mainLight.color.setHex(0xaa88ff);
+          pointLight.color.setHex(0xaa88ff);
+          particleMat.color.setHex(0xaa88ff);
+          break;
+        default:
+          mainLight.color.setHex(0xffeedd);
+          pointLight.color.setHex(0x4fc3f7);
+          particleMat.color.setHex(0x4fc3f7);
+      }
+    }
+
+    // ---- Simulación desde HUD ----
+    function activateSimulation(moduleKey) {
+      setState('simulacion');
+      showModuleInfo(moduleKey);
+    }
+
+    // ---- Eventos HUD (todos) ----
+    hudEfficiency.addEventListener('click', () => activateSimulation('ia'));
+    hudTemp.addEventListener('click', () => activateSimulation('ecu'));
+    hudPressure.addEventListener('click', () => activateSimulation('agua'));
+    hudFlow.addEventListener('click', () => activateSimulation('nanopurificacion'));
+    hudBattery.addEventListener('click', () => activateSimulation('bateria'));
+    hudLaserPower.addEventListener('click', () => activateSimulation('laser'));
+    hudOverpotential.addEventListener('click', () => activateSimulation('nucleo'));
+    hudRecovery.addEventListener('click', () => activateSimulation('recuperacion'));
+    hudH2Storage.addEventListener('click', () => activateSimulation('almacen'));
+    hudCatalyst.addEventListener('click', () => activateSimulation('termal'));
+
+    // ---- Botones de estado ----
+    stateBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        setState(btn.dataset.state);
+        if (btn.dataset.state === 'ia') {
+          showModuleInfo('ia');
+        }
+      });
+    });
+
+    // ---- Sliders ----
+    laserSlider.addEventListener('input', (e) => {
+      laserPower = parseInt(e.target.value);
+      sliderValue.textContent = laserPower + '%';
+      const w = (laserPower / 100 * 2.0).toFixed(1);
+      laserVal.textContent = w;
+      const intensity = laserPower / 100;
+      laserGroup.children.forEach(child => {
+        if (child.isMesh && child.material && child.material.emissiveIntensity !== undefined) {
+          if (child.material.color.getHex() === 0xff3333 || child.material.color.getHex() === 0xff2200) {
+            child.material.emissiveIntensity = 0.3 + intensity * 0.7;
+          }
+        }
+      });
+    });
+
+    tempSlider.addEventListener('input', (e) => {
+      tempOper = parseInt(e.target.value);
+      tempSliderValue.textContent = tempOper + '°C';
+      tempVal.textContent = tempOper;
+      // Afecta a la velocidad de partículas
+    });
+
+    // ---- Modo Eco ----
+    ecoBtn.addEventListener('click', () => {
+      ecoMode = !ecoMode;
+      ecoBtn.classList.toggle('active', ecoMode);
+      ecoBtn.textContent = ecoMode ? 'Modo Eco ON' : 'Modo Eco';
+      if (ecoMode) {
+        // Reducir consumo, bajar potencia láser, etc.
+        laserPower = Math.min(laserPower, 50);
+        laserSlider.value = laserPower;
+        sliderValue.textContent = laserPower + '%';
+        laserVal.textContent = (laserPower / 100 * 2.0).toFixed(1);
+        // También reducir partículas
+      }
+    });
+
+    // ---- Botón Rotar ----
+    rotateBtn.addEventListener('click', () => {
+      autoRotate = !autoRotate;
+      controls.autoRotate = autoRotate;
+      rotateBtn.classList.toggle('active', autoRotate);
+      rotateBtn.textContent = autoRotate ? 'Detener' : 'Rotar';
+    });
+
+    // ---- Idioma ----
+    function updateLanguage(langCode) {
+      lang = langCode;
+      const t = i18n[lang];
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.dataset.i18n;
+        if (t[key]) el.textContent = t[key];
+      });
+      stateBtns.forEach(btn => {
+        const key = btn.dataset.state;
+        if (t.controls && t.controls[key]) {
+          btn.textContent = t.controls[key];
+        }
+      });
+      if (t.ia_overlay) {
+        iaTitle.textContent = t.ia_overlay.title;
+        const tags = t.ia_overlay.tags;
+        if (tags.length >= 4) {
+          tagPred.textContent = tags[0];
+          tagMpc.textContent = tags[1];
+          tagGemelo.textContent = tags[2];
+          tagAprendizaje.textContent = tags[3];
+        }
+      }
+      if (currentModuleKey && infoPanel.style.display === 'block') {
+        updateModuleInfo(currentModuleKey);
+      }
+      setState(currentState);
+    }
+
+    langBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        langBtns.forEach(b => b.classList.toggle('active', b === btn));
+        updateLanguage(btn.dataset.lang);
+      });
+    });
+
+    // ---- AR ----
+    arBtn.addEventListener('click', async () => {
+      setState('simulacion');
+      showModuleInfo('ia');
+      try {
+        if (navigator.xr) {
+          await navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['hit-test'] });
+          alert('Modo AR iniciado (simulación).');
+        } else {
+          alert('WebXR no disponible. Se activó el modo simulación visual.');
+        }
+      } catch (e) {
+        alert('No se pudo iniciar AR: ' + e.message + ' (Simulación visual activada)');
+      }
+    });
+
+    // ---- Raycaster para clics en módulos ----
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+
+    function onPointerDown(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+
+      const intersects = raycaster.intersectObjects(clickableMeshes, false);
+      if (intersects.length > 0) {
+        const hit = intersects[0].object;
+        let target = hit;
+        let moduleKey = null;
+        while (target) {
+          if (target.userData && target.userData.moduleKey) {
+            moduleKey = target.userData.moduleKey;
+            break;
+          }
+          target = target.parent;
+        }
+        if (moduleKey) {
+          if (infoPanel.style.display === 'block' && currentModuleKey === moduleKey) {
+            hideModuleInfo();
+          } else {
+            showModuleInfo(moduleKey);
+          }
+        }
+      }
+    }
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+
+    // ---- Animación ----
+    let clock = new THREE.Clock();
+
+    function animate() {
+      const delta = clock.getDelta();
+      const time = performance.now() * 0.001;
+
+      // Rotaciones suaves
+      stackGroup.rotation.y = Math.sin(time * 0.05) * 0.05;
+      laserGroup.rotation.y = Math.sin(time * 0.04 + 1) * 0.05;
+      tecGroup.rotation.y = Math.sin(time * 0.06 + 2) * 0.05;
+      nanoGroup.rotation.y = Math.sin(time * 0.07 + 0.5) * 0.05;
+      fcGroup.rotation.y = Math.sin(time * 0.05 + 1.5) * 0.05;
+      termalGroup.rotation.y = Math.sin(time * 0.08 + 0.3) * 0.05;
+      almacenGroup.rotation.y = Math.sin(time * 0.06 + 2.5) * 0.05;
+
+      // Partículas principales
+      const pos = particles.geometry.attributes.position.array;
+      const speedMul = (currentState === 'simulacion' || currentState === 'optimizacion') ? 2.0 : 1.0;
+      const tempFactor = tempOper / 45; // 45°C es referencia
+      for (let i = 0; i < particleCount; i++) {
+        const v = velocities[i];
+        if (currentState === 'reposo') {
+          // quietas
+        } else {
+          v.angle += v.speed * delta * 40 * speedMul * (0.5 + laserPower/200) * tempFactor;
+        }
+        pos[i*3] = Math.cos(v.angle) * v.radius;
+        pos[i*3+1] = Math.sin(time * v.ySpeed + v.yOff) * 0.15 * tempFactor;
+        pos[i*3+2] = Math.sin(v.angle) * v.radius;
+        if (currentState === 'emergencia') {
+          pos[i*3] += (Math.random() - 0.5) * 0.02;
+          pos[i*3+2] += (Math.random() - 0.5) * 0.02;
+        }
+        if (ecoMode && currentState !== 'emergencia' && currentState !== 'reposo') {
+          // Reducir velocidad en modo eco
+          v.angle += v.speed * delta * 20 * speedMul * (0.5 + laserPower/200) * tempFactor * 0.5;
+        }
+      }
+      particles.geometry.attributes.position.needsUpdate = true;
+
+      // Partículas de recuperación
+      const recPos = recoveryParticles.geometry.attributes.position.array;
+      const recSpeedMul = (currentState === 'simulacion' || currentState === 'optimizacion' || currentState === 'operacion') ? 1.0 : 0.0;
+      const recIntensity = (currentState === 'reposo' || currentState === 'emergencia') ? 0.0 : 0.5 + laserPower/200;
+      for (let i = 0; i < recoveryParticleCount; i++) {
+        const v = recoveryVel[i];
+        if (recSpeedMul > 0 && recIntensity > 0) {
+          v.t += v.speed * delta * 30 * recSpeedMul * recIntensity * tempFactor;
+          if (v.t > 1) v.t = 0;
+        }
+        const posVec = new THREE.Vector3().lerpVectors(v.start, v.target, v.t);
+        recPos[i*3] = posVec.x + v.offset.x * (1 - v.t);
+        recPos[i*3+1] = posVec.y + v.offset.y * (1 - v.t) + 0.1 * Math.sin(time * 2 + i);
+        recPos[i*3+2] = posVec.z + v.offset.z * (1 - v.t);
+      }
+      recoveryParticles.geometry.attributes.position.needsUpdate = true;
+      recoveryMat.opacity = (currentState === 'reposo' || currentState === 'emergencia') ? 0.1 : 0.7;
+
+      // IA nodos
+      iaGroup.children.forEach((child, idx) => {
+        if (child.isMesh && child.geometry.type === 'SphereGeometry' && !child.userData.isIaArea) {
+          const scale = 1 + 0.15 * Math.sin(time * 1.5 + idx * 0.8);
+          child.scale.set(scale, scale, scale);
+        }
+      });
+
+      // Luces
+      pointLight.intensity = 0.3 + 0.15 * Math.sin(time * 1.2);
+      if (currentState === 'emergencia') {
+        pointLight.color.setHex(0xff3333);
+      } else if (currentState === 'optimizacion') {
+        pointLight.color.setHex(0xffaa44);
+      } else if (currentState === 'simulacion') {
+        pointLight.color.setHex(0x00ffaa);
+      } else if (currentState === 'mantenimiento') {
+        pointLight.color.setHex(0xff8833);
+      } else if (currentState === 'ia') {
+        pointLight.color.setHex(0xaa88ff);
+      } else {
+        pointLight.color.setHex(0x4fc3f7);
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+      labelRenderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+
+    // ---- Resize ----
+    window.addEventListener('resize', () => {
+      const w = window.innerWidth, h = window.innerHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+      labelRenderer.setSize(w, h);
+    });
+
+    // ---- Inicio rápido ----
+    setTimeout(() => loader.classList.add('hidden'), 50);
+
+    updateLanguage('es');
+    setState('operacion');
+    animate();
+    console.log('SPHA-Q Prototipo 3D con HUD reorganizado.');
+  </script>
+</body>
+</html>
