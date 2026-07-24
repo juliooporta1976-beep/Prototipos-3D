@@ -3,22 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ALEMANIA 6.0 - Sistema Nacional de Optimización Dinámica con Integración de Patente</title>
-    <!-- Motor 3D Three.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <title id="page-title">ALEMANIA 6.0 · Sistema ODT</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">
+    </script>
     <style>
+        /* ===== VARIABLES DE DISEÑO ===== */
         :root {
             --neon-blue: #00e5ff;
             --neon-amber: #ffcc00;
             --neon-magenta: #ff44ff;
             --neon-green: #00ffaa;
+            --neon-red: #ff3366;
             --deep-blue: #0033aa;
-            --titanium-black: #0a0e17;
-            --hud-bg: rgba(10, 14, 23, 0.92);
-            --hud-border: rgba(0, 229, 255, 0.35);
-            --text-glow: 0 0 12px rgba(0, 229, 255, 0.8);
+            --glass-bg: rgba(8, 12, 28, 0.65);
+            --glass-border: rgba(0, 229, 255, 0.18);
+            --text-primary: #e8f4ff;
+            --text-secondary: #a0c4e8;
+            --text-dim: #6a8aaa;
+            --text-glow: 0 0 20px rgba(0, 229, 255, 0.25);
             --active-color: var(--neon-blue);
-            --panel-glow: 0 0 30px rgba(0, 229, 255, 0.15);
+            --panel-glow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            --glass-blur: blur(20px);
+            --font-mono: 'Courier New', 'Fira Code', monospace;
+            --radius-card: 16px;
+            --transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            --font-size-xs: 8.5px;
+            --font-size-sm: 10px;
+            --font-size-md: 12px;
+            --font-size-lg: 14px;
+            --font-size-xl: 16px;
         }
 
         * {
@@ -29,25 +42,13 @@
         }
 
         body {
-            background: radial-gradient(ellipse at center, #0f1a2b 0%, #060a12 100%);
-            color: #e0f0ff;
-            font-family: 'Courier New', Courier, monospace;
+            background: radial-gradient(ellipse at 50% 30%, #102433 0%, #050a12 100%);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
             overflow: hidden;
             width: 100vw;
             height: 100vh;
-        }
-
-        #bg-video {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: 0;
-            display: none;
-            opacity: 0.4;
-            filter: grayscale(60%) brightness(30%) contrast(140%);
+            line-height: 1.5;
         }
 
         #webgl-canvas {
@@ -59,303 +60,554 @@
             z-index: 1;
             cursor: grab;
         }
-        
         #webgl-canvas:active {
             cursor: grabbing;
         }
 
-        /* GRID TÁCTICO DEL HUD */
+        .scanline {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to bottom, rgba(0, 229, 255, 0.08), transparent);
+            animation: scan 12s linear infinite;
+            z-index: 99;
+            pointer-events: none;
+            opacity: 0.4;
+        }
+        @keyframes scan {
+            0% {
+                top: -2px;
+            }
+            100% {
+                top: 100%;
+            }
+        }
+
         #hud {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 2;
+            z-index: 10;
             pointer-events: none;
             display: grid;
-            grid-template-columns: 340px 1fr 340px;
-            grid-template-rows: auto 1fr auto;
-            padding: 15px;
-            gap: 15px;
+            grid-template-rows: 72px 1fr;
+            grid-template-columns: 330px 1fr 330px;
+            gap: 16px;
+            padding: 18px 20px 20px 20px;
+        }
+
+        #top-center {
+            grid-column: 1 / 4;
+            grid-row: 1;
+            pointer-events: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 60px;
+            padding: 8px 32px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+            width: fit-content;
+            margin: 0 auto;
+            gap: 24px;
+            flex-wrap: wrap;
+            transition: var(--transition);
+        }
+        #top-center:hover {
+            border-color: rgba(0, 229, 255, 0.35);
+            box-shadow: 0 8px 40px rgba(0, 229, 255, 0.08);
+        }
+
+        .top-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: var(--font-size-md);
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        .top-item .label {
+            color: var(--text-dim);
+            font-size: var(--font-size-xs);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            font-weight: 400;
+        }
+        .top-item .value {
+            color: var(--text-primary);
+            font-weight: 600;
+            text-shadow: var(--text-glow);
+            font-size: var(--font-size-md);
+        }
+        .top-item .value.highlight {
+            color: var(--neon-blue);
+            text-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
+            font-size: var(--font-size-md);
+        }
+        .top-divider {
+            width: 1px;
+            height: 28px;
+            background: rgba(0, 229, 255, 0.15);
         }
 
         .hud-panel {
-            background: var(--hud-bg);
-            border: 1px solid var(--hud-border);
-            border-radius: 6px;
-            padding: 14px;
-            backdrop-filter: blur(12px);
-            box-shadow: var(--panel-glow), inset 0 0 20px rgba(0, 229, 255, 0.05);
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-card);
+            padding: 16px 18px;
+            box-shadow: var(--panel-glow), inset 0 1px 0 rgba(255, 255, 255, 0.03);
             pointer-events: auto;
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: var(--transition);
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
+            overflow-y: auto;
+            max-height: 100%;
         }
-
         .hud-panel:hover {
-            border-color: var(--active-color);
-            box-shadow: 0 0 35px rgba(0, 229, 255, 0.3);
+            border-color: rgba(0, 229, 255, 0.30);
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 229, 255, 0.04);
         }
 
-        h1, h2, h3 {
-            font-weight: normal;
+        .hud-panel::-webkit-scrollbar {
+            width: 3px;
+        }
+        .hud-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .hud-panel::-webkit-scrollbar-thumb {
+            background: var(--neon-blue);
+            border-radius: 6px;
+        }
+
+        #sidebar-left {
+            grid-column: 1;
+            grid-row: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+        #sidebar-right {
+            grid-column: 3;
+            grid-row: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            overflow-y: auto;
+            padding-left: 2px;
+        }
+
+        .panel-title {
+            font-weight: 400;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            text-shadow: var(--text-glow);
+            letter-spacing: 2.5px;
+            font-size: var(--font-size-sm);
+            color: var(--active-color);
+            border-bottom: 1px solid rgba(0, 229, 255, 0.10);
+            padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            text-shadow: 0 0 12px rgba(0, 229, 255, 0.15);
         }
 
-        h1 { font-size: 13px; color: #cceeff; }
-        h2 { font-size: 11px; color: var(--active-color); border-bottom: 1px solid var(--hud-border); padding-bottom: 6px; display: flex; justify-content: space-between; }
-        h3 { font-size: 10px; color: #88aacc; }
-
-        /* SECCIONES HUD */
-        #hud-top-left { grid-column: 1; grid-row: 1; }
-        #hud-top-right { grid-column: 3; grid-row: 1; text-align: right; }
-        #sidebar-left { grid-column: 1; grid-row: 2; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; }
-        #sidebar-right { grid-column: 3; grid-row: 2; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; }
-        #hud-bottom { grid-column: 1 / span 3; grid-row: 3; display: flex; justify-content: space-between; align-items: flex-end; }
-
-        /* ELEMENTOS DE CONTROL */
         .btn {
-            background: rgba(0, 229, 255, 0.08);
-            color: var(--active-color);
-            border: 1px solid var(--hud-border);
+            background: rgba(0, 229, 255, 0.05);
+            color: var(--text-secondary);
+            border: 1px solid rgba(0, 229, 255, 0.10);
             padding: 8px 12px;
-            font-family: inherit;
-            font-size: 10px;
+            font-family: var(--font-mono);
+            font-size: var(--font-size-xs);
             cursor: pointer;
             text-transform: uppercase;
-            transition: all 0.25s ease;
+            transition: var(--transition);
             text-align: left;
             width: 100%;
-            border-radius: 3px;
-            letter-spacing: 0.5px;
-            text-shadow: 0 0 5px rgba(0, 229, 255, 0.3);
+            border-radius: 8px;
+            letter-spacing: 0.6px;
+            text-shadow: 0 0 6px rgba(0, 229, 255, 0.05);
+            background-clip: padding-box;
         }
-
-        .btn:hover, .btn.active {
+        .btn:hover {
             background: var(--active-color);
             color: #0a0e17;
             border-color: var(--active-color);
-            box-shadow: 0 0 20px var(--active-color);
-            font-weight: bold;
+            box-shadow: 0 0 28px var(--active-color);
+            font-weight: 600;
             text-shadow: none;
         }
+        .btn.active {
+            background: var(--active-color);
+            color: #0a0e17;
+            border-color: var(--active-color);
+            box-shadow: 0 0 28px var(--active-color);
+            font-weight: 600;
+        }
+        .btn-sm {
+            padding: 6px 10px;
+            font-size: var(--font-size-xs);
+            width: auto;
+        }
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        .btn-grid .btn {
+            text-align: center;
+            font-size: var(--font-size-xs);
+            padding: 6px 6px;
+        }
+        .btn-grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 5px;
+        }
+        .btn-grid-3 .btn {
+            text-align: center;
+            font-size: 8.5px;
+            padding: 5px 3px;
+        }
+        .btn-group-4 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 5px;
+        }
+        .btn-group-4 .btn {
+            text-align: center;
+            font-size: 8px;
+            padding: 4px 3px;
+        }
 
-        /* AJUSTADOR DESLIZANTE */
         .slider-container {
-            font-size: 9px;
+            font-size: var(--font-size-xs);
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 3px;
+            margin-top: 4px;
         }
         .slider-container label {
-            color: #88bbdd;
+            color: var(--text-dim);
             display: flex;
             justify-content: space-between;
+            font-size: var(--font-size-xs);
+            letter-spacing: 0.3px;
+        }
+        .slider-container label span:last-child {
+            color: var(--text-primary);
+            font-weight: 600;
         }
         .slider {
             -webkit-appearance: none;
             width: 100%;
-            height: 5px;
+            height: 4px;
             background: #1a2633;
             outline: none;
-            border: 1px solid var(--hud-border);
-            border-radius: 3px;
+            border: none;
+            border-radius: 4px;
+            transition: var(--transition);
         }
         .slider::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 12px;
-            height: 12px;
+            width: 16px;
+            height: 16px;
             background: var(--active-color);
             cursor: pointer;
-            box-shadow: 0 0 12px var(--active-color);
+            box-shadow: 0 0 24px var(--active-color);
             border-radius: 50%;
+            border: 2px solid rgba(0, 0, 0, 0.3);
+            transition: var(--transition);
+        }
+        .slider:hover::-webkit-slider-thumb {
+            transform: scale(1.1);
+        }
+        .slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--active-color);
+            cursor: pointer;
+            box-shadow: 0 0 24px var(--active-color);
+            border-radius: 50%;
+            border: 2px solid rgba(0, 0, 0, 0.3);
         }
 
         .status-line {
             display: flex;
             justify-content: space-between;
-            font-size: 9px;
-            color: #88aacc;
+            font-size: var(--font-size-xs);
+            color: var(--text-dim);
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
         }
-        .status-value {
-            color: #e0f0ff;
-            font-weight: bold;
-            text-shadow: 0 0 8px rgba(0, 229, 255, 0.5);
-        }
-
-        /* SELECCIÓN DE IDIOMAS */
-        .language-selector {
-            display: flex;
-            gap: 5px;
-            justify-content: flex-end;
-        }
-        .lang-btn {
-            background: transparent;
-            border: 1px solid var(--hud-border);
-            color: #88aacc;
-            padding: 3px 8px;
-            font-size: 9px;
-            cursor: pointer;
-            border-radius: 3px;
-            transition: all 0.2s;
-        }
-        .lang-btn.active {
-            border-color: var(--active-color);
-            color: var(--active-color);
-            font-weight: bold;
-            box-shadow: 0 0 12px rgba(0, 229, 255, 0.3);
+        .status-line .status-value {
+            color: var(--text-primary);
+            font-weight: 600;
+            text-shadow: 0 0 10px rgba(0, 229, 255, 0.15);
+            font-size: var(--font-size-xs);
         }
 
-        /* LECTOR DE LOGS EN TIEMPO REAL */
         #terminal {
-            height: 90px;
-            background: rgba(0, 0, 0, 0.7);
-            border: 1px solid var(--hud-border);
-            padding: 8px;
-            font-size: 8px;
-            color: var(--active-color);
+            height: 64px;
+            background: rgba(0, 0, 0, 0.50);
+            border: 1px solid rgba(0, 229, 255, 0.06);
+            padding: 6px 10px;
+            font-size: 8.5px;
+            color: var(--neon-blue);
             overflow-y: hidden;
             display: flex;
             flex-direction: column-reverse;
-            border-radius: 3px;
-            text-shadow: 0 0 6px rgba(0, 229, 255, 0.4);
+            border-radius: 8px;
+            text-shadow: 0 0 8px rgba(0, 229, 255, 0.15);
+            line-height: 1.6;
+            font-family: var(--font-mono);
+        }
+        #terminal div {
+            opacity: 0.75;
+            letter-spacing: 0.3px;
         }
 
-        /* BARRA DE ESTADO DINÁMICA DE ENERGÍA */
         .energy-bar-outer {
             width: 100%;
-            height: 14px;
-            background: rgba(0,0,0,0.6);
-            border: 1px solid var(--hud-border);
-            position: relative;
-            margin-top: 5px;
-            border-radius: 4px;
+            height: 10px;
+            background: rgba(0, 0, 0, 0.50);
+            border: 1px solid rgba(0, 229, 255, 0.06);
+            border-radius: 6px;
             overflow: hidden;
         }
         .energy-bar-inner {
             height: 100%;
             width: 75%;
             background: linear-gradient(90deg, var(--deep-blue), var(--active-color));
-            transition: width 0.3s ease;
-            box-shadow: 0 0 18px var(--active-color);
-            border-radius: 2px;
-        }
-
-        /* CANVAS DE OSCILOSCOPIO HOLOGRÁFICO */
-        #oscilloscope {
-            width: 100%;
-            height: 60px;
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--hud-border);
+            transition: width 0.4s ease;
+            box-shadow: 0 0 20px var(--active-color);
             border-radius: 4px;
         }
 
-        /* EFECTO DE ESCANEO DE LÍNEA */
-        .scanline {
-            position: absolute;
-            top: 0;
-            left: 0;
+        #oscilloscope {
             width: 100%;
-            height: 4px;
-            background: linear-gradient(to bottom, rgba(0, 229, 255, 0.25), transparent);
-            animation: scan 6s linear infinite;
-            z-index: 99;
-            pointer-events: none;
-            opacity: 0.6;
-        }
-
-        @keyframes scan {
-            0% { top: 0%; }
-            100% { top: 100%; }
-        }
-
-        /* TARGET INFO MODAL */
-        #target-info {
-            position: absolute;
-            display: none;
-            background: rgba(10, 14, 23, 0.97);
-            border: 1px solid var(--active-color);
-            padding: 12px 14px;
-            font-size: 9px;
-            pointer-events: none;
-            z-index: 100;
-            color: #e0f0ff;
-            box-shadow: 0 0 30px rgba(0, 229, 255, 0.5);
-            border-radius: 6px;
-            width: 240px;
-            backdrop-filter: blur(8px);
+            height: 54px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(0, 229, 255, 0.06);
+            border-radius: 8px;
+            display: block;
         }
 
         #patent-helper-box {
-            background: rgba(0, 229, 255, 0.08);
+            background: rgba(0, 229, 255, 0.03);
             border: 1px dashed var(--active-color);
-            padding: 12px;
+            padding: 10px;
             text-align: center;
-            font-size: 9px;
-            color: #88bbdd;
-            border-radius: 4px;
-            box-shadow: inset 0 0 15px rgba(0, 229, 255, 0.05);
+            font-size: var(--font-size-xs);
+            color: var(--text-secondary);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: var(--transition);
+        }
+        #patent-helper-box:hover {
+            border-color: rgba(0, 229, 255, 0.3);
+        }
+        #patent-helper-box .btn-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        #patent-helper-box .btn {
+            flex: 1;
+            text-align: center;
+            min-width: 60px;
+            font-size: 8.5px;
+            padding: 5px 6px;
         }
 
-        /* RESPONSIVIDAD */
-        @media (max-width: 900px) {
+        .language-selector {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        .lang-btn {
+            background: transparent;
+            border: 1px solid rgba(0, 229, 255, 0.08);
+            color: var(--text-dim);
+            padding: 2px 10px;
+            font-size: var(--font-size-xs);
+            cursor: pointer;
+            border-radius: 4px;
+            transition: var(--transition);
+            font-family: var(--font-mono);
+        }
+        .lang-btn.active {
+            border-color: var(--active-color);
+            color: var(--active-color);
+            font-weight: 600;
+            box-shadow: 0 0 16px rgba(0, 229, 255, 0.15);
+            background: rgba(0, 229, 255, 0.06);
+        }
+
+        #target-info {
+            position: absolute;
+            display: none;
+            background: rgba(6, 10, 22, 0.95);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--active-color);
+            padding: 14px 18px;
+            font-size: var(--font-size-sm);
+            pointer-events: none;
+            z-index: 100;
+            color: var(--text-primary);
+            box-shadow: 0 0 50px rgba(0, 229, 255, 0.20);
+            border-radius: 12px;
+            width: 240px;
+            line-height: 1.6;
+        }
+        #target-info #ti-title {
+            color: var(--neon-blue);
+            font-weight: 600;
+            margin-bottom: 4px;
+            text-shadow: 0 0 20px var(--neon-blue);
+            font-size: var(--font-size-md);
+            letter-spacing: 0.5px;
+        }
+        #target-info #ti-data {
+            font-size: var(--font-size-xs);
+            color: var(--text-secondary);
+        }
+
+        .quick-controls {
+            display: flex;
+            flex-direction: row;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .quick-controls .btn {
+            flex: 1;
+            min-width: 80px;
+            text-align: center;
+            font-size: var(--font-size-xs);
+            padding: 6px 8px;
+        }
+
+        @media (max-width: 1000px) {
             #hud {
                 grid-template-columns: 1fr;
-                grid-template-rows: auto auto auto auto;
+                grid-template-rows: auto auto auto;
+                gap: 12px;
+                padding: 12px;
                 overflow-y: auto;
                 pointer-events: auto;
             }
-            .hud-panel {
-                grid-column: 1 !important;
-                grid-row: auto !important;
+            #top-center {
+                grid-column: 1;
+                grid-row: 1;
+                width: 100%;
+                border-radius: 30px;
+                padding: 8px 16px;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 14px;
             }
+            #sidebar-left {
+                grid-column: 1;
+                grid-row: 2;
+                max-height: 340px;
+            }
+            #sidebar-right {
+                grid-column: 1;
+                grid-row: 3;
+                max-height: 340px;
+            }
+            .btn-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .btn-grid-3 {
+                grid-template-columns: 1fr 1fr;
+            }
+            .btn-group-4 {
+                grid-template-columns: 1fr 1fr;
+            }
+            .quick-controls {
+                flex-direction: column;
+            }
+        }
+        @media (max-width: 600px) {
+            #top-center .top-item {
+                font-size: var(--font-size-sm);
+            }
+            #top-center .top-divider {
+                display: none;
+            }
+            .hud-panel {
+                padding: 12px 14px;
+            }
+            .btn-grid {
+                grid-template-columns: 1fr;
+            }
+            .btn-grid-3 {
+                grid-template-columns: 1fr;
+            }
+            .btn-group-4 {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 3px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--neon-blue);
+            border-radius: 6px;
         }
     </style>
 </head>
 <body>
 
-    <video id="bg-video" autoplay playsinline></video>
     <canvas id="webgl-canvas"></canvas>
     <div class="scanline"></div>
 
-    <!-- Modal Informativo de Objetos 3D -->
     <div id="target-info">
-        <div id="ti-title" style="color:var(--neon-blue); font-weight:bold; margin-bottom:5px; text-shadow:0 0 15px var(--neon-blue);">SISTEMA</div>
-        <div id="ti-data">Cargando telemetría...</div>
+        <div id="ti-title">SISTEMA</div>
+        <div id="ti-data">Cargando telemetría…</div>
     </div>
 
-    <!-- HUD COMPLETO -->
     <div id="hud">
-        
-        <!-- TOP IZQUIERDA: AUTOR Y ESTADO DE TRABAJO -->
-        <div id="hud-top-left" class="hud-panel">
-            <h1 id="t-author">Dr. Julio César Oporta Barrera</h1>
-            <h2 id="t-title">ALEMANIA 6.0 - SISTEMA ODT <span>[V2.5]</span></h2>
-            <div class="status-line">
-                <span id="t-state">ESTADO DE TRABAJO:</span>
-                <span class="status-value" id="sys-status" style="color: var(--neon-blue);">ESTABLE</span>
-            </div>
-            <div class="status-line">
-                <span>LICENCIA DE PATENTE:</span>
-                <span class="status-value">DE-102025-09</span>
-            </div>
-        </div>
 
-        <!-- TOP DERECHA: SELECCIÓN DE IDIOMA Y ESTADO DE LA RED -->
-        <div id="hud-top-right" class="hud-panel">
-            <h2 id="t-network">RED NEURAL HOLÍSTICA</h2>
-            <div class="status-line">
-                <span id="t-nodes">NODOS INTELIGENTES:</span>
-                <span class="status-value" id="active-node-count">245,901</span>
+        <!-- PANEL CENTRAL SUPERIOR -->
+        <div id="top-center">
+            <div class="top-item">
+                <span class="label" id="lbl-author">Autor</span>
+                <span class="value highlight" id="t-author">Dr. Julio César Oporta Barrera</span>
             </div>
-            <div class="status-line">
-                <span id="t-sync">SINC. BIOMECÁNICA:</span>
-                <span class="status-value">99.84%</span>
+            <div class="top-divider"></div>
+            <div class="top-item">
+                <span class="label" id="lbl-system">Sistema</span>
+                <span class="value" id="t-title">ALEMANIA 6.0 · ODT</span>
             </div>
+            <div class="top-divider"></div>
+            <div class="top-item">
+                <span class="label" id="lbl-status">Estado</span>
+                <span class="value" id="sys-status" style="color:var(--neon-blue);">ESTABLE</span>
+            </div>
+            <div class="top-divider"></div>
+            <div class="top-item">
+                <span class="label" id="lbl-patent">Patente</span>
+                <span class="value" style="font-size:var(--font-size-xs);">DE-102025-09</span>
+            </div>
+            <div class="top-divider"></div>
             <div class="language-selector">
                 <button class="lang-btn active" onclick="changeLanguage('es')">ES</button>
                 <button class="lang-btn" onclick="changeLanguage('en')">EN</button>
@@ -363,28 +615,36 @@
             </div>
         </div>
 
-        <!-- LATERAL IZQUIERDO: MODOS EXISTENTES Y NUEVOS MÓDULOS -->
+        <!-- LATERAL IZQUIERDO -->
         <div id="sidebar-left">
-            <!-- Modos Operativos Principales -->
+
+            <!-- MODOS CORE -->
             <div class="hud-panel">
-                <h2 id="t-modes">MODOS OPERATIVOS CORE</h2>
-                <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div class="panel-title" id="t-modes">MODOS OPERATIVOS CORE</div>
+                <div class="btn-grid">
                     <button class="btn active" id="btn-m1" onclick="selectCoreMode(1)"><span id="t-m1">Física Modular</span></button>
                     <button class="btn" id="btn-m2" onclick="selectCoreMode(2)"><span id="t-m2">Energía Híbrida</span></button>
                     <button class="btn" id="btn-m3" onclick="selectCoreMode(3)"><span id="t-m3">IA de Enjambre</span></button>
                     <button class="btn" id="btn-m4" onclick="selectCoreMode(4)"><span id="t-m4">Biomecánica</span></button>
+                    <button class="btn" id="btn-m5" onclick="selectCoreMode(5)"><span id="t-m5">Opt. Macroeconómica</span></button>
+                    <button class="btn" id="btn-m6" onclick="selectCoreMode(6)"><span id="t-m6">Actuadores Wirkungsnetz</span></button>
+                    <button class="btn" id="btn-m7" onclick="selectCoreMode(7)"><span id="t-m7">Ciberdefensa</span></button>
+                    <button class="btn" id="btn-m8" onclick="selectCoreMode(8)"><span id="t-m8">Logística Autónoma</span></button>
                 </div>
             </div>
 
-            <!-- NUEVO MÓDULO: Simulación Adicional -->
+            <!-- MÓDULOS EXPANDIDOS -->
             <div class="hud-panel">
-                <h2 id="t-newmods">MÓDULOS EXPANDIDOS</h2>
-                <div style="display: flex; flex-direction: column; gap: 4px;">
-                    <button class="btn" id="btn-m5" onclick="selectCoreMode(5)"><span id="t-m5">Opt. Macroeconómica</span></button>
-                    <button class="btn" id="btn-m6" onclick="selectCoreMode(6)"><span id="t-m6">Actuadores Wirkungsnetz</span></button>
+                <div class="panel-title" id="t-newmods">MÓDULOS EXPANDIDOS</div>
+                <div class="btn-grid-3">
+                    <button class="btn" id="btn-m9" onclick="selectCoreMode(9)"><span id="t-m9">Salud Predictiva</span></button>
+                    <button class="btn" id="btn-m10" onclick="selectCoreMode(10)"><span id="t-m10">Educación Adaptativa</span></button>
+                    <button class="btn" id="btn-m11" onclick="selectCoreMode(11)"><span id="t-m11">Sostenibilidad</span></button>
+                    <button class="btn" id="btn-m12" onclick="selectCoreMode(12)"><span id="t-m12">Movilidad Inteligente</span></button>
+                    <button class="btn" id="btn-m13" onclick="selectCoreMode(13)"><span id="t-m13">Ciberseguridad Cuántica</span></button>
+                    <button class="btn" id="btn-m14" onclick="selectCoreMode(14)"><span id="t-m14">Gemelo Digital</span></button>
                 </div>
-                <!-- Sliders Interactivos para Manipular Parámetros de Simulación en Vivo -->
-                <div class="slider-container" style="margin-top:5px;">
+                <div class="slider-container">
                     <label><span id="t-freq">Frecuencia de Red</span> <span id="val-freq">1.0x</span></label>
                     <input type="range" class="slider" id="slider-freq" min="0.1" max="3" step="0.1" value="1" oninput="updateSimulationSpeed()">
                 </div>
@@ -393,95 +653,117 @@
                     <input type="range" class="slider" id="slider-scale" min="0.5" max="2" step="0.1" value="1" oninput="updateHologramScale()">
                 </div>
             </div>
-            
-            <!-- NUEVO HUD ADICIONAL: Visualizador de Frecuencia Vectorial (Osciloscopio) -->
+
+            <!-- OSCILOSCOPIO -->
             <div class="hud-panel">
-                <h2 id="t-vector">ANÁLISIS VECTORIAL Q-FLUX</h2>
+                <div class="panel-title" id="t-vector">ANÁLISIS VECTORIAL Q-FLUX</div>
                 <canvas id="oscilloscope"></canvas>
                 <div class="status-line">
-                    <span>Frecuencia Base:</span>
+                    <span id="lbl-base-freq">Frecuencia Base</span>
                     <span class="status-value" id="val-base-freq">14.28 Hz</span>
                 </div>
             </div>
         </div>
 
-        <!-- LATERAL DERECHO: INTEGRACIÓN DE LA PATENTE CON SIMULACIÓN -->
+        <!-- LATERAL DERECHO -->
         <div id="sidebar-right">
-            <!-- Módulo de Patente con Simulación -->
+
+            <!-- PATENTE -->
             <div class="hud-panel">
-                <h2 id="t-patent">MÓDULO DE PATENTE - SIMULACIÓN</h2>
+                <div class="panel-title" id="t-patent">MÓDULO DE PATENTE · SIMULACIÓN</div>
                 <div id="patent-helper-box">
                     <span id="t-pat-help">Activa la simulación dinámica para visualizar el comportamiento del sistema en el plano de patente.</span>
-                    <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;">
-                        <button class="btn" id="sim-toggle-btn" onclick="togglePatentSimulation()" style="text-align:center; flex:1;">INICIAR SIMULACIÓN</button>
-                        <button class="btn" onclick="loadDemoPatent()" style="text-align:center; flex:1;">Cargar Esquema Demo</button>
+                    <div class="btn-group">
+                        <button class="btn" id="sim-toggle-btn" onclick="togglePatentSimulation()"><span id="sim-toggle-text">INICIAR SIMULACIÓN</span></button>
+                        <button class="btn" onclick="loadDemoPatent()"><span id="btn-demo-text">Cargar Esquema Demo</span></button>
+                    </div>
+                    <div class="btn-group-4">
+                        <button class="btn" onclick="setPatentSimulation('flow')"><span id="sim-flow">Flujo</span></button>
+                        <button class="btn" onclick="setPatentSimulation('waves')"><span id="sim-waves">Ondas</span></button>
+                        <button class="btn" onclick="setPatentSimulation('particles')"><span id="sim-particles">Partículas</span></button>
+                        <button class="btn" onclick="setPatentSimulation('mapping')"><span id="sim-mapping">Mapa</span></button>
                     </div>
                 </div>
                 <div class="status-line">
-                    <span id="t-pat-status">Estado de Patente:</span>
+                    <span id="t-pat-status">Estado de Patente</span>
                     <span class="status-value" id="patent-load-status" style="color:var(--neon-amber);">ESQUEMA INTERACTIVO</span>
                 </div>
             </div>
 
-            <!-- HUD ADICIONAL: Diagnóstico y Registro Energético -->
+            <!-- DIAGNÓSTICO -->
             <div class="hud-panel">
-                <h2 id="t-diagnostic">DIAGNÓSTICO EN TIEMPO REAL</h2>
+                <div class="panel-title" id="t-diagnostic">DIAGNÓSTICO EN TIEMPO REAL</div>
                 <div class="status-line">
-                    <span id="t-flux">Flujo Cuántico:</span>
+                    <span id="t-flux">Flujo Cuántico</span>
                     <span class="status-value" id="val-flux">742.1 Thz</span>
                 </div>
                 <div class="status-line">
-                    <span id="t-stability">Estabilidad de Acoplamiento:</span>
-                    <span class="status-value">94.12%</span>
+                    <span id="t-stability">Estabilidad de Acoplamiento</span>
+                    <span class="status-value" id="val-stability">94.12%</span>
+                </div>
+                <div class="status-line">
+                    <span id="lbl-active-mode">Modo Activo</span>
+                    <span class="status-value" id="active-mode-label">Física Modular</span>
                 </div>
                 <div class="energy-bar-outer">
                     <div class="energy-bar-inner" id="energy-bar"></div>
                 </div>
-                <!-- Registro de Eventos en tiempo real -->
                 <div id="terminal">
-                    <div>> Sistema Iniciado v2.5...</div>
+                    <div id="terminal-init">> Sistema Iniciado v2.5…</div>
                 </div>
             </div>
-        </div>
 
-        <!-- FOOTER: CONTROL DE ESTADO DINÁMICO EXTRA, AR Y REDES SOCIALES -->
-        <div id="hud-bottom" class="hud-panel" style="flex-direction: row; justify-content: space-between; width: 100%;">
-            <div style="display: flex; gap: 10px; width: 50%;">
-                <!-- ESTADO DINÁMICO ADICIONAL: Permite alternar la intensidad del sistema -->
-                <button class="btn" onclick="toggleDynamicState()"><span id="t-state-btn">ESTADO: NORMAL</span></button>
-                <button class="btn" onclick="toggleAR()"><span id="t-ar-btn">INICIAR AR CÁMARA</span></button>
+            <!-- CONTROLES RÁPIDOS -->
+            <div class="hud-panel" style="padding: 10px 14px;">
+                <div class="quick-controls">
+                    <button class="btn" onclick="toggleDynamicState()"><span id="t-state-btn">ESTADO: NORMAL</span></button>
+                    <button class="btn" onclick="toggleAR()"><span id="t-ar-btn">INICIAR AR CÁMARA</span></button>
+                </div>
             </div>
+
         </div>
 
     </div>
 
-    <!-- SCRIPT DE LÓGICA Y RENDERIZADO -->
+    <!-- ============================================================ -->
+    <!-- SCRIPT COMPLETO con multilenguaje mejorado -->
+    <!-- ============================================================ -->
     <script>
-        // --- DICCIONARIO MULTILINGÜE ---
+        // ============================================================
+        //  DICCIONARIO MULTILINGÜE COMPLETO
+        // ============================================================
         const i18n = {
             es: {
                 author: "Dr. Julio César Oporta Barrera",
-                title: "ALEMANIA 6.0 - SISTEMA ODT",
-                state: "ESTADO DE TRABAJO:",
-                network: "RED NEURAL HOLÍSTICA",
-                nodes: "NODOS INTELIGENTES:",
-                sync: "SINC. BIOMECÁNICA:",
+                title: "ALEMANIA 6.0 · ODT",
+                lbl_author: "Autor",
+                lbl_system: "Sistema",
+                lbl_status: "Estado",
+                lbl_patent: "Patente",
                 modes: "MODOS OPERATIVOS CORE",
                 m1: "Física Modular",
                 m2: "Energía Híbrida",
                 m3: "IA de Enjambre",
                 m4: "Biomecánica",
-                newmods: "MÓDULOS EXPANDIDOS",
                 m5: "Opt. Macroeconómica",
                 m6: "Actuadores Wirkungsnetz",
+                m7: "Ciberdefensa",
+                m8: "Logística Autónoma",
+                newmods: "MÓDULOS EXPANDIDOS",
+                m9: "Salud Predictiva",
+                m10: "Educación Adaptativa",
+                m11: "Sostenibilidad",
+                m12: "Movilidad Inteligente",
+                m13: "Ciberseguridad Cuántica",
+                m14: "Gemelo Digital",
                 freq: "Frecuencia de Red",
                 scale: "Escala de Geometría",
-                patent: "MÓDULO DE PATENTE - SIMULACIÓN",
+                patent: "MÓDULO DE PATENTE · SIMULACIÓN",
                 patHelp: "Activa la simulación dinámica para visualizar el comportamiento del sistema en el plano de patente.",
-                patStatus: "Estado de Patente:",
+                patStatus: "Estado de Patente",
                 diagnostic: "DIAGNÓSTICO EN TIEMPO REAL",
-                flux: "Flujo Cuántico:",
-                stability: "Estabilidad de Acoplamiento:",
+                flux: "Flujo Cuántico",
+                stability: "Estabilidad de Acoplamiento",
                 stateBtnNormal: "ESTADO: NORMAL",
                 stateBtnOverload: "ESTADO: CRISIS / SOBRECARGA",
                 stateBtnQuantum: "ESTADO: ESTABILIDAD CUÁNTICA",
@@ -492,31 +774,58 @@
                 txtPatent: "Plano de la Patente (Simulación)",
                 txtMacro: "Nódulo Macroeconómico",
                 txtActuator: "Actuador Wirkungsnetz",
-                vector: "ANÁLISIS VECTORIAL Q-FLUX"
+                txtCyber: "Nodo de Ciberdefensa",
+                txtLogistics: "Nodo Logístico Autónomo",
+                txtHealth: "Nodo de Salud Predictiva",
+                txtEdu: "Nodo Educativo Adaptativo",
+                txtSustain: "Nodo de Sostenibilidad",
+                txtMobility: "Nodo de Movilidad Inteligente",
+                txtQuantum: "Nodo de Ciberseguridad Cuántica",
+                txtTwin: "Nodo de Gemelo Digital",
+                vector: "ANÁLISIS VECTORIAL Q-FLUX",
+                baseFreq: "Frecuencia Base",
+                activeMode: "Modo Activo",
+                simToggleStart: "INICIAR SIMULACIÓN",
+                simToggleStop: "DETENER SIMULACIÓN",
+                simDemo: "Cargar Esquema Demo",
+                simFlow: "Flujo",
+                simWaves: "Ondas",
+                simParticles: "Partículas",
+                simMapping: "Mapa",
+                terminalInit: "> Sistema Iniciado v2.5…",
+                pageTitle: "ALEMANIA 6.0 · Sistema ODT"
             },
             en: {
                 author: "Dr. Julio César Oporta Barrera",
-                title: "GERMANY 6.0 - ODT SYSTEM",
-                state: "WORKING STATUS:",
-                network: "HOLISTIC NEURAL NETWORK",
-                nodes: "SMART NODES:",
-                sync: "BIOMECHANICAL SYNC:",
+                title: "GERMANY 6.0 · ODT",
+                lbl_author: "Author",
+                lbl_system: "System",
+                lbl_status: "Status",
+                lbl_patent: "Patent",
                 modes: "CORE OPERATING MODES",
                 m1: "Modular Physics",
                 m2: "Hybrid Energy",
                 m3: "Swarm AI",
                 m4: "Biomechanics",
-                newmods: "EXPANDED MODULES",
                 m5: "Macroeconomic Opt.",
                 m6: "Wirkungsnetz Actuators",
+                m7: "Cyber Defense",
+                m8: "Autonomous Logistics",
+                newmods: "EXPANDED MODULES",
+                m9: "Predictive Health",
+                m10: "Adaptive Education",
+                m11: "Sustainability",
+                m12: "Smart Mobility",
+                m13: "Quantum Cybersecurity",
+                m14: "Digital Twin",
                 freq: "Network Frequency",
                 scale: "Geometry Scale",
-                patent: "PATENT MODULE - SIMULATION",
+                patent: "PATENT MODULE · SIMULATION",
                 patHelp: "Activate dynamic simulation to visualize system behavior on the patent plane.",
-                patStatus: "Patent Status:",
+                patStatus: "Patent Status",
                 diagnostic: "REAL-TIME DIAGNOSTIC",
-                flux: "Quantum Flux:",
-                stability: "Coupling Stability:",
+                flux: "Quantum Flux",
+                stability: "Coupling Stability",
                 stateBtnNormal: "STATE: NORMAL",
                 stateBtnOverload: "STATE: CRISIS / OVERLOAD",
                 stateBtnQuantum: "STATE: QUANTUM STABILITY",
@@ -527,31 +836,58 @@
                 txtPatent: "Patent Blueprint (Simulation)",
                 txtMacro: "Macroeconomic Node",
                 txtActuator: "Wirkungsnetz Actuator",
-                vector: "VECTOR ANALYSIS Q-FLUX"
+                txtCyber: "Cyber Defense Node",
+                txtLogistics: "Autonomous Logistics Node",
+                txtHealth: "Predictive Health Node",
+                txtEdu: "Adaptive Education Node",
+                txtSustain: "Sustainability Node",
+                txtMobility: "Smart Mobility Node",
+                txtQuantum: "Quantum Cybersecurity Node",
+                txtTwin: "Digital Twin Node",
+                vector: "VECTOR ANALYSIS Q-FLUX",
+                baseFreq: "Base Frequency",
+                activeMode: "Active Mode",
+                simToggleStart: "START SIMULATION",
+                simToggleStop: "STOP SIMULATION",
+                simDemo: "Load Demo Schema",
+                simFlow: "Flow",
+                simWaves: "Waves",
+                simParticles: "Particles",
+                simMapping: "Map",
+                terminalInit: "> System Started v2.5…",
+                pageTitle: "GERMANY 6.0 · ODT System"
             },
             zh: {
                 author: "胡里奥·塞萨尔·奥波尔塔·巴雷拉 博士",
-                title: "德国 6.0 - ODT系统",
-                state: "工作状态:",
-                network: "整体神经网络",
-                nodes: "智能节点:",
-                sync: "生物力学同步:",
+                title: "德国 6.0 · ODT",
+                lbl_author: "作者",
+                lbl_system: "系统",
+                lbl_status: "状态",
+                lbl_patent: "专利",
                 modes: "核心运行模式",
                 m1: "模块化物理",
                 m2: "混合能源",
                 m3: "群集人工智能",
                 m4: "生物力学",
-                newmods: "扩展模块",
                 m5: "宏观经济优化",
                 m6: "Wirkungsnetz 执行器",
+                m7: "网络防御",
+                m8: "自主物流",
+                newmods: "扩展模块",
+                m9: "预测健康",
+                m10: "自适应教育",
+                m11: "可持续性",
+                m12: "智能移动",
+                m13: "量子网络安全",
+                m14: "数字孪生",
                 freq: "网络频率",
                 scale: "几何缩放",
-                patent: "专利模块 - 模拟",
+                patent: "专利模块 · 模拟",
                 patHelp: "激活动态模拟以在专利平面上可视化系统行为。",
-                patStatus: "专利状态:",
+                patStatus: "专利状态",
                 diagnostic: "实时诊断",
-                flux: "量子通量:",
-                stability: "耦合稳定性:",
+                flux: "量子通量",
+                stability: "耦合稳定性",
                 stateBtnNormal: "状态: 正常",
                 stateBtnOverload: "状态: 危机 / 过载",
                 stateBtnQuantum: "状态: 量子稳定",
@@ -562,176 +898,192 @@
                 txtPatent: "专利蓝图 (模拟)",
                 txtMacro: "宏观经济节点",
                 txtActuator: "Wirkungsnetz 执行器",
-                vector: "矢量分析 Q-FLUX"
+                txtCyber: "网络防御节点",
+                txtLogistics: "自主物流节点",
+                txtHealth: "预测健康节点",
+                txtEdu: "自适应教育节点",
+                txtSustain: "可持续性节点",
+                txtMobility: "智能移动节点",
+                txtQuantum: "量子网络安全节点",
+                txtTwin: "数字孪生节点",
+                vector: "矢量分析 Q-FLUX",
+                baseFreq: "基础频率",
+                activeMode: "活动模式",
+                simToggleStart: "开始模拟",
+                simToggleStop: "停止模拟",
+                simDemo: "加载演示方案",
+                simFlow: "流动",
+                simWaves: "波浪",
+                simParticles: "粒子",
+                simMapping: "地图",
+                terminalInit: "> 系统已启动 v2.5…",
+                pageTitle: "德国 6.0 · ODT 系统"
             }
         };
 
         let currentLang = 'es';
 
+        // ============================================================
+        //  FUNCIÓN DE CAMBIO DE IDIOMA (completa)
+        // ============================================================
         function changeLanguage(lang) {
             currentLang = lang;
-            document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
+            // Actualizar botones de idioma
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+            if (event && event.target) {
+                event.target.classList.add('active');
+            } else {
+                document.querySelector(`.lang-btn[onclick*="${lang}"]`)?.classList.add('active');
+            }
 
             const d = i18n[lang];
+
+            // Panel superior
+            document.getElementById('lbl-author').innerText = d.lbl_author;
             document.getElementById('t-author').innerText = d.author;
-            document.getElementById('t-title').innerHTML = `${d.title} <span>[V2.5]</span>`;
-            document.getElementById('t-state').innerText = d.state;
-            document.getElementById('t-network').innerText = d.network;
-            document.getElementById('t-nodes').innerText = d.nodes;
-            document.getElementById('t-sync').innerText = d.sync;
+            document.getElementById('lbl-system').innerText = d.lbl_system;
+            document.getElementById('t-title').innerText = d.title;
+            document.getElementById('lbl-status').innerText = d.lbl_status;
+            document.getElementById('lbl-patent').innerText = d.lbl_patent;
+
+            // Modos core
             document.getElementById('t-modes').innerText = d.modes;
             document.getElementById('t-m1').innerText = d.m1;
             document.getElementById('t-m2').innerText = d.m2;
             document.getElementById('t-m3').innerText = d.m3;
             document.getElementById('t-m4').innerText = d.m4;
-            document.getElementById('t-newmods').innerText = d.newmods;
             document.getElementById('t-m5').innerText = d.m5;
             document.getElementById('t-m6').innerText = d.m6;
+            document.getElementById('t-m7').innerText = d.m7;
+            document.getElementById('t-m8').innerText = d.m8;
+
+            // Módulos expandidos
+            document.getElementById('t-newmods').innerText = d.newmods;
+            document.getElementById('t-m9').innerText = d.m9;
+            document.getElementById('t-m10').innerText = d.m10;
+            document.getElementById('t-m11').innerText = d.m11;
+            document.getElementById('t-m12').innerText = d.m12;
+            document.getElementById('t-m13').innerText = d.m13;
+            document.getElementById('t-m14').innerText = d.m14;
+
+            // Sliders
             document.getElementById('t-freq').innerText = d.freq;
             document.getElementById('t-scale').innerText = d.scale;
+
+            // Osciloscopio
+            document.getElementById('t-vector').innerText = d.vector;
+            document.getElementById('lbl-base-freq').innerText = d.baseFreq;
+
+            // Patente
             document.getElementById('t-patent').innerText = d.patent;
             document.getElementById('t-pat-help').innerText = d.patHelp;
             document.getElementById('t-pat-status').innerText = d.patStatus;
+            // Botones de simulación (textos estáticos)
+            document.getElementById('btn-demo-text').innerText = d.simDemo;
+            document.getElementById('sim-flow').innerText = d.simFlow;
+            document.getElementById('sim-waves').innerText = d.simWaves;
+            document.getElementById('sim-particles').innerText = d.simParticles;
+            document.getElementById('sim-mapping').innerText = d.simMapping;
+            // El botón toggle se actualiza según estado (ver más abajo)
+            updateSimToggleLabel();
+
+            // Diagnóstico
             document.getElementById('t-diagnostic').innerText = d.diagnostic;
             document.getElementById('t-flux').innerText = d.flux;
             document.getElementById('t-stability').innerText = d.stability;
-            document.getElementById('t-vector').innerText = d.vector;
-            
-            // Actualizar botones dinámicos con estados correctos
+            document.getElementById('lbl-active-mode').innerText = d.activeMode;
+
+            // Terminal
+            document.getElementById('terminal-init').innerText = d.terminalInit;
+
+            // Estado dinámico
             updateStateButtonLabel();
+            updateActiveModeLabel();
+
+            // AR
+            const arBtn = document.querySelector('[onclick="toggleAR()"]');
+            if (arBtn) {
+                const isActive = arBtn.innerText.includes('APAGAR') || arBtn.innerText.includes('STOP') || arBtn.innerText.includes('关闭');
+                arBtn.innerHTML = `<span id="t-ar-btn">${isActive ? d.arBtnStop : d.arBtnStart}</span>`;
+            }
+
+            // Título de la página
+            document.getElementById('page-title').innerText = d.pageTitle;
+            document.title = d.pageTitle;
+
             logTerminal("Idioma cambiado a: " + lang.toUpperCase());
         }
 
-        // --- SISTEMA DE LOGS DE TERMINAL ---
+        // ============================================================
+        //  ACTUALIZAR ETIQUETA DEL BOTÓN DE SIMULACIÓN (toggle)
+        // ============================================================
+        function updateSimToggleLabel() {
+            const btn = document.getElementById('sim-toggle-btn');
+            const span = document.getElementById('sim-toggle-text');
+            if (!span) return;
+            const d = i18n[currentLang];
+            // El estado actual lo tenemos en la variable simulationActive (global)
+            if (typeof simulationActive !== 'undefined' && simulationActive) {
+                span.innerText = d.simToggleStop;
+            } else {
+                span.innerText = d.simToggleStart;
+            }
+        }
+
+        // ============================================================
+        //  FUNCIONES DE LOG Y OTROS (sin cambios)
+        // ============================================================
         function logTerminal(message) {
             const terminal = document.getElementById('terminal');
             const entry = document.createElement('div');
-            entry.innerText = `> ${message}`;
+            entry.innerText = '> ' + message;
             terminal.appendChild(entry);
-            if (terminal.childNodes.length > 10) {
+            if (terminal.childNodes.length > 12) {
                 terminal.removeChild(terminal.firstChild);
             }
         }
 
-        // --- VARIABLES GLOBALES DEL MOTOR 3D ---
+        // ============================================================
+        //  VARIABLES 3D Y DE PATENTE (idénticas)
+        // ============================================================
         let scene, camera, renderer;
-        let coreBrain, swarmSystem, nodesList = [], connections = [];
+        let coreBrain, swarmSystem, nodesList = [],
+            connections = [];
         let patentPlane, patentTexture, patentCanvas, patentCtx;
-        let activeCoreMode = 1; 
+        let activeCoreMode = 1;
         let globalSpeed = 1.0;
         let hologramScaleFactor = 1.0;
-        
-        // Control de rotación interactiva con mouse
+
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
         let rotationTarget = { x: 0, y: 0 };
-        
-        // Estado Dinámico Extra (0 = Normal, 1 = Crisis/Sobrecarga, 2 = Estabilidad Cuántica, 3 = Turbo GOE Engine)
-        let systemDynamicState = 0; 
+
+        let systemDynamicState = 0;
         let systemColors = {
             blue: 0x00e5ff,
             deep: 0x0033aa,
             amber: 0xffcc00,
             magenta: 0xff44ff,
             green: 0x00ffaa,
+            red: 0xff3366,
+            cyan: 0x00ccff,
+            orange: 0xff8800,
+            purple: 0xaa66ff,
             active: 0x00e5ff
         };
 
-        // --- SIMULACIÓN DE PATENTE ---
         let simulationActive = false;
+        let patentSimulationMode = 'default';
         let simTime = 0;
 
-        function togglePatentSimulation() {
-            simulationActive = !simulationActive;
-            const btn = document.getElementById('sim-toggle-btn');
-            if (simulationActive) {
-                btn.innerText = 'DETENER SIMULACIÓN';
-                btn.style.background = 'rgba(255, 68, 68, 0.2)';
-                btn.style.borderColor = '#ff4444';
-                logTerminal("Simulación de patente iniciada.");
-            } else {
-                btn.innerText = 'INICIAR SIMULACIÓN';
-                btn.style.background = '';
-                btn.style.borderColor = '';
-                logTerminal("Simulación de patente detenida.");
-                // Restaurar esquema por defecto
-                drawDefaultPatentBlueprint();
-                patentTexture.needsUpdate = true;
-                document.getElementById('patent-load-status').innerText = "ESQUEMA ESTÁTICO";
-                document.getElementById('patent-load-status').style.color = "var(--neon-amber)";
-            }
-        }
-
-        function updatePatentSimulation(time) {
-            if (!simulationActive) return;
-            // Limpiar el canvas
-            patentCtx.fillStyle = '#080c14';
-            patentCtx.fillRect(0, 0, 512, 512);
-
-            const centerX = 256, centerY = 256;
-            const numParticles = 60;
-
-            // Dibujar partículas en órbita
-            for (let i = 0; i < numParticles; i++) {
-                const angle = (i / numParticles) * Math.PI * 2 + time * 0.6;
-                const radius = 80 + Math.sin(time * 1.5 + i * 0.5) * 60;
-                const x = centerX + Math.cos(angle) * radius;
-                const y = centerY + Math.sin(angle) * radius;
-                const hue = (i * 360 / numParticles + time * 40) % 360;
-                patentCtx.fillStyle = `hsl(${hue}, 100%, 60%)`;
-                patentCtx.shadowColor = `hsl(${hue}, 100%, 60%)`;
-                patentCtx.shadowBlur = 20;
-                patentCtx.beginPath();
-                patentCtx.arc(x, y, 4 + Math.sin(time * 2 + i) * 2, 0, Math.PI * 2);
-                patentCtx.fill();
-            }
-            patentCtx.shadowBlur = 0;
-
-            // Círculos concéntricos pulsantes
-            for (let r = 40; r < 240; r += 30) {
-                const pulse = Math.sin(time * 1.2 + r * 0.1) * 8;
-                patentCtx.strokeStyle = `rgba(0, 229, 255, ${0.2 + Math.sin(time + r) * 0.1})`;
-                patentCtx.lineWidth = 1.5;
-                patentCtx.beginPath();
-                patentCtx.arc(centerX, centerY, r + pulse, 0, Math.PI * 2);
-                patentCtx.stroke();
-            }
-
-            // Líneas radiales dinámicas
-            for (let i = 0; i < 12; i++) {
-                const angle = (i / 12) * Math.PI * 2 + time * 0.2;
-                const len = 180 + Math.sin(time * 2 + i) * 40;
-                patentCtx.strokeStyle = `rgba(0, 229, 255, 0.15)`;
-                patentCtx.lineWidth = 1;
-                patentCtx.beginPath();
-                patentCtx.moveTo(centerX, centerY);
-                patentCtx.lineTo(centerX + Math.cos(angle) * len, centerY + Math.sin(angle) * len);
-                patentCtx.stroke();
-            }
-
-            // Texto informativo animado
-            patentCtx.fillStyle = 'rgba(0, 229, 255, 0.7)';
-            patentCtx.font = 'bold 14px Courier New';
-            patentCtx.shadowColor = '#00e5ff';
-            patentCtx.shadowBlur = 10;
-            patentCtx.fillText("SIMULACIÓN DINÁMICA EN VIVO", 40, 50);
-            patentCtx.fillText("SISTEMA ODT - ALEMANIA 6.0", 40, 75);
-            patentCtx.shadowBlur = 0;
-
-            patentTexture.needsUpdate = true;
-            document.getElementById('patent-load-status').innerText = "SIMULACIÓN ACTIVA";
-            document.getElementById('patent-load-status').style.color = "var(--neon-green)";
-        }
-
-        // --- CREACIÓN DEL CANVAS DINÁMICO PARA LA PATENTE ---
+        // ============================================================
+        //  PATENTE CANVAS (idéntico)
+        // ============================================================
         function initPatentCanvas() {
             patentCanvas = document.createElement('canvas');
             patentCanvas.width = 512;
             patentCanvas.height = 512;
             patentCtx = patentCanvas.getContext('2d');
-            
-            // Dibujar esquema cibernético por defecto
             drawDefaultPatentBlueprint();
             patentTexture = new THREE.CanvasTexture(patentCanvas);
         }
@@ -739,29 +1091,24 @@
         function drawDefaultPatentBlueprint() {
             patentCtx.fillStyle = '#080c14';
             patentCtx.fillRect(0, 0, 512, 512);
-
-            // Círculos concéntricos de energía de la patente
             patentCtx.strokeStyle = 'rgba(0, 229, 255, 0.5)';
             patentCtx.lineWidth = 2;
             patentCtx.beginPath();
             patentCtx.arc(256, 256, 180, 0, Math.PI * 2);
             patentCtx.stroke();
-
             patentCtx.strokeStyle = 'rgba(0, 51, 170, 0.7)';
             patentCtx.beginPath();
             patentCtx.arc(256, 256, 100, 0, Math.PI * 2);
             patentCtx.stroke();
-
-            // Ejes de coordenadas y rejilla táctica
             patentCtx.strokeStyle = 'rgba(0, 229, 255, 0.2)';
-            for(let i=0; i<512; i+=32) {
+            for (let i = 0; i < 512; i += 32) {
                 patentCtx.beginPath();
-                patentCtx.moveTo(i, 0); patentCtx.lineTo(i, 512);
-                patentCtx.moveTo(0, i); patentCtx.lineTo(512, i);
+                patentCtx.moveTo(i, 0);
+                patentCtx.lineTo(i, 512);
+                patentCtx.moveTo(0, i);
+                patentCtx.lineTo(512, i);
                 patentCtx.stroke();
             }
-
-            // Anotaciones técnicas
             patentCtx.fillStyle = 'rgba(0, 229, 255, 0.9)';
             patentCtx.font = 'bold 14px Courier New';
             patentCtx.shadowColor = '#00e5ff';
@@ -769,8 +1116,6 @@
             patentCtx.fillText("PATENTE DE-102025 ODT v2.5", 40, 60);
             patentCtx.fillText("OPTIMIZACIÓN TOTAL - ALEMANIA", 40, 80);
             patentCtx.shadowBlur = 0;
-            
-            // Líneas esquemáticas
             patentCtx.strokeStyle = 'rgba(0, 229, 255, 0.8)';
             patentCtx.beginPath();
             patentCtx.moveTo(256, 256);
@@ -782,27 +1127,292 @@
             patentCtx.stroke();
         }
 
-        // Carga automática del diseño patentado interactivo simulado
+        function setPatentSimulation(mode) {
+            if (!simulationActive) {
+                simulationActive = true;
+                document.getElementById('sim-toggle-btn').style.background = 'rgba(255, 68, 68, 0.15)';
+                document.getElementById('sim-toggle-btn').style.borderColor = '#ff4444';
+                updateSimToggleLabel();
+            }
+            patentSimulationMode = mode;
+            const modeNames = {
+                flow: i18n[currentLang].simFlow || 'FLUJO',
+                waves: i18n[currentLang].simWaves || 'ONDAS',
+                particles: i18n[currentLang].simParticles || 'PARTÍCULAS',
+                mapping: i18n[currentLang].simMapping || 'MAPA'
+            };
+            document.getElementById('patent-load-status').innerText = modeNames[mode] || 'SIMULACIÓN ACTIVA';
+            document.getElementById('patent-load-status').style.color = 'var(--neon-green)';
+            logTerminal('Simulación de patente: ' + modeNames[mode]);
+        }
+
+        function togglePatentSimulation() {
+            simulationActive = !simulationActive;
+            const btn = document.getElementById('sim-toggle-btn');
+            if (simulationActive) {
+                btn.style.background = 'rgba(255, 68, 68, 0.15)';
+                btn.style.borderColor = '#ff4444';
+                patentSimulationMode = 'default';
+                document.getElementById('patent-load-status').innerText = 'SIMULACIÓN GENÉRICA';
+                document.getElementById('patent-load-status').style.color = 'var(--neon-green)';
+                logTerminal("Simulación de patente iniciada (modo genérico).");
+            } else {
+                btn.style.background = '';
+                btn.style.borderColor = '';
+                patentSimulationMode = 'default';
+                logTerminal("Simulación de patente detenida.");
+                drawDefaultPatentBlueprint();
+                patentTexture.needsUpdate = true;
+                document.getElementById('patent-load-status').innerText = "ESQUEMA ESTÁTICO";
+                document.getElementById('patent-load-status').style.color = "var(--neon-amber)";
+            }
+            updateSimToggleLabel();
+        }
+
+        function updatePatentSimulation(time) {
+            if (!simulationActive) return;
+            const ctx = patentCtx;
+            const w = 512,
+                h = 512;
+            ctx.fillStyle = '#080c14';
+            ctx.fillRect(0, 0, w, h);
+            switch (patentSimulationMode) {
+                case 'flow':
+                    drawFlowSimulation(ctx, w, h, time);
+                    break;
+                case 'waves':
+                    drawWavesSimulation(ctx, w, h, time);
+                    break;
+                case 'particles':
+                    drawParticlesSimulation(ctx, w, h, time);
+                    break;
+                case 'mapping':
+                    drawMappingSimulation(ctx, w, h, time);
+                    break;
+                default:
+                    drawDefaultPatentSimulation(ctx, w, h, time);
+                    break;
+            }
+            patentTexture.needsUpdate = true;
+        }
+
+        function drawDefaultPatentSimulation(ctx, w, h, time) {
+            const centerX = 256,
+                centerY = 256;
+            const numParticles = 60;
+            for (let i = 0; i < numParticles; i++) {
+                const angle = (i / numParticles) * Math.PI * 2 + time * 0.6;
+                const radius = 80 + Math.sin(time * 1.5 + i * 0.5) * 60;
+                const x = centerX + Math.cos(angle) * radius;
+                const y = centerY + Math.sin(angle) * radius;
+                const hue = (i * 360 / numParticles + time * 40) % 360;
+                ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
+                ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
+                ctx.shadowBlur = 20;
+                ctx.beginPath();
+                ctx.arc(x, y, 4 + Math.sin(time * 2 + i) * 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.shadowBlur = 0;
+            for (let r = 40; r < 240; r += 30) {
+                const pulse = Math.sin(time * 1.2 + r * 0.1) * 8;
+                ctx.strokeStyle = `rgba(0, 229, 255, ${0.2 + Math.sin(time + r) * 0.1})`;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, r + pulse, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            for (let i = 0; i < 12; i++) {
+                const angle = (i / 12) * Math.PI * 2 + time * 0.2;
+                const len = 180 + Math.sin(time * 2 + i) * 40;
+                ctx.strokeStyle = `rgba(0, 229, 255, 0.15)`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(centerX + Math.cos(angle) * len, centerY + Math.sin(angle) * len);
+                ctx.stroke();
+            }
+            ctx.fillStyle = 'rgba(0, 229, 255, 0.7)';
+            ctx.font = 'bold 14px Courier New';
+            ctx.shadowColor = '#00e5ff';
+            ctx.shadowBlur = 10;
+            ctx.fillText("SIMULACIÓN DINÁMICA EN VIVO", 40, 50);
+            ctx.fillText("SISTEMA ODT - ALEMANIA 6.0", 40, 75);
+            ctx.shadowBlur = 0;
+        }
+
+        function drawFlowSimulation(ctx, w, h, time) {
+            const centerX = 256,
+                centerY = 256;
+            for (let i = 0; i < 20; i++) {
+                const offset = i * 25;
+                ctx.strokeStyle = `hsla(${i * 18 + time * 20}, 80%, 60%, 0.6)`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                for (let t = 0; t < 1; t += 0.02) {
+                    const angle = t * Math.PI * 2 + time * 0.3 + offset * 0.05;
+                    const radius = 40 + t * 150 + Math.sin(t * 10 + time) * 20;
+                    const x = centerX + Math.cos(angle + time * 0.2) * radius;
+                    const y = centerY + Math.sin(angle + time * 0.2) * radius;
+                    if (t === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+            for (let i = 0; i < 80; i++) {
+                const angle = i * 0.8 + time * 0.5;
+                const radius = 60 + Math.sin(i * 1.2 + time) * 80;
+                const x = centerX + Math.cos(angle) * radius;
+                const y = centerY + Math.sin(angle) * radius;
+                ctx.fillStyle = `hsla(${i * 5 + time * 30}, 100%, 70%, 0.8)`;
+                ctx.shadowColor = ctx.fillStyle;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(x, y, 3 + Math.sin(time + i) * 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(0, 255, 200, 0.8)';
+            ctx.font = 'bold 14px Courier New';
+            ctx.shadowColor = '#00ffaa';
+            ctx.shadowBlur = 10;
+            ctx.fillText("FLUJO DINÁMICO", 40, 50);
+            ctx.shadowBlur = 0;
+        }
+
+        function drawWavesSimulation(ctx, w, h, time) {
+            const centerX = 256,
+                centerY = 256;
+            for (let r = 20; r < 260; r += 8) {
+                const phase = r * 0.05 - time * 2;
+                const radius = r + Math.sin(phase) * 12;
+                ctx.strokeStyle = `hsla(${r * 0.5 + time * 40}, 80%, 60%, ${0.3 + Math.sin(phase) * 0.2})`;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            for (let i = 0; i < 16; i++) {
+                const angle = i / 16 * Math.PI * 2 + time * 0.3;
+                const len = 200 + Math.sin(time * 2 + i) * 40;
+                ctx.strokeStyle = `hsla(${i * 20 + time * 30}, 90%, 70%, 0.5)`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                for (let t = 0; t < 1; t += 0.02) {
+                    const r = 20 + t * len;
+                    const x = centerX + Math.cos(angle + t * 0.5) * r;
+                    const y = centerY + Math.sin(angle + t * 0.5) * r;
+                    if (t === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+            ctx.fillStyle = 'rgba(255, 200, 100, 0.8)';
+            ctx.font = 'bold 14px Courier New';
+            ctx.shadowColor = '#ffcc00';
+            ctx.shadowBlur = 10;
+            ctx.fillText("PATRÓN DE ONDAS", 40, 50);
+            ctx.shadowBlur = 0;
+        }
+
+        function drawParticlesSimulation(ctx, w, h, time) {
+            const centerX = 256,
+                centerY = 256;
+            const num = 200;
+            for (let i = 0; i < num; i++) {
+                const angle = i * 0.3 + time * 0.2;
+                const radius = 40 + Math.sin(i * 0.7 + time * 1.5) * 100;
+                const x = centerX + Math.cos(angle) * radius;
+                const y = centerY + Math.sin(angle) * radius;
+                const size = 2 + Math.sin(i + time * 2) * 1.5;
+                const hue = (i * 2 + time * 50) % 360;
+                ctx.fillStyle = `hsl(${hue}, 100%, 70%)`;
+                ctx.shadowColor = `hsl(${hue}, 100%, 70%)`;
+                ctx.shadowBlur = 12;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.shadowBlur = 0;
+            const positions = [];
+            for (let i = 0; i < num; i++) {
+                const angle = i * 0.3 + time * 0.2;
+                const radius = 40 + Math.sin(i * 0.7 + time * 1.5) * 100;
+                positions.push({
+                    x: centerX + Math.cos(angle) * radius,
+                    y: centerY + Math.sin(angle) * radius
+                });
+            }
+            for (let i = 0; i < positions.length; i++) {
+                for (let j = i + 1; j < positions.length; j++) {
+                    const dx = positions[i].x - positions[j].x;
+                    const dy = positions[i].y - positions[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 60) {
+                        ctx.strokeStyle = `rgba(0, 229, 255, ${0.2 * (1 - dist / 60)})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.moveTo(positions[i].x, positions[i].y);
+                        ctx.lineTo(positions[j].x, positions[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            ctx.fillStyle = 'rgba(200, 200, 255, 0.8)';
+            ctx.font = 'bold 14px Courier New';
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 10;
+            ctx.fillText("NUBE DE PARTÍCULAS", 40, 50);
+            ctx.shadowBlur = 0;
+        }
+
+        function drawMappingSimulation(ctx, w, h, time) {
+            const step = 20;
+            for (let x = 0; x < w; x += step) {
+                for (let y = 0; y < h; y += step) {
+                    const value = Math.sin(x * 0.02 + time) * Math.cos(y * 0.02 + time * 0.7);
+                    const intensity = (value + 1) / 2;
+                    const hue = 200 + intensity * 60;
+                    const lightness = 30 + intensity * 50;
+                    ctx.fillStyle = `hsl(${hue}, 100%, ${lightness}%)`;
+                    ctx.fillRect(x, y, step, step);
+                }
+            }
+            for (let i = 0; i < 6; i++) {
+                const level = i / 6;
+                ctx.strokeStyle = `rgba(255, 255, 255, ${0.2 + level * 0.3})`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                for (let x = 0; x < w; x += 2) {
+                    const y = h / 2 + Math.sin(x * 0.03 + time + level * 2) * 80 + Math.sin(x * 0.05 + time * 0.7 + level) * 40;
+                    if (x === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+            ctx.fillStyle = 'rgba(100, 255, 200, 0.8)';
+            ctx.font = 'bold 14px Courier New';
+            ctx.shadowColor = '#00ffaa';
+            ctx.shadowBlur = 10;
+            ctx.fillText("MAPA DE CALOR DINÁMICO", 40, 50);
+            ctx.shadowBlur = 0;
+        }
+
         function loadDemoPatent() {
-            // Detener simulación si estaba activa
             if (simulationActive) {
                 simulationActive = false;
-                document.getElementById('sim-toggle-btn').innerText = 'INICIAR SIMULACIÓN';
                 document.getElementById('sim-toggle-btn').style.background = '';
                 document.getElementById('sim-toggle-btn').style.borderColor = '';
+                patentSimulationMode = 'default';
+                updateSimToggleLabel();
             }
-
             patentCtx.fillStyle = '#080c14';
             patentCtx.fillRect(0, 0, 512, 512);
-
-            // Dibujar mapa táctico de Alemania estilizado
             patentCtx.strokeStyle = 'rgba(0, 255, 170, 0.7)';
             patentCtx.lineWidth = 3;
             patentCtx.strokeRect(15, 15, 482, 482);
-
             patentCtx.fillStyle = 'rgba(0, 229, 255, 0.2)';
             patentCtx.beginPath();
-            // Puntos clave representando la geografía simplificada de la simulación
             patentCtx.moveTo(200, 100);
             patentCtx.lineTo(350, 120);
             patentCtx.lineTo(420, 250);
@@ -813,46 +1423,42 @@
             patentCtx.closePath();
             patentCtx.fill();
             patentCtx.stroke();
-
-            // Dibujar nodos estratégicos alemanes del cerebro digital
-            const targetCities = [
-                {name: "JÜLICH", x: 180, y: 220, main: true},
-                {name: "MUNICH", x: 340, y: 400},
-                {name: "BERLIN", x: 380, y: 180},
-                {name: "HAMBURG", x: 260, y: 120}
+            const cities = [
+                { name: "JÜLICH", x: 180, y: 220, main: true },
+                { name: "MUNICH", x: 340, y: 400 },
+                { name: "BERLIN", x: 380, y: 180 },
+                { name: "HAMBURG", x: 260, y: 120 }
             ];
-
-            targetCities.forEach(city => {
-                patentCtx.fillStyle = city.main ? '#ff44ff' : '#00e5ff';
-                patentCtx.shadowColor = city.main ? '#ff44ff' : '#00e5ff';
+            cities.forEach(c => {
+                patentCtx.fillStyle = c.main ? '#ff44ff' : '#00e5ff';
+                patentCtx.shadowColor = c.main ? '#ff44ff' : '#00e5ff';
                 patentCtx.shadowBlur = 15;
                 patentCtx.beginPath();
-                patentCtx.arc(city.x, city.y, 10, 0, Math.PI * 2);
+                patentCtx.arc(c.x, c.y, 10, 0, Math.PI * 2);
                 patentCtx.fill();
                 patentCtx.shadowBlur = 0;
-
                 patentCtx.fillStyle = '#ffffff';
                 patentCtx.font = 'bold 11px Courier New';
                 patentCtx.shadowColor = '#00e5ff';
                 patentCtx.shadowBlur = 8;
-                patentCtx.fillText(city.name, city.x + 15, city.y + 5);
+                patentCtx.fillText(c.name, c.x + 15, c.y + 5);
                 patentCtx.shadowBlur = 0;
             });
-
             patentCtx.fillStyle = 'rgba(0, 255, 170, 0.9)';
             patentCtx.font = 'bold 14px Courier New';
             patentCtx.shadowColor = '#00ffaa';
             patentCtx.shadowBlur = 12;
             patentCtx.fillText("ALEMANIA 6.0: MAPA HOLOGRÁFICO", 40, 50);
             patentCtx.shadowBlur = 0;
-
             patentTexture.needsUpdate = true;
             document.getElementById('patent-load-status').innerText = "ESQUEMA ACOPLADO";
             document.getElementById('patent-load-status').style.color = "var(--neon-green)";
             logTerminal("Esquema técnico cargado sobre el plano de la patente.");
         }
 
-        // --- INICIALIZACIÓN DEL ENTORNO WEBGL (THREE.JS) ---
+        // ============================================================
+        //  INICIALIZACIÓN 3D (idéntica)
+        // ============================================================
         function init3D() {
             const canvas = document.getElementById('webgl-canvas');
             scene = new THREE.Scene();
@@ -863,21 +1469,18 @@
 
             renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setClearColor(0x060a12, 1);
 
-            // Iluminación Cinematográfica Neon mejorada
             const ambient = new THREE.AmbientLight(0x0a1a2a, 1.8);
             scene.add(ambient);
-
             const dirLight1 = new THREE.DirectionalLight(0x00e5ff, 3.5);
             dirLight1.position.set(50, 80, 50);
             scene.add(dirLight1);
-
             const dirLight2 = new THREE.DirectionalLight(0xff44ff, 2.5);
             dirLight2.position.set(-50, -50, -50);
             scene.add(dirLight2);
 
-            // --- OBJETO 1: CEREBRO DIGITAL CENTRAL (DIGITALHIRN) ---
             const brainGeo = new THREE.IcosahedronGeometry(10, 2);
             const brainMat = new THREE.MeshPhongMaterial({
                 color: 0x050a14,
@@ -893,7 +1496,6 @@
             scene.add(coreBrain);
             nodesList.push(coreBrain);
 
-            // --- OBJETO 2: PLANO HOLOGRÁFICO DE LA PATENTE ---
             initPatentCanvas();
             const patentGeo = new THREE.PlaneGeometry(35, 35);
             const patentMat = new THREE.MeshBasicMaterial({
@@ -910,12 +1512,10 @@
             scene.add(patentPlane);
             nodesList.push(patentPlane);
 
-            // --- OBJETO 3: SISTEMA DE ENJAMBRE (SWARM AI) ---
             const swarmCount = 1500;
             const swarmGeo = new THREE.BufferGeometry();
             const positions = new Float32Array(swarmCount * 3);
             const velocities = [];
-
             for (let i = 0; i < swarmCount; i++) {
                 positions[i * 3] = (Math.random() - 0.5) * 80;
                 positions[i * 3 + 1] = (Math.random() - 0.5) * 80;
@@ -938,18 +1538,12 @@
             swarmSystem.userData = { velocities: velocities };
             scene.add(swarmSystem);
 
-            // --- GENERAR NODOS PERIFÉRICOS ---
             generatePeriphericNodes();
-
-            // Interacciones de ratón y rotación del canvas
             setupInteractions();
-
-            // Ajustar en ventana y animar
             window.addEventListener('resize', onWindowResize, false);
             animate();
         }
 
-        // --- GEOMETRÍA DE NODOS ---
         function generatePeriphericNodes() {
             nodesList.filter(n => n.userData.type !== 'core' && n.userData.type !== 'patent').forEach(n => scene.remove(n));
             connections.forEach(c => scene.remove(c.line));
@@ -961,11 +1555,18 @@
                 { id: 3, color: 0x00ffaa, type: 'swarm', labelKey: 'm3' },
                 { id: 4, color: 0xff44ff, type: 'biomechanic', labelKey: 'm4' },
                 { id: 5, color: 0xffcc00, type: 'macroeconomic', labelKey: 'm5' },
-                { id: 6, color: 0xff5500, type: 'wirkungsnetz', labelKey: 'm6' }
+                { id: 6, color: 0xff5500, type: 'wirkungsnetz', labelKey: 'm6' },
+                { id: 7, color: 0xff3366, type: 'cyber', labelKey: 'm7' },
+                { id: 8, color: 0x00ccff, type: 'logistics', labelKey: 'm8' },
+                { id: 9, color: 0xaa66ff, type: 'health', labelKey: 'm9' },
+                { id: 10, color: 0xffaa00, type: 'education', labelKey: 'm10' },
+                { id: 11, color: 0x44ff88, type: 'sustainability', labelKey: 'm11' },
+                { id: 12, color: 0xff8844, type: 'mobility', labelKey: 'm12' },
+                { id: 13, color: 0xcc44ff, type: 'quantum', labelKey: 'm13' },
+                { id: 14, color: 0x44ddff, type: 'twin', labelKey: 'm14' }
             ];
 
             const nodeGeo = new THREE.OctahedronGeometry(2.2, 0);
-
             modules.forEach((mod, index) => {
                 const nodeMat = new THREE.MeshPhongMaterial({
                     color: 0x050a14,
@@ -974,23 +1575,20 @@
                     wireframe: true
                 });
                 const node = new THREE.Mesh(nodeGeo, nodeMat);
-
                 const angle = (index / modules.length) * Math.PI * 2;
                 const distance = 36;
                 node.position.x = Math.cos(angle) * distance;
                 node.position.z = Math.sin(angle) * distance;
                 node.position.y = Math.sin(angle * 2) * 8;
-
-                node.userData = { 
-                    type: mod.type, 
-                    angle: angle, 
+                node.userData = {
+                    type: mod.type,
+                    angle: angle,
                     speed: 0.005 + index * 0.002,
-                    labelKey: mod.labelKey
+                    labelKey: mod.labelKey,
+                    baseColor: mod.color
                 };
-                
                 scene.add(node);
                 nodesList.push(node);
-
                 const lineMat = new THREE.LineBasicMaterial({
                     color: mod.color,
                     transparent: true,
@@ -999,7 +1597,6 @@
                 const points = [];
                 points.push(new THREE.Vector3(0, 10, 0));
                 points.push(node.position);
-
                 const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
                 const line = new THREE.Line(lineGeo, lineMat);
                 scene.add(line);
@@ -1007,56 +1604,41 @@
             });
         }
 
-        // --- INTERACCIONES AVANZADAS Y ROTACIÓN ORBITAL MANUAL ---
         let raycaster, mouse;
+
         function setupInteractions() {
             raycaster = new THREE.Raycaster();
             mouse = new THREE.Vector2();
-
             const canvas = document.getElementById('webgl-canvas');
 
-            // Arrastrar para rotar la cámara orbitalmente alrededor del núcleo central
             canvas.addEventListener('mousedown', (e) => {
                 isDragging = true;
                 previousMousePosition = { x: e.clientX, y: e.clientY };
             });
-
             canvas.addEventListener('mousemove', (e) => {
                 if (isDragging) {
                     const deltaMove = {
                         x: e.clientX - previousMousePosition.x,
                         y: e.clientY - previousMousePosition.y
                     };
-
                     rotationTarget.y += deltaMove.x * 0.005;
                     rotationTarget.x += deltaMove.y * 0.005;
-
-                    // Limitar rotación vertical para evitar giros imposibles
                     rotationTarget.x = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, rotationTarget.x));
-
                     previousMousePosition = { x: e.clientX, y: e.clientY };
                 }
-
-                // Actualizar posición de cursor para Raycasting
                 mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
                 mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-
                 raycaster.setFromCamera(mouse, camera);
                 const intersects = raycaster.intersectObjects(nodesList);
-
                 const infoBox = document.getElementById('target-info');
-
                 if (intersects.length > 0) {
                     const obj = intersects[0].object;
                     infoBox.style.display = 'block';
                     infoBox.style.left = (e.clientX + 15) + 'px';
                     infoBox.style.top = (e.clientY + 15) + 'px';
-
                     obj.material.emissiveIntensity = 1.5;
-
                     let title = "SISTEMA";
                     let details = "";
-
                     if (obj.userData.type === 'core') {
                         title = i18n[currentLang].txtCore;
                         details = "Fuerza Cómputo: 1.5 Exaflops | Estabilidad: 99.98%";
@@ -1064,10 +1646,18 @@
                         title = i18n[currentLang].txtPatent;
                         details = "Plano interactivo de la patente Alemania 6.0. Escaneo espectral.";
                     } else {
-                        title = i18n[currentLang][obj.userData.labelKey] || "MÓDULO ACTIVO";
-                        details = `Sincronía de onda: 98% | Estado Físico: OPERATIVO.`;
+                        const key = obj.userData.labelKey;
+                        if (key === 'm7') title = i18n[currentLang].txtCyber;
+                        else if (key === 'm8') title = i18n[currentLang].txtLogistics;
+                        else if (key === 'm9') title = i18n[currentLang].txtHealth;
+                        else if (key === 'm10') title = i18n[currentLang].txtEdu;
+                        else if (key === 'm11') title = i18n[currentLang].txtSustain;
+                        else if (key === 'm12') title = i18n[currentLang].txtMobility;
+                        else if (key === 'm13') title = i18n[currentLang].txtQuantum;
+                        else if (key === 'm14') title = i18n[currentLang].txtTwin;
+                        else title = i18n[currentLang][key] || "MÓDULO ACTIVO";
+                        details = "Sincronía de onda: 98% | Estado Físico: OPERATIVO.";
                     }
-
                     document.getElementById('ti-title').innerText = title;
                     document.getElementById('ti-data').innerText = details;
                 } else {
@@ -1077,12 +1667,7 @@
                     });
                 }
             });
-
-            window.addEventListener('mouseup', () => {
-                isDragging = false;
-            });
-
-            // Disparar pulsos al hacer clic en un nodo
+            window.addEventListener('mouseup', () => { isDragging = false; });
             canvas.addEventListener('click', () => {
                 raycaster.setFromCamera(mouse, camera);
                 const intersects = raycaster.intersectObjects(nodesList);
@@ -1102,46 +1687,133 @@
             }, 180);
         }
 
-        // --- CONTROLES DE INTERFAZ ---
+        // ============================================================
+        //  CONTROLES UI
+        // ============================================================
         function updateSimulationSpeed() {
             const val = document.getElementById('slider-freq').value;
             globalSpeed = parseFloat(val);
-            document.getElementById('val-freq').innerText = val + "x";
+            document.getElementById('val-freq').innerText = val + 'x';
             logTerminal(`Frecuencia de simulación ODT: ${val}x`);
         }
 
         function updateHologramScale() {
             const val = document.getElementById('slider-scale').value;
             hologramScaleFactor = parseFloat(val);
-            document.getElementById('val-scale').innerText = val + "x";
+            document.getElementById('val-scale').innerText = val + 'x';
             logTerminal(`Escala holográfica modular: ${val}x`);
+        }
+
+        function updateActiveModeLabel() {
+            const modeNames = {
+                1: i18n[currentLang].m1,
+                2: i18n[currentLang].m2,
+                3: i18n[currentLang].m3,
+                4: i18n[currentLang].m4,
+                5: i18n[currentLang].m5,
+                6: i18n[currentLang].m6,
+                7: i18n[currentLang].m7,
+                8: i18n[currentLang].m8,
+                9: i18n[currentLang].m9,
+                10: i18n[currentLang].m10,
+                11: i18n[currentLang].m11,
+                12: i18n[currentLang].m12,
+                13: i18n[currentLang].m13,
+                14: i18n[currentLang].m14
+            };
+            document.getElementById('active-mode-label').innerText = modeNames[activeCoreMode] || "MODO";
         }
 
         function selectCoreMode(mode) {
             activeCoreMode = mode;
             document.querySelectorAll('.btn').forEach(b => {
-                if(b.id.startsWith('btn-m')) b.classList.remove('active');
+                if (b.id && b.id.startsWith('btn-m')) b.classList.remove('active');
             });
-            document.getElementById('btn-m' + mode).classList.add('active');
-
+            const btn = document.getElementById('btn-m' + mode);
+            if (btn) btn.classList.add('active');
             let modeName = "";
             switch (mode) {
-                case 1: modeName = "FÍSICA MODULAR"; break;
-                case 2: modeName = "ENERGÍA HÍBRIDA"; break;
-                case 3: modeName = "IA DE ENJAMBRE"; break;
-                case 4: modeName = "BIOMECÁNICA"; break;
-                case 5: modeName = "OPTIMIZACIÓN MACROECONÓMICA"; break;
-                case 6: modeName = "ACTUADORES WIRKUNGSNETZ"; break;
+                case 1:
+                    modeName = "FÍSICA MODULAR";
+                    break;
+                case 2:
+                    modeName = "ENERGÍA HÍBRIDA";
+                    break;
+                case 3:
+                    modeName = "IA DE ENJAMBRE";
+                    break;
+                case 4:
+                    modeName = "BIOMECÁNICA";
+                    break;
+                case 5:
+                    modeName = "OPTIMIZACIÓN MACROECONÓMICA";
+                    break;
+                case 6:
+                    modeName = "ACTUADORES WIRKUNGSNETZ";
+                    break;
+                case 7:
+                    modeName = "CIBERDEFENSA";
+                    break;
+                case 8:
+                    modeName = "LOGÍSTICA AUTÓNOMA";
+                    break;
+                case 9:
+                    modeName = "SALUD PREDICTIVA";
+                    break;
+                case 10:
+                    modeName = "EDUCACIÓN ADAPTATIVA";
+                    break;
+                case 11:
+                    modeName = "SOSTENIBILIDAD";
+                    break;
+                case 12:
+                    modeName = "MOVILIDAD INTELIGENTE";
+                    break;
+                case 13:
+                    modeName = "CIBERSEGURIDAD CUÁNTICA";
+                    break;
+                case 14:
+                    modeName = "GEMELO DIGITAL";
+                    break;
+                default:
+                    modeName = "MODO " + mode;
             }
+            updateActiveModeLabel();
             logTerminal(`Sincronizando modo: ${modeName}`);
+
+            const swarmMat = swarmSystem.material;
+            const colorMap = {
+                1: 0x00e5ff,
+                2: 0x0033aa,
+                3: 0x00ffaa,
+                4: 0xff44ff,
+                5: 0xffcc00,
+                6: 0xff5500,
+                7: 0xff3366,
+                8: 0x00ccff,
+                9: 0xaa66ff,
+                10: 0xffaa00,
+                11: 0x44ff88,
+                12: 0xff8844,
+                13: 0xcc44ff,
+                14: 0x44ddff
+            };
+            swarmMat.color.setHex(colorMap[mode] || 0x00e5ff);
+
+            nodesList.forEach(node => {
+                if (node.userData.type !== 'core' && node.userData.type !== 'patent') {
+                    node.scale.set(1, 1, 1);
+                }
+            });
         }
 
-        // --- ESTADOS DINÁMICOS ADICIONALES (CUATRO ESTADOS SÍNCRONOS) ---
+        // ============================================================
+        //  ESTADOS DINÁMICOS
+        // ============================================================
         function toggleDynamicState() {
             systemDynamicState = (systemDynamicState + 1) % 4;
             const btn = document.querySelector('[onclick="toggleDynamicState()"]');
             const root = document.documentElement;
-
             if (systemDynamicState === 0) {
                 systemColors.active = systemColors.blue;
                 btn.innerHTML = `<span id="t-state-btn">${i18n[currentLang].stateBtnNormal}</span>`;
@@ -1175,6 +1847,7 @@
 
         function updateStateButtonLabel() {
             const btn = document.querySelector('[onclick="toggleDynamicState()"]');
+            if (!btn) return;
             if (systemDynamicState === 0) {
                 btn.innerHTML = `<span id="t-state-btn">${i18n[currentLang].stateBtnNormal}</span>`;
             } else if (systemDynamicState === 1) {
@@ -1186,14 +1859,15 @@
             }
         }
 
-        // --- ANALIZADOR DE VECTORES EN CANVAS 2D (OSCILOSCOPIO) ---
+        // ============================================================
+        //  OSCILOSCOPIO
+        // ============================================================
         function updateOscilloscope(time) {
             const oscCanvas = document.getElementById('oscilloscope');
             const oscCtx = oscCanvas.getContext('2d');
             const w = oscCanvas.width = oscCanvas.clientWidth;
             const h = oscCanvas.height = oscCanvas.clientHeight;
 
-            // Fondo oscuro con efecto de cuadrícula
             oscCtx.fillStyle = 'rgba(0, 0, 0, 0.6)';
             oscCtx.fillRect(0, 0, w, h);
             oscCtx.strokeStyle = 'rgba(0, 229, 255, 0.08)';
@@ -1211,18 +1885,47 @@
                 oscCtx.stroke();
             }
 
-            // Onda principal
-            oscCtx.strokeStyle = systemDynamicState === 0 ? '#00e5ff' : (systemDynamicState === 1 ? '#ffcc00' : (systemDynamicState === 2 ? '#ff44ff' : '#00ffaa'));
+            const colorMap = {
+                1: '#00e5ff',
+                2: '#0033aa',
+                3: '#00ffaa',
+                4: '#ff44ff',
+                5: '#ffcc00',
+                6: '#ff5500',
+                7: '#ff3366',
+                8: '#00ccff',
+                9: '#aa66ff',
+                10: '#ffaa00',
+                11: '#44ff88',
+                12: '#ff8844',
+                13: '#cc44ff',
+                14: '#44ddff'
+            };
+            const color = colorMap[activeCoreMode] || '#00e5ff';
+
+            oscCtx.strokeStyle = color;
             oscCtx.lineWidth = 2.5;
-            oscCtx.shadowColor = oscCtx.strokeStyle;
+            oscCtx.shadowColor = color;
             oscCtx.shadowBlur = 12;
             oscCtx.beginPath();
 
-            const freqModifier = systemDynamicState === 3 ? 4.0 : (systemDynamicState === 1 ? 0.3 : 1.0);
-            document.getElementById('val-base-freq').innerText = (14.28 * freqModifier * globalSpeed).toFixed(2) + " Hz";
+            const freqModifier = systemDynamicState === 3 ? 4.0 :
+                systemDynamicState === 1 ? 0.3 : 1.0;
+            let extraFreq = 1.0;
+            if (activeCoreMode === 7) extraFreq = 2.0;
+            else if (activeCoreMode === 8) extraFreq = 1.5;
+            else if (activeCoreMode === 9) extraFreq = 0.7;
+            else if (activeCoreMode === 10) extraFreq = 1.2;
+            else if (activeCoreMode === 11) extraFreq = 0.9;
+            else if (activeCoreMode === 12) extraFreq = 1.8;
+            else if (activeCoreMode === 13) extraFreq = 2.5;
+            else if (activeCoreMode === 14) extraFreq = 1.1;
 
-            for(let x = 0; x < w; x++) {
-                const angle = (x / w) * Math.PI * 4 * freqModifier + time * 5 * globalSpeed;
+            const baseFreq = 14.28 * freqModifier * globalSpeed * extraFreq;
+            document.getElementById('val-base-freq').innerText = baseFreq.toFixed(2) + ' Hz';
+
+            for (let x = 0; x < w; x++) {
+                const angle = (x / w) * Math.PI * 4 * freqModifier * extraFreq + time * 5 * globalSpeed;
                 const y = (h / 2) + Math.sin(angle) * (h / 3.2);
                 if (x === 0) oscCtx.moveTo(x, y);
                 else oscCtx.lineTo(x, y);
@@ -1231,113 +1934,178 @@
             oscCtx.shadowBlur = 0;
         }
 
-        // --- BUCLE DE ANIMACIÓN Y RENDERIZADO ---
+        // ============================================================
+        //  ANIMACIÓN
+        // ============================================================
         function animate() {
             requestAnimationFrame(animate);
-
             const time = Date.now() * 0.001 * globalSpeed;
 
-            // Actualizar Osciloscopio Táctico
             updateOscilloscope(time);
 
-            // Actualizar simulación de patente si está activa
             if (simulationActive) {
                 updatePatentSimulation(time);
             }
 
-            // Suavizado orbital de cámara por arrastre de ratón
             camera.position.x += (Math.sin(rotationTarget.y) * 90 - camera.position.x) * 0.05;
             camera.position.z += (Math.cos(rotationTarget.y) * 90 - camera.position.z) * 0.05;
             camera.position.y += (Math.sin(rotationTarget.x) * 90 + 35 - camera.position.y) * 0.05;
             camera.lookAt(new THREE.Vector3(0, 5, 0));
 
-            // Aplicar escala del holograma del slider
             coreBrain.scale.set(hologramScaleFactor, hologramScaleFactor, hologramScaleFactor);
             patentPlane.scale.set(hologramScaleFactor, hologramScaleFactor, hologramScaleFactor);
 
-            // Rotaciones del núcleo
             coreBrain.rotation.y += 0.005;
             coreBrain.rotation.z += 0.002;
 
-            // Variabilidad de estados
             if (systemDynamicState === 1) {
-                // Crisis
                 coreBrain.position.y = 10 + Math.sin(time * 15) * 1.5;
                 swarmSystem.rotation.y += 0.02;
             } else if (systemDynamicState === 2) {
-                // Coherencia cuántica
                 coreBrain.position.y = 10 + Math.sin(time * 2) * 0.4;
                 swarmSystem.rotation.y += 0.003;
             } else if (systemDynamicState === 3) {
-                // Turbo
                 coreBrain.position.y = 10;
                 coreBrain.rotation.y += 0.03;
                 swarmSystem.rotation.y += 0.04;
             } else {
-                // Normal
                 coreBrain.position.y = 10 + Math.sin(time * 0.8) * 0.2;
                 swarmSystem.rotation.y += 0.005;
             }
 
-            // Animación del plano de la Patente
+            if (activeCoreMode === 11) {
+                nodesList.forEach(node => {
+                    if (node.userData.type !== 'core' && node.userData.type !== 'patent') {
+                        node.userData.speed = 0.002 + Math.sin(time * 0.5 + node.userData.angle) * 0.001;
+                    }
+                });
+                const swarmPos = swarmSystem.geometry.attributes.position.array;
+                for (let i = 0; i < swarmPos.length; i += 3) {
+                    swarmPos[i + 1] += Math.sin(time + i) * 0.01;
+                }
+                swarmSystem.geometry.attributes.position.needsUpdate = true;
+            } else if (activeCoreMode === 12) {
+                nodesList.forEach(node => {
+                    if (node.userData.type !== 'core' && node.userData.type !== 'patent') {
+                        node.userData.angle += node.userData.speed * globalSpeed * 1.2;
+                        const rx = 30 + Math.sin(time * 0.3 + node.userData.angle) * 6;
+                        const rz = 30 + Math.cos(time * 0.3 + node.userData.angle) * 6;
+                        node.position.x = Math.cos(node.userData.angle) * rx;
+                        node.position.z = Math.sin(node.userData.angle) * rz;
+                    }
+                });
+            } else if (activeCoreMode === 13) {
+                nodesList.forEach(node => {
+                    if (node.userData.type !== 'core' && node.userData.type !== 'patent') {
+                        const flicker = Math.sin(time * 10 + node.userData.angle) * 0.5 + 0.5;
+                        node.material.emissiveIntensity = 0.3 + flicker * 0.7;
+                        const group = Math.sin(time * 2 + node.userData.angle * 0.5) * 0.3 + 0.7;
+                        const dist = 36 * group;
+                        node.position.x = Math.cos(node.userData.angle) * dist;
+                        node.position.z = Math.sin(node.userData.angle) * dist;
+                    }
+                });
+            } else if (activeCoreMode === 14) {
+                nodesList.forEach(node => {
+                    if (node.userData.type !== 'core' && node.userData.type !== 'patent') {
+                        const scale = 1 + Math.sin(time * 0.8 + node.userData.angle) * 0.2;
+                        node.scale.set(scale, scale, scale);
+                        node.rotation.y += 0.03;
+                    }
+                });
+            }
+
             patentPlane.rotation.z = Math.sin(time * 0.6) * 0.12;
 
-            // Actualización de Nodos y Conexiones orbitales
             nodesList.forEach((node) => {
                 if (node.userData.type !== 'core' && node.userData.type !== 'patent') {
-                    node.userData.angle += node.userData.speed * globalSpeed;
-
-                    let orbitRadius = 36;
-                    if (activeCoreMode === 5) {
-                        orbitRadius = 36 + Math.sin(time * 3) * 6;
-                    } else if (activeCoreMode === 6) {
-                        orbitRadius = 24;
+                    if (activeCoreMode !== 12 && activeCoreMode !== 13) {
+                        if (activeCoreMode !== 8) {
+                            node.userData.angle += node.userData.speed * globalSpeed;
+                        }
+                        let orbitRadius = 36;
+                        if (activeCoreMode === 5) {
+                            orbitRadius = 36 + Math.sin(time * 3) * 6;
+                        } else if (activeCoreMode === 6) {
+                            orbitRadius = 24;
+                        } else if (activeCoreMode === 7) {
+                            orbitRadius = 36 + Math.sin(time * 5) * 4;
+                        } else if (activeCoreMode === 8) {
+                            orbitRadius = 30;
+                        } else if (activeCoreMode === 9) {
+                            orbitRadius = 36 + Math.sin(time * 0.5) * 8;
+                        } else if (activeCoreMode === 10) {
+                            orbitRadius = 36 + Math.sin(time * 1.8) * 5;
+                        } else if (activeCoreMode === 11) {
+                            orbitRadius = 36 + Math.sin(time * 0.7) * 6;
+                        } else if (activeCoreMode === 14) {
+                            orbitRadius = 36 + Math.sin(time * 0.9) * 4;
+                        }
+                        if (activeCoreMode !== 12 && activeCoreMode !== 13) {
+                            node.position.x = Math.cos(node.userData.angle) * orbitRadius;
+                            node.position.z = Math.sin(node.userData.angle) * orbitRadius;
+                        }
+                        node.rotation.y += 0.02;
                     }
-
-                    node.position.x = Math.cos(node.userData.angle) * orbitRadius;
-                    node.position.z = Math.sin(node.userData.angle) * orbitRadius;
-                    node.rotation.y += 0.02;
                 }
             });
 
-            // Actualizar líneas físicas de conexión
             connections.forEach(conn => {
-                const positions = conn.line.geometry.attributes.position.array;
-                positions[0] = conn.from.position.x;
-                positions[1] = conn.from.position.y;
-                positions[2] = conn.from.position.z;
-                positions[3] = conn.to.position.x;
-                positions[4] = conn.to.position.y;
-                positions[5] = conn.to.position.z;
+                const pos = conn.line.geometry.attributes.position.array;
+                pos[0] = conn.from.position.x;
+                pos[1] = conn.from.position.y;
+                pos[2] = conn.from.position.z;
+                pos[3] = conn.to.position.x;
+                pos[4] = conn.to.position.y;
+                pos[5] = conn.to.position.z;
                 conn.line.geometry.attributes.position.needsUpdate = true;
             });
 
-            // Simulación de IA de Enjambre
             const swarmPositions = swarmSystem.geometry.attributes.position.array;
             const vels = swarmSystem.userData.velocities;
-
             for (let i = 0; i < vels.length; i++) {
                 if (activeCoreMode === 3) {
-                    swarmPositions[i*3] += Math.sin(time + i)*0.08;
-                    swarmPositions[i*3+2] += Math.cos(time + i)*0.08;
+                    swarmPositions[i * 3] += Math.sin(time + i) * 0.08;
+                    swarmPositions[i * 3 + 2] += Math.cos(time + i) * 0.08;
+                }
+                if (activeCoreMode === 7) {
+                    vels[i].x += (Math.random() - 0.5) * 0.02;
+                    vels[i].y += (Math.random() - 0.5) * 0.02;
+                    vels[i].z += (Math.random() - 0.5) * 0.02;
+                }
+                if (activeCoreMode === 11) {
+                    vels[i].y += Math.sin(time + i) * 0.005;
+                }
+                if (activeCoreMode === 13) {
+                    vels[i].x += (Math.random() - 0.5) * 0.04;
+                    vels[i].y += (Math.random() - 0.5) * 0.04;
+                    vels[i].z += (Math.random() - 0.5) * 0.04;
                 }
                 swarmPositions[i * 3] += vels[i].x * globalSpeed;
                 swarmPositions[i * 3 + 1] += vels[i].y * globalSpeed;
                 swarmPositions[i * 3 + 2] += vels[i].z * globalSpeed;
-
                 if (Math.abs(swarmPositions[i * 3]) > 90) vels[i].x *= -1;
                 if (Math.abs(swarmPositions[i * 3 + 1]) > 90) vels[i].y *= -1;
                 if (Math.abs(swarmPositions[i * 3 + 2]) > 90) vels[i].z *= -1;
             }
             swarmSystem.geometry.attributes.position.needsUpdate = true;
 
-            // Flujo cuántico telemetría
             const fluxValue = (740 + Math.sin(time * 4) * 15 * (systemDynamicState === 3 ? 3 : 1)).toFixed(1);
-            document.getElementById('val-flux').innerText = `${fluxValue} Thz`;
+            document.getElementById('val-flux').innerText = fluxValue + ' Thz';
 
-            // Fluctuar barra de energía interactiva
+            let stabilityBase = 94.12;
+            if (activeCoreMode === 7) stabilityBase = 88.5 + Math.sin(time * 2) * 3;
+            else if (activeCoreMode === 8) stabilityBase = 96.0;
+            else if (activeCoreMode === 9) stabilityBase = 92.0 + Math.sin(time * 0.5) * 2;
+            else if (activeCoreMode === 10) stabilityBase = 95.5;
+            else if (activeCoreMode === 11) stabilityBase = 97.0;
+            else if (activeCoreMode === 12) stabilityBase = 93.0 + Math.sin(time * 1.2) * 2;
+            else if (activeCoreMode === 13) stabilityBase = 85.0 + Math.sin(time * 3) * 5;
+            else if (activeCoreMode === 14) stabilityBase = 96.5;
+            document.getElementById('val-stability').innerText = stabilityBase.toFixed(2) + '%';
+
             const energyPercent = 65 + Math.sin(time) * 15 * (systemDynamicState === 1 ? 2 : 1);
-            document.getElementById('energy-bar').style.width = `${Math.min(100, Math.max(0, energyPercent))}%`;
+            document.getElementById('energy-bar').style.width = Math.min(100, Math.max(0, energyPercent)) + '%';
 
             renderer.render(scene, camera);
         }
@@ -1348,8 +2116,11 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // --- SISTEMA DE REALIDAD AUMENTADA ---
+        // ============================================================
+        //  REALIDAD AUMENTADA
+        // ============================================================
         let isCameraActive = false;
+
         function toggleAR() {
             const video = document.getElementById('bg-video');
             const btn = document.querySelector('[onclick="toggleAR()"]');
@@ -1357,22 +2128,20 @@
             if (!isCameraActive) {
                 if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                     navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-                    .then(function(stream) {
-                        video.srcObject = stream;
-                        video.style.display = 'block';
-                        video.play();
-                        
-                        renderer.setClearColor(0x000000, 0);
-                        scene.background = null;
-                        document.body.style.backgroundColor = 'transparent';
-
-                        isCameraActive = true;
-                        btn.innerHTML = `<span id="t-ar-btn" style="color:#ff3300">${i18n[currentLang].arBtnStop}</span>`;
-                        logTerminal("AR Activo: Proyectando modelo ODT sobre mesa de trabajo.");
-                    })
-                    .catch(function(err) {
-                        alert("Acceso denegado a la cámara para la función AR: " + err.message);
-                    });
+                        .then(function(stream) {
+                            video.srcObject = stream;
+                            video.style.display = 'block';
+                            video.play();
+                            renderer.setClearColor(0x000000, 0);
+                            scene.background = null;
+                            document.body.style.backgroundColor = 'transparent';
+                            isCameraActive = true;
+                            btn.innerHTML = `<span id="t-ar-btn" style="color:#ff3300">${i18n[currentLang].arBtnStop}</span>`;
+                            logTerminal("AR Activo: Proyectando modelo ODT sobre mesa de trabajo.");
+                        })
+                        .catch(function(err) {
+                            alert("Acceso denegado a la cámara para la función AR: " + err.message);
+                        });
                 } else {
                     alert("Su dispositivo no soporta acceso directo a cámara web.");
                 }
@@ -1384,21 +2153,43 @@
                 video.style.display = 'none';
                 document.body.style.backgroundColor = 'var(--titanium-black)';
                 renderer.setClearColor(0x060a12, 1);
-                
                 isCameraActive = false;
                 btn.innerHTML = `<span id="t-ar-btn">${i18n[currentLang].arBtnStart}</span>`;
                 logTerminal("AR Desactivado.");
             }
         }
 
-        // Inicializar al cargar el documento
+        // ============================================================
+        //  INICIO
+        // ============================================================
         window.onload = function() {
+            const vid = document.createElement('video');
+            vid.id = 'bg-video';
+            vid.autoplay = true;
+            vid.playsInline = true;
+            vid.style.position = 'absolute';
+            vid.style.top = '0';
+            vid.style.left = '0';
+            vid.style.width = '100%';
+            vid.style.height = '100%';
+            vid.style.objectFit = 'cover';
+            vid.style.zIndex = '0';
+            vid.style.display = 'none';
+            vid.style.opacity = '0.4';
+            vid.style.filter = 'grayscale(60%) brightness(30%) contrast(140%)';
+            document.body.prepend(vid);
+
             init3D();
+            updateActiveModeLabel();
+            // Inicializar idioma por defecto (es)
+            changeLanguage('es');
             logTerminal("Física Modular Cargada.");
             logTerminal("IA de Enjambre Operativa.");
             logTerminal("Simulación de patente disponible.");
+            logTerminal("Nuevos módulos expandidos: Sostenibilidad, Movilidad, Ciberseguridad Cuántica, Gemelo Digital.");
+            logTerminal("Nuevas simulaciones de patente: Flujo, Ondas, Partículas, Mapa.");
         };
-
     </script>
+
 </body>
 </html>
