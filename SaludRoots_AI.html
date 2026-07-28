@@ -1,1427 +1,1770 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SaludRoots AI - Prototipo 3D Autónomo</title>
+  <title>SaludRoots AI • Dr. Julio César Oporta Barrera — Prototipo 3D Autónomo</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
   <style>
-    :root {
-      --primary: #06b6d4;
-      --bg: #020a13;
-      --panel: rgba(4, 18, 38, 0.9);
-      --border: rgba(6, 182, 212, 0.3);
-      --accent: rgb(6, 182, 212);
-      --font-sans: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
     * {
-      box-sizing: border-box;
       margin: 0;
       padding: 0;
-      user-select: none;
+      box-sizing: border-box;
     }
-
     body {
-      background-color: var(--bg);
-      color: #e2e8f0;
-      font-family: var(--font-sans);
-      overflow: hidden;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #020a13;
+      color: #f1f5f9;
+      overflow-x: hidden;
+      min-height: 100vh;
     }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
 
-    /* Cyber grid overlay */
-    body::before {
+    /* Scrollbar personalizada */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(2, 10, 19, 0.8); }
+    ::-webkit-scrollbar-thumb { background: linear-gradient(to bottom, #06b6d4, #3b82f6); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #38bdf8; }
+
+    /* Tabs */
+    .tab-btn {
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+    .tab-btn.active {
+      background: rgba(6, 182, 212, 0.2);
+      border-color: #06b6d4;
+      color: #38bdf8;
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.2);
+    }
+    .tab-btn.active::after {
       content: '';
       position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: linear-gradient(rgba(18, 32, 54, 0.1) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(18, 32, 54, 0.1) 1px, transparent 1px);
-      background-size: 20px 20px;
+      bottom: -1px;
+      left: 20%;
+      width: 60%;
+      height: 2px;
+      background: #06b6d4;
+      border-radius: 4px;
+    }
+    .tab-btn:not(.active):hover {
+      background: rgba(255,255,255,0.03);
+    }
+
+    /* Tarjetas con efecto glass */
+    .glass-card {
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(6, 182, 212, 0.15);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .glass-card:hover {
+      border-color: rgba(6, 182, 212, 0.3);
+      box-shadow: 0 8px 40px rgba(6, 182, 212, 0.08);
+    }
+
+    .glass-panel {
+      background: rgba(2, 10, 19, 0.7);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(6, 182, 212, 0.12);
+    }
+
+    /* Badges HUD */
+    .hud-badge {
+      background: rgba(2, 10, 19, 0.75);
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(6, 182, 212, 0.25);
+      transition: all 0.3s ease;
+    }
+    .hud-badge:hover {
+      border-color: rgba(6, 182, 212, 0.6);
+      transform: scale(1.02);
+    }
+
+    /* Estado dinámico del borde del visor */
+    .viewport-status {
+      transition: border-color 0.6s ease, box-shadow 0.6s ease;
+    }
+    .viewport-status.normal {
+      border-color: rgba(6, 182, 212, 0.5);
+      box-shadow: 0 0 30px rgba(6, 182, 212, 0.05);
+    }
+    .viewport-status.warning {
+      border-color: rgba(245, 158, 11, 0.7);
+      box-shadow: 0 0 40px rgba(245, 158, 11, 0.15);
+    }
+    .viewport-status.critical {
+      border-color: rgba(244, 63, 94, 0.8);
+      box-shadow: 0 0 50px rgba(244, 63, 94, 0.25);
+      animation: pulse-critical 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse-critical {
+      0%, 100% { box-shadow: 0 0 30px rgba(244, 63, 94, 0.2); }
+      50% { box-shadow: 0 0 60px rgba(244, 63, 94, 0.4); }
+    }
+
+    /* Panel de simulación */
+    .sim-panel {
+      transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+    }
+    .sim-panel.open {
+      max-height: 700px;
+      opacity: 1;
+    }
+
+    /* Toast notification */
+    .toast-notification {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(2, 10, 19, 0.92);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(6, 182, 212, 0.4);
+      color: #f1f5f9;
+      padding: 12px 28px;
+      border-radius: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      z-index: 9999;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.7);
+      opacity: 0;
+      transition: opacity 0.5s ease, transform 0.4s ease;
       pointer-events: none;
-      z-index: 1;
+      white-space: nowrap;
+      max-width: 90vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .toast-notification.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
     }
 
-    header {
-      background: rgba(3, 11, 23, 0.85);
-      border-bottom: 1px solid var(--border);
-      padding: 12px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      position: relative;
-      z-index: 10;
-      backdrop-filter: blur(10px);
-    }
-
-    .author-badge {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .author-title {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      color: var(--primary);
-      font-weight: bold;
-    }
-
-    .author-name {
-      font-size: 16px;
-      font-weight: 700;
-      color: #ffffff;
-      text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
-    }
-
-    .project-title {
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      color: #ffffff;
-      text-align: right;
-    }
-
-    .subtitle {
-      font-size: 11px;
-      color: #94a3b8;
-    }
-
-    /* main content layout */
-    .dashboard {
-      flex: 1;
-      display: grid;
-      grid-template-columns: 320px 1fr 340px;
+    /* Botones con efecto brillo */
+    .btn-glow {
+      transition: all 0.25s ease;
       position: relative;
       overflow: hidden;
     }
-
-    @media (max-width: 1024px) {
-      .dashboard {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr auto;
-        overflow-y: auto;
-      }
-      body {
-        overflow-y: auto;
-      }
-    }
-
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      margin: 12px;
-      border-radius: 12px;
-      padding: 16px;
-      z-index: 5;
-      backdrop-filter: blur(8px);
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
-      overflow-y: auto;
-    }
-
-    .panel-title {
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--primary);
-      border-bottom: 1px solid rgba(6, 182, 212, 0.2);
-      padding-bottom: 6px;
-      display: flex;
-      justify-content: space-between;
-      font-weight: bold;
-    }
-
-    /* 3D viewport canvas */
-    .viewport-container {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-    }
-
-    canvas {
+    .btn-glow::before {
+      content: '';
       position: absolute;
-      top: 0; left: 0; width: 100%; height: 100%;
-      z-index: 2;
-      cursor: grab;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      pointer-events: none;
+    }
+    .btn-glow:hover::before {
+      opacity: 1;
+    }
+    .btn-glow:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 30px rgba(6, 182, 212, 0.25);
     }
 
-    canvas:active {
-      cursor: grabbing;
-    }
-
-    /* Controls inputs */
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .field-label {
-      font-size: 11px;
-      color: #94a3b8;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .field-value {
-      font-family: monospace;
-      color: var(--accent);
-      font-weight: bold;
-    }
-
+    /* Mejora de sliders */
     input[type="range"] {
       -webkit-appearance: none;
-      width: 100%;
+      appearance: none;
       height: 4px;
-      border-radius: 2px;
-      background: rgba(6, 182, 212, 0.15);
+      border-radius: 4px;
+      background: linear-gradient(to right, #1e293b, #06b6d4);
       outline: none;
+      transition: background 0.3s ease;
     }
-
     input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
+      appearance: none;
       width: 14px;
       height: 14px;
       border-radius: 50%;
-      background: var(--primary);
+      background: #06b6d4;
       cursor: pointer;
-      box-shadow: 0 0 10px var(--primary);
-      transition: transform 0.1s;
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
+      transition: all 0.2s ease;
     }
-
     input[type="range"]::-webkit-slider-thumb:hover {
-      transform: scale(1.2);
+      transform: scale(1.15);
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.6);
     }
-
-    .btn-group {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
-    }
-
-    .btn {
-      background: rgba(6, 182, 212, 0.1);
-      border: 1px solid var(--border);
-      color: #ffffff;
-      padding: 8px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 11px;
-      font-weight: bold;
-      transition: all 0.2s;
-      text-transform: uppercase;
-      text-align: center;
-    }
-
-    .btn:hover {
-      background: rgba(6, 182, 212, 0.25);
-      border-color: var(--primary);
-      box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
-    }
-
-    .btn.active {
-      background: var(--primary);
-      color: #020a13;
-      border-color: var(--primary);
-      box-shadow: 0 0 15px var(--accent);
-    }
-
-    /* HUD overlay */
-    .hud-overlay {
-      position: absolute;
-      top: 16px; left: 16px; right: 16px;
-      pointer-events: none;
-      z-index: 3;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .hud-card {
-      background: rgba(4, 18, 38, 0.7);
-      border: 1px solid rgba(6, 182, 212, 0.25);
-      border-radius: 8px;
-      padding: 8px 16px;
-      font-family: monospace;
-      font-size: 11px;
-      color: var(--primary);
-      backdrop-filter: blur(5px);
-    }
-
-    .hud-card-title {
-      font-weight: bold;
-      color: #ffffff;
-      margin-bottom: 4px;
-    }
-
-    .hud-glow-red {
-      color: #ef4444;
-      text-shadow: 0 0 8px #ef4444;
-    }
-
-    /* Console logs */
-    .console-logs {
-      background: rgba(2, 6, 12, 0.85);
-      border: 1px solid rgba(6, 182, 212, 0.15);
-      padding: 10px;
-      border-radius: 6px;
-      font-family: monospace;
-      font-size: 10px;
-      color: #38bdf8;
-      height: 120px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column-reverse;
-      gap: 4px;
-    }
-
-    .log-line {
-      display: flex;
-      gap: 8px;
-    }
-
-    .log-time {
-      color: #64748b;
-    }
-
-    /* Language selector */
-    .lang-selector {
-      display: flex;
-      gap: 6px;
-    }
-
-    .lang-selector span {
-      padding: 4px 8px;
-      font-size: 11px;
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
-      cursor: pointer;
-      color: #94a3b8;
-    }
-
-    .lang-selector span.active {
-      background: rgba(6, 182, 212, 0.2);
-      border-color: var(--primary);
-      color: #ffffff;
-      font-weight: bold;
-    }
-
-    /* Status dot */
-    .dot {
-      display: inline-block;
-      width: 6px;
-      height: 6px;
-      background-color: #22c55e;
+    input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
       border-radius: 50%;
-      box-shadow: 0 0 8px #22c55e;
-      margin-right: 6px;
+      background: #06b6d4;
+      cursor: pointer;
+      border: none;
     }
 
-    .dot.warning {
-      background-color: #f59e0b;
-      box-shadow: 0 0 8px #f59e0b;
+    /* Tarjetas de recompensas */
+    .reward-card {
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      background: rgba(2, 10, 19, 0.6);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .reward-card:hover {
+      transform: translateY(-4px);
+      border-color: #06b6d4;
+      box-shadow: 0 8px 30px rgba(6, 182, 212, 0.15);
     }
 
-    .dot.critical {
-      background-color: #ef4444;
-      box-shadow: 0 0 8px #ef4444;
-      animation: blink 1s infinite alternate;
-    }
-
-    @keyframes blink {
-      0% { opacity: 0.3; }
-      100% { opacity: 1; }
-    }
-
-    /* Waveform simulation on Canvas */
-    .waveform-container {
-      height: 50px;
-      border: 1px solid rgba(6, 182, 212, 0.15);
+    /* Mejora de la consola de logs */
+    #log-container > div {
+      padding: 4px 8px;
       border-radius: 6px;
-      background: rgba(3, 11, 23, 0.4);
-      position: relative;
-      overflow: hidden;
+      transition: background 0.2s ease;
+    }
+    #log-container > div:hover {
+      background: rgba(6, 182, 212, 0.05);
     }
 
-    .graph-canvas {
-      width: 100%;
-      height: 100%;
-      position: absolute;
+    /* Animación de entrada para tarjetas */
+    .fade-in {
+      animation: fadeIn 0.6s ease forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Responsive mejorado */
+    @media (max-width: 768px) {
+      .toast-notification {
+        font-size: 12px;
+        padding: 10px 16px;
+        bottom: 16px;
+        white-space: normal;
+        max-width: 95vw;
+      }
+      .hud-badge {
+        font-size: 9px;
+        padding: 4px 10px;
+      }
     }
   </style>
 </head>
-<body>
+<body class="min-h-screen flex flex-col selection:bg-cyan-500 selection:text-slate-950">
+  <!-- Cyber Background Grid (más sutil) -->
+  <div class="fixed inset-0 pointer-events-none z-0" style="background-image: linear-gradient(rgba(18, 32, 54, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(18, 32, 54, 0.06) 1px, transparent 1px); background-size: 32px 32px;"></div>
 
-  <header>
-    <div class="author-badge">
-      <span class="author-title" id="lbl-doctor">AUTOR / DIRECTED BY</span>
-      <span class="author-name">Dr. Julio César Oporta Barrera</span>
-    </div>
-    <div style="display: flex; align-items: center; gap: 20px;">
-      <div class="lang-selector">
-        <span class="lang-btn active" onclick="setLang('es')">ES</span>
-        <span class="lang-btn" onclick="setLang('en')">EN</span>
-        <span class="lang-btn" onclick="setLang('zh')">中文</span>
+  <!-- Toast Notification -->
+  <div id="toast-notification" class="toast-notification">Mensaje</div>
+
+  <!-- HEADER mejorado -->
+  <header class="border-b border-cyan-500/20 bg-slate-950/80 backdrop-blur-xl sticky top-0 z-50 px-4 py-3 shadow-2xl">
+    <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 p-0.5 shadow-lg shadow-cyan-500/30">
+          <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center font-mono font-extrabold text-cyan-400 text-sm">SR</div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] uppercase tracking-[0.15em] text-cyan-400 font-bold">ARQUITECTURA OFICIAL • DR. JULIO CÉSAR OPORTA BARRERA</span>
+            <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-mono font-bold rounded-md shadow-sm">V2.4 STANDALONE</span>
+          </div>
+          <h1 class="text-base font-extrabold text-white tracking-tight flex items-center gap-2">
+            <span class="bg-gradient-to-r from-cyan-300 to-blue-400 bg-clip-text text-transparent">SaludRoots AI</span>
+            <span class="text-xs text-slate-400 font-normal hidden sm:inline">— RedPredictiva Comunitaria Soberana</span>
+          </h1>
+        </div>
       </div>
-      <div style="text-align: right;">
-        <span class="project-title">Project SaludRoots AI</span>
-        <div class="subtitle" id="lbl-subtitle">Predictive Community Health Network</div>
+
+      <!-- Navigation Tabs & Language Switcher -->
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="flex bg-slate-900/60 p-1 rounded-xl border border-cyan-500/20 backdrop-blur-sm text-xs font-mono">
+          <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="tab-btn active px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 border border-transparent">
+            <i data-lucide="activity" class="w-3.5 h-3.5"></i> <span id="lbl-tab-sim">Simulador 3D</span>
+          </button>
+          <button onclick="switchTab('curandera')" id="tab-btn-curandera" class="tab-btn px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 border border-transparent text-slate-400 hover:text-cyan-300">
+            <i data-lucide="bot" class="w-3.5 h-3.5"></i> <span id="lbl-tab-cur">IA Curandera</span>
+          </button>
+          <button onclick="switchTab('solar')" id="tab-btn-solar" class="tab-btn px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 border border-transparent text-slate-400 hover:text-cyan-300">
+            <i data-lucide="sun" class="w-3.5 h-3.5"></i> <span id="lbl-tab-sol">Hub Solar & Agua</span>
+          </button>
+          <button onclick="switchTab('dao')" id="tab-btn-dao" class="tab-btn px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 border border-transparent text-slate-400 hover:text-cyan-300">
+            <i data-lucide="dollar-sign" class="w-3.5 h-3.5"></i> <span id="lbl-tab-dao">Tokens & DAO</span>
+          </button>
+          <button onclick="switchTab('mesh')" id="tab-btn-mesh" class="tab-btn px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 border border-transparent text-slate-400 hover:text-cyan-300">
+            <i data-lucide="network" class="w-3.5 h-3.5"></i> <span id="lbl-tab-mesh">Red LoRaWAN</span>
+          </button>
+          <button onclick="switchTab('budget')" id="tab-btn-budget" class="tab-btn px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 border border-transparent text-slate-400 hover:text-cyan-300">
+            <i data-lucide="file-text" class="w-3.5 h-3.5"></i> <span id="lbl-tab-bud">Presupuesto & Papeles</span>
+          </button>
+        </div>
+
+        <div class="flex gap-1 bg-slate-900/60 p-1 rounded-lg border border-cyan-500/20 backdrop-blur-sm text-xs font-mono">
+          <button onclick="setLanguage('es')" id="lang-btn-es" class="px-2 py-0.5 rounded font-bold bg-cyan-500/30 text-cyan-300 shadow-sm">ES</button>
+          <button onclick="setLanguage('en')" id="lang-btn-en" class="px-2 py-0.5 rounded font-bold text-slate-400 hover:text-white transition-colors">EN</button>
+          <button onclick="setLanguage('zh')" id="lang-btn-zh" class="px-2 py-0.5 rounded font-bold text-slate-400 hover:text-white transition-colors">ZH</button>
+        </div>
       </div>
     </div>
   </header>
 
-  <div class="dashboard">
+  <!-- MAIN CONTENT -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 relative z-10 my-2">
 
-    <!-- Left Controls Panel -->
-    <div class="panel">
-      <div>
-        <div class="panel-title">
-          <span id="lbl-control-title">SIMULADOR INTERACTIVO</span>
-          <span class="dot"></span>
-        </div>
-        <p style="font-size:11px; color:#64748b; margin-top:6px;" id="lbl-control-desc">Use los controles para modificar el prototipo 3D y la biometría en tiempo real.</p>
-      </div>
-
-      <!-- DISPOSITIVO WEARABLE FAMILIAR INTEGRADO 24/7 -->
-      <div style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.15) 0%, rgba(30, 41, 59, 0.45) 100%); border: 1px solid rgba(99, 102, 241, 0.35); padding: 12px; border-radius: 8px; margin-bottom: 2px; display: flex; flex-direction: column; gap: 4px; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.25);">
-        <div style="position: absolute; top: 10px; right: 10px; display: flex; align-items: center; gap: 4px; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 4px; padding: 2px 6px;">
-          <span style="display: inline-block; width: 5px; height: 5px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 4px #22c55e;"></span>
-          <span style="font-size: 7.5px; color: #4ade80; font-family: monospace; font-weight: bold; tracking-spacing: 0.5px;">LIVE 24/7</span>
-        </div>
-        <div style="font-size: 8px; font-weight: bold; color: #a5b4fc; font-family: monospace; letter-spacing: 1px;">PULSERA FAMILIAR SMART</div>
-        <div style="font-size: 11px; font-weight: bold; color: white;">Wearable de Ultra Bajo Consumo</div>
-        <p style="font-size: 10px; color: #94a3b8; line-height: 1.45; margin-top: 2px;">
-          Registra y transmite vitales continuamente vía micro-enlaces <b>LoRaWAN Mesh</b> redundantes al Solar Hub.
-        </p>
-        <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px; margin-top: 4px; font-size: 9px; font-family: monospace; color: #64748b;">
-          <div>VITALES: <span id="custom-wearable-vitales" style="color: #67e8f9; font-weight: bold;">💓72 · 🩸98% · 🔥36.6°</span></div>
-          <div style="color: #a78bfa; font-weight: bold;">Kinética 24/7</div>
-        </div>
-      </div>
-
-      <div class="field">
-        <div class="field-label">
-          <span id="p-heart">Ritmo Cardíaco (LPM)</span>
-          <span class="field-value" id="val-heart">72</span>
-        </div>
-        <input type="range" id="inp-heart" min="40" max="180" value="72" oninput="updateVal('heart', this.value)">
-      </div>
-
-      <div class="field">
-        <div class="field-label">
-          <span id="p-spo2">Saturación (SpO2 %)</span>
-          <span class="field-value" id="val-spo2">98</span>
-        </div>
-        <input type="range" id="inp-spo2" min="80" max="100" value="98" oninput="updateVal('spo2', this.value)">
-      </div>
-
-      <div class="field">
-        <div class="field-label">
-          <span id="p-temp">Temperatura (°C)</span>
-          <span class="field-value" id="val-temp">36.6</span>
-        </div>
-        <input type="range" id="inp-temp" min="34" max="42" step="0.1" value="36.6" oninput="updateVal('temp', this.value)">
-      </div>
-
-      <div class="field">
-        <div class="field-label">
-          <span id="p-wind">Velocidad del Viento</span>
-          <span class="field-value" id="val-wind">12 kph</span>
-        </div>
-        <input type="range" id="inp-wind" min="0" max="80" value="12" oninput="updateVal('wind', this.value)">
-      </div>
-
-      <div class="field">
-        <div class="field-label">
-          <span id="p-solar">Irradiación Solar</span>
-          <span class="field-value" id="val-solar">85%</span>
-        </div>
-        <input type="range" id="inp-solar" min="0" max="100" value="85" oninput="updateVal('solar', this.value)">
-      </div>
-
-      <div class="field">
-        <div class="field-label">
-          <span id="p-rot">Velocidad de Rotación 3D</span>
-          <span class="field-value" id="val-rot">1.0x</span>
-        </div>
-        <input type="range" id="inp-rot" min="0" max="3" step="0.1" value="1.0" oninput="updateVal('rot', this.value)">
-      </div>
-
-      <div class="field">
-        <span class="field-label" id="lbl-presets">Ajuste Iluminación Cinematográfica</span>
-        <div class="btn-group">
-          <button class="btn active" id="p-preset-cyan" onclick="setPreset('cyan_matrix')">Cyan Matrix</button>
-          <button class="btn" id="p-preset-solar" onclick="setPreset('solar_dusk')">Solar Dusk</button>
-          <button class="btn" id="p-preset-crimson" onclick="setPreset('crimson_alert')">Crimson Alert</button>
-          <button class="btn" id="p-preset-violet" onclick="setPreset('neon_violet')">Bioluminiscencia</button>
-        </div>
-      </div>
-
-      <!-- Sandbox / Advanced Simulation Module Selector & Sliders -->
-      <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(6, 182, 212, 0.2); display: flex; flex-direction: column; gap: 10px;">
-        <span class="field-label" style="font-weight: bold; color: #a78bfa;" id="lbl-sandbox-opt">MÓDULO DE SIMULACIÓN AVANZADA</span>
-        <div class="btn-group" style="margin-top: 2px;">
-          <button class="btn active" id="btn-mod-cough" onclick="setSimModule('cough_analyzer')">🎙️ TOS</button>
-          <button class="btn" id="btn-mod-water" onclick="setSimModule('water_quality')">🧪 AGUA</button>
-          <button class="btn" id="btn-mod-swarm" onclick="setSimModule('swarm_telemetry')">🛰️ EMISIÓN</button>
+    <!-- TAB 1: DASHBOARD (mejorado visualmente) -->
+    <div id="tab-content-dashboard" class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start fade-in">
+      <!-- Left Controls Panel -->
+      <div class="lg:col-span-3 glass-card rounded-2xl p-5 shadow-2xl flex flex-col gap-4">
+        <div class="border-b border-cyan-500/20 pb-2">
+          <h2 class="text-xs font-mono font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+            <i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i>
+            <span id="txt-controls-title">Controles Biométricos</span>
+          </h2>
+          <p class="text-[11px] text-slate-400 mt-0.5" id="txt-controls-sub">Parámetros en tiempo real transmitidos vía LoRa Mesh.</p>
         </div>
 
-        <div id="panel-mod-cough" class="field" style="display: flex;">
-          <div class="field-label">
-            <span id="p-cough">Riesgo Patológico (Esputo)</span>
-            <span class="field-value" id="val-cough">45%</span>
-          </div>
-          <input type="range" id="inp-cough" min="0" max="100" value="45" oninput="updateVal('acousticSputum', this.value)">
-        </div>
-
-        <div id="panel-mod-water" class="field" style="display: none; flex-direction: column; gap: 8px;">
-          <div class="field" style="width: 100%;">
-            <div class="field-label">
-              <span id="p-ph">Nivel de pH de Pozos</span>
-              <span class="field-value" id="val-ph">7.2</span>
+        <!-- Sliders mejorados con iconos más grandes -->
+        <div class="space-y-4 font-mono text-xs">
+          <div>
+            <div class="flex justify-between items-center text-slate-300 mb-1">
+              <span class="flex items-center gap-2"><i data-lucide="heart" class="w-4 h-4 text-rose-400"></i> <span id="lbl-heart">Ritmo Cardíaco</span>:</span>
+              <strong id="val-heart" class="text-rose-400 font-bold text-sm">72 LPM</strong>
             </div>
-            <input type="range" id="inp-ph" min="5.0" max="9.0" step="0.1" value="7.2" oninput="updateVal('phWater', this.value)">
+            <input type="range" id="input-heart" min="40" max="180" value="72" oninput="updateParam('heart', this.value, 'LPM')" class="w-full accent-rose-500 bg-slate-800 rounded-lg cursor-pointer h-1.5">
           </div>
-          <div class="field" style="width: 100%;">
-            <div class="field-label">
-              <span id="p-turb">Turbidez del Reservorio</span>
-              <span class="field-value" id="val-turb">1.5 NTU</span>
+
+          <div>
+            <div class="flex justify-between items-center text-slate-300 mb-1">
+              <span class="flex items-center gap-2"><i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i> <span id="lbl-spo2">Oxígeno SpO2</span>:</span>
+              <strong id="val-spo2" class="text-emerald-400 font-bold text-sm">98 %</strong>
             </div>
-            <input type="range" id="inp-turb" min="0.0" max="20.0" step="0.1" value="1.5" oninput="updateVal('turbidityWater', this.value)">
+            <input type="range" id="input-spo2" min="75" max="100" value="98" oninput="updateParam('spo2', this.value, '%')" class="w-full accent-emerald-500 bg-slate-800 rounded-lg cursor-pointer h-1.5">
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center text-slate-300 mb-1">
+              <span class="flex items-center gap-2"><i data-lucide="thermometer" class="w-4 h-4 text-amber-400"></i> <span id="lbl-temp">Temp Corporal</span>:</span>
+              <strong id="val-temp" class="text-amber-400 font-bold text-sm">36.6 °C</strong>
+            </div>
+            <input type="range" id="input-temp" min="35" max="41" step="0.1" value="36.6" oninput="updateParam('temp', this.value, '°C')" class="w-full accent-amber-500 bg-slate-800 rounded-lg cursor-pointer h-1.5">
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center text-slate-300 mb-1">
+              <span class="flex items-center gap-2"><i data-lucide="mic" class="w-4 h-4 text-violet-400"></i> <span id="lbl-cough">Riesgo Tos/Esputo</span>:</span>
+              <strong id="val-cough" class="text-violet-400 font-bold text-sm">45 %</strong>
+            </div>
+            <input type="range" id="input-cough" min="0" max="100" value="45" oninput="updateParam('cough', this.value, '%')" class="w-full accent-violet-500 bg-slate-800 rounded-lg cursor-pointer h-1.5">
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center text-slate-300 mb-1">
+              <span class="flex items-center gap-2"><i data-lucide="droplet" class="w-4 h-4 text-blue-400"></i> <span id="lbl-water">Calidad Agua (pH)</span>:</span>
+              <strong id="val-water" class="text-blue-400 font-bold text-sm">7.2 pH</strong>
+            </div>
+            <input type="range" id="input-water" min="5" max="9" step="0.1" value="7.2" oninput="updateParam('water', this.value, 'pH')" class="w-full accent-blue-500 bg-slate-800 rounded-lg cursor-pointer h-1.5">
           </div>
         </div>
 
-        <!-- Sandbox Action Triggers Block -->
-        <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 5px;">
-          <span class="field-label" id="lbl-sandbox-triggers" style="font-size: 10px; font-weight: bold; color: #94a3b8;">INYECCIONES INTERACTIVAS (SANDBOX)</span>
-          <button class="btn" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); font-size: 9px;" onclick="triggerSandbox('outbreak')">🚨 Epidemia d Dengue (LSTM)</button>
-          <button class="btn" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3); font-size: 9px;" onclick="triggerSandbox('rain')">🌧️ Lluvia y Turbidez Acuática</button>
-          <button class="btn" style="background: rgba(6, 182, 212, 0.15); border-color: rgba(6, 182, 212, 0.3); font-size: 9px;" onclick="triggerSandbox('recalibrate')">🎛️ Re-Calibrar Red Neural</button>
+        <!-- Presets con mejor estilo -->
+        <div class="border-t border-slate-800 pt-3">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2" id="lbl-presets">Presete de Iluminación 3D</span>
+          <div class="grid grid-cols-2 gap-1.5 font-mono text-[11px]">
+            <button onclick="setPreset('cyan')" class="btn-glow p-2 bg-slate-950 hover:bg-cyan-950/60 border border-cyan-500/30 rounded-lg text-cyan-300 font-bold transition-all">Matriz Cyan</button>
+            <button onclick="setPreset('crimson')" class="btn-glow p-2 bg-slate-950 hover:bg-rose-950/60 border border-rose-500/30 rounded-lg text-rose-300 font-bold transition-all">Alerta Carmesí</button>
+            <button onclick="setPreset('emerald')" class="btn-glow p-2 bg-slate-950 hover:bg-emerald-950/60 border border-emerald-500/30 rounded-lg text-emerald-300 font-bold transition-all">Bosque Esmeralda</button>
+            <button onclick="setPreset('solar')" class="btn-glow p-2 bg-slate-950 hover:bg-amber-950/60 border border-amber-500/30 rounded-lg text-amber-300 font-bold transition-all">Atardecer Solar</button>
+          </div>
+        </div>
+
+        <!-- Injections Sandbox -->
+        <div class="border-t border-slate-800 pt-3 flex flex-col gap-2">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider" id="lbl-injections">Inyecciones de Escenarios</span>
+          <button onclick="injectSandbox('outbreak')" class="btn-glow w-full py-2 bg-rose-600/80 hover:bg-rose-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/20" id="btn-inject-outbreak">
+            <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> <span id="lbl-inject-outbreak">Inducir Brote Febril</span>
+          </button>
+          <button onclick="injectSandbox('storm')" class="btn-glow w-full py-2 bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-cyan-600/20" id="btn-inject-storm">
+            <i data-lucide="cloud-rain" class="w-3.5 h-3.5"></i> <span id="lbl-inject-storm">Inducir Tormenta / Turbidez</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Center 3D Engine Viewport -->
+      <div class="lg:col-span-6 flex flex-col gap-4">
+        <div id="viewport-3d" class="bg-slate-950 border-2 viewport-status normal rounded-2xl p-4 shadow-2xl relative overflow-hidden h-[480px] flex flex-col justify-between">
+          <div id="canvas-3d-container" class="absolute inset-0 w-full h-full"></div>
+
+          <!-- Top Overlay Badges (mejorados) -->
+          <div class="relative z-10 flex flex-wrap justify-between items-start gap-2 text-xs font-mono pointer-events-none">
+            <span class="hud-badge border border-cyan-400/40 px-3 py-1.5 rounded-xl text-cyan-300 font-bold shadow-lg flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span> <span id="hud-mesh">MESH RED LORA: 4 NODOS VIVOS</span>
+            </span>
+            <span class="hud-badge border border-emerald-400/40 px-3 py-1.5 rounded-xl text-emerald-300 font-bold shadow-lg" id="hud-tinyml">
+              TINYML JETSON NANO: ONLINE
+            </span>
+            <span class="hud-badge border border-amber-400/40 px-3 py-1.5 rounded-xl text-amber-300 font-bold shadow-lg flex items-center gap-1.5" id="hud-battery">
+              <i data-lucide="battery" class="w-3.5 h-3.5"></i> <span id="hud-battery-text">92%</span>
+            </span>
+            <span class="hud-badge border border-violet-400/40 px-3 py-1.5 rounded-xl text-violet-300 font-bold shadow-lg flex items-center gap-1.5" id="hud-wearables">
+              <i data-lucide="watch" class="w-3.5 h-3.5"></i> <span id="hud-wearables-text">12 wearables</span>
+            </span>
+          </div>
+
+          <div class="relative z-10 text-center pointer-events-none opacity-80 my-auto">
+            <div class="text-[10px] font-mono text-cyan-400 uppercase tracking-[0.2em] font-bold" id="hud-holo-title">REPRESENTACIÓN HOLO-CINETICA</div>
+            <div class="text-sm font-extrabold text-white tracking-wider drop-shadow-lg" id="hud-holo-sub">SALUDROOTS BIOMETRIC SWARM 3D</div>
+          </div>
+
+          <!-- Bottom Telemetry HUD (mejorado) -->
+          <div class="relative z-10 grid grid-cols-4 gap-2 font-mono text-[11px] bg-slate-900/80 border border-slate-800/60 p-2.5 rounded-xl backdrop-blur-md">
+            <div class="text-slate-300 flex items-center gap-1"><span id="hud-label-pulse">PULSO</span>: <strong id="hud-pulse" class="text-rose-400">72 LPM</strong></div>
+            <div class="text-slate-300 flex items-center gap-1"><span id="hud-label-spo2">SpO2</span>: <strong id="hud-spo2" class="text-emerald-400">98%</strong></div>
+            <div class="text-slate-300 flex items-center gap-1"><span id="hud-label-status">ESTADO</span>: <strong id="hud-status" class="text-cyan-300">NOMINAL</strong></div>
+            <div class="text-slate-300 flex items-center gap-1"><span id="hud-label-alerts">ALERTAS</span>: <strong id="hud-alerts" class="text-amber-400">0</strong></div>
+          </div>
+        </div>
+
+        <!-- Realtime ECG Waveform Canvas -->
+        <div class="glass-card rounded-2xl p-3 shadow-xl flex flex-col gap-1.5">
+          <div class="flex justify-between items-center text-xs font-mono text-cyan-400 font-bold">
+            <span class="flex items-center gap-1.5"><i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i> <span id="ecg-title">SENSORES HOLTER / ECG EN TIEMPO REAL</span></span>
+            <span id="ecg-bpm" class="text-emerald-400 font-extrabold">72 BPM (NORMAL)</span>
+          </div>
+          <canvas id="ecg-canvas" height="65" class="w-full bg-slate-950/80 rounded-xl border border-slate-800/60"></canvas>
+        </div>
+
+        <!-- Panel de Simulación (acordeón) mejorado -->
+        <div class="glass-card rounded-2xl overflow-hidden shadow-xl">
+          <button onclick="toggleSimPanel()" class="w-full flex justify-between items-center p-3 text-xs font-mono font-bold text-cyan-400 hover:bg-slate-800/30 transition-colors">
+            <span class="flex items-center gap-2"><i data-lucide="sliders" class="w-4 h-4"></i> <span id="sim-panel-toggle">▶ Controles de Simulación Avanzada</span></span>
+            <span id="sim-panel-arrow" class="text-slate-400">▼</span>
+          </button>
+          <div id="sim-panel-content" class="sim-panel px-4 pb-4 space-y-3">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+              <button onclick="simulateAction('dengue')" class="btn-glow py-1.5 px-2 bg-amber-600/70 hover:bg-amber-500 text-white text-[10px] font-bold rounded-lg" id="btn-sim-dengue">🦟 Simular Dengue</button>
+              <button onclick="simulateAction('water_cut')" class="btn-glow py-1.5 px-2 bg-blue-600/70 hover:bg-blue-500 text-white text-[10px] font-bold rounded-lg" id="btn-sim-water">💧 Desabastecimiento</button>
+              <button onclick="simulateAction('node_fail')" class="btn-glow py-1.5 px-2 bg-red-600/70 hover:bg-red-500 text-white text-[10px] font-bold rounded-lg" id="btn-sim-node">📡 Caída de Nodo</button>
+              <button onclick="simulateAction('critical_alert')" class="btn-glow py-1.5 px-2 bg-rose-600/70 hover:bg-rose-500 text-white text-[10px] font-bold rounded-lg" id="btn-sim-critical">🚨 Alerta Crítica</button>
+              <button onclick="simulateAction('normalize')" class="btn-glow py-1.5 px-2 bg-emerald-600/70 hover:bg-emerald-500 text-white text-[10px] font-bold rounded-lg" id="btn-sim-normalize">✅ Normalizar</button>
+            </div>
+            <div class="flex items-center gap-3 border-t border-slate-800 pt-3 flex-wrap">
+              <label class="text-[10px] text-slate-300 flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" id="sim-auto-mode" onchange="toggleAutoSim()" class="accent-cyan-500 w-3.5 h-3.5">
+                <span id="lbl-auto-sim">Modo Simulación Automática</span>
+              </label>
+              <div class="flex items-center gap-2 text-[10px] text-slate-300">
+                <span id="lbl-rotation-speed">Velocidad rotación</span>
+                <input type="range" id="rotation-speed" min="0" max="0.02" step="0.001" value="0.006" oninput="updateRotationSpeed(this.value)" class="w-20 accent-cyan-500 bg-slate-800 h-1 rounded">
+              </div>
+              <button onclick="resetCamera()" class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded transition-colors" id="btn-reset-cam">Reset Cámara</button>
+            </div>
+            <div class="text-[10px] text-slate-400" id="sim-status">⚙️ Simulación inactiva</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Telemetry Logs & AI Nodes Column -->
+      <div class="lg:col-span-3 glass-card rounded-2xl p-5 shadow-2xl flex flex-col gap-4">
+        <div class="border-b border-cyan-500/20 pb-2">
+          <h2 class="text-xs font-mono font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+            <i data-lucide="radio" class="w-4 h-4 text-cyan-400"></i>
+            <span id="lbl-telemetry">Telemetría de Red</span>
+          </h2>
+          <p class="text-[11px] text-slate-400 mt-0.5" id="lbl-telemetry-sub">Bitácora de eventos y nodos federados.</p>
+        </div>
+
+        <!-- Deployment Phase Buttons -->
+        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 flex flex-col gap-1.5">
+          <span class="text-[10px] font-mono text-slate-400 uppercase font-bold" id="lbl-deploy">DESPLEGAR FASE DE RED</span>
+          <div class="grid grid-cols-2 gap-1 font-mono text-[10px]">
+            <button onclick="setPhase(0)" class="btn-glow p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded text-slate-300 transition-colors" id="btn-phase-0">F0 Urbano</button>
+            <button onclick="setPhase(1)" class="btn-glow p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded text-slate-300 transition-colors" id="btn-phase-1">F1 Piloto</button>
+            <button onclick="setPhase(2)" class="btn-glow p-1.5 bg-cyan-950 border border-cyan-500/40 rounded text-cyan-300 font-bold" id="btn-phase-2">F2 Colectiva</button>
+            <button onclick="setPhase(3)" class="btn-glow p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded text-slate-300 transition-colors" id="btn-phase-3">F3 Federada</button>
+          </div>
+        </div>
+
+        <!-- Live Log Console -->
+        <div id="log-container" class="bg-slate-950/80 p-3 rounded-xl border border-slate-800/60 font-mono text-[11px] h-[310px] overflow-y-auto space-y-1.5">
+          <div class="text-emerald-400">
+            <span class="text-slate-500">[13:30:00]</span> ✅ SaludRoots Standalone Engine inicializado.
+          </div>
+          <div class="text-cyan-300">
+            <span class="text-slate-500">[13:30:01]</span> 📡 Enlace LoRaWAN Mesh establecido en Solar Hub #01.
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Center 3D viewport -->
-    <div class="viewport-container" style="flex: 1; min-height: 380px;">
-      
-      <!-- Tactical HUD indicators -->
-      <div class="hud-overlay">
-        <div class="hud-card">
-          <div class="hud-card-title">GPS TELEMETRY</div>
-          <div>LAT: 12.1364° N</div>
-          <div>LON: 86.2513° W</div>
-          <div>STATUS: <span id="hud-status" style="color:#22c55e;">FINE SENTINEL</span></div>
+    <!-- TAB 2: IA CURANDERA (mejoras visuales) -->
+    <div id="tab-content-curandera" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start fade-in">
+      <div class="lg:col-span-8 glass-card rounded-2xl p-5 shadow-2xl flex flex-col h-[600px]">
+        <div class="border-b border-cyan-500/20 pb-3 flex justify-between items-center">
+          <div>
+            <h2 class="text-sm font-extrabold uppercase tracking-widest text-cyan-400 flex items-center gap-2">
+              <i data-lucide="bot" class="w-5 h-5 text-cyan-400"></i>
+              <span id="curandera-title">IA Curandera — Asistente Clínico y Botánica Comunitario</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5" id="curandera-sub">Integración de medicina ancestral botánica respaldada por guías de la OMS y triaje en el borde.</p>
+          </div>
+          <span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-mono font-bold rounded-lg shadow-sm" id="curandera-badge">OFFLINE ENGINE READY</span>
         </div>
 
-        <div class="hud-card" style="text-align: right;">
-          <div class="hud-card-title">SOLAR HUB BATT</div>
-          <div style="font-size:14px; font-weight:bold; color:#eab308;" id="hud-battery">98% (LiFePO4)</div>
-          <div>LOAD: 420W / 1600W</div>
-          <div>RO PURE WATER: <span style="color:#22d3ee;">ACTIVE</span></div>
+        <div id="curandera-messages" class="flex-1 overflow-y-auto my-4 space-y-3 font-sans text-xs pr-2">
+          <div class="bg-slate-950/80 border border-cyan-500/30 p-3.5 rounded-2xl max-w-[85%] text-slate-200 shadow-lg">
+            <strong class="text-cyan-400 block font-mono text-[11px] mb-1">🌿 IA CURANDERA:</strong>
+            Saludos, promotor. Soy el módulo de inteligencia clínica y botánica de SaludRoots. Puedes preguntarme sobre síntomas clínicos, dosificación de plantas medicinales (Guazuma, Eucalipto, Menta), o protocolo de suero antiofídico.
+          </div>
         </div>
-      </div>
 
-      <!-- Live 3D projection Canvas -->
-      <canvas id="canvas3d"></canvas>
-
-    </div>
-
-    <!-- Right HUD Panel / Telemetry & AI system -->
-    <div class="panel">
-      <div>
-        <div class="panel-title">
-          <span id="lbl-ai-title">Nodos de Inteligencia Artificial</span>
-          <span class="dot warning"></span>
-        </div>
-        <p style="font-size: 11px; color: #64748b; margin-top: 6px;" id="lbl-ai-desc">Visualizador de re-pesado neural del Autoencoder local y Predicciones de Brotes.</p>
-      </div>
-
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <span class="field-label" id="lbl-stages">Cambiar Fase de Red</span>
-        <div class="btn-group">
-          <button class="btn active" id="p-ph-0" onclick="setPhase(0)">Fase 0 MVP</button>
-          <button class="btn" id="p-ph-1" onclick="setPhase(1)">Fase 1 Piloto</button>
-          <button class="btn" id="p-ph-2" onclick="setPhase(2)">Fase 2 Mente</button>
-          <button class="btn" id="p-ph-3" onclick="setPhase(3)">Fase 3 Global</button>
+        <div class="pt-3 border-t border-slate-800 flex gap-2">
+          <input type="text" id="curandera-input" placeholder="Escribe un síntoma o consulta..." class="flex-1 bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-sans transition-colors" onkeypress="if(event.key==='Enter') sendCuranderaMsg()">
+          <button onclick="sendCuranderaMsg()" class="btn-glow px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-cyan-500/20" id="curandera-send-btn">
+            <i data-lucide="send" class="w-4 h-4"></i> <span id="curandera-send-text">Consultar</span>
+          </button>
         </div>
       </div>
 
-      <!-- ECG Waveform Animation -->
-      <div class="field">
-        <span class="field-label" id="lbl-ecg">Señal de ECG / Biomecánica PPG</span>
-        <div class="waveform-container">
-          <canvas id="wavecanvas" class="graph-canvas"></canvas>
-        </div>
-      </div>
-
-      <!-- AI learning weights mockup -->
-      <div class="hud-card" style="background: rgba(2, 6, 12, 0.5); font-family: monospace; display: flex; flex-direction: column; gap: 4px;">
-        <div style="font-weight:bold; color:#a78bfa; margin-bottom: 2px;" id="lbl-weights">Pesos Neurales TinyML:</div>
-        <div style="display:flex; justify-content:space-between;"><span>• Input SpO2 [w0]:</span><span id="w0" style="color:#34d399;">0.842</span></div>
-        <div style="display:flex; justify-content:space-between;"><span>• Input Temp [w1]:</span><span id="w1" style="color:#34d399;">0.912</span></div>
-        <div style="display:flex; justify-content:space-between;"><span>• Cough Microphone [w2]:</span><span id="w2" style="color:#f43f5e;">0.125</span></div>
-        <div style="display:flex; justify-content:space-between;"><span>• Sentinel-2 Water Index:</span><span id="w3" style="color:#34d399;">0.749</span></div>
-        <div style="display:flex; justify-content:space-between; font-weight:bold; border-top:1px solid rgba(255,255,255,0.1); margin-top:2px; padding-top:2px;">
-          <span id="lbl-outbreak">Riesgo Epidémico (LSTM):</span><span id="outbreak-p" style="color:#10b981;">12.4%</span>
-        </div>
-      </div>
-
-      <!-- Dynamic Diagnostic Sub-Panel for Sandbox module -->
-      <div id="hud-sandbox-details" class="hud-card" style="background: rgba(167, 139, 250, 0.05); border-color: rgba(167, 139, 250, 0.25); display: flex; flex-direction: column; gap: 4px;">
-        <div style="font-weight:bold; color:#a78bfa; font-size: 10px;" id="det-title">MICRO-ESPECTROGRAMA [TOS]</div>
-        <div id="det-value" style="font-size: 9px; line-height: 14px;">Evaluando tos activa: <span style="font-weight:bold; color:#a78bfa;">45% de riesgo patológico</span></div>
-        <div style="height: 32px; border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 4px; overflow:hidden; position:relative; background: #02060c;">
-          <canvas id="microwavecanvas" style="width: 100%; height: 100%; position: absolute; pointer-events: none;"></canvas>
-        </div>
-      </div>
-
-      <div>
-        <div class="panel-title">
-          <span id="lbl-terminal">CONSOLA DE TELEMETRÍA</span>
-        </div>
-        <div class="console-logs" id="logs-container">
-          <!-- Logs populate here -->
+      <div class="lg:col-span-4 glass-card rounded-2xl p-5 shadow-2xl flex flex-col gap-4">
+        <h3 class="text-xs font-extrabold uppercase tracking-widest text-emerald-400 flex items-center gap-2" id="vademecum-title">
+          <i data-lucide="sprout" class="w-4 h-4 text-emerald-400"></i>
+          <span>Vademécum Comunitario Validado</span>
+        </h3>
+        <div class="space-y-3 text-xs">
+          <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800 hover:border-emerald-500/30 transition-colors">
+            <div class="font-bold text-emerald-400">Guázuma (Guazuma ulmifolia)</div>
+            <div class="text-slate-400 text-[11px] mt-0.5">Uso: Afecciones gastrointestinales y moderador térmico. Infusión de corteza seca.</div>
+          </div>
+          <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800 hover:border-emerald-500/30 transition-colors">
+            <div class="font-bold text-emerald-400">Eucalipto & Menta</div>
+            <div class="text-slate-400 text-[11px] mt-0.5">Uso: Inhalaciones de vapor para descongestión bronquial. Evaluado con TinyML tos.</div>
+          </div>
+          <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800 hover:border-amber-500/30 transition-colors">
+            <div class="font-bold text-amber-400">Suero Antiofídico Polivalente</div>
+            <div class="text-slate-400 text-[11px] mt-0.5">Uso: Mordedura de víbora (Bothrops / Lachesis). Mantener en cadena de frío solar (2-8°C).</div>
+          </div>
         </div>
       </div>
     </div>
 
-  </div>
+    <!-- TAB 3: SOLAR HUB (mejoras visuales) -->
+    <div id="tab-content-solar" class="hidden flex flex-col gap-6 fade-in">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="glass-card rounded-2xl p-4 flex flex-col gap-2 shadow-xl hover:border-amber-500/40 transition-colors">
+          <div class="flex justify-between items-center text-amber-400 font-mono text-xs font-bold">
+            <span id="solar-panels-title">PANELES SOLARES</span> <i data-lucide="sun" class="w-4 h-4"></i>
+          </div>
+          <div class="text-xl font-extrabold text-white">1.6 kWp Monocristalino</div>
+          <div class="text-[11px] text-slate-400"><span id="solar-efficiency-label">Eficiencia generación</span>: <strong class="text-amber-300" id="solar-efficiency-val">85% Solar</strong></div>
+          <div class="text-[11px] text-slate-400"><span id="solar-production-label">Producción actual</span>: <strong id="solar-production" class="text-amber-300">1.2 kW</strong></div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 flex flex-col gap-2 shadow-xl hover:border-cyan-500/40 transition-colors">
+          <div class="flex justify-between items-center text-cyan-400 font-mono text-xs font-bold">
+            <span id="battery-title">BATERÍA LIFEPO4</span> <i data-lucide="battery" class="w-4 h-4"></i>
+          </div>
+          <div class="text-xl font-extrabold text-white">10 kWh (48V DC)</div>
+          <div class="text-[11px] text-slate-400"><span id="battery-soc-label">Estado de Carga</span>: <strong id="battery-soc" class="text-cyan-300">92% SOC</strong></div>
+          <div class="text-[11px] text-slate-400"><span id="battery-autonomy-label">Autonomía estimada</span>: <strong id="battery-autonomy" class="text-cyan-300">18 horas</strong></div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 flex flex-col gap-2 shadow-xl hover:border-blue-500/40 transition-colors">
+          <div class="flex justify-between items-center text-blue-400 font-mono text-xs font-bold">
+            <span id="water-title">PURIFICADORA AGUA RO</span> <i data-lucide="droplets" class="w-4 h-4"></i>
+          </div>
+          <div class="text-xl font-extrabold text-white">Ósmosis Inversa</div>
+          <div class="text-[11px] text-slate-400"><span id="water-capacity-label">Capacidad</span>: <strong class="text-blue-300">120 L/Hora Pura</strong></div>
+          <div class="text-[11px] text-slate-400"><span id="water-ph-label">pH actual</span>: <strong id="water-ph-display" class="text-blue-300">7.2</strong></div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 flex flex-col gap-2 shadow-xl hover:border-violet-500/40 transition-colors">
+          <div class="flex justify-between items-center text-violet-400 font-mono text-xs font-bold">
+            <span id="drone-title">DRONE MÉDICO AUTÓNOMO</span> <i data-lucide="plane" class="w-4 h-4"></i>
+          </div>
+          <div id="drone-status-txt" class="text-xl font-extrabold text-white uppercase">DOCKED</div>
+          <div class="text-[11px] text-slate-400"><span id="drone-range-label">Radio de Acción</span>: <strong class="text-violet-300">18 km GPS</strong></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="glass-card rounded-2xl p-5 shadow-2xl flex flex-col gap-3">
+          <h3 class="text-xs font-extrabold uppercase tracking-widest text-amber-400 flex items-center gap-2">
+            <i data-lucide="cloud-rain" class="w-4 h-4 text-amber-400"></i>
+            <span id="oracle-title">Epidemic Oracle — Datos Climáticos y de Riesgo</span>
+          </h3>
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+              <div class="text-slate-400" id="oracle-temp-label">Temperatura ambiente</div>
+              <div class="text-lg font-bold text-amber-300" id="oracle-temp">28.5 °C</div>
+            </div>
+            <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+              <div class="text-slate-400" id="oracle-humidity-label">Humedad relativa</div>
+              <div class="text-lg font-bold text-cyan-300" id="oracle-humidity">74%</div>
+            </div>
+            <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+              <div class="text-slate-400" id="oracle-rain-label">Precipitación (7d)</div>
+              <div class="text-lg font-bold text-blue-300" id="oracle-rain">32 mm</div>
+            </div>
+            <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+              <div class="text-slate-400" id="oracle-risk-label">Riesgo criaderos</div>
+              <div class="text-lg font-bold text-rose-300" id="oracle-risk">MODERADO</div>
+            </div>
+          </div>
+          <button onclick="refreshOracle()" class="btn-glow self-start px-4 py-2 bg-amber-600/80 hover:bg-amber-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-amber-600/20" id="oracle-refresh-btn">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> <span id="oracle-refresh-text">Actualizar Oracle</span>
+          </button>
+        </div>
+
+        <div class="glass-card rounded-2xl p-5 shadow-2xl flex flex-col gap-4">
+          <h3 class="text-xs font-extrabold uppercase tracking-widest text-violet-400 flex items-center gap-2">
+            <i data-lucide="plane" class="w-4 h-4 text-violet-400"></i>
+            <span id="drone-dispatch-title">Despacho de Emergencia Drone Médico</span>
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-2">
+              <label class="text-xs text-slate-300" id="drone-payload-label">Seleccionar Carga Médica Crítica:</label>
+              <select id="drone-payload" class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-violet-500 transition-colors">
+                <option>Suero Antiofídico (Mordedura de Serpiente)</option>
+                <option>Kit Muestras de Sangre de Laboratorio</option>
+                <option>Vacunas Mantenidas en Frío Solar</option>
+                <option>Kit de Sutura & Hemorragia Crítica</option>
+              </select>
+            </div>
+            <div class="flex items-end">
+              <button onclick="dispatchDrone()" id="btn-drone-dispatch" class="btn-glow w-full py-3 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-violet-600/30">
+                <i data-lucide="plane" class="w-4 h-4"></i>
+                <span id="drone-dispatch-text">Despachar Drone a Zona Aislar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: TOKENS & DAO (mejoras visuales) -->
+    <div id="tab-content-dao" class="hidden flex flex-col gap-6 fade-in">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="bg-gradient-to-br from-indigo-950/90 to-slate-950/90 border border-indigo-500/40 rounded-2xl p-6 shadow-2xl flex flex-col justify-between backdrop-blur-sm">
+          <div>
+            <div class="flex justify-between items-center text-xs font-mono font-bold text-indigo-300">
+              <span id="dao-wallet-title">BILLETERA DEL PROMOTOR</span> <i data-lucide="coins" class="w-5 h-5 text-amber-400"></i>
+            </div>
+            <div class="mt-4">
+              <span class="text-xs text-slate-400 font-medium" id="dao-balance-label">MI SALDO DE PUNTOS DE SALUD</span>
+              <div class="text-4xl font-extrabold text-white tracking-tight mt-1 flex items-baseline gap-2">
+                <span id="token-balance-num">1,250</span>
+                <span class="text-sm font-bold text-amber-400">$HEALTH</span>
+              </div>
+            </div>
+          </div>
+          <p class="text-xs text-indigo-200 border-t border-indigo-500/20 pt-3 mt-4">⚡ Tokens de utilidad ganados por prevención médica comunitaria.</p>
+        </div>
+
+        <div class="lg:col-span-2 glass-card rounded-2xl p-5 shadow-xl flex flex-col gap-3">
+          <h3 class="text-xs font-extrabold uppercase tracking-widest text-cyan-400 flex items-center gap-2">
+            <i data-lucide="plus" class="w-4 h-4"></i> <span id="dao-earn-title">Registrar Acción Preventiva (+HEALTH)</span>
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <button onclick="earnTokens(10, 'Visita Preventiva')" class="btn-glow p-3 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-xl text-left flex flex-col gap-1 transition-colors">
+              <div class="flex justify-between items-center text-xs font-bold text-white">
+                <span id="dao-earn-visit">Visita Domiciliar</span> <span class="text-emerald-400 font-mono">+10</span>
+              </div>
+              <span class="text-[10.5px] text-slate-400" id="dao-earn-visit-sub">Signos vitales en hogar.</span>
+            </button>
+            <button onclick="earnTokens(50, 'Vacunación Completa')" class="btn-glow p-3 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-xl text-left flex flex-col gap-1 transition-colors">
+              <div class="flex justify-between items-center text-xs font-bold text-white">
+                <span id="dao-earn-vaccine">Campaña Vacunas</span> <span class="text-emerald-400 font-mono">+50</span>
+              </div>
+              <span class="text-[10.5px] text-slate-400" id="dao-earn-vaccine-sub">Inmunización sectorial.</span>
+            </button>
+            <button onclick="earnTokens(20, 'Inspección de Agua')" class="btn-glow p-3 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-xl text-left flex flex-col gap-1 transition-colors">
+              <div class="flex justify-between items-center text-xs font-bold text-white">
+                <span id="dao-earn-water">Inspección Pozo</span> <span class="text-emerald-400 font-mono">+20</span>
+              </div>
+              <span class="text-[10.5px] text-slate-400" id="dao-earn-water-sub">Prueba de pH y Turbidez.</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="glass-card rounded-2xl p-5 shadow-xl flex flex-col gap-3">
+          <h3 class="text-xs font-extrabold uppercase tracking-widest text-indigo-400 flex items-center gap-2">
+            <i data-lucide="trophy" class="w-4 h-4 text-indigo-400"></i>
+            <span id="dao-ranking-title">Ranking Comunitario</span>
+          </h3>
+          <div class="space-y-1.5 text-xs font-mono">
+            <div class="flex justify-between bg-slate-950/80 p-2 rounded-lg border border-slate-800">
+              <span class="text-emerald-400 font-bold">1. María Rojas</span>
+              <span class="text-amber-400">1,500 HEALTH</span>
+            </div>
+            <div class="flex justify-between bg-slate-950/80 p-2 rounded-lg border border-cyan-500/30">
+              <span class="text-cyan-300 font-bold">2. [Tu Nombre]</span>
+              <span class="text-amber-400" id="ranking-my-balance">1,250 HEALTH</span>
+            </div>
+            <div class="flex justify-between bg-slate-950/80 p-2 rounded-lg border border-slate-800">
+              <span class="text-slate-300">3. Carlos Pérez</span>
+              <span class="text-amber-400">1,100 HEALTH</span>
+            </div>
+            <div class="flex justify-between bg-slate-950/80 p-2 rounded-lg border border-slate-800">
+              <span class="text-slate-300">4. Ana Gutiérrez</span>
+              <span class="text-amber-400">980 HEALTH</span>
+            </div>
+            <div class="flex justify-between bg-slate-950/80 p-2 rounded-lg border border-slate-800">
+              <span class="text-slate-300">5. Luis Sandino</span>
+              <span class="text-amber-400">870 HEALTH</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-5 shadow-xl flex flex-col gap-3">
+          <h3 class="text-xs font-extrabold uppercase tracking-widest text-emerald-400 flex items-center gap-2">
+            <i data-lucide="shopping-bag" class="w-4 h-4 text-emerald-400"></i>
+            <span id="dao-market-title">Mercado de Recompensas</span>
+          </h3>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="reward-card p-3 rounded-xl flex flex-col items-start gap-1">
+              <span class="text-[11px] font-bold text-white" id="reward-filter">Filtro de Agua Lifestraw</span>
+              <span class="text-[10px] text-amber-400 font-mono">2,000 HEALTH</span>
+              <button onclick="redeemReward('Filtro de Agua Lifestraw', 2000)" class="mt-1 text-[10px] bg-emerald-600/80 hover:bg-emerald-500 text-white px-2 py-0.5 rounded-full transition-colors" id="reward-filter-btn">Canjear</button>
+            </div>
+            <div class="reward-card p-3 rounded-xl flex flex-col items-start gap-1">
+              <span class="text-[11px] font-bold text-white" id="reward-credit">Crédito Teléfono (100 C$)</span>
+              <span class="text-[10px] text-amber-400 font-mono">500 HEALTH</span>
+              <button onclick="redeemReward('Crédito Teléfono', 500)" class="mt-1 text-[10px] bg-emerald-600/80 hover:bg-emerald-500 text-white px-2 py-0.5 rounded-full transition-colors" id="reward-credit-btn">Canjear</button>
+            </div>
+            <div class="reward-card p-3 rounded-xl flex flex-col items-start gap-1">
+              <span class="text-[11px] font-bold text-white" id="reward-seeds">Kit de Semillas Mejoradas</span>
+              <span class="text-[10px] text-amber-400 font-mono">1,000 HEALTH</span>
+              <button onclick="redeemReward('Kit de Semillas Mejoradas', 1000)" class="mt-1 text-[10px] bg-emerald-600/80 hover:bg-emerald-500 text-white px-2 py-0.5 rounded-full transition-colors" id="reward-seeds-btn">Canjear</button>
+            </div>
+            <div class="reward-card p-3 rounded-xl flex flex-col items-start gap-1">
+              <span class="text-[11px] font-bold text-white" id="reward-training">Capacitación Primeros Auxilios</span>
+              <span class="text-[10px] text-amber-400 font-mono">3,000 HEALTH</span>
+              <button onclick="redeemReward('Capacitación Primeros Auxilios', 3000)" class="mt-1 text-[10px] bg-emerald-600/80 hover:bg-emerald-500 text-white px-2 py-0.5 rounded-full transition-colors" id="reward-training-btn">Canjear</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: LORAWAN MESH (mejoras visuales) -->
+    <div id="tab-content-mesh" class="hidden flex flex-col gap-6 fade-in">
+      <div class="glass-card rounded-2xl p-6 shadow-2xl flex flex-col gap-4">
+        <div class="flex justify-between items-center border-b border-cyan-500/20 pb-3 flex-wrap gap-2">
+          <div>
+            <h2 class="text-sm font-extrabold uppercase tracking-widest text-cyan-400 flex items-center gap-2">
+              <i data-lucide="network" class="w-5 h-5 text-cyan-400"></i>
+              <span id="mesh-title">Mapa Topográfico de Red LoRaWAN Mesh Multi-Hop</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-1" id="mesh-sub">Comunicación descentralizada peer-to-peer sin requerir internet comercial.</p>
+          </div>
+          <button onclick="simulateLoRaHop()" class="btn-glow px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-cyan-500/20" id="mesh-sim-btn">
+            <i data-lucide="send" class="w-4 h-4"></i> <span id="mesh-sim-text">Simular Salto Multi-Hop</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-950/60 p-6 rounded-2xl border border-slate-800">
+          <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800 flex flex-col gap-2 hover:border-cyan-500/30 transition-colors">
+            <span class="text-xs font-bold text-cyan-300" id="mesh-zone-a">ZONA A (Nodo Origen)</span>
+            <p class="text-[11px] text-slate-400" id="mesh-zone-a-desc">Wearable #012 en caserío distante.</p>
+            <div id="mesh-hop-1" class="p-2.5 bg-slate-950 rounded-lg text-xs font-mono text-slate-400 border border-slate-800">Salto 1: En espera...</div>
+          </div>
+          <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800 flex flex-col gap-2 hover:border-indigo-500/30 transition-colors">
+            <span class="text-xs font-bold text-indigo-300" id="mesh-zone-b">ZONA B (Repetidor Intermedio)</span>
+            <p class="text-[11px] text-slate-400" id="mesh-zone-b-desc">Nodo Mesh sobre colina.</p>
+            <div id="mesh-hop-2" class="p-2.5 bg-slate-950 rounded-lg text-xs font-mono text-slate-400 border border-slate-800">Salto 2: En espera...</div>
+          </div>
+          <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800 flex flex-col gap-2 hover:border-emerald-500/30 transition-colors">
+            <span class="text-xs font-bold text-emerald-300" id="mesh-zone-c">HUB CENTRAL SOLAR</span>
+            <p class="text-[11px] text-slate-400" id="mesh-zone-c-desc">Servidor Jetson Nano IA.</p>
+            <div id="mesh-hop-3" class="p-2.5 bg-slate-950 rounded-lg text-xs font-mono text-slate-400 border border-slate-800">Recepción: En espera...</div>
+          </div>
+        </div>
+
+        <div class="mt-2 bg-slate-950/60 p-5 rounded-2xl border border-violet-500/30 flex flex-col gap-3">
+          <div class="flex justify-between items-center">
+            <h4 class="text-xs font-extrabold uppercase tracking-widest text-violet-400 flex items-center gap-2">
+              <i data-lucide="cpu" class="w-4 h-4 text-violet-400"></i>
+              <span id="fl-title">Aprendizaje Federado — Inteligencia Colectiva</span>
+            </h4>
+            <span id="fl-status" class="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono font-bold rounded-lg shadow-sm">ACTIVO</span>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div class="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
+              <span class="text-slate-400" id="fl-last-label">Última ronda</span>
+              <div class="text-white font-bold" id="fl-last-round">Hace 2 días</div>
+            </div>
+            <div class="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
+              <span class="text-slate-400" id="fl-acc-label">Precisión global</span>
+              <div class="text-emerald-300 font-bold" id="fl-accuracy">89%</div>
+            </div>
+            <div class="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
+              <span class="text-slate-400" id="fl-comm-label">Comunidades activas</span>
+              <div class="text-cyan-300 font-bold" id="fl-communities">12</div>
+            </div>
+            <div class="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
+              <span class="text-slate-400" id="fl-privacy-label">Privacidad</span>
+              <div class="text-emerald-300 font-bold">🔒 Homomórfica</div>
+            </div>
+          </div>
+          <button onclick="simulateFederatedRound()" class="btn-glow self-start px-5 py-2 bg-violet-600/80 hover:bg-violet-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-violet-600/20" id="fl-sim-btn">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> <span id="fl-sim-text">Simular Ronda de Entrenamiento</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: BUDGET (mejoras visuales) -->
+    <div id="tab-content-budget" class="hidden flex flex-col gap-6 fade-in">
+      <div class="glass-card rounded-2xl p-6 shadow-2xl flex flex-col gap-4">
+        <h2 class="text-sm font-extrabold uppercase tracking-widest text-cyan-400 flex items-center gap-2">
+          <i data-lucide="file-text" class="w-5 h-5 text-cyan-400"></i>
+          <span id="budget-title">Presupuesto por Fases & Fundamentos Científicos (Capítulo 8 & 9)</span>
+        </h2>
+        <div class="space-y-3 font-sans text-xs">
+          <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 hover:border-cyan-500/20 transition-colors">
+            <div class="flex justify-between items-center text-white font-bold text-sm">
+              <span id="budget-phase0">Fase 0: MVP Urbano & Prototipado 3D</span>
+              <span class="text-amber-400 font-mono">$1,850 USD</span>
+            </div>
+            <p class="text-slate-400 mt-1" id="budget-phase0-desc">Impresión 3D de carcasas, sensores Max30102, Jetson Nano y antenas LoRa SX1276.</p>
+          </div>
+          <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 hover:border-cyan-500/20 transition-colors">
+            <div class="flex justify-between items-center text-white font-bold text-sm">
+              <span id="budget-phase1">Fase 1: Piloto Rural Comunitario (20 Nodos)</span>
+              <span class="text-amber-400 font-mono">$12,400 USD</span>
+            </div>
+            <p class="text-slate-400 mt-1" id="budget-phase1-desc">Despliegue del Hub Solar 1.6kWp, estación purificadora RO y banco de baterías LiFePO4.</p>
+          </div>
+          <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 hover:border-cyan-500/20 transition-colors">
+            <div class="flex justify-between items-center text-white font-bold text-sm">
+              <span id="budget-phase2">Fase 2 & 3: Mente Colectiva & Red Federada Global</span>
+              <span class="text-amber-400 font-mono">$48,000 USD</span>
+            </div>
+            <p class="text-slate-400 mt-1" id="budget-phase2-desc">Gobernanza DAO en cadena, contratos inteligentes Data-for-Health y federación multi-región.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-900 bg-slate-950/60 backdrop-blur-sm py-4 px-6 text-center text-xs text-slate-500 mt-auto">
+    SaludRoots AI © 2025-2026 • Dirigido por el <strong class="text-slate-300">Dr. Julio César Oporta Barrera</strong> • Arquitectura Médica Soberana
+  </footer>
 
   <script>
-    // Internationalization dictionary
-    const DICT = {
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // Application State
+    let currentTab = 'dashboard';
+    let currentLang = 'es';
+    let tokenBalance = 1250;
+    let heartRate = 72;
+    let spo2Val = 98;
+    let tempVal = 36.6;
+    let alertCount = 0;
+    let simInterval = null;
+    let autoSimActive = false;
+    let rotationSpeed = 0.006;
+    let wearableCount = 12;
+
+    // Diccionario completo (sin cambios, se mantiene igual que antes)
+    const dict = {
       es: {
-        subtitle: "Plataforma Predictiva Comunitaria de Salud",
-        controlTitle: "SIMULADOR INTERACTIVO 3D",
-        controlDesc: "Use los controles para modificar el prototipo 3D y la biometría.",
-        heart: "Ritmo Cardíaco (LPM)",
-        spo2: "Saturación (SpO2 %)",
-        temp: "Temperatura (°C)",
-        wind: "Velocidad del Viento",
-        solar: "Irradiación Solar",
-        rot: "Velocidad de Rotación 3D",
-        presets: "Luz Cinematográfica",
-        stages: "Cambiar Fase de Red",
-        ecg: "Señal de ECG / Biomecánica PPG",
-        weights: "Pesos Neurales TinyML:",
-        terminal: "CONSOLA DE TELEMETRÍA",
-        doctor: "Dr. Julio César Oporta Barrera",
-        aiTitle: "Nodos de Inteligencia Artificial",
-        aiDesc: "Visualizador de pesos neurales en el borde y algoritmo LSTM de dengue.",
-        outbreak: "Riesgo de Dengue (LSTM):",
-        phaseNames: ["Fase 0: MVP", "Fase 1: Piloto", "Fase 2: Mente", "Fase 3: Global"]
+        sim: 'Simulador 3D', cur: 'IA Curandera', sol: 'Hub Solar & Agua', dao: 'Tokens & DAO', mesh: 'Red LoRaWAN', bud: 'Presupuesto & Papeles',
+        heart: 'Ritmo Cardíaco', spo2: 'Oxígeno SpO2', temp: 'Temp Corporal', cough: 'Riesgo Tos/Esputo', water: 'Calidad Agua',
+        pulse: 'PULSO', spo2_label: 'SpO2', status_label: 'ESTADO', alerts_label: 'ALERTAS',
+        controls_title: 'Controles Biométricos', controls_sub: 'Parámetros en tiempo real transmitidos vía LoRa Mesh.',
+        presets: 'Presete de Iluminación 3D', preset_cyan: 'Matriz Cyan', preset_crimson: 'Alerta Carmesí', preset_emerald: 'Bosque Esmeralda', preset_solar: 'Atardecer Solar',
+        injections: 'Inyecciones de Escenarios', inject_outbreak: 'Inducir Brote Febril', inject_storm: 'Inducir Tormenta / Turbidez',
+        telemetry: 'Telemetría de Red', telemetry_sub: 'Bitácora de eventos y nodos federados.',
+        deploy: 'DESPLEGAR FASE DE RED', phase0: 'F0 Urbano', phase1: 'F1 Piloto', phase2: 'F2 Colectiva', phase3: 'F3 Federada',
+        sim_toggle: '▶ Controles de Simulación Avanzada', sim_dengue: '🦟 Simular Dengue', sim_water: '💧 Desabastecimiento', sim_node: '📡 Caída de Nodo', sim_critical: '🚨 Alerta Crítica', sim_normalize: '✅ Normalizar',
+        sim_auto: 'Modo Simulación Automática', sim_rotation: 'Velocidad rotación', sim_reset: 'Reset Cámara', sim_status: '⚙️ Simulación inactiva',
+        curandera_title: 'IA Curandera — Asistente Clínico y Botánica Comunitario', curandera_sub: 'Integración de medicina ancestral botánica respaldada por guías de la OMS y triaje en el borde.',
+        curandera_badge: 'OFFLINE ENGINE READY', curandera_send: 'Consultar', vademecum: 'Vademécum Comunitario Validado',
+        solar_panels: 'PANELES SOLARES', solar_efficiency: 'Eficiencia generación', solar_production: 'Producción actual',
+        battery_title: 'BATERÍA LIFEPO4', battery_soc: 'Estado de Carga', battery_autonomy: 'Autonomía estimada',
+        water_title: 'PURIFICADORA AGUA RO', water_capacity: 'Capacidad', water_ph: 'pH actual',
+        drone_title: 'DRONE MÉDICO AUTÓNOMO', drone_range: 'Radio de Acción',
+        oracle_title: 'Epidemic Oracle — Datos Climáticos y de Riesgo', oracle_temp: 'Temperatura ambiente', oracle_humidity: 'Humedad relativa', oracle_rain: 'Precipitación (7d)', oracle_risk: 'Riesgo criaderos', oracle_refresh: 'Actualizar Oracle',
+        drone_dispatch: 'Despacho de Emergencia Drone Médico', drone_payload: 'Seleccionar Carga Médica Crítica:', drone_dispatch_btn: 'Despachar Drone a Zona Aislar',
+        dao_wallet: 'BILLETERA DEL PROMOTOR', dao_balance: 'MI SALDO DE PUNTOS DE SALUD', dao_earn: 'Registrar Acción Preventiva (+HEALTH)',
+        dao_visit: 'Visita Domiciliar', dao_visit_sub: 'Signos vitales en hogar.',
+        dao_vaccine: 'Campaña Vacunas', dao_vaccine_sub: 'Inmunización sectorial.',
+        dao_water: 'Inspección Pozo', dao_water_sub: 'Prueba de pH y Turbidez.',
+        dao_ranking: 'Ranking Comunitario', dao_market: 'Mercado de Recompensas',
+        reward_filter: 'Filtro de Agua Lifestraw', reward_credit: 'Crédito Teléfono (100 C$)', reward_seeds: 'Kit de Semillas Mejoradas', reward_training: 'Capacitación Primeros Auxilios',
+        redeem: 'Canjear',
+        mesh_title: 'Mapa Topográfico de Red LoRaWAN Mesh Multi-Hop', mesh_sub: 'Comunicación descentralizada peer-to-peer sin requerir internet comercial.',
+        mesh_sim: 'Simular Salto Multi-Hop', mesh_zone_a: 'ZONA A (Nodo Origen)', mesh_zone_a_desc: 'Wearable #012 en caserío distante.',
+        mesh_zone_b: 'ZONA B (Repetidor Intermedio)', mesh_zone_b_desc: 'Nodo Mesh sobre colina.',
+        mesh_zone_c: 'HUB CENTRAL SOLAR', mesh_zone_c_desc: 'Servidor Jetson Nano IA.',
+        fl_title: 'Aprendizaje Federado — Inteligencia Colectiva', fl_last: 'Última ronda', fl_acc: 'Precisión global', fl_comm: 'Comunidades activas', fl_privacy: 'Privacidad', fl_sim: 'Simular Ronda de Entrenamiento',
+        budget_title: 'Presupuesto por Fases & Fundamentos Científicos (Capítulo 8 & 9)',
+        budget_phase0: 'Fase 0: MVP Urbano & Prototipado 3D', budget_phase0_desc: 'Impresión 3D de carcasas, sensores Max30102, Jetson Nano y antenas LoRa SX1276.',
+        budget_phase1: 'Fase 1: Piloto Rural Comunitario (20 Nodos)', budget_phase1_desc: 'Despliegue del Hub Solar 1.6kWp, estación purificadora RO y banco de baterías LiFePO4.',
+        budget_phase2: 'Fase 2 & 3: Mente Colectiva & Red Federada Global', budget_phase2_desc: 'Gobernanza DAO en cadena, contratos inteligentes Data-for-Health y federación multi-región.',
+        ecg_title: 'SENSORES HOLTER / ECG EN TIEMPO REAL',
+        hud_mesh: 'MESH RED LORA: 4 NODOS VIVOS', hud_tinyml: 'TINYML JETSON NANO: ONLINE', hud_battery: '92%', hud_wearables: '12 wearables',
+        hud_holo_title: 'REPRESENTACIÓN HOLO-CINETICA', hud_holo_sub: 'SALUDROOTS BIOMETRIC SWARM 3D',
+        feedback_phase: 'Fase de red cambiada a {phase}',
+        feedback_preset: 'Preset de iluminación aplicado: {preset}',
+        feedback_inject_outbreak: '🔥 Brote febril inyectado: parámetros críticos activados',
+        feedback_inject_storm: '⛈️ Tormenta inyectada: pH y turbidez alterados',
+        feedback_dengue: '🦟 Simulación Dengue activa: fiebre, taquicardia y riesgo de tos',
+        feedback_water_cut: '💧 Desabastecimiento simulado: pH crítico, agua no potable',
+        feedback_node_fail: '📡 Caída de nodo simulada: 2 wearables desconectados',
+        feedback_critical: '🚨 Alerta crítica activada: signos de shock séptico',
+        feedback_normalize: '✅ Sistema normalizado: todos los parámetros en rango',
+        feedback_lora: '🕸️ Salto LoRa simulado: paquete entregado en 42ms',
+        feedback_fl: '🧠 Ronda de aprendizaje federado completada',
+        feedback_drone: '🚁 Drone médico despachado',
+        feedback_token: '🪙 Tokens HEALTH ganados: {amount} por {reason}',
+        feedback_redeem: '🎁 Recompensa canjeada: {item}',
+        feedback_redeem_fail: '❌ No tienes suficientes HEALTH para canjear {item}',
+        feedback_param: '💓 Parámetro {key} ajustado a {val} {unit}',
+        feedback_auto_on: '🔄 Modo Simulación Automática activado',
+        feedback_auto_off: '⏹️ Modo Simulación Automática desactivado',
+        feedback_camera: '📷 Cámara 3D reseteada',
+        feedback_click_node: '🎨 Nodo 3D clickeado, color cambiado'
       },
       en: {
-        subtitle: "Predictive Community Health Platform",
-        controlTitle: "3D INTERACTIVE SIMULATOR",
-        controlDesc: "Adjust variables to modify 3D rendering and biomechanics.",
-        heart: "Heart Rate (BPM)",
-        spo2: "Oxygen Level (SpO2 %)",
-        temp: "Temperature (°C)",
-        wind: "Wind Velocity",
-        solar: "Solar Irradiation",
-        rot: "3D Rotation Rate",
-        presets: "Cinematic Lights Preset",
-        stages: "Shift Project Phase",
-        ecg: "ECG / PPG Biomechanics Signal",
-        weights: "TinyML Neural Weights:",
-        terminal: "TELEMETRY LOGS CONSOLE",
-        doctor: "Dr. Julio César Oporta Barrera",
-        aiTitle: "Artificial Intelligence Nodes",
-        aiDesc: "Realtime weights visualization of local autoencoder & dengue forecasting.",
-        outbreak: "LSTM Epidemic Outbreak:",
-        phaseNames: ["Phase 0: MVP", "Phase 1: Pilot", "Phase 2: Mind", "Phase 3: Global"]
+        sim: '3D Simulator', cur: 'AI Healer', sol: 'Solar Hub & Water', dao: 'Tokens & DAO', mesh: 'LoRaWAN Mesh', bud: 'Budget & Papers',
+        heart: 'Heart Rate', spo2: 'Oxygen SpO2', temp: 'Body Temp', cough: 'Cough Risk', water: 'Water Quality',
+        pulse: 'PULSE', spo2_label: 'SpO2', status_label: 'STATUS', alerts_label: 'ALERTS',
+        controls_title: 'Biometric Controls', controls_sub: 'Real-time parameters transmitted via LoRa Mesh.',
+        presets: '3D Lighting Presets', preset_cyan: 'Cyan Matrix', preset_crimson: 'Crimson Alert', preset_emerald: 'Emerald Forest', preset_solar: 'Solar Sunset',
+        injections: 'Scenario Injections', inject_outbreak: 'Induce Febrile Outbreak', inject_storm: 'Induce Storm / Turbidity',
+        telemetry: 'Network Telemetry', telemetry_sub: 'Event log and federated nodes.',
+        deploy: 'DEPLOY NETWORK PHASE', phase0: 'F0 Urban', phase1: 'F1 Pilot', phase2: 'F2 Collective', phase3: 'F3 Federated',
+        sim_toggle: '▶ Advanced Simulation Controls', sim_dengue: '🦟 Simulate Dengue', sim_water: '💧 Water Shortage', sim_node: '📡 Node Failure', sim_critical: '🚨 Critical Alert', sim_normalize: '✅ Normalize',
+        sim_auto: 'Automatic Simulation Mode', sim_rotation: 'Rotation speed', sim_reset: 'Reset Camera', sim_status: '⚙️ Simulation inactive',
+        curandera_title: 'AI Healer — Clinical & Botanical Community Assistant', curandera_sub: 'Integration of ancestral botanical medicine backed by WHO guidelines and edge triage.',
+        curandera_badge: 'OFFLINE ENGINE READY', curandera_send: 'Consult', vademecum: 'Community Validated Vademecum',
+        solar_panels: 'SOLAR PANELS', solar_efficiency: 'Generation efficiency', solar_production: 'Current production',
+        battery_title: 'LIFEPO4 BATTERY', battery_soc: 'State of Charge', battery_autonomy: 'Estimated autonomy',
+        water_title: 'RO WATER PURIFIER', water_capacity: 'Capacity', water_ph: 'Current pH',
+        drone_title: 'AUTONOMOUS MEDICAL DRONE', drone_range: 'Range',
+        oracle_title: 'Epidemic Oracle — Climate & Risk Data', oracle_temp: 'Ambient temperature', oracle_humidity: 'Relative humidity', oracle_rain: 'Precipitation (7d)', oracle_risk: 'Breeding risk', oracle_refresh: 'Refresh Oracle',
+        drone_dispatch: 'Medical Drone Emergency Dispatch', drone_payload: 'Select Critical Medical Payload:', drone_dispatch_btn: 'Dispatch Drone to Isolated Area',
+        dao_wallet: 'PROMOTER WALLET', dao_balance: 'MY HEALTH POINTS BALANCE', dao_earn: 'Register Preventive Action (+HEALTH)',
+        dao_visit: 'Home Visit', dao_visit_sub: 'Vital signs at home.',
+        dao_vaccine: 'Vaccination Campaign', dao_vaccine_sub: 'Sector immunization.',
+        dao_water: 'Well Inspection', dao_water_sub: 'pH and turbidity test.',
+        dao_ranking: 'Community Ranking', dao_market: 'Rewards Market',
+        reward_filter: 'Lifestraw Water Filter', reward_credit: 'Phone Credit (100 C$)', reward_seeds: 'Improved Seed Kit', reward_training: 'First Aid Training',
+        redeem: 'Redeem',
+        mesh_title: 'LoRaWAN Mesh Multi-Hop Topographic Map', mesh_sub: 'Decentralized peer-to-peer communication without commercial internet.',
+        mesh_sim: 'Simulate Multi-Hop Hop', mesh_zone_a: 'ZONE A (Origin Node)', mesh_zone_a_desc: 'Wearable #012 in distant hamlet.',
+        mesh_zone_b: 'ZONE B (Intermediate Repeater)', mesh_zone_b_desc: 'Mesh node on hill.',
+        mesh_zone_c: 'CENTRAL SOLAR HUB', mesh_zone_c_desc: 'Jetson Nano IA Server.',
+        fl_title: 'Federated Learning — Collective Intelligence', fl_last: 'Last round', fl_acc: 'Global accuracy', fl_comm: 'Active communities', fl_privacy: 'Privacy', fl_sim: 'Simulate Training Round',
+        budget_title: 'Budget by Phases & Scientific Foundations (Chapters 8 & 9)',
+        budget_phase0: 'Phase 0: Urban MVP & 3D Prototyping', budget_phase0_desc: '3D printing of enclosures, Max30102 sensors, Jetson Nano and LoRa SX1276 antennas.',
+        budget_phase1: 'Phase 1: Rural Community Pilot (20 Nodes)', budget_phase1_desc: 'Deployment of 1.6kWp Solar Hub, RO purification station and LiFePO4 battery bank.',
+        budget_phase2: 'Phase 2 & 3: Collective Mind & Global Federated Network', budget_phase2_desc: 'On-chain DAO governance, Data-for-Health smart contracts and multi-region federation.',
+        ecg_title: 'REAL-TIME HOLTER / ECG SENSORS',
+        hud_mesh: 'LORA MESH: 4 LIVE NODES', hud_tinyml: 'TINYML JETSON NANO: ONLINE', hud_battery: '92%', hud_wearables: '12 wearables',
+        hud_holo_title: 'HOLO-KINETIC REPRESENTATION', hud_holo_sub: 'SALUDROOTS BIOMETRIC SWARM 3D',
+        feedback_phase: 'Network phase changed to {phase}',
+        feedback_preset: 'Lighting preset applied: {preset}',
+        feedback_inject_outbreak: '🔥 Febrile outbreak injected: critical parameters activated',
+        feedback_inject_storm: '⛈️ Storm injected: pH and turbidity altered',
+        feedback_dengue: '🦟 Dengue simulation active: fever, tachycardia and cough risk',
+        feedback_water_cut: '💧 Water shortage simulated: critical pH, non-potable water',
+        feedback_node_fail: '📡 Node failure simulated: 2 wearables disconnected',
+        feedback_critical: '🚨 Critical alert activated: signs of septic shock',
+        feedback_normalize: '✅ System normalized: all parameters in range',
+        feedback_lora: '🕸️ LoRa hop simulated: packet delivered in 42ms',
+        feedback_fl: '🧠 Federated learning round completed',
+        feedback_drone: '🚁 Medical drone dispatched',
+        feedback_token: '🪙 HEALTH tokens earned: {amount} for {reason}',
+        feedback_redeem: '🎁 Reward redeemed: {item}',
+        feedback_redeem_fail: '❌ You don\'t have enough HEALTH to redeem {item}',
+        feedback_param: '💓 Parameter {key} adjusted to {val} {unit}',
+        feedback_auto_on: '🔄 Automatic Simulation Mode activated',
+        feedback_auto_off: '⏹️ Automatic Simulation Mode deactivated',
+        feedback_camera: '📷 3D Camera reset',
+        feedback_click_node: '🎨 3D Node clicked, color changed'
       },
       zh: {
-        subtitle: "自主预测性社区健康网关平台",
-        controlTitle: "3D 交互式仿真盘",
-        controlDesc: "调节滑块可即时修改 3D 渲染及体征遥测规律。",
-        heart: "脉搏心率 (BPM)",
-        spo2: "血氧饱和度 (SpO2 %)",
-        temp: "腋下核心体温 (°C)",
-        wind: "区域瞬时风速",
-        solar: "光伏太阳辐照强度",
-        rot: "3D 渲染自转因子",
-        presets: "电影级多维灯光预置",
-        stages: "切换演进生命阶段",
-        ecg: "心电图 (ECG) / 柔性 PPG 特征波",
-        weights: "TinyML 边缘分类权重值:",
-        terminal: "共享遥测虚拟控制台日志",
-        doctor: "Dr. Julio César Oporta Barrera (朱利奥·塞萨尔 博士)",
-        aiTitle: "AI 异构神经网络节点",
-        aiDesc: "自抗干扰型多级网络权重分布及 LSTM 数据流。",
-        outbreak: "登革热流体爆发系数 (LSTM):",
-        phaseNames: ["阶段 0: MVP", "阶段 1: 村庄部署", "阶段 2: 集群大脑", "阶段 3: 全球联邦"]
+        sim: '3D模拟器', cur: 'AI草药医', sol: '太阳能枢纽', dao: '代币与DAO', mesh: 'LoRa网格', bud: '预算与论文',
+        heart: '心率', spo2: '血氧饱和度', temp: '体温', cough: '咳嗽风险', water: '水质',
+        pulse: '脉搏', spo2_label: '血氧', status_label: '状态', alerts_label: '警报',
+        controls_title: '生物识别控制', controls_sub: '通过LoRa Mesh实时传输参数。',
+        presets: '3D照明预设', preset_cyan: '青色矩阵', preset_crimson: '深红警报', preset_emerald: '翡翠森林', preset_solar: '日落',
+        injections: '场景注入', inject_outbreak: '引发发热疫情', inject_storm: '引发风暴/浑浊',
+        telemetry: '网络遥测', telemetry_sub: '事件日志和联邦节点。',
+        deploy: '部署网络阶段', phase0: 'F0城市', phase1: 'F1试点', phase2: 'F2集体', phase3: 'F3联邦',
+        sim_toggle: '▶ 高级模拟控制', sim_dengue: '🦟 模拟登革热', sim_water: '💧 缺水', sim_node: '📡 节点故障', sim_critical: '🚨 严重警报', sim_normalize: '✅ 正常化',
+        sim_auto: '自动模拟模式', sim_rotation: '旋转速度', sim_reset: '重置相机', sim_status: '⚙️ 模拟未激活',
+        curandera_title: 'AI草药医 — 临床和植物社区助手', curandera_sub: '整合了世界卫生组织指南和边缘分诊支持的祖传植物医学。',
+        curandera_badge: '离线引擎就绪', curandera_send: '咨询', vademecum: '社区验证的草药指南',
+        solar_panels: '太阳能电池板', solar_efficiency: '发电效率', solar_production: '当前发电量',
+        battery_title: '磷酸铁锂电池', battery_soc: '充电状态', battery_autonomy: '预计续航',
+        water_title: '反渗透净水器', water_capacity: '容量', water_ph: '当前pH值',
+        drone_title: '自主医疗无人机', drone_range: '范围',
+        oracle_title: '疫情预言机 — 气候和风险数据', oracle_temp: '环境温度', oracle_humidity: '相对湿度', oracle_rain: '降水量（7天）', oracle_risk: '滋生风险', oracle_refresh: '更新预言机',
+        drone_dispatch: '医疗无人机紧急调度', drone_payload: '选择关键医疗载荷：', drone_dispatch_btn: '派遣无人机到偏远地区',
+        dao_wallet: '推广者钱包', dao_balance: '我的健康积分余额', dao_earn: '注册预防行动 (+HEALTH)',
+        dao_visit: '家访', dao_visit_sub: '家中生命体征。',
+        dao_vaccine: '疫苗接种活动', dao_vaccine_sub: '部门免疫。',
+        dao_water: '水井检查', dao_water_sub: 'pH和浊度测试。',
+        dao_ranking: '社区排名', dao_market: '奖励市场',
+        reward_filter: 'Lifestraw净水器', reward_credit: '电话信用 (100 C$)', reward_seeds: '改良种子套件', reward_training: '急救培训',
+        redeem: '兑换',
+        mesh_title: 'LoRaWAN多跳拓扑地图', mesh_sub: '无需商业互联网的去中心化点对点通信。',
+        mesh_sim: '模拟多跳', mesh_zone_a: 'A区（源节点）', mesh_zone_a_desc: '偏远村庄的穿戴式#012。',
+        mesh_zone_b: 'B区（中继器）', mesh_zone_b_desc: '山丘上的网状节点。',
+        mesh_zone_c: '中央太阳能枢纽', mesh_zone_c_desc: 'Jetson Nano AI服务器。',
+        fl_title: '联邦学习 — 集体智能', fl_last: '上一轮', fl_acc: '全局准确率', fl_comm: '活跃社区', fl_privacy: '隐私', fl_sim: '模拟训练轮',
+        budget_title: '分阶段预算与科学基础（第8和第9章）',
+        budget_phase0: '阶段0：城市MVP与3D原型', budget_phase0_desc: '外壳3D打印，Max30102传感器，Jetson Nano和LoRa SX1276天线。',
+        budget_phase1: '阶段1：农村社区试点（20个节点）', budget_phase1_desc: '部署1.6kWp太阳能枢纽，RO净化站和LiFePO4电池组。',
+        budget_phase2: '阶段2和3：集体思维与全球联邦网络', budget_phase2_desc: '链上DAO治理，Data-for-Health智能合约和多区域联邦。',
+        ecg_title: '实时动态心电图/心电图传感器',
+        hud_mesh: 'LoRa网格：4个活动节点', hud_tinyml: 'TinyML Jetson Nano：在线', hud_battery: '92%', hud_wearables: '12个穿戴设备',
+        hud_holo_title: '全息动态表示', hud_holo_sub: 'SaludRoots生物识别集群3D',
+        feedback_phase: '网络阶段切换为 {phase}',
+        feedback_preset: '应用照明预设：{preset}',
+        feedback_inject_outbreak: '🔥 注入发热疫情：激活关键参数',
+        feedback_inject_storm: '⛈️ 注入风暴：pH和浊度改变',
+        feedback_dengue: '🦟 登革热模拟激活：发热、心动过速和咳嗽风险',
+        feedback_water_cut: '💧 缺水模拟：pH临界，水不可饮用',
+        feedback_node_fail: '📡 节点故障模拟：2个穿戴设备断开',
+        feedback_critical: '🚨 严重警报激活：败血症休克迹象',
+        feedback_normalize: '✅ 系统正常化：所有参数在范围内',
+        feedback_lora: '🕸️ LoRa跳模拟：数据包在42ms内送达',
+        feedback_fl: '🧠 联邦学习轮次完成',
+        feedback_drone: '🚁 医疗无人机已派遣',
+        feedback_token: '🪙 赚取HEALTH代币：{amount} 因 {reason}',
+        feedback_redeem: '🎁 兑换奖励：{item}',
+        feedback_redeem_fail: '❌ 你没有足够的HEALTH来兑换 {item}',
+        feedback_param: '💓 参数 {key} 调整为 {val} {unit}',
+        feedback_auto_on: '🔄 自动模拟模式已激活',
+        feedback_auto_off: '⏹️ 自动模拟模式已停用',
+        feedback_camera: '📷 3D相机重置',
+        feedback_click_node: '🎨 3D节点被点击，颜色已更改'
       }
     };
 
-    let curLang = 'es';
-    let simulation = {
-      heart: 72,
-      spo2: 98,
-      temp: 36.6,
-      wind: 12,
-      solar: 85,
-      rot: 1.0,
-      preset: 'cyan_matrix',
-      phase: 2,
-      acousticSputum: 45,
-      phWater: 7.2,
-      turbidityWater: 1.5,
-      activeSimulationModule: 'cough_analyzer'
-    };
-
-    function setLang(lang) {
-      curLang = lang;
-      document.querySelectorAll('.lang-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.innerText.toLowerCase().includes(lang === 'zh' ? '中文' : lang));
-      });
-      refreshUI();
-      addLog("Set language to: " + lang.toUpperCase());
+    // Toast notification
+    function showToast(message) {
+      const toast = document.getElementById('toast-notification');
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toast._hideTimeout);
+      toast._hideTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
     }
 
-    function refreshUI() {
-      const d = DICT[curLang];
-      document.getElementById('lbl-subtitle').innerText = d.subtitle;
-      document.getElementById('lbl-control-title').innerText = d.controlTitle;
-      document.getElementById('lbl-control-desc').innerText = d.controlDesc;
-      document.getElementById('p-heart').innerText = d.heart;
-      document.getElementById('p-spo2').innerText = d.spo2;
-      document.getElementById('p-temp').innerText = d.temp;
-      document.getElementById('p-wind').innerText = d.wind;
-      document.getElementById('p-solar').innerText = d.solar;
-      document.getElementById('p-rot').innerText = d.rot;
-      document.getElementById('lbl-presets').innerText = d.presets;
-      document.getElementById('lbl-stages').innerText = d.stages;
-      document.getElementById('lbl-ecg').innerText = d.ecg;
-      document.getElementById('lbl-weights').innerText = d.weights;
-      document.getElementById('lbl-terminal').innerText = d.terminal;
-      document.getElementById('lbl-ai-title').innerText = d.aiTitle;
-      document.getElementById('lbl-ai-desc').innerText = d.aiDesc;
-      document.getElementById('lbl-outbreak').innerText = d.outbreak;
-
-      // Stage names
-      document.getElementById('p-ph-0').innerText = d.phaseNames[0];
-      document.getElementById('p-ph-1').innerText = d.phaseNames[1];
-      document.getElementById('p-ph-2').innerText = d.phaseNames[2];
-      document.getElementById('p-ph-3').innerText = d.phaseNames[3];
-
-      updateLabels();
-    }
-
-    function setSimModule(mod) {
-      simulation.activeSimulationModule = mod;
-      document.getElementById('btn-mod-cough').classList.toggle('active', mod === 'cough_analyzer');
-      document.getElementById('btn-mod-water').classList.toggle('active', mod === 'water_quality');
-      document.getElementById('btn-mod-swarm').classList.toggle('active', mod === 'swarm_telemetry');
-      
-      document.getElementById('panel-mod-cough').style.display = mod === 'cough_analyzer' ? 'flex' : 'none';
-      document.getElementById('panel-mod-water').style.display = mod === 'water_quality' ? 'flex' : 'none';
-      
-      addLog("Active Simulation Module changed to: " + mod.toUpperCase());
-      updateLabels();
-    }
-
-    function triggerSandbox(type) {
-      if (type === 'outbreak') {
-        document.getElementById('inp-temp').value = '39.4';
-        document.getElementById('inp-heart').value = '112';
-        document.getElementById('inp-spo2').value = '91';
-        updateVal('temp', 39.4);
-        updateVal('heart', 112);
-        updateVal('spo2', 91);
-        document.getElementById('inp-cough').value = 85;
-        updateVal('acousticSputum', 85);
-        setPreset('crimson_alert');
-        addLog("🚨 SANDBOX: Epidemia inducida! Anomalías detectadas en todo el borde.");
-      } else if (type === 'rain') {
-        document.getElementById('inp-wind').value = '62';
-        document.getElementById('inp-solar').value = '5';
-        updateVal('wind', 62);
-        updateVal('solar', 5);
-        document.getElementById('inp-ph').value = 5.9;
-        document.getElementById('inp-turb').value = 18.2;
-        updateVal('phWater', 5.9);
-        updateVal('turbidityWater', 18.2);
-        setPreset('solar_dusk');
-        addLog("🌧️ SANDBOX: Simulación de lluvia activa. pH disminuido y turbidez elevada en pozos.");
-      } else if (type === 'recalibrate') {
-        addLog("🎛️ SANDBOX: Re-calibrando pesos neuronales en micro-redes de SaludRoots...");
+    // Feedback visual en la escena 3D (parpadeo y cambio de color temporal)
+    function flashNode(colorHex) {
+      if (nodeMesh) {
+        const origColor = nodeMesh.material.color.getHex();
+        nodeMesh.material.color.setHex(colorHex || 0xffffff);
+        if (particleSystem) {
+          const origPColor = particleSystem.material.color.getHex();
+          particleSystem.material.color.setHex(colorHex || 0xffffff);
+          setTimeout(() => {
+            particleSystem.material.color.setHex(origPColor);
+          }, 400);
+        }
         setTimeout(() => {
-          addLog("✓ Calibración completa. Tolerancias del enjambre equilibradas.");
-        }, 1200);
+          nodeMesh.material.color.setHex(origColor);
+        }, 400);
       }
     }
 
-    function updateVal(key, val) {
-      simulation[key] = parseFloat(val);
-      updateLabels();
-      if (key === 'heart') {
-        addLog("💓 Wearable [Familia #012]: Registro de pulso 24/7 en " + val + " LPM (Bajo Consumo/Estable).");
-      } else if (key === 'spo2') {
-        addLog("🩸 Wearable [Familia #012]: Nivel SpO2 actual en " + val + "%. Transmisión LoRa Mesh activa.");
-        if (parseFloat(val) < 92) {
-          addLog("🚨 ALERT: SpO2 familiar cayó por debajo del límite de seguridad!");
-        }
-      } else if (key === 'temp') {
-        addLog("🔥 Wearable [Familia #012]: Registro térmico continuo en " + val + " °C. Sensor activo en red LoRa.");
-      } else if (key === 'acousticSputum') {
-        addLog("Acoustic update: sputum score changed to " + val + "%.");
-      } else if (key === 'phWater') {
-        addLog("Groundwater ph check: ph set to " + val);
-      } else if (key === 'turbidityWater') {
-        addLog("Groundwater turbidity check: turbidity set to " + val + " NTU.");
-      }
+    // Actualizar todos los textos según el idioma
+    function updateAllTexts() {
+      const d = dict[currentLang];
+      document.getElementById('lbl-tab-sim').innerText = d.sim;
+      document.getElementById('lbl-tab-cur').innerText = d.cur;
+      document.getElementById('lbl-tab-sol').innerText = d.sol;
+      document.getElementById('lbl-tab-dao').innerText = d.dao;
+      document.getElementById('lbl-tab-mesh').innerText = d.mesh;
+      document.getElementById('lbl-tab-bud').innerText = d.bud;
+
+      document.getElementById('lbl-heart').innerText = d.heart;
+      document.getElementById('lbl-spo2').innerText = d.spo2;
+      document.getElementById('lbl-temp').innerText = d.temp;
+      document.getElementById('lbl-cough').innerText = d.cough;
+      document.getElementById('lbl-water').innerText = d.water;
+
+      document.getElementById('txt-controls-title').innerText = d.controls_title;
+      document.getElementById('txt-controls-sub').innerText = d.controls_sub;
+      document.getElementById('lbl-presets').innerText = d.presets;
+      document.getElementById('btn-preset-cyan').innerText = d.preset_cyan;
+      document.getElementById('btn-preset-crimson').innerText = d.preset_crimson;
+      document.getElementById('btn-preset-emerald').innerText = d.preset_emerald;
+      document.getElementById('btn-preset-solar').innerText = d.preset_solar;
+      document.getElementById('lbl-injections').innerText = d.injections;
+      document.getElementById('lbl-inject-outbreak').innerText = d.inject_outbreak;
+      document.getElementById('lbl-inject-storm').innerText = d.inject_storm;
+
+      document.getElementById('lbl-telemetry').innerText = d.telemetry;
+      document.getElementById('lbl-telemetry-sub').innerText = d.telemetry_sub;
+      document.getElementById('lbl-deploy').innerText = d.deploy;
+      document.getElementById('btn-phase-0').innerText = d.phase0;
+      document.getElementById('btn-phase-1').innerText = d.phase1;
+      document.getElementById('btn-phase-2').innerText = d.phase2;
+      document.getElementById('btn-phase-3').innerText = d.phase3;
+
+      document.getElementById('hud-mesh').innerText = d.hud_mesh;
+      document.getElementById('hud-tinyml').innerText = d.hud_tinyml;
+      document.getElementById('hud-battery-text').innerText = d.hud_battery;
+      document.getElementById('hud-wearables-text').innerText = d.hud_wearables;
+      document.getElementById('hud-holo-title').innerText = d.hud_holo_title;
+      document.getElementById('hud-holo-sub').innerText = d.hud_holo_sub;
+      document.getElementById('hud-label-pulse').innerText = d.pulse;
+      document.getElementById('hud-label-spo2').innerText = d.spo2_label;
+      document.getElementById('hud-label-status').innerText = d.status_label;
+      document.getElementById('hud-label-alerts').innerText = d.alerts_label;
+      document.getElementById('ecg-title').innerText = d.ecg_title;
+
+      document.getElementById('sim-panel-toggle').innerHTML = d.sim_toggle;
+      document.getElementById('btn-sim-dengue').innerHTML = d.sim_dengue;
+      document.getElementById('btn-sim-water').innerHTML = d.sim_water;
+      document.getElementById('btn-sim-node').innerHTML = d.sim_node;
+      document.getElementById('btn-sim-critical').innerHTML = d.sim_critical;
+      document.getElementById('btn-sim-normalize').innerHTML = d.sim_normalize;
+      document.getElementById('lbl-auto-sim').innerText = d.sim_auto;
+      document.getElementById('lbl-rotation-speed').innerText = d.sim_rotation;
+      document.getElementById('btn-reset-cam').innerText = d.sim_reset;
+      document.getElementById('sim-status').innerText = d.sim_status;
+
+      document.getElementById('curandera-title').innerText = d.curandera_title;
+      document.getElementById('curandera-sub').innerText = d.curandera_sub;
+      document.getElementById('curandera-badge').innerText = d.curandera_badge;
+      document.getElementById('curandera-send-text').innerText = d.curandera_send;
+      document.getElementById('vademecum-title').innerHTML = '<i data-lucide="sprout" class="w-4 h-4 text-emerald-400"></i> ' + d.vademecum;
+
+      document.getElementById('solar-panels-title').innerText = d.solar_panels;
+      document.getElementById('solar-efficiency-label').innerText = d.solar_efficiency;
+      document.getElementById('solar-production-label').innerText = d.solar_production;
+      document.getElementById('battery-title').innerText = d.battery_title;
+      document.getElementById('battery-soc-label').innerText = d.battery_soc;
+      document.getElementById('battery-autonomy-label').innerText = d.battery_autonomy;
+      document.getElementById('water-title').innerText = d.water_title;
+      document.getElementById('water-capacity-label').innerText = d.water_capacity;
+      document.getElementById('water-ph-label').innerText = d.water_ph;
+      document.getElementById('drone-title').innerText = d.drone_title;
+      document.getElementById('drone-range-label').innerText = d.drone_range;
+      document.getElementById('oracle-title').innerText = d.oracle_title;
+      document.getElementById('oracle-temp-label').innerText = d.oracle_temp;
+      document.getElementById('oracle-humidity-label').innerText = d.oracle_humidity;
+      document.getElementById('oracle-rain-label').innerText = d.oracle_rain;
+      document.getElementById('oracle-risk-label').innerText = d.oracle_risk;
+      document.getElementById('oracle-refresh-text').innerText = d.oracle_refresh;
+      document.getElementById('drone-dispatch-title').innerText = d.drone_dispatch;
+      document.getElementById('drone-payload-label').innerText = d.drone_payload;
+      document.getElementById('drone-dispatch-text').innerText = d.drone_dispatch_btn;
+
+      document.getElementById('dao-wallet-title').innerText = d.dao_wallet;
+      document.getElementById('dao-balance-label').innerText = d.dao_balance;
+      document.getElementById('dao-earn-title').innerText = d.dao_earn;
+      document.getElementById('dao-earn-visit').innerText = d.dao_visit;
+      document.getElementById('dao-earn-visit-sub').innerText = d.dao_visit_sub;
+      document.getElementById('dao-earn-vaccine').innerText = d.dao_vaccine;
+      document.getElementById('dao-earn-vaccine-sub').innerText = d.dao_vaccine_sub;
+      document.getElementById('dao-earn-water').innerText = d.dao_water;
+      document.getElementById('dao-earn-water-sub').innerText = d.dao_water_sub;
+      document.getElementById('dao-ranking-title').innerText = d.dao_ranking;
+      document.getElementById('dao-market-title').innerText = d.dao_market;
+      document.getElementById('reward-filter').innerText = d.reward_filter;
+      document.getElementById('reward-filter-btn').innerText = d.redeem;
+      document.getElementById('reward-credit').innerText = d.reward_credit;
+      document.getElementById('reward-credit-btn').innerText = d.redeem;
+      document.getElementById('reward-seeds').innerText = d.reward_seeds;
+      document.getElementById('reward-seeds-btn').innerText = d.redeem;
+      document.getElementById('reward-training').innerText = d.reward_training;
+      document.getElementById('reward-training-btn').innerText = d.redeem;
+
+      document.getElementById('mesh-title').innerText = d.mesh_title;
+      document.getElementById('mesh-sub').innerText = d.mesh_sub;
+      document.getElementById('mesh-sim-text').innerText = d.mesh_sim;
+      document.getElementById('mesh-zone-a').innerText = d.mesh_zone_a;
+      document.getElementById('mesh-zone-a-desc').innerText = d.mesh_zone_a_desc;
+      document.getElementById('mesh-zone-b').innerText = d.mesh_zone_b;
+      document.getElementById('mesh-zone-b-desc').innerText = d.mesh_zone_b_desc;
+      document.getElementById('mesh-zone-c').innerText = d.mesh_zone_c;
+      document.getElementById('mesh-zone-c-desc').innerText = d.mesh_zone_c_desc;
+      document.getElementById('fl-title').innerText = d.fl_title;
+      document.getElementById('fl-last-label').innerText = d.fl_last;
+      document.getElementById('fl-acc-label').innerText = d.fl_acc;
+      document.getElementById('fl-comm-label').innerText = d.fl_comm;
+      document.getElementById('fl-privacy-label').innerText = d.fl_privacy;
+      document.getElementById('fl-sim-text').innerText = d.fl_sim;
+
+      document.getElementById('budget-title').innerText = d.budget_title;
+      document.getElementById('budget-phase0').innerText = d.budget_phase0;
+      document.getElementById('budget-phase0-desc').innerText = d.budget_phase0_desc;
+      document.getElementById('budget-phase1').innerText = d.budget_phase1;
+      document.getElementById('budget-phase1-desc').innerText = d.budget_phase1_desc;
+      document.getElementById('budget-phase2').innerText = d.budget_phase2;
+      document.getElementById('budget-phase2-desc').innerText = d.budget_phase2_desc;
+
+      lucide.createIcons();
     }
 
-    function updateLabels() {
-      document.getElementById('val-heart').innerText = simulation.heart;
-      document.getElementById('val-spo2').innerText = simulation.spo2 + ' %';
-      document.getElementById('val-temp').innerText = simulation.temp + ' °C';
-
-      if (document.getElementById('custom-wearable-vitales')) {
-        document.getElementById('custom-wearable-vitales').innerHTML = '💓' + simulation.heart + ' · 🩸' + simulation.spo2 + '% · 🔥' + simulation.temp.toFixed(1) + '°';
-      }
-      document.getElementById('val-wind').innerText = simulation.wind + ' kph';
-      document.getElementById('val-solar').innerText = simulation.solar + ' %';
-      document.getElementById('val-rot').innerText = simulation.rot + 'x';
-
-      if (document.getElementById('val-cough')) {
-        document.getElementById('val-cough').innerText = simulation.acousticSputum + ' %';
-      }
-      if (document.getElementById('val-ph')) {
-        document.getElementById('val-ph').innerText = simulation.phWater.toFixed(1);
-      }
-      if (document.getElementById('val-turb')) {
-        document.getElementById('val-turb').innerText = simulation.turbidityWater.toFixed(1) + ' NTU';
-      }
-
-      const detTitle = document.getElementById('det-title');
-      const detVal = document.getElementById('det-value');
-      if (detTitle && detVal) {
-        if (simulation.activeSimulationModule === 'cough_analyzer') {
-          detTitle.innerText = "MICRO-ESPECTROGRAMA [TOS]";
-          detTitle.style.color = "#a78bfa";
-          detVal.innerHTML = 'Frecuencia Tos: <span style="font-weight:bold; color:#a78bfa;">Activa (Sputum ' + simulation.acousticSputum + '%)</span>';
-        } else if (simulation.activeSimulationModule === 'water_quality') {
-          detTitle.innerText = "CALIDAD DE AGUA DE POZOS";
-          detTitle.style.color = "#f59e0b";
-          let chemicalStatus = (simulation.phWater < 6.5) ? '<span style="color:#ef4444; font-weight:bold;">ÁCIDO CRÍTICO</span>' : (simulation.phWater > 8.0 ? '<span style="color:#f59e0b; font-weight:bold;">ALCALINO</span>' : '<span style="color:#10b981; font-weight:bold;">MINERAL ÓPTIMO</span>');
-          detVal.innerHTML = 'pH: ' + simulation.phWater.toFixed(1) + ' • Turbidez: ' + simulation.turbidityWater.toFixed(1) + ' NTU (' + chemicalStatus + ')';
-        } else if (simulation.activeSimulationModule === 'swarm_telemetry') {
-          detTitle.innerText = "TELEMETRÍA SATELITAL DE ENJAMBRE";
-          detTitle.style.color = "#06b6d4";
-          detVal.innerHTML = 'Enlace LoRaWAN: <span style="color:#10b981; font-weight:bold;">ESTABLE (99.8%)</span> • Mesh: Satélite Puente';
-        }
-      }
-
-      // Dynamically calculate and display AI Node values and risk % based on sliders
-      let feverFactor = (simulation.temp > 37.5) ? (simulation.temp - 37.5) * 45 : 0;
-      let respFactor = (simulation.spo2 < 95) ? (95 - simulation.spo2) * 15 : 0;
-      let heartFactor = (simulation.heart > 90) ? (simulation.heart - 90) * 1.5 : 0;
-      
-      let sputumFactor = (simulation.acousticSputum > 50) ? (simulation.acousticSputum - 50) * 0.4 : 0;
-      let badPhFactor = (simulation.phWater < 6.5 || simulation.phWater > 8.0) ? 15 : 0;
-      let badTurbFactor = (simulation.turbidityWater > 5) ? (simulation.turbidityWater - 5) * 1.5 : 0;
-      let waterFactor = (100 - simulation.solar) * 0.25 + badPhFactor + badTurbFactor;
-      
-      let totalRisk = Math.min(100, Math.max(1.2, feverFactor + respFactor + heartFactor + waterFactor + sputumFactor));
-      document.getElementById('outbreak-p').innerText = totalRisk.toFixed(1) + '%';
-      if (totalRisk > 35) {
-        document.getElementById('outbreak-p').style.color = '#ef4444';
-        document.getElementById('hud-status').innerText = (curLang === 'es') ? 'ADVERTENCIA EN CASCADA' : (curLang === 'zh' ? '疫情高度警振' : 'CASCADE OUTBREAK WARNING');
-        document.getElementById('hud-status').style.color = '#ef4444';
-      } else {
-        document.getElementById('outbreak-p').style.color = '#10b981';
-        document.getElementById('hud-status').innerText = (curLang === 'es') ? 'SISTEMA SEGURO' : (curLang === 'zh' ? '标准哨兵常态' : 'SYSTEM SENTINEL FINE');
-        document.getElementById('hud-status').style.color = '#22c55e';
-      }
-
-      // Sync weights values with slight variances to look fully dynamic
-      document.getElementById('w0').innerText = (simulation.spo2 / 100).toFixed(3);
-      document.getElementById('w1').innerText = (Math.min(1, simulation.temp / 36.6)).toFixed(3);
-      document.getElementById('w2').innerText = ((totalRisk / 100) * 0.8 + 0.1).toFixed(3);
-      document.getElementById('w3').innerText = (simulation.solar / 100).toFixed(3);
-
-      // Sync solar hub battery
-      let chargeRatio = simulation.solar * 1.2;
-      let finalBatt = Math.min(100, Math.max(5, Math.round(75 + chargeRatio * 0.25)));
-      document.getElementById('hud-battery').innerText = finalBatt + '% (LiFePO4)';
+    function setLanguage(lang) {
+      currentLang = lang;
+      document.getElementById('lang-btn-es').className = lang === 'es' ? 'px-2 py-0.5 rounded font-bold bg-cyan-500/30 text-cyan-300 shadow-sm' : 'px-2 py-0.5 rounded font-bold text-slate-400 hover:text-white transition-colors';
+      document.getElementById('lang-btn-en').className = lang === 'en' ? 'px-2 py-0.5 rounded font-bold bg-cyan-500/30 text-cyan-300 shadow-sm' : 'px-2 py-0.5 rounded font-bold text-slate-400 hover:text-white transition-colors';
+      document.getElementById('lang-btn-zh').className = lang === 'zh' ? 'px-2 py-0.5 rounded font-bold bg-cyan-500/30 text-cyan-300 shadow-sm' : 'px-2 py-0.5 rounded font-bold text-slate-400 hover:text-white transition-colors';
+      updateAllTexts();
+      showToast('🌐 Idioma cambiado a ' + lang.toUpperCase());
     }
 
-    function setPreset(preset) {
-      simulation.preset = preset;
-      document.querySelectorAll('.btn-group [id^="p-preset"]').forEach(btn => {
-        btn.classList.toggle('active', btn.id.includes(preset.split('_')[0]));
-      });
-
-      // Shaders coloring mapping
-      const root = document.querySelector(':root');
-      if (preset === 'cyan_matrix') {
-        root.style.setProperty('--primary', '#06b6d4');
-        root.style.setProperty('--accent', 'rgb(6, 182, 212)');
-        root.style.setProperty('--border', 'rgba(6, 182, 212, 0.3)');
-        addLog("Visual theme changed to CYAN MATRIX.");
-      } else if (preset === 'solar_dusk') {
-        root.style.setProperty('--primary', '#f59e0b');
-        root.style.setProperty('--accent', 'rgb(245, 158, 11)');
-        root.style.setProperty('--border', 'rgba(245, 158, 11, 0.3)');
-        addLog("Visual theme changed to SOLAR DUSK.");
-      } else if (preset === 'crimson_alert') {
-        root.style.setProperty('--primary', '#ef4444');
-        root.style.setProperty('--accent', 'rgb(239, 68, 68)');
-        root.style.setProperty('--border', 'rgba(239, 68, 68, 0.3)');
-        addLog("SYSTEM DANGER TRIGGERED: CRIMSON ALERT PRESENCE ACTIVATED.");
-      } else if (preset === 'neon_violet') {
-        root.style.setProperty('--primary', '#8b5cf6');
-        root.style.setProperty('--accent', 'rgb(139, 92, 246)');
-        root.style.setProperty('--border', 'rgba(139, 92, 246, 0.3)');
-        addLog("Visual theme changed to NEON BIOLUMINESCENCE.");
-      }
-    }
-
-    function setPhase(ph) {
-      simulation.phase = ph;
-      document.querySelectorAll('.btn-group [id^="p-ph"]').forEach(btn => {
-        btn.classList.toggle('active', btn.id.includes(ph));
-      });
-      addLog("System redeployed to Phase " + ph + ": " + (ph === 0 ? 'Urban MVP' : ph === 1 ? 'Rural Pilot' : ph === 2 ? 'Collective Brain' : 'Global Flower Network'));
-    }
-
-    // Interactive logs feed
-    function addLog(text) {
-      const container = document.getElementById('logs-container');
-      const row = document.createElement('div');
-      row.className = 'log-line';
-      const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
-      row.innerHTML = '<span class="log-time">['+timeStr+']</span> <span>' + text + '</span>';
-      container.insertBefore(row, container.firstChild);
-    }
-
-    // Base engine logs on startup
-    setTimeout(() => { addLog("SaludRoots AI boot complete."); }, 100);
-    setTimeout(() => { addLog("3D Projection context initialized on Edge/Chrome canvas."); }, 400);
-    setTimeout(() => { addLog("Dr. Julio César Oporta Barrera - Patent verification successful."); }, 700);
-
-    // Dynamic ECG Simulation using HTML5 Canvas
-    const waveCanvas = document.getElementById("wavecanvas");
-    const wg = waveCanvas.getContext("2d");
-    let waveX = 0;
-
-    // Dynamic Micro dynamics canvas render for active sandbox details
-    const microCanvas = document.getElementById("microwavecanvas");
-    const mctx = microCanvas ? microCanvas.getContext("2d") : null;
-    let microX = 0;
-    
-    function drawMicroDynamics() {
-      if (!microCanvas || !mctx) return;
-      
-      const width = microCanvas.width = microCanvas.parentElement.clientWidth;
-      const height = microCanvas.height = 32;
-      
-      mctx.clearRect(0, 0, width, height);
-      
-      mctx.strokeStyle = simulation.activeSimulationModule === 'cough_analyzer' ? '#a78bfa' : (simulation.activeSimulationModule === 'water_quality' ? '#f59e0b' : '#06b6d4');
-      mctx.lineWidth = 1.5;
-      mctx.beginPath();
-      
-      microX += 1.8;
-      if (microX > width) microX = 0;
-      
-      for (let x = 0; x < width; x++) {
-        let y = height / 2;
-        if (simulation.activeSimulationModule === 'cough_analyzer') {
-          let pulse = Math.sin((x - microX) * 0.15) * (simulation.acousticSputum * 0.12);
-          y += pulse * Math.cos(x * 0.05);
-        } else if (simulation.activeSimulationModule === 'water_quality') {
-          y += Math.sin((x - microX) * 0.08) * (simulation.turbidityWater * 0.5 + 1);
+    function switchTab(tab) {
+      currentTab = tab;
+      const tabs = ['dashboard', 'curandera', 'solar', 'dao', 'mesh', 'budget'];
+      tabs.forEach(t => {
+        const btn = document.getElementById('tab-btn-' + t);
+        const content = document.getElementById('tab-content-' + t);
+        if (t === tab) {
+          btn.classList.add('active');
+          btn.classList.remove('text-slate-400');
+          content.classList.remove('hidden');
         } else {
-          let step = Math.floor((x - microX) / 15) % 2;
-          y += step === 0 ? 3 : -3;
+          btn.classList.remove('active');
+          btn.classList.add('text-slate-400');
+          content.classList.add('hidden');
         }
-        
-        if (x === 0) mctx.moveTo(x, y);
-        else mctx.lineTo(x, y);
-      }
-      mctx.stroke();
-      requestAnimationFrame(drawMicroDynamics);
+      });
+      flashNode(0x06b6d4);
+      const d = dict[currentLang];
+      showToast('📁 ' + (tab === 'dashboard' ? d.sim : tab === 'curandera' ? d.cur : tab === 'solar' ? d.sol : tab === 'dao' ? d.dao : tab === 'mesh' ? d.mesh : d.bud));
     }
-    setTimeout(drawMicroDynamics, 600);
-    
-    function drawECG() {
-      if(!waveCanvas) return;
-      
-      const width = waveCanvas.width = waveCanvas.parentElement.clientWidth;
-      const height = waveCanvas.height = 50;
 
-      // We shift graph pixels to the left dynamically
-      let hrRatio = simulation.heart / 72;
-      waveX += 2.5 * hrRatio;
-      if (waveX > width) waveX = 0;
-
-      // Draw active background grid
-      wg.strokeStyle = "rgba(6,182,212,0.05)";
-      wg.lineWidth = 1;
-      for (let i = 0; i < width; i += 15) {
-        wg.beginPath(); wg.moveTo(i, 0); wg.lineTo(i, height); wg.stroke();
-      }
-      for (let j = 0; j < height; j += 15) {
-        wg.beginPath(); wg.moveTo(0, j); wg.lineTo(width, j); wg.stroke();
-      }
-
-      // Draw ECG pulse line
-      wg.strokeStyle = document.querySelector(':root').style.getPropertyValue('--primary') || '#06b6d4';
-      wg.shadowBlur = 4;
-      wg.shadowColor = wg.strokeStyle;
-      wg.lineWidth = 1.8;
-      wg.beginPath();
-      
-      for (let x = 0; x < width; x++) {
-        let cycle = (x - waveX) * 0.08 * hrRatio;
-        let sinVal = Math.sin(cycle);
-        let y = height / 2;
-
-        // Custom mathematical mapping to match realistic QRS complex of ECG wave
-        let pulsePoint = Math.abs((x - waveX) % (120 / hrRatio));
-        if (pulsePoint < 10) {
-          y -= Math.sin(pulsePoint * 0.3) * 6; // P wave
-        } else if (pulsePoint >= 15 && pulsePoint < 22) {
-          y += 4; // Q decline
-        } else if (pulsePoint >= 22 && pulsePoint < 28) {
-          y -= 22; // R spike
-        } else if (pulsePoint >= 28 && pulsePoint < 34) {
-          y += 12; // S dip
-        } else if (pulsePoint >= 45 && pulsePoint < 65) {
-          y -= Math.sin((pulsePoint - 45) * 0.15) * 5; // T wave
+    function updateParam(key, val, unit) {
+      document.getElementById('val-' + key).innerText = val + ' ' + unit;
+      if (key === 'heart') {
+        heartRate = parseInt(val);
+        document.getElementById('hud-pulse').innerText = val + ' LPM';
+        document.getElementById('ecg-bpm').innerText = val + ' BPM (' + (val > 100 ? 'TAQUICARDIA' : val < 60 ? 'BRADICARDIA' : 'NORMAL') + ')';
+      } else if (key === 'spo2') {
+        spo2Val = parseInt(val);
+        document.getElementById('hud-spo2').innerText = val + '%';
+        if (spo2Val < 92) {
+          document.getElementById('hud-status').innerText = 'CRÍTICO';
+          document.getElementById('hud-status').className = 'text-rose-400 font-bold';
+        } else {
+          document.getElementById('hud-status').innerText = 'NOMINAL';
+          document.getElementById('hud-status').className = 'text-cyan-300 font-bold';
         }
-
-        if (x === 0) wg.moveTo(x, y);
-        else wg.lineTo(x, y);
+      } else if (key === 'water') {
+        document.getElementById('water-ph-display').innerText = val;
       }
-      wg.stroke();
-      wg.shadowBlur = 0;
-
-      requestAnimationFrame(drawECG);
+      const d = dict[currentLang];
+      const msg = d.feedback_param.replace('{key}', key.toUpperCase()).replace('{val}', val).replace('{unit}', unit);
+      showToast(msg);
+      flashNode(0x06b6d4);
     }
-    setTimeout(drawECG, 500);
 
-
-    // ==========================================
-    // MAGNIFICENT CUSTOM HTML5 CANVA-3D ENGINE!
-    // ==========================================
-    const canvas = document.getElementById("canvas3d");
-    const ctx = canvas.getContext("2d");
-    
-    let yaw = -0.4;
-    let pitch = -0.3;
-    let isDragging = false;
-    let lastMouseX = 0;
-    let lastMouseY = 0;
-
-    // Mouse control bindings
-    canvas.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      lastMouseX = e.clientX;
-      lastMouseY = e.clientY;
-    });
-
-    window.addEventListener('mouseup', () => { isDragging = false; });
-
-    canvas.addEventListener('mousemove', (e) => {
-      if(!isDragging) return;
-      let dx = e.clientX - lastMouseX;
-      let dy = e.clientY - lastMouseY;
-      yaw += dx * 0.007;
-      pitch += dy * 0.007;
-      
-      // Limit vertical pitch to avoid flipping over
-      pitch = Math.max(-1.2, Math.min(1.2, pitch));
-      
-      lastMouseX = e.clientX;
-      lastMouseY = e.clientY;
-    });
-
-    // Touch support for mobile layouts viewports
-    canvas.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 1) {
-        isDragging = true;
-        lastMouseX = e.touches[0].clientX;
-        lastMouseY = e.touches[0].clientY;
-      }
-    });
-
-    canvas.addEventListener('touchend', () => { isDragging = false; });
-
-    canvas.addEventListener('touchmove', (e) => {
-      if (!isDragging || e.touches.length !== 1) return;
-      let dx = e.touches[0].clientX - lastMouseX;
-      let dy = e.touches[0].clientY - lastMouseY;
-      yaw += dx * 0.007;
-      pitch += dy * 0.007;
-      pitch = Math.max(-1.2, Math.min(1.2, pitch));
-      lastMouseX = e.touches[0].clientX;
-      lastMouseY = e.touches[0].clientY;
-    });
-
-    let autoRotAngle = 0;
-
-    function render3D() {
-      const width = canvas.width = canvas.parentElement.clientWidth;
-      const height = canvas.height = canvas.parentElement.clientHeight;
-      ctx.clearRect(0, 0, width, height);
-
-      // Render styles based on current preset
-      let activeColor = document.querySelector(':root').style.getPropertyValue('--primary') || '#06b6d4';
-
-      // Global coordinates mapping
-      const cx = width / 2;
-      const cy = height / 2 + 30;
-      const scale = Math.min(width, height) * 0.38;
-
-      autoRotAngle += 0.005 * simulation.rot;
-      let totalYaw = yaw + autoRotAngle;
-
-      // Point projection function (Pitch, Yaw, 3D position)
-      function project(x, y, z) {
-        // Yaw rotation
-        let x1 = x * Math.cos(totalYaw) - z * Math.sin(totalYaw);
-        let z1 = x * Math.sin(totalYaw) + z * Math.cos(totalYaw);
-        
-        // Pitch rotation
-        let y2 = y * Math.cos(pitch) - z1 * Math.sin(pitch);
-        let z2 = y * Math.sin(pitch) + z1 * Math.cos(pitch);
-
-        // Perspective division
-        let depthPerspective = 400 / (400 + z2);
-        return {
-          x: cx + x1 * scale * depthPerspective,
-          y: cy + y2 * scale * depthPerspective,
-          depth: z2
-        };
-      }
-
-      // Draw futuristic hologram ground grid lines
-      ctx.strokeStyle = activeColor === '#ef4444' ? 'rgba(239, 68, 68, 0.07)' : 'rgba(6, 182, 212, 0.07)';
-      ctx.lineWidth = 1;
-      for (let g = -1.5; g <= 1.5; g += 0.3) {
-        ctx.beginPath();
-        for (let t = -1.5; t <= 1.5; t += 0.1) {
-          let p = project(t, 0.6, g);
-          if (t === -1.5) ctx.moveTo(p.x, p.y);
-          else ctx.lineTo(p.x, p.y);
-        }
-        ctx.stroke();
-
-        ctx.beginPath();
-        for (let t = -1.5; t <= 1.5; t += 0.1) {
-          let p = project(g, 0.6, t);
-          if (t === -1.5) ctx.moveTo(p.x, p.y);
-          else ctx.lineTo(p.x, p.y);
-        }
-        ctx.stroke();
-      }
-
-      // Draw Central Biomimetic Solar Hub (Central Cube)
-      let centralHeight = -0.15;
-      let hubPoints = [
-        project(-0.25, 0.15, -0.25), project(0.25, 0.15, -0.25), project(0.25, 0.15, 0.25), project(-0.25, 0.15, 0.25),
-        project(-0.25, centralHeight, -0.25), project(0.25, centralHeight, -0.25), project(0.25, centralHeight, 0.25), project(-0.25, centralHeight, 0.25)
-      ];
-
-      // Render core lines
-      ctx.strokeStyle = activeColor;
-      ctx.lineWidth = 2.5;
-      ctx.shadowBlur = 6;
-      ctx.shadowColor = activeColor;
-      
-      // Bottom face
-      ctx.beginPath();
-      ctx.moveTo(hubPoints[0].x, hubPoints[0].y);
-      for (let i = 1; i <= 3; i++) ctx.lineTo(hubPoints[i].x, hubPoints[i].y);
-      ctx.closePath(); ctx.stroke();
-
-      // Top face
-      ctx.beginPath();
-      ctx.moveTo(hubPoints[4].x, hubPoints[4].y);
-      for (let i = 5; i <= 7; i++) ctx.lineTo(hubPoints[i].x, hubPoints[i].y);
-      ctx.closePath(); ctx.stroke();
-
-      // Verticals pillars
-      for (let i = 0; i < 4; i++) {
-        ctx.beginPath();
-        ctx.moveTo(hubPoints[i].x, hubPoints[i].y);
-        ctx.lineTo(hubPoints[i+4].x, hubPoints[i+4].y);
-        ctx.stroke();
-      }
-      ctx.shadowBlur = 0;
-
-      // Drew Solar Panel arrays attached to the body
-      ctx.fillStyle = activeColor === '#ef4444' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(6, 182, 212, 0.25)';
-      ctx.strokeStyle = activeColor;
-      ctx.lineWidth = 1;
-
-      let leftPanel = [project(-0.25, -0.05, -0.1), project(-0.6, -0.15, -0.1), project(-0.6, -0.15, 0.1), project(-0.25, -0.05, 0.1)];
-      ctx.beginPath();
-      ctx.moveTo(leftPanel[0].x, leftPanel[0].y);
-      for(let i=1;i<4;i++) ctx.lineTo(leftPanel[i].x, leftPanel[i].y);
-      ctx.closePath(); ctx.fill(); ctx.stroke();
-      
-      let rightPanel = [project(0.25, -0.05, -0.1), project(0.6, -0.15, -0.1), project(0.6, -0.15, 0.1), project(0.25, -0.05, 0.1)];
-      ctx.beginPath();
-      ctx.moveTo(rightPanel[0].x, rightPanel[0].y);
-      for(let i=1;i<4;i++) ctx.lineTo(rightPanel[i].x, rightPanel[i].y);
-      ctx.closePath(); ctx.fill(); ctx.stroke();
-
-      // Draw Antenna towers radiating pulses
-      let antTop = project(0, -0.5, 0);
-      let antBase = project(0, centralHeight, 0);
-      ctx.strokeStyle = activeColor;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(antBase.x, antBase.y);
-      ctx.lineTo(antTop.x, antTop.y);
-      ctx.stroke();
-
-      // Radiating ring effect
-      let radiusPulse = (Date.now() % 1500) / 1500;
-      ctx.strokeStyle = activeColor;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(antTop.x, antTop.y, radiusPulse * 38, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Draw Orbiting Satellite (in Phase 2 & 3)
-      if (simulation.phase >= 2) {
-        let satAngle = Date.now() * 0.001;
-        let satX = Math.cos(satAngle) * 1.1;
-        let satZ = Math.sin(satAngle) * 1.1;
-        let satY = -0.8;
-        
-        let satPos = project(satX, satY, satZ);
-        
-        // Orbit line
-        ctx.strokeStyle = "rgba(139, 92, 246, 0.15)";
-        ctx.beginPath();
-        for (let a = 0; a < Math.PI * 2; a += 0.1) {
-          let oP = project(Math.cos(a) * 1.1, satY, Math.sin(a) * 1.1);
-          if (a === 0) ctx.moveTo(oP.x, oP.y);
-          else ctx.lineTo(oP.x, oP.y);
-        }
-        ctx.closePath(); ctx.stroke();
-
-        // draw satellites node
-        ctx.fillStyle = "#a78bfa";
-        ctx.beginPath();
-        ctx.arc(satPos.x, satPos.y, 6, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Satellite link line to solar hub center
-        ctx.strokeStyle = "rgba(167, 139, 250, 0.35)";
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(satPos.x, satPos.y);
-        ctx.lineTo(antTop.x, antTop.y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      // Draw Drone (in Phase 1, 2, 3)
-      if (simulation.phase >= 1) {
-        let hoverAngle = Date.now() * 0.003;
-        let droneY = -0.45 + Math.sin(hoverAngle) * 0.05;
-        let droneX = 0.5 * Math.cos(hoverAngle * 0.5);
-        let droneZ = 0.5 * Math.sin(hoverAngle * 0.5);
-
-        let dronePos = project(droneX, droneY, droneZ);
-
-        ctx.fillStyle = "#fbbf24";
-        ctx.beginPath();
-        ctx.arc(dronePos.x, dronePos.y, 5, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Drone propellers line
-        ctx.strokeStyle = "#eab308";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(dronePos.x - 10, dronePos.y);
-        ctx.lineTo(dronePos.x + 10, dronePos.y);
-        ctx.stroke();
-
-        ctx.strokeStyle = "rgba(251, 191, 36, 0.25)";
-        ctx.beginPath();
-        ctx.moveTo(dronePos.x, dronePos.y);
-        ctx.lineTo(cx, cy + 30);
-        ctx.stroke();
-      }
-
-      // 5.5 DRAW CUSTOM 3D SMART WEARABLE PULSERA 24/7 (Connected to Central Console/Hub offline)
-      let wx = -0.72; 
-      let wy = -0.25; 
-      let wz = 0.5;
-      
-      // Calculate 3D points for the circular strap
-      let strapPoints = [];
-      let steps = 18;
-      let strapRadius = 0.12;
-      for (let s = 0; s <= steps; s++) {
-        let theta = (s * Math.PI * 2) / steps;
-        // Vertically oriented torus-like loop that rotates nicely
-        let sx = wx + Math.cos(theta) * 0.04;
-        let sy = wy + Math.sin(theta) * strapRadius;
-        let sz = wz + Math.cos(theta) * strapRadius;
-        strapPoints.push(project(sx, sy, sz));
-        }
-
-      // Draw strap lines
-      ctx.strokeStyle = '#818cf8';
-      ctx.lineWidth = 2.2;
-      ctx.beginPath();
-      ctx.moveTo(strapPoints[0].x, strapPoints[0].y);
-      for (let s = 1; s < strapPoints.length; s++) {
-        ctx.lineTo(strapPoints[s].x, strapPoints[s].y);
-      }
-      ctx.stroke();
-
-      // Screen Module on top of the strap
-      let screenPos = project(wx - 0.02, wy - strapRadius, wz);
-      ctx.fillStyle = '#1e1b4b'; // dark blue purple
-      ctx.strokeStyle = '#c084fc'; // glowing purple
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      ctx.arc(screenPos.x, screenPos.y, 8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // Pulsing screen heart
-      let isAnomalous = simulation.heart > 100 || simulation.spo2 < 93 || parseFloat(simulation.temp) > 38.0;
-      let heartPulse = 1 + Math.sin(Date.now() * 0.008) * 0.15;
-      ctx.fillStyle = isAnomalous ? '#ef4444' : '#10b981';
-      ctx.beginPath();
-      ctx.arc(screenPos.x, screenPos.y, 3 * heartPulse, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Dotted Connection Beam to Hub top antenna (antTop)
-      ctx.strokeStyle = isAnomalous ? 'rgba(239, 68, 68, 0.4)' : 'rgba(129, 140, 248, 0.4)';
-      ctx.lineWidth = 1.4;
-      ctx.setLineDash([3, 5]);
-      ctx.beginPath();
-      ctx.moveTo(screenPos.x, screenPos.y);
-      ctx.lineTo(antTop.x, antTop.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Little floating animated telemetry packets along the connection beam
-      let pctOffset = (Date.now() % 1600) / 1600;
-      let px = (wx - 0.02) + (0 - (wx - 0.02)) * pctOffset;
-      let py = (wy - strapRadius) + (-0.5 - (wy - strapRadius)) * pctOffset; // antTop is at -0.5
-      let pz = wz + (0 - wz) * pctOffset;
-      let packetProj = project(px, py, pz);
-
-      ctx.fillStyle = isAnomalous ? '#f87171' : '#60a5fa';
-      ctx.beginPath();
-      ctx.arc(packetProj.x, packetProj.y, 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Draw secondary data packet
-      let pctOffset2 = ((Date.now() + 800) % 1600) / 1600;
-      let px2 = (wx - 0.02) + (0 - (wx - 0.02)) * pctOffset2;
-      let py2 = (wy - strapRadius) + (-0.5 - (wy - strapRadius)) * pctOffset2;
-      let pz2 = wz + (0 - wz) * pctOffset2;
-      let packetProj2 = project(px2, py2, pz2);
-
-      ctx.fillStyle = '#eedc5d';
-      ctx.beginPath();
-      ctx.arc(packetProj2.x, packetProj2.y, 3, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Floating beautiful text box above the Wearable
-      let textPos = project(wx, wy - strapRadius - 0.18, wz);
-      
-      // Draw background panel for typography
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-      ctx.strokeStyle = isAnomalous ? 'rgba(239, 68, 68, 0.65)' : 'rgba(99, 102, 241, 0.55)';
-      ctx.lineWidth = 1;
-      
-      let boxW = 155;
-      let boxH = 48;
-      let boxX = textPos.x - boxW / 2;
-      let boxY = textPos.y - boxH / 2;
-      
-      ctx.fillRect(boxX, boxY, boxW, boxH);
-      ctx.strokeRect(boxX, boxY, boxW, boxH);
-
-      // Text inside panel
-      ctx.font = 'bold 8px monospace';
-      ctx.fillStyle = '#a5b4fc';
-      ctx.fillText('📡 PULSERA WEARABLE 24/7', boxX + 6, boxY + 12);
-      
-      ctx.font = '7.5px sans-serif';
-      ctx.fillStyle = '#e2e8f0';
-      ctx.fillText('💓 Frec.: ' + simulation.heart + ' LPM', boxX + 6, boxY + 23);
-      ctx.fillText('🩸 SpO2: ' + simulation.spo2 + '%  🔥 Temp: ' + parseFloat(simulation.temp).toFixed(1) + '°C', boxX + 6, boxY + 32);
-
-      ctx.font = 'bold 7px sans-serif';
-      ctx.fillStyle = isAnomalous ? '#ef4444' : '#10b981';
-      ctx.fillText(isAnomalous ? '⚠️ ALERTA: RESPUESTA CRÍTICA' : '⚡ LORAWAN SECURE: LIVE', boxX + 6, boxY + 41);
-
-      // 3D Wearables Nodes surrounding the hub based on phases and slider count
-      let currentNodes = simulation.phase === 0 ? 6 : (simulation.phase === 1 ? 14 : 26);
-      for (let k = 0; k < currentNodes; k++) {
-        let nodeAngle = (k * (Math.PI * 2) / currentNodes) + (Date.now() * 0.0001);
-        let dist = 0.55 + (k % 3) * 0.12;
-        let nX = Math.cos(nodeAngle) * dist;
-        let nZ = Math.sin(nodeAngle) * dist;
-        let nY = 0.45; // Close to ground level
-
-        let nodePos = project(nX, nY, nZ);
-
-        // Render point
-        ctx.fillStyle = activeColor;
-        ctx.shadowBlur = 4;
-        ctx.shadowColor = activeColor;
-        ctx.beginPath();
-        ctx.arc(nodePos.x, nodePos.y, k === 2 ? 5 : 3.2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-
-        // Pulsing line if heart rate is elevated
-        if (simulation.heart > 95 && k === 2) {
-          ctx.strokeStyle = "#ef4444";
-          ctx.lineWidth = 2.0;
-          ctx.beginPath();
-          ctx.arc(nodePos.x, nodePos.y, 8 + (Date.now() % 500) * 0.03, 0, Math.PI*2);
-          ctx.stroke();
-        }
-
-        // Draw LoRaWAN communications linkage mesh lines to neighbors
-        if (k > 0 && k % 3 === 0) {
-          let prevPoint = project(Math.cos(nodeAngle - 0.5) * dist, nY, Math.sin(nodeAngle - 0.5) * dist);
-          ctx.strokeStyle = activeColor === '#ef4444' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(6, 182, 212, 0.25)';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(nodePos.x, nodePos.y);
-          ctx.lineTo(prevPoint.x, prevPoint.y);
-          ctx.stroke();
-        }
-
-        // Connect directly to antennas
-        ctx.strokeStyle = activeColor === '#ef4444' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(6, 182, 212, 0.15)';
-        ctx.beginPath();
-        ctx.moveTo(nodePos.x, nodePos.y);
-        ctx.lineTo(antBase.x, antBase.y);
-        ctx.stroke();
-      }
-
-      requestAnimationFrame(render3D);
+    function appendLog(msg) {
+      const container = document.getElementById('log-container');
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'text-slate-300';
+      div.innerHTML = '<span class="text-slate-500">[' + time + ']</span> ' + msg;
+      container.insertBefore(div, container.firstChild);
     }
-    setTimeout(render3D, 500);
 
-    // Initial load call
-    refreshUI();
+    function injectSandbox(type) {
+      const d = dict[currentLang];
+      if (type === 'outbreak') {
+        document.getElementById('input-heart').value = 115;
+        updateParam('heart', 115, 'LPM');
+        document.getElementById('input-spo2').value = 91;
+        updateParam('spo2', 91, '%');
+        document.getElementById('input-temp').value = 39.2;
+        updateParam('temp', 39.2, '°C');
+        setPreset('crimson');
+        appendLog('🚨 EPIDEMIA INYECTADA: Disparando triaje febril en cascada.');
+        showToast(d.feedback_inject_outbreak);
+        flashNode(0xf43f5e);
+        incrementAlert();
+      } else if (type === 'storm') {
+        document.getElementById('input-water').value = 5.8;
+        updateParam('water', 5.8, 'pH');
+        setPreset('solar');
+        appendLog('🌧️ TORMENTA INYECTADA: Acidificación y turbidez en pozos.');
+        showToast(d.feedback_inject_storm);
+        flashNode(0xf59e0b);
+      }
+    }
+
+    function setPhase(p) {
+      const names = ['Fase 0 MVP Urbano', 'Fase 1 Piloto Rural', 'Fase 2 Mente Colectiva', 'Fase 3 Red Global Federada'];
+      appendLog('🚀 Red re-desplegada a ' + names[p]);
+      const d = dict[currentLang];
+      const phaseName = d['phase' + p] || names[p];
+      showToast(d.feedback_phase.replace('{phase}', phaseName));
+      flashNode(0x06b6d4);
+    }
+
+    function sendCuranderaMsg() {
+      const input = document.getElementById('curandera-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const msgContainer = document.getElementById('curandera-messages');
+      const userDiv = document.createElement('div');
+      userDiv.className = 'bg-slate-900 border border-slate-800 p-3 rounded-2xl max-w-[85%] text-slate-200 ml-auto text-right';
+      userDiv.innerHTML = '<strong class="text-cyan-400 block font-mono text-[11px] mb-1">PROMOTOR:</strong> ' + text;
+      msgContainer.appendChild(userDiv);
+
+      input.value = '';
+
+      setTimeout(() => {
+        const botDiv = document.createElement('div');
+        botDiv.className = 'bg-slate-950/80 border border-cyan-500/30 p-3.5 rounded-2xl max-w-[85%] text-slate-200';
+        let resp = 'Evaluando consulta clínica con TinyML local... Recomendación: Mantener hidratación oral, verificar constantes vitales e inspeccionar signos de alarma febril.';
+        if (text.toLowerCase().includes('tos') || text.toLowerCase().includes('pecho')) {
+          resp = 'Para tos o congestión: Se recomienda infusión tibia de eucalipto con menta y miel. Si el riesgo de tos supera el 70% en la app, realizar auscultación de crépitos.';
+        } else if (text.toLowerCase().includes('fiebre') || text.toLowerCase().includes('calentura')) {
+          resp = 'Para estado febril: Aplicar compresas de agua templada en axilas y frente. Evaluar si la infusión de Guázuma es apropiada según tolerancia gástrica.';
+        }
+        botDiv.innerHTML = '<strong class="text-cyan-400 block font-mono text-[11px] mb-1">🌿 IA CURANDERA:</strong> ' + resp;
+        msgContainer.appendChild(botDiv);
+        msgContainer.scrollTop = msgContainer.scrollHeight;
+        flashNode(0x10b981);
+        showToast('💬 Consulta enviada a IA Curandera');
+      }, 700);
+    }
+
+    function dispatchDrone() {
+      const payload = document.getElementById('drone-payload').value;
+      const btn = document.getElementById('btn-drone-dispatch');
+      const txt = document.getElementById('drone-status-txt');
+      txt.innerText = 'DISPATCHING';
+      txt.className = 'text-xl font-extrabold text-amber-400 uppercase animate-pulse';
+      btn.innerText = '🚀 Iniciando Rotores & GPS Target...';
+
+      setTimeout(() => {
+        txt.innerText = 'AIRBORNE';
+        txt.className = 'text-xl font-extrabold text-emerald-400 uppercase';
+        btn.innerText = '✅ Drone en Vuelo (Carga: ' + payload + ')';
+        appendLog('🚁 DRONE MÉDICO DESPACHADO: Transportando ' + payload);
+        const d = dict[currentLang];
+        showToast(d.feedback_drone + ': ' + payload);
+        flashNode(0x8b5cf6);
+      }, 1500);
+    }
+
+    function earnTokens(amount, reason) {
+      tokenBalance += amount;
+      document.getElementById('token-balance-num').innerText = tokenBalance.toLocaleString();
+      document.getElementById('ranking-my-balance').innerText = tokenBalance.toLocaleString() + ' HEALTH';
+      appendLog('🪙 +' + amount + ' HEALTH Tokens ganados por: ' + reason);
+      const d = dict[currentLang];
+      showToast(d.feedback_token.replace('{amount}', amount).replace('{reason}', reason));
+      flashNode(0xfbbf24);
+    }
+
+    function redeemReward(item, cost) {
+      const d = dict[currentLang];
+      if (tokenBalance >= cost) {
+        tokenBalance -= cost;
+        document.getElementById('token-balance-num').innerText = tokenBalance.toLocaleString();
+        document.getElementById('ranking-my-balance').innerText = tokenBalance.toLocaleString() + ' HEALTH';
+        appendLog('🎁 Canjeaste "' + item + '" por ' + cost + ' HEALTH. ¡Disfruta tu recompensa!');
+        showToast(d.feedback_redeem.replace('{item}', item));
+        flashNode(0x34d399);
+      } else {
+        showToast(d.feedback_redeem_fail.replace('{item}', item));
+        flashNode(0xf43f5e);
+      }
+    }
+
+    function simulateLoRaHop() {
+      document.getElementById('mesh-hop-1').innerText = 'Salto 1: 📡 Transmitiendo desde caserío...';
+      document.getElementById('mesh-hop-1').className = 'p-2.5 bg-amber-500/20 rounded-lg text-xs font-mono text-amber-300 border border-amber-400';
+
+      setTimeout(() => {
+        document.getElementById('mesh-hop-2').innerText = 'Salto 2: ⚡ Re-transmitiendo por repetidor colina...';
+        document.getElementById('mesh-hop-2').className = 'p-2.5 bg-indigo-500/20 rounded-lg text-xs font-mono text-indigo-300 border border-indigo-400';
+      }, 800);
+
+      setTimeout(() => {
+        document.getElementById('mesh-hop-3').innerText = '✅ Paquete Recibido en Hub Central (Latency: 42ms)';
+        document.getElementById('mesh-hop-3').className = 'p-2.5 bg-emerald-500/20 rounded-lg text-xs font-mono text-emerald-300 border border-emerald-400';
+        appendLog('🕸️ LORA MESH: Alerta entregada exitosamente mediante 2 saltos.');
+        const d = dict[currentLang];
+        showToast(d.feedback_lora);
+        flashNode(0x06b6d4);
+        incrementAlert();
+      }, 1600);
+    }
+
+    function simulateFederatedRound() {
+      const acc = document.getElementById('fl-accuracy');
+      const round = document.getElementById('fl-last-round');
+      const communities = document.getElementById('fl-communities');
+      let currentAcc = parseFloat(acc.innerText.replace('%', ''));
+      if (currentAcc < 95) {
+        currentAcc += (Math.random() * 2 + 0.5);
+        if (currentAcc > 95) currentAcc = 95;
+        acc.innerText = currentAcc.toFixed(1) + '%';
+      }
+      round.innerText = 'Hace ' + (Math.floor(Math.random() * 24) + 1) + ' horas';
+      communities.innerText = Math.floor(Math.random() * 5) + 12;
+      appendLog('🧠 Ronda de Aprendizaje Federado completada. Precisión global: ' + acc.innerText);
+      const d = dict[currentLang];
+      showToast(d.feedback_fl);
+      flashNode(0x8b5cf6);
+    }
+
+    function refreshOracle() {
+      const temp = (25 + Math.random() * 8).toFixed(1);
+      const hum = (60 + Math.random() * 30).toFixed(0);
+      const rain = (10 + Math.random() * 60).toFixed(0);
+      const riskLevels = ['BAJO', 'MODERADO', 'ALTO', 'CRÍTICO'];
+      const risk = riskLevels[Math.floor(Math.random() * riskLevels.length)];
+
+      document.getElementById('oracle-temp').innerText = temp + ' °C';
+      document.getElementById('oracle-humidity').innerText = hum + '%';
+      document.getElementById('oracle-rain').innerText = rain + ' mm';
+      document.getElementById('oracle-risk').innerText = risk;
+      document.getElementById('oracle-risk').className = 'text-lg font-bold ' + 
+        (risk === 'BAJO' ? 'text-emerald-300' : risk === 'MODERADO' ? 'text-amber-300' : risk === 'ALTO' ? 'text-orange-300' : 'text-rose-300');
+      appendLog('🌦️ Oracle Epidémico actualizado: Temp ' + temp + '°C, Hum ' + hum + '%, Riesgo ' + risk);
+      flashNode(0xf59e0b);
+    }
+
+    function incrementAlert() {
+      alertCount++;
+      document.getElementById('hud-alerts').innerText = alertCount;
+      if (alertCount > 3) {
+        document.getElementById('viewport-3d').className = 'bg-slate-950 border-2 viewport-status critical rounded-2xl p-4 shadow-2xl relative overflow-hidden h-[480px] flex flex-col justify-between';
+        document.getElementById('hud-status').innerText = 'ALERTA MÚLTIPLE';
+        document.getElementById('hud-status').className = 'text-rose-400 font-bold animate-pulse';
+      } else if (alertCount > 0) {
+        document.getElementById('viewport-3d').className = 'bg-slate-950 border-2 viewport-status warning rounded-2xl p-4 shadow-2xl relative overflow-hidden h-[480px] flex flex-col justify-between';
+        document.getElementById('hud-status').innerText = 'ATENCIÓN';
+        document.getElementById('hud-status').className = 'text-amber-400 font-bold';
+      }
+      flashNode(0xf43f5e);
+    }
+
+    function resetAlerts() {
+      alertCount = 0;
+      document.getElementById('hud-alerts').innerText = '0';
+      document.getElementById('viewport-3d').className = 'bg-slate-950 border-2 viewport-status normal rounded-2xl p-4 shadow-2xl relative overflow-hidden h-[480px] flex flex-col justify-between';
+      document.getElementById('hud-status').innerText = 'NOMINAL';
+      document.getElementById('hud-status').className = 'text-cyan-300 font-bold';
+      flashNode(0x06b6d4);
+    }
+
+    function simulateAction(action) {
+      const d = dict[currentLang];
+      switch(action) {
+        case 'dengue':
+          document.getElementById('input-heart').value = 110;
+          updateParam('heart', 110, 'LPM');
+          document.getElementById('input-spo2').value = 93;
+          updateParam('spo2', 93, '%');
+          document.getElementById('input-temp').value = 38.5;
+          updateParam('temp', 38.5, '°C');
+          document.getElementById('input-cough').value = 75;
+          updateParam('cough', 75, '%');
+          setPreset('crimson');
+          appendLog('🦟 SIMULACIÓN DENGUE: Fiebre, taquicardia y riesgo de tos elevado.');
+          showToast(d.feedback_dengue);
+          flashNode(0xf43f5e);
+          incrementAlert();
+          document.getElementById('sim-status').innerText = '🦟 ' + d.sim_dengue;
+          break;
+        case 'water_cut':
+          document.getElementById('input-water').value = 5.2;
+          updateParam('water', 5.2, 'pH');
+          appendLog('💧 SIMULACIÓN DESABASTECIMIENTO: pH crítico, agua no potable.');
+          showToast(d.feedback_water_cut);
+          flashNode(0x3b82f6);
+          incrementAlert();
+          document.getElementById('sim-status').innerText = '💧 ' + d.sim_water;
+          break;
+        case 'node_fail':
+          wearableCount = Math.max(0, wearableCount - 2);
+          document.getElementById('hud-wearables-text').innerText = wearableCount + ' wearables';
+          appendLog('📡 SIMULACIÓN CAÍDA DE NODO: 2 wearables desconectados.');
+          showToast(d.feedback_node_fail);
+          flashNode(0xef4444);
+          incrementAlert();
+          document.getElementById('sim-status').innerText = '📡 ' + d.sim_node;
+          break;
+        case 'critical_alert':
+          document.getElementById('input-heart').value = 145;
+          updateParam('heart', 145, 'LPM');
+          document.getElementById('input-spo2').value = 86;
+          updateParam('spo2', 86, '%');
+          document.getElementById('input-temp').value = 40.1;
+          updateParam('temp', 40.1, '°C');
+          document.getElementById('input-cough').value = 92;
+          updateParam('cough', 92, '%');
+          setPreset('crimson');
+          appendLog('🚨 ALERTA CRÍTICA: Paciente con signos de shock séptico.');
+          showToast(d.feedback_critical);
+          flashNode(0xf43f5e);
+          for (let i = 0; i < 3; i++) incrementAlert();
+          document.getElementById('sim-status').innerText = '🚨 ' + d.sim_critical;
+          break;
+        case 'normalize':
+          document.getElementById('input-heart').value = 72;
+          updateParam('heart', 72, 'LPM');
+          document.getElementById('input-spo2').value = 98;
+          updateParam('spo2', 98, '%');
+          document.getElementById('input-temp').value = 36.6;
+          updateParam('temp', 36.6, '°C');
+          document.getElementById('input-cough').value = 45;
+          updateParam('cough', 45, '%');
+          document.getElementById('input-water').value = 7.2;
+          updateParam('water', 7.2, 'pH');
+          setPreset('cyan');
+          resetAlerts();
+          wearableCount = 12;
+          document.getElementById('hud-wearables-text').innerText = wearableCount + ' wearables';
+          appendLog('✅ SISTEMA NORMALIZADO: Todos los parámetros en rango.');
+          showToast(d.feedback_normalize);
+          flashNode(0x34d399);
+          document.getElementById('sim-status').innerText = '⚙️ ' + d.sim_status;
+          break;
+        default: break;
+      }
+    }
+
+    function toggleSimPanel() {
+      const panel = document.getElementById('sim-panel-content');
+      const arrow = document.getElementById('sim-panel-arrow');
+      panel.classList.toggle('open');
+      arrow.innerText = panel.classList.contains('open') ? '▲' : '▼';
+      flashNode(0x06b6d4);
+    }
+
+    function toggleAutoSim() {
+      const checkbox = document.getElementById('sim-auto-mode');
+      autoSimActive = checkbox.checked;
+      const d = dict[currentLang];
+      if (autoSimActive) {
+        if (simInterval) clearInterval(simInterval);
+        simInterval = setInterval(() => {
+          const heart = Math.min(180, Math.max(40, heartRate + (Math.random() - 0.5) * 10));
+          document.getElementById('input-heart').value = heart;
+          updateParam('heart', heart, 'LPM');
+          const spo2 = Math.min(100, Math.max(75, spo2Val + (Math.random() - 0.5) * 3));
+          document.getElementById('input-spo2').value = spo2;
+          updateParam('spo2', spo2, '%');
+          const temp = Math.min(41, Math.max(35, tempVal + (Math.random() - 0.5) * 0.5));
+          document.getElementById('input-temp').value = temp;
+          updateParam('temp', temp, '°C');
+          if (Math.random() < 0.05) {
+            const events = ['dengue', 'water_cut', 'node_fail', 'critical_alert'];
+            const evt = events[Math.floor(Math.random() * events.length)];
+            simulateAction(evt);
+          }
+          document.getElementById('sim-status').innerText = '🔄 ' + d.sim_auto;
+        }, 3000);
+        appendLog('🔄 Modo Simulación Automática activado.');
+        showToast(d.feedback_auto_on);
+      } else {
+        if (simInterval) {
+          clearInterval(simInterval);
+          simInterval = null;
+        }
+        document.getElementById('sim-status').innerText = '⚙️ ' + d.sim_status;
+        appendLog('⏹️ Modo Simulación Automática desactivado.');
+        showToast(d.feedback_auto_off);
+      }
+    }
+
+    function updateRotationSpeed(val) {
+      rotationSpeed = parseFloat(val);
+      appendLog('🔄 Velocidad de rotación ajustada a ' + rotationSpeed);
+      flashNode(0x06b6d4);
+    }
+
+    function resetCamera() {
+      if (camera) {
+        camera.position.z = 4.5;
+        camera.position.x = 0;
+        camera.position.y = 0;
+        camera.lookAt(0, 0, 0);
+        appendLog('📷 Cámara 3D reseteada.');
+        const d = dict[currentLang];
+        showToast(d.feedback_camera);
+        flashNode(0x06b6d4);
+      }
+    }
+
+    // THREE.JS 3D ENGINE
+    let scene, camera, renderer, nodeMesh, particleSystem;
+    let currentColor = 0x06b6d4;
+    let raycaster, mouse;
+
+    function init3DEngine() {
+      const container = document.getElementById('canvas-3d-container');
+      scene = new THREE.Scene();
+
+      camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+      camera.position.z = 4.5;
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      container.appendChild(renderer.domElement);
+
+      const geo = new THREE.IcosahedronGeometry(1.8, 2);
+      const mat = new THREE.MeshBasicMaterial({ color: currentColor, wireframe: true, transparent: true, opacity: 0.85 });
+      nodeMesh = new THREE.Mesh(geo, mat);
+      scene.add(nodeMesh);
+
+      const partGeo = new THREE.BufferGeometry();
+      const count = 120;
+      const pos = new Float32Array(count * 3);
+      for(let i=0; i<count*3; i++) {
+        pos[i] = (Math.random() - 0.5) * 8;
+      }
+      partGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const partMat = new THREE.PointsMaterial({ color: currentColor, size: 0.05, transparent: true, opacity: 0.6 });
+      particleSystem = new THREE.Points(partGeo, partMat);
+      scene.add(particleSystem);
+
+      raycaster = new THREE.Raycaster();
+      mouse = new THREE.Vector2();
+
+      renderer.domElement.addEventListener('click', onNodeClick);
+
+      function animate() {
+        requestAnimationFrame(animate);
+        if (nodeMesh) {
+          nodeMesh.rotation.x += 0.003 * (rotationSpeed / 0.006);
+          nodeMesh.rotation.y += 0.006 * (rotationSpeed / 0.006);
+        }
+        if (particleSystem) {
+          particleSystem.rotation.y -= 0.002 * (rotationSpeed / 0.006);
+        }
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      window.addEventListener('resize', () => {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+      });
+    }
+
+    function onNodeClick(event) {
+      const container = document.getElementById('canvas-3d-container');
+      const rect = container.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObject(nodeMesh);
+
+      if (intersects.length > 0) {
+        const randomColor = Math.floor(Math.random() * 0xffffff);
+        if (nodeMesh) {
+          nodeMesh.material.color.setHex(randomColor);
+        }
+        if (particleSystem) {
+          particleSystem.material.color.setHex(randomColor);
+        }
+        appendLog('🎨 Nodo 3D clickeado, color cambiado a #' + randomColor.toString(16).padStart(6, '0'));
+        const d = dict[currentLang];
+        showToast(d.feedback_click_node);
+        flashNode(randomColor);
+      }
+    }
+
+    function setPreset(colorName) {
+      let hex = 0x06b6d4;
+      let presetName = '';
+      if (colorName === 'crimson') { hex = 0xf43f5e; presetName = 'Crimson'; }
+      else if (colorName === 'emerald') { hex = 0x10b981; presetName = 'Emerald'; }
+      else if (colorName === 'solar') { hex = 0xf59e0b; presetName = 'Solar'; }
+      else { hex = 0x06b6d4; presetName = 'Cyan'; }
+
+      if (nodeMesh) nodeMesh.material.color.setHex(hex);
+      if (particleSystem) particleSystem.material.color.setHex(hex);
+      const d = dict[currentLang];
+      showToast(d.feedback_preset.replace('{preset}', presetName));
+      flashNode(hex);
+    }
+
+    function initECGCanvas() {
+      const canvas = document.getElementById('ecg-canvas');
+      const ctx = canvas.getContext('2d');
+      let x = 0;
+      let points = [];
+
+      function drawECG() {
+        requestAnimationFrame(drawECG);
+        ctx.fillStyle = 'rgba(2, 10, 19, 0.15)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = '#06b6d4';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+
+        const mid = canvas.height / 2;
+        x = (x + 2) % canvas.width;
+
+        let y = mid;
+        if (x % 40 > 15 && x % 40 < 25) {
+          y = mid - (Math.random() * 25 + 10);
+        } else if (x % 40 >= 25 && x % 40 < 30) {
+          y = mid + (Math.random() * 15 + 5);
+        }
+
+        points.push({ x, y });
+        if (points.length > canvas.width) points.shift();
+
+        for (let i = 0; i < points.length - 1; i++) {
+          ctx.moveTo(points[i].x, points[i].y);
+          ctx.lineTo(points[i + 1].x, points[i + 1].y);
+        }
+        ctx.stroke();
+      }
+      drawECG();
+    }
+
+    // Inicialización
+    window.onload = function() {
+      init3DEngine();
+      initECGCanvas();
+      document.getElementById('ranking-my-balance').innerText = tokenBalance.toLocaleString() + ' HEALTH';
+      refreshOracle();
+      setInterval(() => {
+        const prod = (0.8 + Math.random() * 0.8).toFixed(1);
+        document.getElementById('solar-production').innerText = prod + ' kW';
+        const soc = (85 + Math.random() * 14).toFixed(0);
+        document.getElementById('battery-soc').innerText = soc + '% SOC';
+        const autonomy = (12 + Math.random() * 18).toFixed(0);
+        document.getElementById('battery-autonomy').innerText = autonomy + ' horas';
+        document.getElementById('hud-battery-text').innerText = soc + '%';
+      }, 8000);
+      updateAllTexts();
+    };
   </script>
 </body>
 </html>
