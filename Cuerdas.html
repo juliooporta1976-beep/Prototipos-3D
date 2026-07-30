@@ -3,329 +3,471 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QRE Prototipo 3D - Dr. Julio César Oporta Barrera</title>
-  <!-- Tailwind CSS CDN -->
+  <title>QRE Prototipo Maestro - Dr. Julio César Oporta Barrera</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <style>
-    body { background-color: #121416; color: #ECEFF1; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; overflow-x: hidden; }
-    .glow-border { border: 1px solid rgba(79, 195, 247, 0.25); box-shadow: 0 0 15px rgba(79, 195, 247, 0.05); }
-    .glow-border:hover { border-color: rgba(79, 195, 247, 0.5); box-shadow: 0 0 20px rgba(79, 195, 247, 0.15); }
-    .glow-text { text-shadow: 0 0 10px rgba(79, 195, 247, 0.6); }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background: #0a0c0f; color: #e0e6ed; font-family: 'Segoe UI', system-ui, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; user-select: none; }
+    .glow-border { border: 1px solid rgba(79,195,247,0.25); box-shadow: 0 0 15px rgba(79,195,247,0.05); }
+    .glow-border:hover { border-color: rgba(79,195,247,0.5); box-shadow: 0 0 20px rgba(79,195,247,0.15); }
+    .glow-text { text-shadow: 0 0 10px rgba(79,195,247,0.6); }
     input[type="range"] { -webkit-appearance: none; background: #1E2225; height: 6px; border-radius: 3px; outline: none; }
-    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #4FC3F7; cursor: pointer; box-shadow: 0 0 10px rgba(79, 195, 247, 0.8); }
-    /* Embedded custom SVG icons for 100% offline safety */
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #4FC3F7; cursor: pointer; box-shadow: 0 0 10px rgba(79,195,247,0.8); }
     .icon { display: inline-block; width: 1.25rem; height: 1.25rem; vertical-align: middle; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    #chartCanvas, #powerChartCanvas, #spectrumCanvas { width: 100%; height: 60px; border-radius: 6px; background: rgba(0,0,0,0.3); }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #1a1e22; }
+    ::-webkit-scrollbar-thumb { background: #4FC3F7; border-radius: 4px; }
+    @keyframes emergencyFlash { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
+    .emergency-bg { animation: emergencyFlash 0.5s infinite; }
+    #laserPad { position: relative; height: 80px; background: #121416; border: 1px solid #2A2F35; border-radius: 12px; cursor: crosshair; overflow: hidden; }
+    #laserPad .grid-line { position: absolute; background: rgba(255,255,255,0.05); }
+    #laserDot { position: absolute; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; background: #4FC3F7; box-shadow: 0 0 20px rgba(79,195,247,0.6); top: calc(50% - 7px); left: calc(50% - 7px); transition: none; }
+    .scroll-panel { overflow-y: auto; max-height: calc(100vh - 200px); }
+    @media (max-width: 1024px) { .scroll-panel { max-height: 50vh; } }
+    .view-btn.active { background: #4FC3F7; color: #121416; border-color: #4FC3F7; }
+    .hud-extra { background: #121416; border-radius: 8px; padding: 4px 8px; border: 1px solid #2A2F35; font-size: 10px; }
+    .hud-extra span { color: #4FC3F7; font-weight: bold; }
   </style>
 </head>
-<body class="p-4 md:p-6 min-h-screen flex flex-col justify-between">
+<body class="p-3 md:p-4 min-h-screen flex flex-col">
 
-  <!-- Header -->
-  <header class="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-[#1E2225] border-b border-[#2A2F35] rounded-xl mb-6">
+  <!-- HEADER -->
+  <header class="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-[#1E2225] border-b border-[#2A2F35] rounded-xl mb-4 shadow-lg">
     <div>
-      <span class="text-[#4FC3F7] text-xs font-mono font-bold tracking-widest block mb-1">PROTOTIPO AUTÓNOMO DESCARGABLE (OFFLINE OK)</span>
+      <span class="text-[#4FC3F7] text-[10px] font-mono font-bold tracking-widest block">PROTOTIPO MAESTRO QRE - OFFLINE READY</span>
       <h1 class="text-xl md:text-2xl font-bold tracking-tight text-white glow-text">Dr. Julio César Oporta Barrera</h1>
-      <p class="text-[#ECEFF1] text-xs font-medium opacity-80"></p>
     </div>
-    <div class="mt-3 md:mt-0 px-4 py-2 bg-[#121416] rounded-lg border border-[#2A2F35] flex items-center gap-2">
-      <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" id="statusIndicator"></span>
-      <span class="text-xs font-mono font-bold text-white tracking-wider" id="statusText">EXTRACCIÓN ESTABLE - 50 MW TARGET</span>
+    <div class="mt-3 md:mt-0 flex items-center gap-4 flex-wrap">
+      <div class="px-4 py-2 bg-[#121416] rounded-lg border border-[#2A2F35] flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" id="statusIndicator"></span>
+        <span class="text-xs font-mono font-bold text-white tracking-wider" id="statusText">EXTRACCIÓN ESTABLE - 50 MW TARGET</span>
+      </div>
+      <div class="flex gap-1 bg-[#121416] p-1 rounded-lg border border-[#2A2F35]">
+        <button class="lang-btn px-2 py-1 text-xs font-bold rounded-md bg-[#4FC3F7] text-[#121416]" data-lang="es">ES</button>
+        <button class="lang-btn px-2 py-1 text-xs font-bold rounded-md text-gray-400 hover:text-white" data-lang="en">EN</button>
+        <button class="lang-btn px-2 py-1 text-xs font-bold rounded-md text-gray-400 hover:text-white" data-lang="zh">中文</button>
+      </div>
     </div>
   </header>
 
-  <!-- Content Grid -->
-  <main class="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow mb-6">
-    
-    <!-- Controls (Left column) -->
-    <section class="lg:col-span-4 bg-[#1E2225] p-5 rounded-2xl border border-[#2A2F35] flex flex-col justify-between gap-5">
-      <div>
-        <h2 class="text-md font-bold tracking-wider uppercase text-white border-b border-[#2A2F35] pb-2 mb-4 flex items-center gap-2">
-          <svg class="icon text-[#4FC3F7]" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-          SIMULADOR INTERACTIVO
-        </h2>
+  <!-- MAIN GRID -->
+  <main class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow">
 
-        <!-- Frequency -->
-        <div class="mb-4">
-          <div class="flex justify-between text-xs font-mono font-bold text-gray-300 mb-1">
-            <span>Resonancia de Cuerdas</span>
-            <span class="text-[#4FC3F7]" id="freqVal">43.25 GHz</span>
-          </div>
-          <input type="range" id="freqSlider" min="10" max="100" step="0.5" value="43.25" class="w-full">
+    <!-- LEFT: CONTROLS -->
+    <section class="lg:col-span-4 bg-[#1E2225] p-5 rounded-2xl border border-[#2A2F35] flex flex-col scroll-panel">
+      <h2 class="text-md font-bold tracking-wider uppercase text-white border-b border-[#2A2F35] pb-2 mb-4 flex items-center gap-2">
+        <svg class="icon text-[#4FC3F7]" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span data-i18n="simTitle">SIMULADOR INTERACTIVO</span>
+      </h2>
+
+      <!-- Sliders (8 existentes) -->
+      <div class="space-y-3 text-xs font-mono">
+        <div><div class="flex justify-between text-gray-300 font-bold mb-1"><span data-i18n="paramFreq">Resonancia de Cuerdas</span><span class="text-[#4FC3F7]" id="freqVal">43.25 GHz</span></div><input type="range" id="freqSlider" min="10" max="100" step="0.5" value="43.25" class="w-full"></div>
+        <div><div class="flex justify-between text-gray-300 font-bold mb-1"><span data-i18n="paramTemp">Temperatura Criogénica</span><span class="text-[#4FC3F7]" id="tempVal">0.105 K</span></div><input type="range" id="tempSlider" min="0.1" max="4.2" step="0.05" value="0.105" class="w-full"></div>
+        <div><div class="flex justify-between text-gray-300 font-bold mb-1"><span data-i18n="paramVac">Nivel de Vacío</span><span class="text-[#4FC3F7]" id="vacVal">10⁻¹⁰ atm</span></div><input type="range" id="vacSlider" min="-12" max="-5" step="1" value="-10" class="w-full"></div>
+        <div><div class="flex justify-between text-gray-300 font-bold mb-1"><span data-i18n="paramLaser">Calibración Láser</span><span class="text-[#4FC3F7]" id="laserVal">780 nm</span></div><input type="range" id="laserSlider" min="730" max="830" step="1" value="780" class="w-full"></div>
+        <div><div class="flex justify-between text-gray-300 font-bold mb-1"><span data-i18n="paramMag">Acoplamiento Magnético</span><span class="text-[#4FC3F7]" id="magVal">2.5 T</span></div><input type="range" id="magSlider" min="0.1" max="5.0" step="0.1" value="2.5" class="w-full"></div>
+        <div><div class="flex justify-between text-gray-300 font-bold mb-1"><span data-i18n="paramGraphene">Elasticidad Grafeno</span><span class="text-[#4FC3F7]" id="grapheneVal">80 GPa</span></div><input type="range" id="grapheneSlider" min="10" max="150" step="5" value="80" class="w-full"></div>
+        <div><div class="flex justify-between text-gray-300 font-bold mb-1"><span data-i18n="paramHelium">Flujo Helio-3</span><span class="text-[#4FC3F7]" id="heliumVal">3.50 L/h</span></div><input type="range" id="heliumSlider" min="0" max="10" step="0.1" value="3.5" class="w-full"></div>
+        <div><div class="flex justify-between text-gray-300 font-bold mb-1"><span data-i18n="paramRf">Potencia RF</span><span class="text-[#4FC3F7]" id="rfVal">90 mW</span></div><input type="range" id="rfSlider" min="10" max="150" step="1" value="90" class="w-full"></div>
+      </div>
+
+      <!-- Alineador láser 2D -->
+      <div class="mt-4 pt-3 border-t border-[#2A2F35]">
+        <div class="flex justify-between text-xs font-mono font-bold text-gray-300 mb-1">
+          <span data-i18n="paramAlign">Alineador Láser 2D</span>
+          <span id="alignVal" class="text-green-400">X: 0 | Y: 0</span>
         </div>
-
-        <!-- Temperature -->
-        <div class="mb-4">
-          <div class="flex justify-between text-xs font-mono font-bold text-gray-300 mb-1">
-            <span>Temperatura Criogénica</span>
-            <span class="text-[#4FC3F7]" id="tempVal">0.105 K</span>
-          </div>
-          <input type="range" id="tempSlider" min="0.1" max="4.2" step="0.05" value="0.105" class="w-full">
-        </div>
-
-        <!-- Vacuum -->
-        <div class="mb-4">
-          <div class="flex justify-between text-xs font-mono font-bold text-gray-300 mb-1">
-            <span>Nivel de Vacío</span>
-            <span class="text-[#4FC3F7]" id="vacVal">10⁻¹⁰ atm</span>
-          </div>
-          <input type="range" id="vacSlider" min="-12" max="-5" step="1" value="-10" class="w-full">
-        </div>
-
-        <!-- Laser Wavelength -->
-        <div class="mb-4">
-          <div class="flex justify-between text-xs font-mono font-bold text-gray-300 mb-1">
-            <span>Calibración Láser</span>
-            <span class="text-[#4FC3F7]" id="laserVal">780 nm</span>
-          </div>
-          <input type="range" id="laserSlider" min="730" max="830" step="1" value="780" class="w-full">
-        </div>
-
-        <!-- Magnetic Flux -->
-        <div class="mb-4">
-          <div class="flex justify-between text-xs font-mono font-bold text-gray-300 mb-1">
-            <span>Acoplamiento Magnético</span>
-            <span class="text-[#4FC3F7]" id="magVal">2.5 T</span>
-          </div>
-          <input type="range" id="magSlider" min="0.1" max="5.0" step="0.1" value="2.5" class="w-full">
-        </div>
-
-        <!-- Graphene Elasticity -->
-        <div class="mb-4">
-          <div class="flex justify-between text-xs font-mono font-bold text-gray-300 mb-1">
-            <span>${TRANSLATIONS[lang].paramGraphene}</span>
-            <span class="text-[#4FC3F7]" id="grapheneVal">80 GPa</span>
-          </div>
-          <input type="range" id="grapheneSlider" min="10" max="150" step="5" value="80" class="w-full">
-        </div>
-
-        <!-- Módulos de Simulación Secundaria -->
-        <div class="mb-4 pt-3 border-t border-[#2A2F35]">
-          <span class="text-[10px] font-mono font-bold text-[#4FC3F7] block mb-2 uppercase tracking-widest">SIMULACIÓN SECUNDARIA</span>
-
-          <!-- Helium-3 Flow -->
-          <div class="mb-3">
-            <div class="flex justify-between text-xs font-mono font-bold text-gray-300 mb-1">
-              <span>${TRANSLATIONS[lang].paramHeliumFlow}</span>
-              <span class="text-[#4FC3F7]" id="heliumVal">3.50 L/h</span>
-            </div>
-            <input type="range" id="heliumSlider" min="0.0" max="10.0" step="0.1" value="3.5" class="w-full">
-          </div>
-
-          <!-- RF Pump Power -->
-          <div class="mb-3">
-            <div class="flex justify-between text-xs font-mono font-bold text-gray-300 mb-1">
-              <span>${TRANSLATIONS[lang].paramRfPump}</span>
-              <span class="text-[#4FC3F7]" id="rfVal">90 mW</span>
-            </div>
-            <input type="range" id="rfSlider" min="10" max="150" step="1" value="90" class="w-full">
-          </div>
-
-          <!-- Draggable Laser Alignment 2D Pad inside exported HTML -->
-          <div class="mb-3">
-            <div class="flex justify-between text-xs font-mono font-bold text-gray-300 mb-1">
-              <span>${lang === 'es' ? "Alineador Láser 2D (Arrastrar)" : "2D Laser Aligner (Drag)"}</span>
-              <span class="text-green-400 font-mono" id="laserAlignVal">X: 0.0 | Y: 0.0</span>
-            </div>
-            <div id="laserAlignPad" class="relative h-[100px] w-full bg-[#121416] border border-[#2A2F35] rounded-lg overflow-hidden cursor-crosshair flex items-center justify-center select-none">
-              <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div class="w-full h-[1px] bg-gray-800/40"></div>
-              </div>
-              <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div class="h-full w-[1px] bg-gray-800/40"></div>
-              </div>
-              <div class="absolute w-5 h-5 border border-dashed border-green-500/20 rounded-full flex items-center justify-center pointer-events-none"></div>
-              <div id="laserAlignDot" class="absolute w-3 h-3 rounded-full border border-white bg-green-500 shadow-[0_0_8px_rgba(34,197,94,1)]" style="left: calc(50% - 6px); bottom: calc(50% - 6px);"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Special Interactions Panel -->
-        <div class="mb-5 pt-3 border-t border-[#2A2F35]">
-          <span class="text-[10px] font-mono font-bold text-gray-400 block mb-2 uppercase tracking-wider">Interacciones Especiales</span>
-          <div class="grid grid-cols-2 gap-2">
-            <button id="autoCalibrateBtn" class="py-1.5 px-3 bg-[#121416] hover:bg-[#2A2F35] text-gray-300 border border-[#2A2F35] rounded-xl text-[10px] font-mono font-bold transition flex items-center justify-center gap-1 cursor-pointer">
-              <svg class="icon w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-              ${TRANSLATIONS[lang].btnAutoCalibrate}
-            </button>
-            <button id="injectSeismicBtn" class="py-1.5 px-3 bg-[#121416] hover:bg-[#2A2F35] text-gray-300 border border-[#2A2F35] rounded-xl text-[10px] font-mono font-bold transition flex items-center justify-center gap-1 cursor-pointer">
-              <svg class="icon w-3 h-3 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"></path></svg>
-              <span id="seismicBtnText">${TRANSLATIONS[lang].btnInjectSeismic}</span>
-            </button>
-            <button id="toggleShieldBtn" class="py-1.5 px-3 bg-[#121416] hover:bg-[#2A2F35] text-gray-300 border border-[#2A2F35] rounded-xl text-[10px] font-mono font-bold transition flex items-center justify-center gap-1 cursor-pointer col-span-2">
-              <svg class="icon w-3 h-3 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-              <span>${TRANSLATIONS[lang].btnMagneticShield}: OFF</span>
-            </button>
-            <button id="injectSolitonBtn" class="py-1.5 px-3 bg-[#121416] hover:bg-[#2A2F35] text-gray-300 border border-[#2A2F35] rounded-xl text-[10px] font-mono font-bold transition flex items-center justify-center gap-1 cursor-pointer col-span-2">
-              <svg class="icon w-3 h-3 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
-              <span>${TRANSLATIONS[lang].btnSoliton}</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Operational modes -->
-        <div class="mb-4">
-          <label class="text-xs font-mono font-bold text-gray-300 block mb-2">Modo Operativo</label>
-          <div class="grid grid-cols-2 gap-2 text-xs">
-            <button class="mode-btn py-2 px-3 bg-[#2A2F35] rounded-lg border border-[#4FC3F7] text-white" data-mode="ai">Optimización Enjambre IA</button>
-            <button class="mode-btn py-2 px-3 bg-[#121416] rounded-lg border border-[#2A2F35] text-gray-400" data-mode="physics">Física Modular (Gravedad)</button>
-            <button class="mode-btn py-2 px-3 bg-[#121416] rounded-lg border border-[#2A2F35] text-gray-400" data-mode="biomem">Biomecánico (Grapheno)</button>
-            <button class="mode-btn py-2 px-3 bg-[#121416] rounded-lg border border-[#2A2F35] text-gray-400" data-mode="hybrid">Energía Híbrida (TMR)</button>
-          </div>
+        <div id="laserPad">
+          <div class="grid-line" style="top:50%; left:0; right:0; height:1px;"></div>
+          <div class="grid-line" style="left:50%; top:0; bottom:0; width:1px;"></div>
+          <div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="w-8 h-8 border border-dashed border-[#4FC3F7]/30 rounded-full"></div></div>
+          <div id="laserDot"></div>
         </div>
       </div>
 
-      <!-- Emergency/Reset Action Buttons -->
+      <!-- Modos operativos (11: añadido "Tormenta") -->
+      <div class="mt-4 pt-3 border-t border-[#2A2F35]">
+        <span data-i18n="modeTitle" class="text-[10px] font-mono font-bold text-gray-400 block mb-2 uppercase tracking-wider">MODOS OPERATIVOS</span>
+        <div class="grid grid-cols-2 gap-1 text-[10px]">
+          <button class="mode-btn py-1.5 px-2 bg-[#121416] rounded-lg border border-[#2A2F35] text-gray-400 hover:border-[#4FC3F7] transition" data-mode="reposo" data-i18n="modeReposo">Reposo</button>
+          <button class="mode-btn py-1.5 px-2 bg-[#121416] rounded-lg border border-[#2A2F35] text-gray-400 hover:border-[#4FC3F7] transition" data-mode="diagnostico" data-i18n="modeDiagnostico">Diagnóstico</button>
+          <button class="mode-btn py-1.5 px-2 bg-[#2A2F35] rounded-lg border border-[#4FC3F7] text-white" data-mode="operacion" data-i18n="modeOperacion">Operación</button>
+          <button class="mode-btn py-1.5 px-2 bg-[#121416] rounded-lg border border-[#2A2F35] text-gray-400 hover:border-[#4FC3F7] transition" data-mode="emergencia" data-i18n="modeEmergencia">Emergencia</button>
+          <button class="mode-btn py-1.5 px-2 bg-[#121416] rounded-lg border border-[#2A2F35] text-gray-400 hover:border-[#4FC3F7] transition" data-mode="enjambre" data-i18n="modeEnjambre">Enjambre IA</button>
+          <button class="mode-btn py-1.5 px-2 bg-[#121416] rounded-lg border border-[#2A2F35] text-gray-400 hover:border-[#4FC3F7] transition" data-mode="espectral" data-i18n="modeEspectral">Espectral</button>
+          <button class="mode-btn py-1.5 px-2 bg-[#121416] rounded-lg border border-[#2A2F35] text-gray-400 hover:border-[#4FC3F7] transition" data-mode="simulacion" data-i18n="modeSimulacion">Simulación</button>
+          <button class="mode-btn py-1.5 px-2 bg-[#121416] rounded-lg border border-[#2A2F35] text-gray-400 hover:border-[#4FC3F7] transition" data-mode="mantenimiento" data-i18n="modeMantenimiento">Mantenimiento</button>
+          <button class="mode-btn py-1.5 px-2 bg-[#121416] rounded-lg border border-[#2A2F35] text-gray-400 hover:border-[#4FC3F7] transition" data-mode="transferencia" data-i18n="modeTransferencia">Transferencia</button>
+          <button class="mode-btn py-1.5 px-2 bg-[#121416] rounded-lg border border-[#2A2F35] text-gray-400 hover:border-[#4FC3F7] transition" data-mode="historico" data-i18n="modeHistorico">Histórico</button>
+          <!-- NUEVO: Modo Tormenta -->
+          <button class="mode-btn py-1.5 px-2 bg-[#121416] rounded-lg border border-[#2A2F35] text-gray-400 hover:border-[#4FC3F7] transition" data-mode="tormenta" data-i18n="modeTormenta">Tormenta</button>
+        </div>
+      </div>
+
+      <!-- Interacciones especiales (ampliado) -->
+      <div class="mt-4 pt-3 border-t border-[#2A2F35]">
+        <span class="text-[10px] font-mono font-bold text-gray-400 block mb-2 uppercase tracking-wider">Interacciones Especiales</span>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="autoCalibrateBtn" class="py-1.5 px-3 bg-[#121416] hover:bg-[#2A2F35] text-gray-300 border border-[#2A2F35] rounded-xl text-[10px] font-mono font-bold transition flex items-center justify-center gap-1 cursor-pointer">
+            <svg class="icon w-3 h-3" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            <span data-i18n="btnAutoCalibrate">Auto Calibrar</span>
+          </button>
+          <button id="injectSeismicBtn" class="py-1.5 px-3 bg-[#121416] hover:bg-[#2A2F35] text-gray-300 border border-[#2A2F35] rounded-xl text-[10px] font-mono font-bold transition flex items-center justify-center gap-1 cursor-pointer">
+            <svg class="icon w-3 h-3 text-amber-400" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/></svg>
+            <span id="seismicBtnText" data-i18n="btnInjectSeismic">Terremoto</span>
+          </button>
+          <button id="toggleShieldBtn" class="py-1.5 px-3 bg-[#121416] hover:bg-[#2A2F35] text-gray-300 border border-[#2A2F35] rounded-xl text-[10px] font-mono font-bold transition flex items-center justify-center gap-1 cursor-pointer col-span-2">
+            <svg class="icon w-3 h-3 text-blue-400" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span id="shieldLabel" data-i18n="btnMagneticShield">Blindaje Magnético: OFF</span>
+          </button>
+          <button id="injectSolitonBtn" class="py-1.5 px-3 bg-[#121416] hover:bg-[#2A2F35] text-gray-300 border border-[#2A2F35] rounded-xl text-[10px] font-mono font-bold transition flex items-center justify-center gap-1 cursor-pointer col-span-2">
+            <svg class="icon w-3 h-3 text-purple-400" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <span data-i18n="btnSoliton">Inyectar Solitón</span>
+          </button>
+          <!-- NUEVAS INTERACCIONES AVANZADAS -->
+          <button id="simWaveBtn" class="py-1.5 px-3 bg-[#121416] hover:bg-[#2A2F35] text-gray-300 border border-[#2A2F35] rounded-xl text-[10px] font-mono font-bold transition flex items-center justify-center gap-1 cursor-pointer col-span-2">
+            <svg class="icon w-3 h-3 text-cyan-400" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 22v-4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M22 12h-4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            <span data-i18n="btnWaveSim">Simulación de Ondas</span>
+          </button>
+          <button id="simFlowBtn" class="py-1.5 px-3 bg-[#121416] hover:bg-[#2A2F35] text-gray-300 border border-[#2A2F35] rounded-xl text-[10px] font-mono font-bold transition flex items-center justify-center gap-1 cursor-pointer col-span-2">
+            <svg class="icon w-3 h-3 text-green-400" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 12h4l2-3 2 3 2-3 2 3 4-3"/></svg>
+            <span data-i18n="btnFlowSim">Simulación de Flujo Energético</span>
+          </button>
+          <button id="pulseBtn" class="py-1.5 px-3 bg-[#121416] hover:bg-[#2A2F35] text-gray-300 border border-[#2A2F35] rounded-xl text-[10px] font-mono font-bold transition flex items-center justify-center gap-1 cursor-pointer col-span-2">
+            <svg class="icon w-3 h-3 text-pink-400" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span data-i18n="btnPulse">Generar Pulso de Resonancia</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Botones emergencia/reset -->
       <div class="flex flex-col gap-2 mt-4">
         <button id="emergencyBtn" class="py-3 px-4 bg-[#E53935] hover:bg-red-600 rounded-xl text-white text-xs font-bold tracking-wider glow-border flex items-center justify-center gap-2 transition">
-          <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
-          PARADA DE EMERGENCIA
+          <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+          <span data-i18n="btnEmergency">PARADA DE EMERGENCIA</span>
         </button>
         <button id="resetBtn" class="py-2.5 px-4 bg-[#2E7D32] hover:bg-green-700 text-white rounded-xl text-xs font-bold tracking-wider flex items-center justify-center gap-2 transition">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-          REINICIAR SISTEMA
+          <svg class="icon" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          <span data-i18n="btnReset">REINICIAR SISTEMA</span>
         </button>
       </div>
     </section>
 
-    <!-- Canvas (Center column) -->
-    <section class="lg:col-span-5 bg-[#121416] rounded-2xl border border-[#2A2F35] relative flex flex-col items-center justify-center p-3">
-      
-      <!-- Video Element for Camera Pass-through (Augmented Reality) -->
-      <video id="arVideo" autoplay playsinline class="absolute inset-0 w-full h-full object-cover rounded-2xl hidden z-0 opacity-40"></video>
-      
-      <!-- Canvas itself -->
-      <canvas id="qreCanvas" class="w-full h-[380px] md:h-[450px] relative z-10 cursor-grab"></canvas>
-      
-      <!-- Custom overlay buttons on Canvas -->
-      <div class="absolute top-4 left-4 z-20 flex flex-col gap-2">
-        <button id="arModeToggle" class="py-1.5 px-3 bg-[#1E2225] text-xs font-bold text-white rounded-lg border border-[#4FC3F7] glow-border flex items-center gap-1.5">
-          <svg class="icon text-[#4FC3F7]" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-          AR WORKSPACE
+    <!-- CENTER: 3D VIEWPORT -->
+    <section class="lg:col-span-5 bg-[#121416] rounded-2xl border border-[#2A2F35] relative flex flex-col items-center justify-center p-2">
+      <video id="arVideo" autoplay playsinline class="absolute inset-0 w-full h-full object-cover rounded-2xl hidden z-0 opacity-30"></video>
+      <div id="threeMount" class="w-full h-[420px] md:h-[500px] relative z-10 cursor-grab"></div>
+
+      <!-- Controles de vista (Rayos X y Corte + Normal) -->
+      <div class="absolute top-3 left-3 z-20 flex flex-wrap gap-1">
+        <button class="view-btn px-2 py-1 text-[10px] font-mono font-bold rounded-lg transition bg-[#4FC3F7] text-gray-950 border border-[#4FC3F7] active" data-view="normal">Normal</button>
+        <button class="view-btn px-2 py-1 text-[10px] font-mono font-bold rounded-lg transition bg-[#1E2225]/80 text-gray-300 border border-[#2A2F35]" data-view="xray">Rayos X</button>
+        <button class="view-btn px-2 py-1 text-[10px] font-mono font-bold rounded-lg transition bg-[#1E2225]/80 text-gray-300 border border-[#2A2F35]" data-view="section">Corte</button>
+      </div>
+
+      <!-- Selector de enfoque -->
+      <div class="absolute top-3 right-3 z-20">
+        <select id="focusSelect" class="bg-[#1E2225]/90 text-gray-200 text-[10px] font-mono font-bold px-2 py-1 rounded-lg border border-[#2A2F35] focus:border-[#4FC3F7] outline-none">
+          <option value="all">🔍 Todo</option>
+          <option value="chamber">⚛️ Cámara</option>
+          <option value="cryostat">❄️ Criostato</option>
+          <option value="sensors">📡 Sensores</option>
+          <option value="ai">🧠 IA</option>
+          <option value="shield">🛡️ Blindaje</option>
+        </select>
+      </div>
+
+      <!-- AR toggle -->
+      <div class="absolute bottom-3 left-3 z-20">
+        <button id="arToggleBtn" class="px-3 py-1.5 text-[10px] font-mono font-bold rounded-xl border border-[#2A2F35] bg-[#1E2225]/90 text-gray-300 flex items-center gap-1 shadow-lg transition">
+          <svg class="icon text-[#4FC3F7] w-4 h-4" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <span data-i18n="arToggle">AR WORKSPACE</span>
         </button>
       </div>
 
-      <div class="absolute bottom-4 text-[10px] font-mono text-gray-400 z-20 tracking-wider pointer-events-none">
-        Arrastra para Rotar 3D | Rueda para Zoom | Doble Clic para Color Láser
+      <div class="absolute bottom-3 right-3 z-20 text-[9px] font-mono text-gray-400 bg-[#121416]/80 px-2 py-0.5 rounded border border-[#2A2F35] pointer-events-none">
+        Arrastra para Rotar | Rueda Zoom | Doble clic: Pulso
       </div>
     </section>
 
-    <!-- Status panel & logs (Right column) -->
-    <section class="lg:col-span-3 bg-[#1E2225] p-5 rounded-2xl border border-[#2A2F35] flex flex-col justify-between gap-4">
-      <div>
-        <h2 class="text-xs font-bold tracking-wider text-gray-400 uppercase border-b border-[#2A2F35] pb-2 mb-4">TELEMETRÍA TÁCTICA HUD</h2>
-        
-        <!-- Live Gauges -->
-        <div class="grid grid-cols-2 gap-3 mb-5">
-          <div class="bg-[#121416] p-3 rounded-xl border border-[#2A2F35] text-center">
-            <span class="text-[9px] font-mono text-gray-400 block mb-0.5">${TRANSLATIONS[lang].paramPower}</span>
-            <span id="powerGauge" class="text-md font-mono font-bold text-[#4FC3F7] glow-text block">49.80 MW</span>
-          </div>
-          <div class="bg-[#121416] p-3 rounded-xl border border-[#2A2F35] text-center">
-            <span class="text-[9px] font-mono text-gray-400 block mb-0.5">${TRANSLATIONS[lang].paramEff}</span>
-            <span id="effGauge" class="text-md font-mono font-bold text-[#81C784] block">99.7%</span>
-          </div>
-          <div class="bg-[#121416] p-2.5 rounded-xl border border-[#2A2F35] text-center col-span-2 flex justify-between items-center px-4 text-xs">
-            <span class="font-mono text-gray-400 uppercase text-[9px]">${TRANSLATIONS[lang].hudSquidLock}</span>
-            <span id="squidGauge" class="text-[#81C784] font-mono font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">
-              <span class="w-1.5 h-1.5 bg-[#81C784] rounded-full animate-ping"></span>
-              SQUID Lock OK
-            </span>
-          </div>
-          <div class="bg-[#121416] p-3 rounded-xl border border-[#2A2F35] text-center">
-            <span class="text-[9px] font-mono text-gray-400 block mb-0.5">${TRANSLATIONS[lang].hudPhaseCoherence}</span>
-            <span id="coherenceGauge" class="text-md font-mono font-bold text-amber-400 block">98.70%</span>
-          </div>
-          <div class="bg-[#121416] p-3 rounded-xl border border-[#2A2F35] text-center">
-            <span class="text-[9px] font-mono text-gray-400 block mb-0.5">${TRANSLATIONS[lang].hudGravShift}</span>
-            <span id="gravGauge" class="text-md font-mono font-bold text-[#D1C4E9] block">0.125 m/s²</span>
-          </div>
+    <!-- RIGHT: HUD AVANZADO (ampliado) -->
+    <section class="lg:col-span-3 bg-[#1E2225] p-5 rounded-2xl border border-[#2A2F35] flex flex-col scroll-panel">
+      <h2 class="text-xs font-bold tracking-wider text-gray-400 uppercase border-b border-[#2A2F35] pb-2 mb-3 flex items-center justify-between">
+        <span data-i18n="telemetryTitle">TELEMETRÍA TÁCTICA HUD</span>
+        <span class="text-[9px] font-mono text-[#81C784]">HYPERLEDGER OK</span>
+      </h2>
 
-          <!-- Additional HUD 1: BEC Stability progress bar -->
-          <div class="bg-[#121416] p-3 rounded-xl border border-[#2A2F35] text-center col-span-2">
-            <div class="flex justify-between text-[9px] font-mono text-gray-400 uppercase mb-1">
-              <span>${TRANSLATIONS[lang].hudBecStability}</span>
-              <span id="becGaugeText" class="text-cyan-400 font-bold">100%</span>
-            </div>
-            <div class="w-full bg-gray-900 h-1.5 rounded-full overflow-hidden mt-1">
-              <div id="becGaugeBar" class="h-full bg-cyan-400 rounded-full transition-all duration-300" style="width: 100%;"></div>
-            </div>
+      <!-- Indicadores principales (8 existentes) -->
+      <div class="grid grid-cols-2 gap-2 mb-3">
+        <div class="bg-[#121416] p-2 rounded-xl border border-[#2A2F35] text-center">
+          <span class="text-[9px] font-mono text-gray-400 block" data-i18n="paramPower">Potencia</span>
+          <span id="powerGauge" class="text-sm font-mono font-bold text-[#4FC3F7] glow-text block">49.80 MW</span>
+        </div>
+        <div class="bg-[#121416] p-2 rounded-xl border border-[#2A2F35] text-center">
+          <span class="text-[9px] font-mono text-gray-400 block" data-i18n="paramEff">Eficiencia</span>
+          <span id="effGauge" class="text-sm font-mono font-bold text-[#81C784] block">99.7%</span>
+        </div>
+        <div class="bg-[#121416] p-2 rounded-xl border border-[#2A2F35] col-span-2 flex justify-between items-center px-3 text-xs">
+          <span class="font-mono text-gray-400 uppercase text-[9px]" data-i18n="hudSquidLock">SQUID Lock</span>
+          <span id="squidGauge" class="text-[#81C784] font-mono font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">
+            <span class="w-1.5 h-1.5 bg-[#81C784] rounded-full animate-ping"></span>
+            SQUID Lock OK
+          </span>
+        </div>
+        <div class="bg-[#121416] p-2 rounded-xl border border-[#2A2F35] text-center">
+          <span class="text-[9px] font-mono text-gray-400 block" data-i18n="hudPhaseCoherence">Coherencia</span>
+          <span id="coherenceGauge" class="text-sm font-mono font-bold text-amber-400 block">98.70%</span>
+        </div>
+        <div class="bg-[#121416] p-2 rounded-xl border border-[#2A2F35] text-center">
+          <span class="text-[9px] font-mono text-gray-400 block" data-i18n="hudGravShift">Gravedad</span>
+          <span id="gravGauge" class="text-sm font-mono font-bold text-[#D1C4E9] block">0.125 m/s²</span>
+        </div>
+        <div class="bg-[#121416] p-2 rounded-xl border border-[#2A2F35] col-span-2">
+          <div class="flex justify-between text-[9px] font-mono text-gray-400 uppercase mb-1">
+            <span data-i18n="hudBecStability">Estabilidad BEC</span>
+            <span id="becGaugeText" class="text-cyan-400 font-bold">100%</span>
           </div>
-
-          <!-- Additional HUD 2: Thermal Noise -->
-          <div class="bg-[#121416] p-3 rounded-xl border border-[#2A2F35] text-center">
-            <span class="text-[9px] font-mono text-gray-400 block mb-0.5">${TRANSLATIONS[lang].hudThermalNoise}</span>
-            <span id="thermalGauge" class="text-md font-mono font-bold text-emerald-400 block">4.80 nK</span>
-          </div>
-
-          <!-- Additional HUD 3: Swarm Synchrony -->
-          <div class="bg-[#121416] p-3 rounded-xl border border-[#2A2F35] text-center">
-            <span class="text-[9px] font-mono text-gray-400 block mb-0.5">${TRANSLATIONS[lang].hudSwarmSync}</span>
-            <span id="swarmGauge" class="text-md font-mono font-bold text-indigo-400 block">95%</span>
+          <div class="w-full bg-gray-900 h-1.5 rounded-full overflow-hidden">
+            <div id="becGaugeBar" class="h-full bg-cyan-400 rounded-full transition-all duration-300" style="width:100%"></div>
           </div>
         </div>
-
-        <!-- Warning block -->
-        <div id="dangerWarning" class="p-3 bg-red-950/40 border border-red-500/50 rounded-xl text-red-200 text-xs hidden mb-4 items-start gap-2">
-          <svg class="icon text-red-400 shrink-0 mt-0.5" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"></path></svg>
-          <span id="warningMessage">Alerta: Ruido de Interferencia Térmica Alto</span>
+        <div class="bg-[#121416] p-2 rounded-xl border border-[#2A2F35] text-center">
+          <span class="text-[9px] font-mono text-gray-400 block" data-i18n="hudThermalNoise">Ruido Térmico</span>
+          <span id="thermalGauge" class="text-sm font-mono font-bold text-emerald-400 block">4.80 nK</span>
         </div>
-
-        <!-- Scrolling System Logs -->
-        <h2 class="text-xs font-bold tracking-wider text-gray-400 uppercase border-b border-[#2A2F35] pb-2 mb-3">REGISTRO DE CONTROL DE NODOS IA</h2>
-        <div id="scrollingLogs" class="bg-[#121416] p-3 rounded-xl border border-[#2A2F35] h-[220px] overflow-y-auto font-mono text-[10px] text-[#4FC3F7] space-y-2 leading-relaxed">
-          <div>&gt; QRE Standalone engine online. Ready.</div>
-          <div>&gt; SQUID magnetometers: Calibrated at 0.105 K.</div>
-          <div>&gt; Vacuum UHV state established at 10⁻¹⁰ atm.</div>
+        <div class="bg-[#121416] p-2 rounded-xl border border-[#2A2F35] text-center">
+          <span class="text-[9px] font-mono text-gray-400 block" data-i18n="hudSwarmSync">Sincronía Enjambre</span>
+          <span id="swarmGauge" class="text-sm font-mono font-bold text-indigo-400 block">95%</span>
         </div>
       </div>
-      
-      <!-- Footer details -->
-      <div class="text-[10px] text-gray-500 font-mono text-right mt-3">
-        © 2026 QRE | Rev. July 2025
+
+      <!-- NUEVOS HUD ADICIONALES: métricas extra -->
+      <div class="grid grid-cols-2 gap-1.5 mb-3">
+        <div class="hud-extra flex justify-between"><span data-i18n="hudAmplitude">Amplitud</span> <span id="amplitudeGauge">1.00</span></div>
+        <div class="hud-extra flex justify-between"><span data-i18n="hudBeatFreq">Batido</span> <span id="beatFreqGauge">0.00 Hz</span></div>
+        <div class="hud-extra flex justify-between"><span data-i18n="hudPhase">Fase</span> <span id="phaseGauge">0.00°</span></div>
+        <div class="hud-extra flex justify-between"><span data-i18n="hudCryoTemp">Criostato</span> <span id="cryoTempGauge">0.105 K</span></div>
+        <div class="hud-extra flex justify-between col-span-2"><span data-i18n="hudVacPressure">Presión Vacío</span> <span id="vacPressureGauge">10⁻¹⁰ atm</span></div>
       </div>
+
+      <!-- Gráficos: eficiencia, potencia, espectro (nuevo) -->
+      <div class="bg-[#121416] p-2 rounded-xl border border-[#2A2F35] mb-3">
+        <span class="text-[9px] font-mono text-gray-400 block mb-1" data-i18n="chartEfficiency">Evolución de Eficiencia</span>
+        <canvas id="chartCanvas" height="60"></canvas>
+      </div>
+      <div class="bg-[#121416] p-2 rounded-xl border border-[#2A2F35] mb-3">
+        <span class="text-[9px] font-mono text-gray-400 block mb-1" data-i18n="chartPower">Historial de Potencia</span>
+        <canvas id="powerChartCanvas" height="60"></canvas>
+      </div>
+      <!-- NUEVO: Gráfico de espectro -->
+      <div class="bg-[#121416] p-2 rounded-xl border border-[#2A2F35] mb-3">
+        <span class="text-[9px] font-mono text-gray-400 block mb-1" data-i18n="chartSpectrum">Espectro de Frecuencias</span>
+        <canvas id="spectrumCanvas" height="60"></canvas>
+      </div>
+
+      <!-- Alertas inteligentes (existente) -->
+      <div id="alertBox" class="p-2 rounded-xl text-[10px] hidden mb-3 flex items-start gap-2">
+        <svg class="icon text-red-400 shrink-0 w-4 h-4" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/></svg>
+        <span id="alertMessage" data-i18n="warnThermal">Alerta: Ruido de Interferencia Térmica Alto</span>
+      </div>
+
     </section>
 
   </main>
 
-  <!-- Interactive Science Tab Panel -->
-  <footer class="bg-[#1E2225] border border-[#2A2F35] rounded-2xl p-5">
-    <div class="flex border-b border-[#2A2F35] pb-3 mb-4 gap-4 text-xs font-bold">
-      <button class="tab-btn text-[#4FC3F7] border-b-2 border-[#4FC3F7]" data-tab="manual">Manual Científico QRE</button>
-      <button class="tab-btn text-gray-400" data-tab="diag">Diagnóstico Avanzado</button>
-    </div>
-
-    <!-- Tab 1: Manual Content -->
-    <div id="tabContent_manual" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs leading-relaxed text-gray-300">
-      <div>
-        <h3 class="text-sm font-bold text-white mb-2">Capa 1: Sensores de Gravedad</h3>
-        <p>Aprovecha atom-chips con trampas magneto-ópticas para detectar microfluctuaciones de gravedad a nanoKelvins. Usa interferómetros de Mach-Zehnder cuánticos a escala de Planck (10⁻³⁵ m) para aislar las perturbaciones de las cuerdas cósmicas.</p>
-      </div>
-      <div>
-        <h3 class="text-sm font-bold text-white mb-2">Capa 3: Optimización QAOA</h3>
-        <p>El optimizador combina algoritmos clásicos y cuánticos (QAOA - Quantum Approximate Optimization Algorithm) en procesadores cuánticos IBM + GPUs A100 para encontrar las frecuencias de resonancia exactas de las cuerdas en tiempo real.</p>
-      </div>
-      <div>
-        <h3 class="text-sm font-bold text-white mb-2">Capa 5: Cifrado Post-Cuántico</h3>
-        <p>Seguridad integral con cifrado post-cuántico Kyber-1024 y firmas Dilithium. Registro inmutable en blockchain para auditoría de transacciones y blindaje magnético integral con mu-metal (espesor de 2 mm).</p>
-      </div>
-    </div>
-
-    <!-- Tab 2: Diagnostics Content -->
-    <div id="tabContent_diag" class="hidden text-xs text-gray-300 leading-relaxed max-w-2xl">
-      <h3 class="text-sm font-bold text-white mb-3">Pasos de Recuperación del Vacío Cuántico:</h3>
-      <ul class="space-y-2">
-        <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-[#4FC3F7] rounded-full"></span> Verificar estado de sensores criogénicos (LED verde).</li>
-        <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-[#4FC3F7] rounded-full"></span> Comprobar nivel de vacío ultra-alto (< 10⁻⁹ atm).</li>
-        <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-[#4FC3F7] rounded-full"></span> Medir temperatura del criostato Bluefors (debe ser < 4.2 K).</li>
-        <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-[#4FC3F7] rounded-full"></span> Ejecutar autotest de algoritmos QAOA (`qre_diag --full`).</li>
-        <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-[#4FC3F7] rounded-full"></span> Restablecer acoplamiento de láser de enfriamiento a 780 nm.</li>
-      </ul>
-    </div>
+  <!-- Footer con créditos -->
+  <footer class="bg-[#1E2225] border border-[#2A2F35] rounded-2xl p-3 mt-4 text-center text-[10px] text-gray-500 font-mono">
+    © 2026 QRE | Dr. Julio César Oporta Barrera | Rev. July 2025
   </footer>
 
-  <!-- Complete embedded 3D Drawing Engine and interaction logic -->
   <script>
-    // State variables
-    let state = {
+    // ============================================================
+    // 1. TRADUCCIONES COMPLETAS (es, en, zh)
+    // ============================================================
+    const TRANSLATIONS = {
+      es: {
+        statusNormal: 'SISTEMA ESTABLE · 50 MW',
+        statusEmergency: '⚠️ EMERGENCIA ACTIVA',
+        simTitle: '⚙️ SIMULADOR INTERACTIVO',
+        paramFreq: 'Resonancia de Cuerdas',
+        paramTemp: 'Temperatura Criogénica',
+        paramVac: 'Nivel de Vacío',
+        paramLaser: 'Calibración Láser',
+        paramMag: 'Acoplamiento Magnético',
+        paramGraphene: 'Elasticidad Grafeno',
+        paramHelium: 'Flujo Helio-3',
+        paramRf: 'Potencia RF',
+        paramAlign: 'Alineador Láser 2D',
+        modeTitle: 'MODOS OPERATIVOS',
+        modeReposo: 'Reposo',
+        modeDiagnostico: 'Diagnóstico',
+        modeOperacion: 'Operación',
+        modeEmergencia: 'Emergencia',
+        modeEnjambre: 'Enjambre IA',
+        modeEspectral: 'Espectral',
+        modeSimulacion: 'Simulación',
+        modeMantenimiento: 'Mantenimiento',
+        modeTransferencia: 'Transferencia',
+        modeHistorico: 'Histórico',
+        modeTormenta: 'Tormenta',
+        btnAutoCalibrate: 'Auto Calibrar',
+        btnInjectSeismic: 'Terremoto',
+        btnStopSeismic: 'Detener Terremoto',
+        btnMagneticShield: 'Blindaje Magnético: OFF',
+        btnMagneticShieldOn: 'Blindaje Magnético: ON',
+        btnSoliton: 'Inyectar Solitón',
+        btnWaveSim: 'Simulación de Ondas',
+        btnFlowSim: 'Simulación de Flujo Energético',
+        btnPulse: 'Generar Pulso de Resonancia',
+        btnEmergency: 'PARADA DE EMERGENCIA',
+        btnReset: 'REINICIAR SISTEMA',
+        arToggle: 'AR WORKSPACE',
+        telemetryTitle: 'TELEMETRÍA TÁCTICA HUD',
+        paramPower: 'Potencia',
+        paramEff: 'Eficiencia',
+        hudSquidLock: 'SQUID Lock',
+        hudPhaseCoherence: 'Coherencia de Fase',
+        hudGravShift: 'Deriva Gravitacional',
+        hudBecStability: 'Estabilidad BEC',
+        hudThermalNoise: 'Ruido Térmico',
+        hudSwarmSync: 'Sincronía Enjambre',
+        hudAmplitude: 'Amplitud',
+        hudBeatFreq: 'Frec. Batido',
+        hudPhase: 'Fase',
+        hudCryoTemp: 'Temperatura Criostato',
+        hudVacPressure: 'Presión Vacío',
+        warnThermal: 'Alerta: Ruido de Interferencia Térmica Alto',
+        warnVacuum: 'Alerta: Pérdida de Vacío UHV',
+        warnBec: 'Alerta: Inestabilidad del Condensado BEC',
+        chartEfficiency: 'Evolución de Eficiencia',
+        chartPower: 'Historial de Potencia',
+        chartSpectrum: 'Espectro de Frecuencias',
+      },
+      en: {
+        statusNormal: 'SYSTEM STABLE · 50 MW',
+        statusEmergency: '⚠️ EMERGENCY ACTIVE',
+        simTitle: '⚙️ INTERACTIVE SIMULATOR',
+        paramFreq: 'String Resonance',
+        paramTemp: 'Cryogenic Temperature',
+        paramVac: 'Vacuum Level',
+        paramLaser: 'Laser Calibration',
+        paramMag: 'Magnetic Coupling',
+        paramGraphene: 'Graphene Elasticity',
+        paramHelium: 'Helium-3 Flow',
+        paramRf: 'RF Power',
+        paramAlign: '2D Laser Aligner',
+        modeTitle: 'OPERATIONAL MODES',
+        modeReposo: 'Rest',
+        modeDiagnostico: 'Diagnostic',
+        modeOperacion: 'Operation',
+        modeEmergencia: 'Emergency',
+        modeEnjambre: 'AI Swarm',
+        modeEspectral: 'Spectral',
+        modeSimulacion: 'Simulation',
+        modeMantenimiento: 'Maintenance',
+        modeTransferencia: 'Transfer',
+        modeHistorico: 'Historic',
+        modeTormenta: 'Storm',
+        btnAutoCalibrate: 'Auto Calibrate',
+        btnInjectSeismic: 'Earthquake',
+        btnStopSeismic: 'Stop Earthquake',
+        btnMagneticShield: 'Magnetic Shield: OFF',
+        btnMagneticShieldOn: 'Magnetic Shield: ON',
+        btnSoliton: 'Inject Soliton',
+        btnWaveSim: 'Wave Simulation',
+        btnFlowSim: 'Energy Flow Simulation',
+        btnPulse: 'Generate Resonance Pulse',
+        btnEmergency: 'EMERGENCY STOP',
+        btnReset: 'RESET SYSTEM',
+        arToggle: 'AR WORKSPACE',
+        telemetryTitle: 'TACTICAL HUD',
+        paramPower: 'Power',
+        paramEff: 'Efficiency',
+        hudSquidLock: 'SQUID Lock',
+        hudPhaseCoherence: 'Phase Coherence',
+        hudGravShift: 'Grav. Drift',
+        hudBecStability: 'BEC Stability',
+        hudThermalNoise: 'Thermal Noise',
+        hudSwarmSync: 'Swarm Sync',
+        hudAmplitude: 'Amplitude',
+        hudBeatFreq: 'Beat Freq.',
+        hudPhase: 'Phase',
+        hudCryoTemp: 'Cryostat Temp',
+        hudVacPressure: 'Vacuum Pressure',
+        warnThermal: 'Alert: High Thermal Noise',
+        warnVacuum: 'Alert: UHV Loss',
+        warnBec: 'Alert: BEC Instability',
+        chartEfficiency: 'Efficiency Evolution',
+        chartPower: 'Power History',
+        chartSpectrum: 'Frequency Spectrum',
+      },
+      zh: {
+        statusNormal: '系统稳定 · 50 MW',
+        statusEmergency: '⚠️ 紧急状态激活',
+        simTitle: '⚙️ 交互式模拟器',
+        paramFreq: '弦共振',
+        paramTemp: '低温温度',
+        paramVac: '真空度',
+        paramLaser: '激光校准',
+        paramMag: '磁耦合',
+        paramGraphene: '石墨烯弹性',
+        paramHelium: '氦-3流量',
+        paramRf: '射频功率',
+        paramAlign: '2D 激光对准器',
+        modeTitle: '操作模式',
+        modeReposo: '休息',
+        modeDiagnostico: '诊断',
+        modeOperacion: '操作',
+        modeEmergencia: '紧急',
+        modeEnjambre: '群体IA',
+        modeEspectral: '频谱',
+        modeSimulacion: '模拟',
+        modeMantenimiento: '维护',
+        modeTransferencia: '传输',
+        modeHistorico: '历史',
+        modeTormenta: '风暴',
+        btnAutoCalibrate: '自动校准',
+        btnInjectSeismic: '地震',
+        btnStopSeismic: '停止地震',
+        btnMagneticShield: '磁屏蔽: 关闭',
+        btnMagneticShieldOn: '磁屏蔽: 开启',
+        btnSoliton: '注入孤子',
+        btnWaveSim: '波动模拟',
+        btnFlowSim: '能量流模拟',
+        btnPulse: '生成共振脉冲',
+        btnEmergency: '紧急停止',
+        btnReset: '重置系统',
+        arToggle: 'AR 工作区',
+        telemetryTitle: '战术遥测HUD',
+        paramPower: '功率',
+        paramEff: '效率',
+        hudSquidLock: 'SQUID锁定',
+        hudPhaseCoherence: '相位相干性',
+        hudGravShift: '重力漂移',
+        hudBecStability: 'BEC稳定性',
+        hudThermalNoise: '热噪声',
+        hudSwarmSync: '群体同步',
+        hudAmplitude: '振幅',
+        hudBeatFreq: '拍频',
+        hudPhase: '相位',
+        hudCryoTemp: '低温恒温器温度',
+        hudVacPressure: '真空压力',
+        warnThermal: '警报：热干扰噪声高',
+        warnVacuum: '警报：真空损失',
+        warnBec: '警报：BEC不稳定',
+        chartEfficiency: '效率演变',
+        chartPower: '功率历史',
+        chartSpectrum: '频谱',
+      }
+    };
+
+    // ============================================================
+    // 2. ESTADO GLOBAL (ampliado)
+    // ============================================================
+    const state = {
       freq: 43.25,
       temp: 0.105,
       vacuum: -10,
@@ -334,860 +476,1080 @@
       graphene: 80,
       heliumFlow: 3.5,
       rfPump: 90,
-      laserAlignX: 0.0,
-      laserAlignY: 0.0,
-      magneticShield: false,
-      solitonActive: false,
-      becStability: 100,
-      swarmSync: 95,
-      thermalNoise: 4.8,
-      seismicShaking: 0,
-      seismicActive: false,
-      aiNodes: 8,
-      power: 49.80,
+      alignX: 0,
+      alignY: 0,
+      mode: 'operacion',
+      seismic: false,
+      shield: false,
+      soliton: false,
+      emergency: false,
+      ar: false,
+      view: 'normal',
+      focus: 'all',
+      power: 49.8,
       eff: 99.7,
-      activeMode: 'ai',
-      emergencyStop: false,
-      arMode: false,
-      rotX: 0.4,
-      rotY: 0.6,
-      scale: 1.2
+      bec: 100,
+      coherence: 98.7,
+      grav: 0.125,
+      thermal: 4.8,
+      swarm: 95,
+      time: 0,
+      effHistory: [],
+      powerHistory: [],
+      // Nuevos estados
+      waveSim: false,
+      flowSim: false,
+      pulseActive: false,
+      amplitude: 1.0,
+      beatFreq: 0,
+      phase: 0,
+      lang: 'es'
     };
 
-    const canvas = document.getElementById('qreCanvas');
-    const ctx = canvas.getContext('2d');
-    const logsContainer = document.getElementById('scrollingLogs');
-
-    // UI Sliders & buttons
-    const freqSlider = document.getElementById('freqSlider');
-    const tempSlider = document.getElementById('tempSlider');
-    const vacSlider = document.getElementById('vacSlider');
-    const laserSlider = document.getElementById('laserSlider');
-    const magSlider = document.getElementById('magSlider');
-    const grapheneSlider = document.getElementById('grapheneSlider');
-    const heliumSlider = document.getElementById('heliumSlider');
-    const rfSlider = document.getElementById('rfSlider');
-
-    const freqVal = document.getElementById('freqVal');
-    const tempVal = document.getElementById('tempVal');
-    const vacVal = document.getElementById('vacVal');
-    const laserVal = document.getElementById('laserVal');
-    const magVal = document.getElementById('magVal');
-    const grapheneVal = document.getElementById('grapheneVal');
-    const heliumVal = document.getElementById('heliumVal');
-    const rfVal = document.getElementById('rfVal');
-
-    const autoCalibrateBtn = document.getElementById('autoCalibrateBtn');
-    const injectSeismicBtn = document.getElementById('injectSeismicBtn');
-    const seismicBtnText = document.getElementById('seismicBtnText');
-    const toggleShieldBtn = document.getElementById('toggleShieldBtn');
-    const injectSolitonBtn = document.getElementById('injectSolitonBtn');
-
-    const powerGauge = document.getElementById('powerGauge');
-    const effGauge = document.getElementById('effGauge');
-    const squidGauge = document.getElementById('squidGauge');
-    const coherenceGauge = document.getElementById('coherenceGauge');
-    const gravGauge = document.getElementById('gravGauge');
-    const becGaugeText = document.getElementById('becGaugeText');
-    const becGaugeBar = document.getElementById('becGaugeBar');
-    const thermalGauge = document.getElementById('thermalGauge');
-    const swarmGauge = document.getElementById('swarmGauge');
-    const headerCoherence = document.getElementById('headerCoherence');
-
-    const statusIndicator = document.getElementById('statusIndicator');
-    const statusText = document.getElementById('statusText');
-    const dangerWarning = document.getElementById('dangerWarning');
-
-    const emergencyBtn = document.getElementById('emergencyBtn');
-    const resetBtn = document.getElementById('resetBtn');
-    const arModeToggle = document.getElementById('arModeToggle');
+    // ============================================================
+    // 3. DOM REFS
+    // ============================================================
+    const mount = document.getElementById('threeMount');
     const arVideo = document.getElementById('arVideo');
+    const chartCanvas = document.getElementById('chartCanvas');
+    const chartCtx = chartCanvas.getContext('2d');
+    const powerChartCanvas = document.getElementById('powerChartCanvas');
+    const powerChartCtx = powerChartCanvas.getContext('2d');
+    const spectrumCanvas = document.getElementById('spectrumCanvas');
+    const spectrumCtx = spectrumCanvas.getContext('2d');
+    const laserPad = document.getElementById('laserPad');
+    const laserDot = document.getElementById('laserDot');
+    const alignVal = document.getElementById('alignVal');
+    const statusText = document.getElementById('statusText');
 
-    // Add drag functionality for rotation
-    let isDragging = false;
-    let lastMousePos = { x: 0, y: 0 };
+    // ============================================================
+    // 4. LOGS (desactivado)
+    // ============================================================
+    function addLog(msg, cls = '') {
+      // Logs eliminados - no hace nada
+    }
 
-    canvas.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      lastMousePos = { x: e.clientX, y: e.clientY };
-    });
-
-    window.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      const dx = e.clientX - lastMousePos.x;
-      const dy = e.clientY - lastMousePos.y;
-      state.rotY += dx * 0.007;
-      state.rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, state.rotX + dy * 0.007));
-      lastMousePos = { x: e.clientX, y: e.clientY };
-    });
-
-    window.addEventListener('mouseup', () => { isDragging = false; });
-    
-    canvas.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      state.scale = Math.max(0.4, Math.min(2.5, state.scale - e.deltaY * 0.001));
-    });
-
-    // Touch support
-    canvas.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 1) {
-        isDragging = true;
-        lastMousePos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    // ============================================================
+    // 5. TELEMETRÍA (ampliada)
+    // ============================================================
+    function computeTelemetry() {
+      if (state.emergency) {
+        return { power:0, eff:0, coherence:0, grav:0, bec:0, thermal:999, swarm:0, squidLock:false,
+                 amplitude:0, beatFreq:0, phase:0 };
       }
-    });
-    canvas.addEventListener('touchmove', (e) => {
-      if (!isDragging || e.touches.length !== 1) return;
-      const dx = e.touches[0].clientX - lastMousePos.x;
-      const dy = e.touches[0].clientY - lastMousePos.y;
-      state.rotY += dx * 0.007;
-      state.rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, state.rotX + dy * 0.007));
-      lastMousePos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    });
-    canvas.addEventListener('touchend', () => { isDragging = false; });
+      const f = state.freq, t = state.temp, v = state.vacuum, l = state.laser,
+            m = state.magFlux, g = state.graphene, h = state.heliumFlow, r = state.rfPump;
+      const freqFactor = 1 - Math.abs(f - 43.25) / 100;
+      const tempFactor = t < 1.0 ? 1.0 : 1 - (t - 1.0) / 3.2;
+      const vacFactor = v < -8 ? 1.0 : 1 - (v + 8) / 3;
+      const laserFactor = 1 - Math.abs(l - 780) / 100;
+      const alignFactor = Math.max(0.2, 1 - Math.hypot(state.alignX, state.alignY) / 12);
+      const magFactor = 1 - Math.abs(m - 2.5) / 10;
+      const grapheneFactor = 1 - Math.abs(g - 80) / 300;
+      const heliumFactor = 1 - Math.abs(h - 3.5) / 10;
+      const rfFactor = 1 - Math.abs(r - 90) / 300;
+      const baseEff = 99.7 * freqFactor * tempFactor * vacFactor * laserFactor * alignFactor *
+                     magFactor * grapheneFactor * heliumFactor * rfFactor;
+      const modeMap = {
+        reposo: 0.05, diagnostico: 0.60, operacion: 1.0, emergencia: 0,
+        enjambre: 0.95, espectral: 0.80, simulacion: 0.75, mantenimiento: 0.50,
+        transferencia: 0.90, historico: 0.85, tormenta: 1.15
+      };
+      const modeFactor = modeMap[state.mode] || 0.5;
+      let eff = baseEff * modeFactor;
+      if (state.seismic) eff -= 15 * (modeFactor > 0.5 ? 1 : 0.3);
+      if (state.soliton) eff += 6.5 * modeFactor;
+      if (state.shield) eff += 3 * modeFactor;
+      if (state.waveSim) eff += 2.0;
+      if (state.flowSim) eff += 1.5;
+      if (state.pulseActive) eff += 5.0;
+      eff = Math.max(0, Math.min(100, eff));
+      const power = 50 * (eff / 100);
+      const coherence = Math.max(0, eff * 0.99);
+      const grav = 0.125 * (1 + (43.25 - f) / 100);
+      let bec = Math.max(0, 100 - (t - 0.105) * 50 - (v > -8 ? (v + 8) * 15 : 0) - (state.seismic ? 40 : 0));
+      bec = bec * modeFactor;
+      const thermal = Math.max(0.1, t * 45 + (state.seismic ? 12 : 0) + Math.sin(Date.now()/800)*0.5);
+      const swarm = state.mode === 'enjambre' ? Math.round(94 + Math.sin(Date.now()/1500)*3) :
+                    Math.round(62 + Math.sin(Date.now()/1500)*5);
+      const squidLock = !((state.seismic && !state.shield) || t > 2.0 || v > -7);
+      // Métricas extra
+      const amplitude = 0.5 + 0.5 * (eff / 100) * (state.waveSim ? 1.2 : 1.0);
+      const beatFreq = Math.abs(f - 43.25) * 0.1 + (state.pulseActive ? 0.5 : 0);
+      const phase = (Date.now() / 1000 * (f / 43.25)) % 360;
+      return { power, eff, coherence, grav, bec, thermal, swarm, squidLock,
+               amplitude, beatFreq, phase };
+    }
 
-    // Mode Selector buttons
-    document.querySelectorAll('.mode-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.mode-btn').forEach(b => {
-          b.classList.remove('bg-[#2A2F35]', 'border-[#4FC3F7]', 'text-white');
-          b.classList.add('bg-[#121416]', 'border-[#2A2F35]', 'text-gray-400');
+    // ============================================================
+    // 6. UI UPDATE (ampliado)
+    // ============================================================
+    function updateUI() {
+      const tel = computeTelemetry();
+      state.power = tel.power; state.eff = tel.eff; state.coherence = tel.coherence;
+      state.grav = tel.grav; state.bec = tel.bec; state.thermal = tel.thermal; state.swarm = tel.swarm;
+      state.amplitude = tel.amplitude; state.beatFreq = tel.beatFreq; state.phase = tel.phase;
+
+      document.getElementById('powerGauge').textContent = tel.power.toFixed(2) + ' MW';
+      document.getElementById('effGauge').textContent = tel.eff.toFixed(1) + '%';
+      document.getElementById('coherenceGauge').textContent = tel.coherence.toFixed(2) + '%';
+      document.getElementById('gravGauge').textContent = tel.grav.toFixed(4) + ' m/s²';
+      document.getElementById('becGaugeText').textContent = tel.bec > 0 ? tel.bec.toFixed(0) + '%' : 'COLLAPSED';
+      document.getElementById('becGaugeBar').style.width = Math.max(0, tel.bec) + '%';
+      document.getElementById('thermalGauge').textContent = tel.thermal.toFixed(2) + ' nK';
+      document.getElementById('thermalGauge').className = 'text-sm font-mono font-bold block ' + (tel.thermal > 25 ? 'text-red-400' : 'text-emerald-400');
+      document.getElementById('swarmGauge').textContent = tel.swarm + '%';
+      // Nuevos HUD
+      document.getElementById('amplitudeGauge').textContent = tel.amplitude.toFixed(2);
+      document.getElementById('beatFreqGauge').textContent = tel.beatFreq.toFixed(2) + ' Hz';
+      document.getElementById('phaseGauge').textContent = tel.phase.toFixed(1) + '°';
+      document.getElementById('cryoTempGauge').textContent = state.temp.toFixed(3) + ' K';
+      document.getElementById('vacPressureGauge').textContent = '10^' + state.vacuum + ' atm';
+
+      const squidEl = document.getElementById('squidGauge');
+      if (tel.squidLock) {
+        squidEl.className = 'text-[#81C784] font-mono font-bold uppercase tracking-wider text-[10px] flex items-center gap-1';
+        squidEl.innerHTML = '<span class="w-1.5 h-1.5 bg-[#81C784] rounded-full animate-ping"></span> SQUID Lock OK';
+      } else {
+        squidEl.className = 'text-red-400 font-mono font-bold uppercase tracking-wider text-[10px] flex items-center gap-1';
+        squidEl.innerHTML = '<span class="w-1.5 h-1.5 bg-red-500 rounded-full"></span> SQUID Lock Loss';
+      }
+      if (state.emergency) {
+        statusText.textContent = TRANSLATIONS[state.lang].statusEmergency;
+        document.getElementById('statusIndicator').className = 'w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse';
+      } else {
+        statusText.textContent = TRANSLATIONS[state.lang].statusNormal;
+        document.getElementById('statusIndicator').className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+      }
+      const alertBox = document.getElementById('alertBox');
+      const alertMsg = document.getElementById('alertMessage');
+      if (state.emergency) {
+        alertBox.className = 'p-2 rounded-xl text-[10px] mb-3 flex items-start gap-2 bg-red-950/40 border border-red-500/50 text-red-200';
+        alertMsg.textContent = TRANSLATIONS[state.lang].statusEmergency;
+        alertBox.style.display = 'flex';
+      } else if (state.temp > 2.0 || state.vacuum > -7 || state.seismic || state.bec < 20) {
+        alertBox.className = 'p-2 rounded-xl text-[10px] mb-3 flex items-start gap-2 bg-amber-950/40 border border-amber-500/50 text-amber-200';
+        let warnKey = 'warnThermal';
+        if (state.vacuum > -7) warnKey = 'warnVacuum';
+        else if (state.bec < 20) warnKey = 'warnBec';
+        alertMsg.textContent = TRANSLATIONS[state.lang][warnKey] || 'Alerta';
+        alertBox.style.display = 'flex';
+      } else {
+        alertBox.style.display = 'none';
+      }
+      // Gráficos
+      state.effHistory.push(tel.eff);
+      if (state.effHistory.length > 50) state.effHistory.shift();
+      drawChart(chartCtx, chartCanvas, state.effHistory, '#4FC3F7', 0, 100);
+      state.powerHistory.push(tel.power);
+      if (state.powerHistory.length > 50) state.powerHistory.shift();
+      drawChart(powerChartCtx, powerChartCanvas, state.powerHistory, '#81C784', 0, 55);
+      // Espectro (simulado)
+      drawSpectrum();
+    }
+
+    function drawChart(ctx, canvas, data, color, min, max) {
+      const w = canvas.width = canvas.offsetWidth;
+      const h = canvas.height = canvas.offsetHeight;
+      ctx.clearRect(0, 0, w, h);
+      if (data.length < 2) return;
+      ctx.strokeStyle = '#2A2F35';
+      ctx.lineWidth = 1;
+      for (let y = 0; y < h; y += 15) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+      const range = max - min || 1;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < data.length; i++) {
+        const x = (i / (data.length - 1)) * w;
+        const yVal = h - ((data[i] - min) / range) * (h - 4) - 2;
+        if (i === 0) ctx.moveTo(x, yVal);
+        else ctx.lineTo(x, yVal);
+      }
+      ctx.stroke();
+      const grad = ctx.createLinearGradient(0, 0, 0, h);
+      grad.addColorStop(0, color + '40');
+      grad.addColorStop(1, 'transparent');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      for (let i = 0; i < data.length; i++) {
+        const x = (i / (data.length - 1)) * w;
+        const yVal = h - ((data[i] - min) / range) * (h - 4) - 2;
+        if (i === 0) ctx.moveTo(x, yVal);
+        else ctx.lineTo(x, yVal);
+      }
+      ctx.lineTo(w, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawSpectrum() {
+      const w = spectrumCanvas.width = spectrumCanvas.offsetWidth;
+      const h = spectrumCanvas.height = spectrumCanvas.offsetHeight;
+      spectrumCtx.clearRect(0, 0, w, h);
+      const bins = 32;
+      const data = new Float32Array(bins);
+      const f = state.freq;
+      for (let i = 0; i < bins; i++) {
+        const freq = i / bins * 100;
+        const val = Math.exp(-Math.pow(freq - f, 2) / 200) * (0.5 + 0.5 * Math.sin(i * 0.5 + Date.now()/1000));
+        data[i] = Math.max(0, val * (state.waveSim ? 1.3 : 1.0));
+      }
+      const maxVal = Math.max(...data) || 1;
+      const barWidth = w / bins;
+      for (let i = 0; i < bins; i++) {
+        const barHeight = (data[i] / maxVal) * (h - 4);
+        spectrumCtx.fillStyle = `hsl(${200 + i * 2}, 80%, ${50 + 30 * data[i] / maxVal}%)`;
+        spectrumCtx.fillRect(i * barWidth + 1, h - barHeight - 2, barWidth - 2, barHeight);
+      }
+    }
+
+    // ============================================================
+    // 7. THREE.JS (ampliado para nuevos efectos)
+    // ============================================================
+    let scene, camera, renderer;
+    let chamberGroup, cryostatGroup, stringsGroup, lasersGroup, aiNodesGroup, aiLinesGroup, shieldMesh, solitonPulse, becParticles;
+    let isDragging = false, lastMouse = { x: 0, y: 0 };
+    let cameraTarget = { x: 0, y: 3, z: 14 };
+    let ringMaterials = [];
+    let chamberMat, glassMats = [], capMats = [];
+    // Elementos para simulaciones
+    let waveParticles = [], flowParticles = [];
+    let pulseMesh = null;
+
+    function initThree() {
+      const w = mount.clientWidth || 600;
+      const h = mount.clientHeight || 500;
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x121416);
+      camera = new THREE.PerspectiveCamera(45, w/h, 0.1, 1000);
+      camera.position.set(0, 3, 14);
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(w, h);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      mount.appendChild(renderer.domElement);
+
+      // Luces
+      const ambient = new THREE.AmbientLight(0xddeeff, 0.6);
+      scene.add(ambient);
+      const mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
+      mainLight.position.set(10,20,15);
+      mainLight.castShadow = true;
+      scene.add(mainLight);
+      const rim = new THREE.PointLight(0x4fc3f7, 4, 30);
+      rim.position.set(-10,5,-10);
+      scene.add(rim);
+      const accent = new THREE.PointLight(0xd1c4e9, 3, 25);
+      accent.position.set(10,-8,-5);
+      scene.add(accent);
+
+      // --- Cámara de vacío ---
+      chamberGroup = new THREE.Group();
+      scene.add(chamberGroup);
+      const chamberGeo = new THREE.CylinderGeometry(2.5,2.5,4.5,32,1,true);
+      chamberMat = new THREE.MeshStandardMaterial({ color: 0x2e3440, metalness:0.92, roughness:0.18, side: THREE.DoubleSide });
+      const chamberBody = new THREE.Mesh(chamberGeo, chamberMat);
+      chamberBody.castShadow = true;
+      chamberGroup.add(chamberBody);
+      const capGeo = new THREE.CylinderGeometry(2.8,2.8,0.3,32);
+      const capMat = new THREE.MeshStandardMaterial({ color:0x434c5e, metalness:0.95, roughness:0.15 });
+      const topCap = new THREE.Mesh(capGeo, capMat); topCap.position.y=2.4; chamberGroup.add(topCap);
+      const bottomCap = new THREE.Mesh(capGeo, capMat); bottomCap.position.y=-2.4; chamberGroup.add(bottomCap);
+      capMats = [capMat];
+      for (let i=0; i<4; i++) {
+        const angle = i*Math.PI/2;
+        const portGeo = new THREE.CylinderGeometry(0.7,0.7,0.6,16);
+        const portMat = new THREE.MeshStandardMaterial({ color:0x4c566a, metalness:0.9 });
+        const port = new THREE.Mesh(portGeo, portMat);
+        port.rotation.x = Math.PI/2; port.rotation.z = angle;
+        port.position.set(Math.cos(angle)*2.6, 0, Math.sin(angle)*2.6);
+        chamberGroup.add(port);
+        const glassGeo = new THREE.CylinderGeometry(0.55,0.55,0.65,16);
+        const glassMat = new THREE.MeshPhysicalMaterial({ color:0x4fc3f7, transparent:true, opacity:0.5, transmission:0.85 });
+        const glass = new THREE.Mesh(glassGeo, glassMat);
+        glass.rotation.x = Math.PI/2; glass.rotation.z = angle;
+        glass.position.set(Math.cos(angle)*2.6, 0, Math.sin(angle)*2.6);
+        chamberGroup.add(glass);
+        glassMats.push(glassMat);
+      }
+
+      // --- Criostato ---
+      cryostatGroup = new THREE.Group();
+      cryostatGroup.position.y = 4.8;
+      scene.add(cryostatGroup);
+      const plateColors = [0xd4af37, 0xcaa433, 0xb89228];
+      for (let tier=0; tier<3; tier++) {
+        const pr = 2.2 - tier*0.4;
+        const pGeo = new THREE.CylinderGeometry(pr, pr, 0.15, 32);
+        const pMat = new THREE.MeshStandardMaterial({ color:plateColors[tier], metalness:0.98, roughness:0.1 });
+        const plate = new THREE.Mesh(pGeo, pMat); plate.position.y = tier*1.1;
+        cryostatGroup.add(plate);
+        for (let r=0; r<3; r++) {
+          const ra = r*Math.PI*2/3;
+          const rodGeo = new THREE.CylinderGeometry(0.04,0.04,1.1,8);
+          const rodMat = new THREE.MeshStandardMaterial({ color:0xe5e9f0, metalness:0.9 });
+          const rod = new THREE.Mesh(rodGeo, rodMat);
+          rod.position.set(Math.cos(ra)*(pr-0.2), tier*1.1+0.55, Math.sin(ra)*(pr-0.2));
+          cryostatGroup.add(rod);
+        }
+      }
+
+      // --- Cuerdas ---
+      stringsGroup = new THREE.Group();
+      scene.add(stringsGroup);
+      const ringRadii = [1.2, 0.9, 0.6];
+      ringRadii.forEach((r, idx) => {
+        const ringGeo = new THREE.TorusGeometry(r, 0.04, 16, 100);
+        const ringMat = new THREE.MeshStandardMaterial({
+          color: idx===0 ? 0x4fc3f7 : idx===1 ? 0xd1c4e9 : 0x81c784,
+          emissive: idx===0 ? 0x0088cc : idx===1 ? 0x6a1b9a : 0x2e7d32,
+          emissiveIntensity: 0.8, metalness:0.9
         });
-        btn.classList.remove('bg-[#121416]', 'border-[#2A2F35]', 'text-gray-400');
-        btn.classList.add('bg-[#2A2F35]', 'border-[#4FC3F7]', 'text-white');
-        state.activeMode = btn.dataset.mode;
-        addLog("Switching Operational mode to: " + state.activeMode.toUpperCase());
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = idx*Math.PI/3;
+        ring.rotation.y = idx*Math.PI/4;
+        stringsGroup.add(ring);
+        ringMaterials.push(ringMat);
       });
-    });
 
-    // Tab buttons
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.tab-btn').forEach(b => {
-          b.classList.remove('text-[#4FC3F7]', 'border-[#4FC3F7]', 'border-b-2');
-          b.classList.add('text-gray-400');
+      // --- Solitón ---
+      const solGeo = new THREE.SphereGeometry(0.18,16,16);
+      const solMat = new THREE.MeshBasicMaterial({ color:0xec4899 });
+      solitonPulse = new THREE.Mesh(solGeo, solMat);
+      solitonPulse.visible = false;
+      stringsGroup.add(solitonPulse);
+
+      // --- BEC ---
+      const becGeo2 = new THREE.BufferGeometry();
+      const pos = new Float32Array(600);
+      for (let i=0; i<600; i+=3) { pos[i]=(Math.random()-0.5)*0.8; pos[i+1]=(Math.random()-0.5)*0.8; pos[i+2]=(Math.random()-0.5)*0.8; }
+      becGeo2.setAttribute('position', new THREE.BufferAttribute(pos,3));
+      const becMat2 = new THREE.PointsMaterial({ color:0x06b6d4, size:0.06, transparent:true, opacity:0.8 });
+      becParticles = new THREE.Points(becGeo2, becMat2);
+      stringsGroup.add(becParticles);
+
+      // --- Láseres ---
+      lasersGroup = new THREE.Group();
+      scene.add(lasersGroup);
+      for (let i=0; i<4; i++) {
+        const angle = i*Math.PI/2;
+        const laserGeo = new THREE.CylinderGeometry(0.02,0.02,2.2,8);
+        const laserMat = new THREE.MeshBasicMaterial({ color:0x4fc3f7, transparent:true, opacity:0.8 });
+        const laser = new THREE.Mesh(laserGeo, laserMat);
+        laser.rotation.x = Math.PI/2; laser.rotation.z = angle;
+        laser.position.set(Math.cos(angle)*1.3, 0, Math.sin(angle)*1.3);
+        lasersGroup.add(laser);
+      }
+
+      // --- Nodos IA ---
+      aiNodesGroup = new THREE.Group(); scene.add(aiNodesGroup);
+      aiLinesGroup = new THREE.Group(); scene.add(aiLinesGroup);
+      const nodeCount = 12, nodeRadius = 3.8;
+      const nodePositions = [];
+      for (let i=0; i<nodeCount; i++) {
+        const phi = Math.acos(-1 + 2*i/nodeCount);
+        const theta = Math.sqrt(nodeCount*Math.PI)*phi;
+        const pos3 = new THREE.Vector3(nodeRadius*Math.cos(theta)*Math.sin(phi), nodeRadius*Math.sin(theta)*Math.sin(phi), nodeRadius*Math.cos(phi));
+        nodePositions.push(pos3);
+        const nodeMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(0.18,1), new THREE.MeshBasicMaterial({ color: i%2===0 ? 0x4fc3f7 : 0x81c784, wireframe:true }));
+        nodeMesh.position.copy(pos3);
+        aiNodesGroup.add(nodeMesh);
+      }
+      for (let i=0; i<nodeCount; i++) {
+        for (let j=i+1; j<nodeCount; j++) {
+          if (nodePositions[i].distanceTo(nodePositions[j]) < 4.5) {
+            const lineGeo = new THREE.BufferGeometry().setFromPoints([nodePositions[i], nodePositions[j]]);
+            const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color:0x4fc3f7, transparent:true, opacity:0.35 }));
+            aiLinesGroup.add(line);
+          }
+        }
+      }
+
+      // --- Blindaje ---
+      const shieldGeo2 = new THREE.IcosahedronGeometry(5.2,2);
+      const shieldMat2 = new THREE.MeshStandardMaterial({ color:0x3b82f6, wireframe:true, transparent:true, opacity:0.08 });
+      shieldMesh = new THREE.Mesh(shieldGeo2, shieldMat2);
+      scene.add(shieldMesh);
+
+      // --- Pulse mesh (para interacción avanzada) ---
+      const pulseGeo = new THREE.SphereGeometry(0.3, 16, 16);
+      const pulseMat = new THREE.MeshBasicMaterial({ color: 0xff8800, transparent: true, opacity: 0.6 });
+      pulseMesh = new THREE.Mesh(pulseGeo, pulseMat);
+      pulseMesh.visible = false;
+      scene.add(pulseMesh);
+
+      // Grid
+      const grid = new THREE.GridHelper(30,30,0x4fc3f7,0x2a2f35);
+      grid.position.y = -4.5;
+      scene.add(grid);
+
+      // Eventos
+      mount.addEventListener('mousedown', (e) => { isDragging = true; lastMouse = { x:e.clientX, y:e.clientY }; });
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - lastMouse.x;
+        const dy = e.clientY - lastMouse.y;
+        const radius = Math.hypot(cameraTarget.x, cameraTarget.z);
+        let angle = Math.atan2(cameraTarget.z, cameraTarget.x) - dx * 0.008;
+        cameraTarget.x = radius * Math.cos(angle);
+        cameraTarget.z = radius * Math.sin(angle);
+        cameraTarget.y = Math.max(-5, Math.min(15, cameraTarget.y + dy * 0.03));
+        lastMouse = { x:e.clientX, y:e.clientY };
+      });
+      window.addEventListener('mouseup', () => { isDragging = false; });
+      mount.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        cameraTarget.z = Math.max(3, Math.min(25, cameraTarget.z + e.deltaY * 0.01));
+      });
+      // Doble clic para pulso (interacción avanzada)
+      mount.addEventListener('dblclick', (e) => {
+        if (!state.emergency) {
+          triggerPulse();
+        }
+      });
+      window.addEventListener('resize', () => {
+        const w2 = mount.clientWidth, h2 = mount.clientHeight;
+        camera.aspect = w2/h2;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w2, h2);
+      });
+    }
+
+    // ============================================================
+    // 8. ANIMACIÓN CON NUEVOS EFECTOS
+    // ============================================================
+    let clock3 = new THREE.Clock();
+
+    function applyViewEffects(elapsed) {
+      const view = state.view;
+      if (chamberMat) {
+        chamberMat.opacity = 1; chamberMat.transparent = false; chamberMat.color.setHex(0x2e3440);
+      }
+      glassMats.forEach(m => { m.opacity = 0.5; m.transparent = true; m.color.setHex(0x4fc3f7); });
+      capMats.forEach(m => { m.opacity = 1; m.transparent = false; m.color.setHex(0x434c5e); });
+      if (view === 'xray') {
+        chamberMat.opacity = 0.15; chamberMat.transparent = true; chamberMat.color.setHex(0x88ccff);
+        glassMats.forEach(m => { m.opacity = 0.9; m.color.setHex(0x00ccff); });
+        capMats.forEach(m => { m.opacity = 0.3; m.transparent = true; m.color.setHex(0x88aaff); });
+        if (aiNodesGroup) {
+          aiNodesGroup.children.forEach((node, i) => { node.material.color.setHex(0xffaa00); });
+        }
+      } else if (view === 'section') {
+        chamberMat.opacity = 0.25; chamberMat.transparent = true; chamberMat.color.setHex(0x88aacc);
+        glassMats.forEach(m => { m.opacity = 0.4; m.color.setHex(0x88ddff); });
+        let sectionPlane = scene.getObjectByName('sectionPlane');
+        if (!sectionPlane) {
+          const planeGeo = new THREE.PlaneGeometry(6, 6);
+          const planeMat = new THREE.MeshBasicMaterial({ color: 0x4fc3f7, transparent: true, opacity: 0.15, side: THREE.DoubleSide });
+          sectionPlane = new THREE.Mesh(planeGeo, planeMat);
+          sectionPlane.name = 'sectionPlane';
+          sectionPlane.rotation.x = Math.PI / 2;
+          sectionPlane.position.y = 0;
+          scene.add(sectionPlane);
+        }
+        sectionPlane.visible = true;
+        sectionPlane.position.y = 0.5 * Math.sin(elapsed * 0.5);
+      } else {
+        const sp = scene.getObjectByName('sectionPlane');
+        if (sp) sp.visible = false;
+        if (aiNodesGroup) {
+          aiNodesGroup.children.forEach((node, i) => { node.material.color.setHex(i%2===0 ? 0x4fc3f7 : 0x81c784); });
+        }
+      }
+      cryostatGroup.position.y = (state.view === 'exploded') ? 7.5 : 4.8;
+      chamberGroup.position.y = (state.view === 'exploded') ? -1.2 : 0;
+      lasersGroup.scale.set(state.view === 'exploded' ? 1.4 : 1, state.view === 'exploded' ? 1.4 : 1, state.view === 'exploded' ? 1.4 : 1);
+    }
+
+    function animateThree() {
+      requestAnimationFrame(animateThree);
+      const elapsed = clock3.getElapsedTime();
+
+      applyModeVisuals(elapsed);
+      applyViewEffects(elapsed);
+
+      // Shake sísmico
+      if (state.seismic) {
+        chamberGroup.position.x = (Math.random()-0.5)*0.15;
+        chamberGroup.position.y = (Math.random()-0.5)*0.15;
+      } else {
+        chamberGroup.position.x = 0;
+        chamberGroup.position.y = 0;
+      }
+
+      // Rotación cuerdas
+      if (!state.emergency) {
+        const speed = (state.freq/43.25)*0.012;
+        stringsGroup.rotation.y += speed;
+        stringsGroup.rotation.z += speed*0.5;
+      }
+
+      if (becParticles) becParticles.rotation.y -= 0.008;
+      if (aiNodesGroup) aiNodesGroup.rotation.y += 0.003;
+      if (aiLinesGroup) aiLinesGroup.rotation.y += 0.003;
+      if (shieldMesh) shieldMesh.rotation.y -= 0.001;
+
+      // Color láser
+      if (lasersGroup) {
+        let hex = 0x4fc3f7;
+        const wl = state.laser;
+        if (wl > 760) hex = 0xe53935;
+        else if (wl < 450) hex = 0xd1c4e9;
+        else if (wl < 560) hex = 0x81c784;
+        lasersGroup.children.forEach(child => {
+          if (child.material) child.material.color.setHex(hex);
         });
-        btn.classList.add('text-[#4FC3F7]', 'border-[#4FC3F7]', 'border-b-2');
-        btn.classList.remove('text-gray-400');
-        
-        const tab = btn.dataset.tab;
-        if (tab === 'manual') {
-          document.getElementById('tabContent_manual').classList.remove('hidden');
-          document.getElementById('tabContent_diag').classList.add('hidden');
-        } else {
-          document.getElementById('tabContent_manual').classList.add('hidden');
-          document.getElementById('tabContent_diag').classList.remove('hidden');
+      }
+
+      // Simulación de ondas (modifica cuerdas)
+      if (state.waveSim) {
+        const wave = Math.sin(elapsed * 3) * 0.3;
+        ringMaterials.forEach((mat, idx) => {
+          const scale = 1 + wave * (0.5 + idx * 0.2);
+          // No podemos escalar cada anillo individualmente fácilmente, pero podemos rotar
+          stringsGroup.children.forEach(child => {
+            if (child.isMesh) {
+              child.scale.set(1 + wave * 0.1, 1 + wave * 0.1, 1 + wave * 0.1);
+            }
+          });
+        });
+      } else {
+        stringsGroup.children.forEach(child => {
+          if (child.isMesh) {
+            child.scale.set(1, 1, 1);
+          }
+        });
+      }
+
+      // Simulación de flujo energético: partículas
+      if (state.flowSim) {
+        if (!flowParticles.length) {
+          for (let i=0; i<80; i++) {
+            const geo = new THREE.SphereGeometry(0.04, 6, 6);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.7 });
+            const mesh = new THREE.Mesh(geo, mat);
+            const angle = Math.random() * Math.PI * 2;
+            const rad = 1.0 + Math.random() * 1.5;
+            mesh.position.set(rad * Math.cos(angle), (Math.random()-0.5)*2, rad * Math.sin(angle));
+            mesh.userData = { angle: angle, rad: rad, speed: 0.5 + Math.random() * 0.5 };
+            scene.add(mesh);
+            flowParticles.push(mesh);
+          }
         }
+        flowParticles.forEach(p => {
+          p.userData.angle += 0.01 * p.userData.speed;
+          p.position.x = p.userData.rad * Math.cos(p.userData.angle);
+          p.position.z = p.userData.rad * Math.sin(p.userData.angle);
+          p.position.y += Math.sin(elapsed + p.userData.angle) * 0.003;
+          p.material.opacity = 0.5 + 0.5 * Math.sin(elapsed * 2 + p.userData.angle);
+        });
+      } else {
+        flowParticles.forEach(p => { scene.remove(p); });
+        flowParticles = [];
+      }
+
+      // Pulso de resonancia
+      if (state.pulseActive && pulseMesh) {
+        pulseMesh.visible = true;
+        const scale = 1 + 2 * (1 - Math.min(1, (Date.now() - state.pulseTime) / 2000));
+        pulseMesh.scale.set(scale, scale, scale);
+        pulseMesh.material.opacity = Math.max(0, 0.8 * (1 - (Date.now() - state.pulseTime) / 2000));
+        if (Date.now() - state.pulseTime > 2000) {
+          state.pulseActive = false;
+          pulseMesh.visible = false;
+        }
+      } else if (pulseMesh) {
+        pulseMesh.visible = false;
+      }
+
+      // Foco
+      if (state.focus === 'chamber') { cameraTarget.x = 0; cameraTarget.y = 0; cameraTarget.z = 8; }
+      else if (state.focus === 'cryostat') { cameraTarget.x = 0; cameraTarget.y = 5.5; cameraTarget.z = 7; }
+      else if (state.focus === 'sensors') { cameraTarget.x = 0; cameraTarget.y = 0.5; cameraTarget.z = 4.5; }
+      else if (state.focus === 'ai') { cameraTarget.x = 0; cameraTarget.y = 0; cameraTarget.z = 12; }
+      else if (state.focus === 'shield') { cameraTarget.x = 0; cameraTarget.y = 2; cameraTarget.z = 16; }
+      else { cameraTarget.x = 0; cameraTarget.y = 3; cameraTarget.z = 14; }
+
+      camera.position.x += (cameraTarget.x - camera.position.x) * 0.05;
+      camera.position.y += (cameraTarget.y - camera.position.y) * 0.05;
+      camera.position.z += (cameraTarget.z - camera.position.z) * 0.05;
+      camera.lookAt(0,0,0);
+
+      renderer.render(scene, camera);
+    }
+
+    // ============================================================
+    // 9. EFECTOS DE MODOS (ampliado con Tormenta)
+    // ============================================================
+    function applyModeVisuals(elapsed) {
+      const mode = state.mode;
+      const isEmergency = state.emergency;
+      let bgColor = 0x121416;
+      if (isEmergency || mode === 'emergencia') bgColor = 0x1a0505;
+      else if (mode === 'reposo') bgColor = 0x0a0e12;
+      else if (mode === 'enjambre') bgColor = 0x0a1220;
+      else if (mode === 'espectral') bgColor = 0x0f0a1a;
+      else if (mode === 'transferencia') bgColor = 0x0a1a15;
+      else if (mode === 'historico') bgColor = 0x1a150a;
+      else if (mode === 'tormenta') bgColor = 0x1a0a0a;
+      scene.background.setHex(bgColor);
+      let intensity = 1.0;
+      if (isEmergency || mode === 'emergencia') intensity = 0.2;
+      else if (mode === 'reposo') intensity = 0.3;
+      else if (mode === 'diagnostico') intensity = 0.9;
+      else if (mode === 'simulacion') intensity = 0.8;
+      else if (mode === 'mantenimiento') intensity = 0.6;
+      else if (mode === 'transferencia') intensity = 1.2;
+      else if (mode === 'tormenta') intensity = 1.5;
+      scene.children.forEach(child => {
+        if (child.isDirectionalLight) child.intensity = 2.0 * intensity;
       });
-    });
-
-    function addLog(text) {
-      const entry = document.createElement('div');
-      entry.innerHTML = "&gt; " + text;
-      logsContainer.insertBefore(entry, logsContainer.firstChild);
-    }
-
-    // Math updates for power & efficiency calculations
-    function updateCalculations() {
-      if (state.emergencyStop) {
-        state.power = 0;
-        state.eff = 0;
-        powerGauge.innerHTML = "0.00 MW";
-        effGauge.innerHTML = "0.0%";
-        coherenceGauge.innerHTML = "0.00%";
-        headerCoherence.innerHTML = "0.00%";
-        gravGauge.innerHTML = "0.0000 m/s²";
-        squidGauge.innerHTML = "OFFLINE";
-        squidGauge.className = "text-red-500 font-mono font-bold uppercase tracking-wider text-[10px] flex items-center gap-1";
-        statusIndicator.className = "w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse";
-        statusText.innerHTML = "${TRANSLATIONS[lang].statusEmergency}";
-        dangerWarning.classList.add('hidden');
-        if (becGaugeText && becGaugeBar) {
-          becGaugeText.innerHTML = "OFFLINE";
-          becGaugeText.className = "text-red-500 font-bold";
-          becGaugeBar.style.width = "0%";
+      // Efecto tormenta: parpadeo y partículas extra
+      if (mode === 'tormenta' && !isEmergency) {
+        const flash = Math.sin(elapsed * 20) > 0.95 ? 1 : 0;
+        scene.background.setHex(flash ? 0x442222 : 0x1a0a0a);
+        // Partículas de tormenta (rayos)
+        if (Math.random() < 0.02) {
+          // Log eliminado
         }
-        return;
       }
-
-      // Physics model approximation formula
-      const freqFactor = 1 - Math.abs(state.freq - 43.25) / 100;
-      const tempFactor = state.temp < 1.0 ? 1.0 : 1 - (state.temp - 1.0) / 3.2;
-      const vacFactor = state.vacuum < -8 ? 1.0 : 1 - (state.vacuum + 8) / 3;
-      const laserFactor = 1 - Math.abs(state.laser - 780) / 100;
-
-      // New alignment factor
-      const laserDist = Math.sqrt(state.laserAlignX * state.laserAlignX + state.laserAlignY * state.laserAlignY);
-      const laserAlignFactor = Math.max(0.2, 1 - laserDist / 12);
-
-      // New secondary systems factors
-      const heliumFactor = 1 - Math.abs(state.heliumFlow - 3.5) / 10;
-      const rfFactor = 1 - Math.abs(state.rfPump - 90) / 300;
-
-      // Base efficiency calculation
-      state.eff = Math.max(10, 99.7 * freqFactor * tempFactor * vacFactor * laserFactor * laserAlignFactor * heliumFactor * rfFactor);
-
-      // Adjust efficiency using magnetic flux (optimal is 2.5 T) and graphene elasticity (optimal is 80 GPa)
-      const magFactor = 1 - Math.abs(state.magFlux - 2.5) / 10;
-      const grapheneFactor = 1 - Math.abs(state.graphene - 80) / 300;
-      
-      // Magnetic shielding mitigation
-      const effectiveSeismic = (state.seismicActive && !state.magneticShield) ? 15 : 0;
-
-      state.eff = Math.max(5, state.eff * magFactor * grapheneFactor - effectiveSeismic + (state.solitonActive ? 6.5 : 0));
-      state.eff = Math.min(100, state.eff);
-      state.power = Math.max(0, 50 * (state.eff / 100));
-
-      // Phase Coherence
-      const coherence = Math.max(0, Math.min(100, state.eff * 0.99));
-      coherenceGauge.innerHTML = coherence.toFixed(2) + "%";
-      headerCoherence.innerHTML = coherence.toFixed(2) + "%";
-
-      // Gravitational Drift
-      const gravity = Math.max(0, 0.125 * (1 + (43.25 - state.freq) / 100));
-      gravGauge.innerHTML = gravity.toFixed(4) + " m/s²";
-
-      powerGauge.innerHTML = state.power.toFixed(2) + " MW";
-      effGauge.innerHTML = state.eff.toFixed(1) + "%";
-
-      // BEC Stability
-      let becVal = 100 - Math.max(0, (state.temp - 0.105) * 50) - (state.vacuum > -8 ? Math.abs(state.vacuum + 8) * 15 : 0);
-      if (state.seismicActive && !state.magneticShield) becVal -= 40;
-      state.becStability = Math.max(0, Math.min(100, Math.round(becVal)));
-      
-      if (becGaugeText && becGaugeBar) {
-        if (state.becStability > 0) {
-          becGaugeText.innerHTML = state.becStability + "%";
-          becGaugeText.className = "text-cyan-400 font-bold";
-          becGaugeBar.style.width = state.becStability + "%";
-          becGaugeBar.className = "h-full bg-cyan-400 rounded-full transition-all duration-300";
+      if (ringMaterials.length >= 3) {
+        const baseColors = [
+          new THREE.Color(0x4fc3f7),
+          new THREE.Color(0xd1c4e9),
+          new THREE.Color(0x81c784)
+        ];
+        if (mode === 'espectral') {
+          const hue = (elapsed * 0.02) % 1;
+          ringMaterials[0].color.setHSL(hue, 0.8, 0.6);
+          ringMaterials[1].color.setHSL((hue + 0.3) % 1, 0.8, 0.6);
+          ringMaterials[2].color.setHSL((hue + 0.6) % 1, 0.8, 0.6);
+          ringMaterials[0].emissive.setHSL(hue, 0.8, 0.3);
+          ringMaterials[1].emissive.setHSL((hue + 0.3) % 1, 0.8, 0.3);
+          ringMaterials[2].emissive.setHSL((hue + 0.6) % 1, 0.8, 0.3);
+        } else if (mode === 'enjambre') {
+          const t = elapsed * 0.1;
+          ringMaterials[0].color.setHSL(0.6 + 0.2*Math.sin(t), 0.8, 0.6);
+          ringMaterials[1].color.setHSL(0.2 + 0.2*Math.sin(t+1), 0.8, 0.6);
+          ringMaterials[2].color.setHSL(0.8 + 0.2*Math.sin(t+2), 0.8, 0.6);
+        } else if (mode === 'transferencia' || mode === 'tormenta') {
+          ringMaterials[0].color.setHex(0xffd700);
+          ringMaterials[1].color.setHex(0xffaa00);
+          ringMaterials[2].color.setHex(0xffcc00);
+          ringMaterials[0].emissive.setHex(0x553300);
+          ringMaterials[1].emissive.setHex(0x553300);
+          ringMaterials[2].emissive.setHex(0x553300);
+        } else if (isEmergency || mode === 'emergencia') {
+          const blink = 0.5 + 0.5*Math.sin(elapsed * 8);
+          ringMaterials[0].color.setHex(0xff0000);
+          ringMaterials[1].color.setHex(0xff0000);
+          ringMaterials[2].color.setHex(0xff0000);
+          ringMaterials[0].emissive.setHex(0x550000);
+          ringMaterials[1].emissive.setHex(0x550000);
+          ringMaterials[2].emissive.setHex(0x550000);
+          ringMaterials[0].opacity = blink;
+          ringMaterials[1].opacity = blink;
+          ringMaterials[2].opacity = blink;
         } else {
-          becGaugeText.innerHTML = "COLLAPSED";
-          becGaugeText.className = "text-red-500 font-bold";
-          becGaugeBar.style.width = "0%";
+          ringMaterials[0].color.copy(baseColors[0]);
+          ringMaterials[1].color.copy(baseColors[1]);
+          ringMaterials[2].color.copy(baseColors[2]);
+          ringMaterials[0].emissive.setHex(0x0088cc);
+          ringMaterials[1].emissive.setHex(0x6a1b9a);
+          ringMaterials[2].emissive.setHex(0x2e7d32);
+          ringMaterials[0].opacity = 1;
+          ringMaterials[1].opacity = 1;
+          ringMaterials[2].opacity = 1;
         }
       }
-
-      // Thermal Noise
-      state.thermalNoise = Math.max(0.1, state.temp * 45 + (state.seismicActive && !state.magneticShield ? 12 : 0) + (Math.sin(Date.now() / 800) * 0.5));
-      if (thermalGauge) {
-        thermalGauge.innerHTML = state.thermalNoise.toFixed(2) + " nK";
-        thermalGauge.className = "text-md font-mono font-bold block " + (state.thermalNoise > 25 ? "text-red-400" : "text-emerald-400");
+      if (shieldMesh) {
+        shieldMesh.visible = state.shield || mode === 'mantenimiento' || mode === 'diagnostico';
       }
-
-      // Swarm Synchrony
-      state.swarmSync = state.activeMode === 'ai' ? Math.round(94 + Math.sin(Date.now() / 1500) * 3) : Math.round(62 + Math.sin(Date.now() / 1500) * 5);
-      if (swarmGauge) {
-        swarmGauge.innerHTML = state.swarmSync + "%";
+      if (aiNodesGroup) {
+        aiNodesGroup.children.forEach((node, i) => {
+          if (mode === 'enjambre') {
+            const pulse = 0.6 + 0.4*Math.sin(elapsed*3 + i);
+            node.material.color.setHSL(0.6 + 0.2*Math.sin(elapsed*0.5 + i), 0.9, 0.5 + 0.3*pulse);
+          } else {
+            node.material.color.setHex(i%2===0 ? 0x4fc3f7 : 0x81c784);
+          }
+        });
       }
-
-      // SQUID Lock indicator
-      if ((state.seismicActive && !state.magneticShield) || state.temp > 2.0) {
-        squidGauge.innerHTML = "SQUID LOSS";
-        squidGauge.className = "text-red-500 font-mono font-bold uppercase tracking-wider text-[10px] flex items-center gap-1";
-      } else {
-        squidGauge.innerHTML = "SQUID Lock OK";
-        squidGauge.className = "text-[#81C784] font-mono font-bold uppercase tracking-wider text-[10px] flex items-center gap-1";
+      if (aiLinesGroup) {
+        aiLinesGroup.children.forEach(line => {
+          if (mode === 'enjambre') {
+            line.material.opacity = 0.6 + 0.3*Math.sin(elapsed*2 + line.id);
+          } else {
+            line.material.opacity = 0.35;
+          }
+        });
       }
-
-      const warn = state.temp > 2.0 || state.vacuum > -7 || Math.abs(state.laser - 780) > 30 || (state.seismicActive && !state.magneticShield);
-      if (warn) {
-        dangerWarning.classList.remove('hidden');
-        statusIndicator.className = "w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping";
-        statusText.innerHTML = state.seismicActive ? "TERREMOTO DETECTADO" : "INTERFERENCIA TÉRMICA ALTA";
-      } else {
-        dangerWarning.classList.add('hidden');
-        statusIndicator.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
-        statusText.innerHTML = "${TRANSLATIONS[lang].statusNormal}";
+      if (becParticles) {
+        let size = 0.06, color = 0x06b6d4;
+        if (mode === 'transferencia' || mode === 'tormenta') { size = 0.10; color = 0xffd700; }
+        else if (mode === 'espectral') { size = 0.08; color = 0x9b59b6; }
+        else if (mode === 'enjambre') { size = 0.09; color = 0x3498db; }
+        else if (isEmergency || mode === 'emergencia') { size = 0.02; color = 0xff0000; }
+        else if (mode === 'reposo') { size = 0.03; color = 0x2c3e50; }
+        becParticles.material.size = size;
+        becParticles.material.color.setHex(color);
+      }
+      if (solitonPulse) {
+        if (state.soliton) {
+          solitonPulse.visible = true;
+        } else if (mode === 'transferencia' || mode === 'tormenta') {
+          solitonPulse.visible = true;
+          solitonPulse.material.color.setHex(mode === 'tormenta' ? 0xff4400 : 0xffaa00);
+          const ang = elapsed * 2;
+          solitonPulse.position.set(1.2*Math.cos(ang), 1.2*Math.sin(ang), 0.2*Math.sin(ang*2));
+        } else {
+          solitonPulse.visible = false;
+        }
       }
     }
 
-    // Sliders event bindings
-    freqSlider.addEventListener('input', (e) => {
-      state.freq = parseFloat(e.target.value);
-      freqVal.innerHTML = state.freq.toFixed(2) + " GHz";
-      updateCalculations();
-    });
-
-    tempSlider.addEventListener('input', (e) => {
-      state.temp = parseFloat(e.target.value);
-      tempVal.innerHTML = state.temp.toFixed(3) + " K";
-      updateCalculations();
-    });
-
-    vacSlider.addEventListener('input', (e) => {
-      state.vacuum = parseInt(e.target.value);
-      vacVal.innerHTML = "10^" + state.vacuum + " atm";
-      updateCalculations();
-    });
-
-    laserSlider.addEventListener('input', (e) => {
-      state.laser = parseInt(e.target.value);
-      laserVal.innerHTML = state.laser + " nm";
-      updateCalculations();
-    });
-
-    magSlider.addEventListener('input', (e) => {
-      state.magFlux = parseFloat(e.target.value);
-      magVal.innerHTML = state.magFlux.toFixed(1) + " T";
-      updateCalculations();
-    });
-
-    grapheneSlider.addEventListener('input', (e) => {
-      state.graphene = parseInt(e.target.value);
-      grapheneVal.innerHTML = state.graphene + " GPa";
-      updateCalculations();
-    });
-
-    heliumSlider.addEventListener('input', (e) => {
-      state.heliumFlow = parseFloat(e.target.value);
-      heliumVal.innerHTML = state.heliumFlow.toFixed(2) + " L/h";
-      updateCalculations();
-    });
-
-    rfSlider.addEventListener('input', (e) => {
-      state.rfPump = parseInt(e.target.value);
-      rfVal.innerHTML = state.rfPump + " mW";
-      updateCalculations();
-    });
-
-    // 2D Laser Alignment mouse bindings in exported HTML
-    let isAlignDragging = false;
-    const pad = document.getElementById('laserAlignPad');
-    const dot = document.getElementById('laserAlignDot');
-    const alignValText = document.getElementById('laserAlignVal');
-
-    function updateLaserAlign(clientX, clientY) {
-      if (state.emergencyStop) return;
-      const rect = pad.getBoundingClientRect();
-      const px = ((clientX - rect.left) / rect.width) * 20 - 10;
-      const py = -(((clientY - rect.top) / rect.height) * 20 - 10);
-      state.laserAlignX = parseFloat(Math.max(-10, Math.min(10, px)).toFixed(1));
-      state.laserAlignY = parseFloat(Math.max(-10, Math.min(10, py)).toFixed(1));
-
-      // Update dot position visually
-      dot.style.left = "calc(" + (((state.laserAlignX + 10) / 20) * 100) + "% - 6px)";
-      dot.style.bottom = "calc(" + (((state.laserAlignY + 10) / 20) * 100) + "% - 6px)";
-      
-      alignValText.innerHTML = "X: " + (state.laserAlignX > 0 ? "+" : "") + state.laserAlignX + " | Y: " + (state.laserAlignY > 0 ? "+" : "") + state.laserAlignY;
-      
-      if (state.laserAlignX === 0 && state.laserAlignY === 0) {
-        dot.className = "absolute w-3 h-3 rounded-full border border-white bg-green-500 shadow-[0_0_8px_rgba(34,197,94,1)]";
-        alignValText.className = "text-green-400 font-mono";
-      } else {
-        dot.className = "absolute w-3 h-3 rounded-full border border-white bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]";
-        alignValText.className = "text-[#4FC3F7] font-mono";
+    // ============================================================
+    // 10. FUNCIONES PARA INTERACCIONES AVANZADAS
+    // ============================================================
+    function triggerPulse() {
+      if (state.emergency || state.pulseActive) return;
+      state.pulseActive = true;
+      state.pulseTime = Date.now();
+      if (pulseMesh) {
+        pulseMesh.position.set(0, 0, 0);
+        pulseMesh.scale.set(0.3, 0.3, 0.3);
+        pulseMesh.material.opacity = 0.8;
+        pulseMesh.visible = true;
       }
-      updateCalculations();
-    }
-
-    pad.addEventListener('mousedown', (e) => {
-      isAlignDragging = true;
-      updateLaserAlign(e.clientX, e.clientY);
-    });
-
-    window.addEventListener('mousemove', (e) => {
-      if (isAlignDragging) {
-        updateLaserAlign(e.clientX, e.clientY);
-      }
-    });
-
-    window.addEventListener('mouseup', () => { isAlignDragging = false; });
-
-    // Touch support for Laser Align
-    pad.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 1) {
-        isAlignDragging = true;
-        updateLaserAlign(e.touches[0].clientX, e.touches[0].clientY);
-      }
-    });
-    pad.addEventListener('touchmove', (e) => {
-      if (isAlignDragging && e.touches.length === 1) {
-        updateLaserAlign(e.touches[0].clientX, e.touches[0].clientY);
-      }
-    });
-    pad.addEventListener('touchend', () => { isAlignDragging = false; });
-
-    // Special Interactions actions
-    autoCalibrateBtn.addEventListener('click', () => {
-      addLog("Starting automated system self-calibration sequence...");
-      state.freq = 43.25;
-      state.temp = 0.105;
-      state.vacuum = -10;
-      state.laser = 780;
-      state.magFlux = 2.5;
-      state.graphene = 80;
-      state.heliumFlow = 3.5;
-      state.rfPump = 90;
-      state.laserAlignX = 0;
-      state.laserAlignY = 0;
-
-      freqSlider.value = 43.25;
-      tempSlider.value = 0.105;
-      vacSlider.value = -10;
-      laserSlider.value = 780;
-      magSlider.value = 2.5;
-      grapheneSlider.value = 80;
-      heliumSlider.value = 3.5;
-      rfSlider.value = 90;
-
-      freqVal.innerHTML = "43.25 GHz";
-      tempVal.innerHTML = "0.105 K";
-      vacVal.innerHTML = "10^-10 atm";
-      laserVal.innerHTML = "780 nm";
-      magVal.innerHTML = "2.5 T";
-      grapheneVal.innerHTML = "80 GPa";
-      heliumVal.innerHTML = "3.50 L/h";
-      rfVal.innerHTML = "90 mW";
-
-      dot.style.left = "calc(50% - 6px)";
-      dot.style.bottom = "calc(50% - 6px)";
-      alignValText.innerHTML = "X: 0.0 | Y: 0.0";
-      alignValText.className = "text-green-400 font-mono";
-
-      updateCalculations();
-      addLog("Multi-stage optimization successfully converged. Phase lock: OK.");
-    });
-
-    injectSeismicBtn.addEventListener('click', () => {
-      state.seismicActive = !state.seismicActive;
-      if (state.seismicActive) {
-        state.seismicShaking = 3.5;
-        injectSeismicBtn.classList.remove('bg-[#121416]');
-        injectSeismicBtn.classList.add('bg-red-950/60', 'border-red-500');
-        seismicBtnText.innerHTML = "Detener Terremoto";
-        addLog("!!! [WARNING] SEISMIC VIBRATIONS INJECTED !!!");
-        addLog("Superconducting graphene membranes entering resonance fluctuation.");
-      } else {
-        state.seismicShaking = 0;
-        injectSeismicBtn.classList.add('bg-[#121416]');
-        injectSeismicBtn.classList.remove('bg-red-950/60', 'border-red-500');
-        seismicBtnText.innerHTML = "${TRANSLATIONS[lang].btnInjectSeismic}";
-        addLog("Seismic dampening activated. Chamber stabilized.");
-      }
-      updateCalculations();
-    });
-
-    toggleShieldBtn.addEventListener('click', () => {
-      if (state.emergencyStop) return;
-      state.magneticShield = !state.magneticShield;
-      if (state.magneticShield) {
-        toggleShieldBtn.classList.remove('bg-[#121416]');
-        toggleShieldBtn.classList.add('bg-blue-950/60', 'border-blue-500', 'text-blue-400');
-        toggleShieldBtn.querySelector('span').innerHTML = "${TRANSLATIONS[lang].btnMagneticShield}: ON";
-        addLog("🛡️ [SHIELD ACTIVE] Mu-Metal magnetic shielding online.");
-      } else {
-        toggleShieldBtn.classList.add('bg-[#121416]');
-        toggleShieldBtn.classList.remove('bg-blue-950/60', 'border-blue-500', 'text-blue-400');
-        toggleShieldBtn.querySelector('span').innerHTML = "${TRANSLATIONS[lang].btnMagneticShield}: OFF";
-        addLog("🛡️ [SHIELD DEACTIVATED] Magnetic shielding powered down.");
-      }
-      updateCalculations();
-    });
-
-    injectSolitonBtn.addEventListener('click', () => {
-      if (state.emergencyStop || state.solitonActive) return;
-      state.solitonActive = true;
-      injectSolitonBtn.classList.add('bg-purple-950/60', 'border-purple-500', 'text-purple-400');
-      addLog("⚡ [SOLITON] Injecting coherent quantum soliton pulse into orbits...");
-      updateCalculations();
-      
+      // Log eliminado
+      updateUI();
       setTimeout(() => {
-        state.solitonActive = false;
-        injectSolitonBtn.classList.remove('bg-purple-950/60', 'border-purple-500', 'text-purple-400');
-        addLog("⚡ [SOLITON] Coherent soliton pulse fully absorbed.");
-        updateCalculations();
+        state.pulseActive = false;
+        if (pulseMesh) pulseMesh.visible = false;
+        updateUI();
+      }, 2000);
+    }
+
+    // ============================================================
+    // 11. EVENTOS Y CONTROLES (ampliados)
+    // ============================================================
+    // Sliders
+    function bindSlider(sliderId, valId, stateKey, format) {
+      const slider = document.getElementById(sliderId);
+      const valEl = document.getElementById(valId);
+      slider.addEventListener('input', () => {
+        const v = parseFloat(slider.value);
+        state[stateKey] = v;
+        valEl.textContent = format(v);
+        updateUI();
+        // Log eliminado
+      });
+    }
+    bindSlider('freqSlider', 'freqVal', 'freq', v => v.toFixed(2) + ' GHz');
+    bindSlider('tempSlider', 'tempVal', 'temp', v => v.toFixed(3) + ' K');
+    bindSlider('vacSlider', 'vacVal', 'vacuum', v => '10^' + v + ' atm');
+    bindSlider('laserSlider', 'laserVal', 'laser', v => v + ' nm');
+    bindSlider('magSlider', 'magVal', 'magFlux', v => v.toFixed(1) + ' T');
+    bindSlider('grapheneSlider', 'grapheneVal', 'graphene', v => v + ' GPa');
+    bindSlider('heliumSlider', 'heliumVal', 'heliumFlow', v => v.toFixed(2) + ' L/h');
+    bindSlider('rfSlider', 'rfVal', 'rfPump', v => v + ' mW');
+
+    // Laser pad
+    let isPadDragging = false;
+    function setLaserAlign(clientX, clientY) {
+      const rect = laserPad.getBoundingClientRect();
+      const x = ((clientX - rect.left) / rect.width) * 20 - 10;
+      const y = -(((clientY - rect.top) / rect.height) * 20 - 10);
+      state.alignX = Math.max(-10, Math.min(10, Math.round(x * 10) / 10));
+      state.alignY = Math.max(-10, Math.min(10, Math.round(y * 10) / 10));
+      const px = ((state.alignX + 10) / 20) * 100;
+      const py = ((state.alignY + 10) / 20) * 100;
+      laserDot.style.left = 'calc(' + px + '% - 7px)';
+      laserDot.style.bottom = 'calc(' + py + '% - 7px)';
+      const signX = state.alignX > 0 ? '+' : '';
+      const signY = state.alignY > 0 ? '+' : '';
+      alignVal.textContent = 'X: ' + signX + state.alignX + ' | Y: ' + signY + state.alignY;
+      alignVal.className = (state.alignX === 0 && state.alignY === 0) ? 'text-green-400 font-mono' : 'text-[#4FC3F7] font-mono';
+      updateUI();
+      // Log eliminado
+    }
+    laserPad.addEventListener('mousedown', (e) => { isPadDragging = true; setLaserAlign(e.clientX, e.clientY); });
+    window.addEventListener('mousemove', (e) => { if (isPadDragging) setLaserAlign(e.clientX, e.clientY); });
+    window.addEventListener('mouseup', () => { isPadDragging = false; });
+
+    // Modos (incluyendo Tormenta)
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(b => {
+          b.className = 'mode-btn py-1.5 px-2 bg-[#121416] rounded-lg border border-[#2A2F35] text-gray-400 hover:border-[#4FC3F7] transition';
+        });
+        btn.className = 'mode-btn py-1.5 px-2 bg-[#2A2F35] rounded-lg border border-[#4FC3F7] text-white font-bold';
+        state.mode = btn.dataset.mode;
+        // Log eliminado
+        updateUI();
+      });
+    });
+
+    // Auto calibrar
+    document.getElementById('autoCalibrateBtn').addEventListener('click', () => {
+      state.freq = 43.25; state.temp = 0.105; state.vacuum = -10; state.laser = 780;
+      state.magFlux = 2.5; state.graphene = 80; state.heliumFlow = 3.5; state.rfPump = 90;
+      state.alignX = 0; state.alignY = 0;
+      state.waveSim = false; state.flowSim = false; state.pulseActive = false;
+      ['freqSlider','tempSlider','vacSlider','laserSlider','magSlider','grapheneSlider','heliumSlider','rfSlider'].forEach(id => {
+        const sl = document.getElementById(id);
+        if (id === 'freqSlider') sl.value = 43.25;
+        else if (id === 'tempSlider') sl.value = 0.105;
+        else if (id === 'vacSlider') sl.value = -10;
+        else if (id === 'laserSlider') sl.value = 780;
+        else if (id === 'magSlider') sl.value = 2.5;
+        else if (id === 'grapheneSlider') sl.value = 80;
+        else if (id === 'heliumSlider') sl.value = 3.5;
+        else if (id === 'rfSlider') sl.value = 90;
+      });
+      document.getElementById('freqVal').textContent = '43.25 GHz';
+      document.getElementById('tempVal').textContent = '0.105 K';
+      document.getElementById('vacVal').textContent = '10^-10 atm';
+      document.getElementById('laserVal').textContent = '780 nm';
+      document.getElementById('magVal').textContent = '2.5 T';
+      document.getElementById('grapheneVal').textContent = '80 GPa';
+      document.getElementById('heliumVal').textContent = '3.50 L/h';
+      document.getElementById('rfVal').textContent = '90 mW';
+      laserDot.style.left = 'calc(50% - 7px)';
+      laserDot.style.bottom = 'calc(50% - 7px)';
+      alignVal.textContent = 'X: 0 | Y: 0';
+      alignVal.className = 'text-green-400 font-mono';
+      // Resetear simulaciones
+      document.getElementById('simWaveBtn').classList.remove('bg-cyan-950/60', 'border-cyan-500');
+      document.getElementById('simFlowBtn').classList.remove('bg-green-950/60', 'border-green-500');
+      document.getElementById('pulseBtn').classList.remove('bg-pink-950/60', 'border-pink-500');
+      updateUI();
+      // Log eliminado
+    });
+
+    // Terremoto
+    document.getElementById('injectSeismicBtn').addEventListener('click', function() {
+      state.seismic = !state.seismic;
+      const span = document.getElementById('seismicBtnText');
+      if (state.seismic) {
+        this.classList.add('bg-amber-950/60', 'border-amber-500');
+        span.textContent = TRANSLATIONS[state.lang].btnStopSeismic || 'Detener Terremoto';
+        // Log eliminado
+      } else {
+        this.classList.remove('bg-amber-950/60', 'border-amber-500');
+        span.textContent = TRANSLATIONS[state.lang].btnInjectSeismic || 'Terremoto';
+        // Log eliminado
+      }
+      updateUI();
+    });
+
+    // Blindaje
+    document.getElementById('toggleShieldBtn').addEventListener('click', function() {
+      if (state.emergency) return;
+      state.shield = !state.shield;
+      const label = document.getElementById('shieldLabel');
+      const key = state.shield ? 'btnMagneticShieldOn' : 'btnMagneticShield';
+      label.textContent = TRANSLATIONS[state.lang][key] || (state.shield ? 'Blindaje Magnético: ON' : 'Blindaje Magnético: OFF');
+      if (state.shield) {
+        this.classList.add('bg-blue-950/60', 'border-blue-500');
+      } else {
+        this.classList.remove('bg-blue-950/60', 'border-blue-500');
+      }
+      // Log eliminado
+      updateUI();
+    });
+
+    // Solitón
+    document.getElementById('injectSolitonBtn').addEventListener('click', function() {
+      if (state.emergency || state.soliton) return;
+      state.soliton = true;
+      this.classList.add('bg-purple-950/60', 'border-purple-500', 'text-purple-400');
+      // Log eliminado
+      updateUI();
+      setTimeout(() => {
+        state.soliton = false;
+        this.classList.remove('bg-purple-950/60', 'border-purple-500', 'text-purple-400');
+        // Log eliminado
+        updateUI();
       }, 4000);
     });
 
-    // Emergency button actions
-    emergencyBtn.addEventListener('click', () => {
-      state.emergencyStop = true;
-      updateCalculations();
-      addLog("!!! PARADA DE EMERGENCIA EN < 1 ms !!!");
-      addLog("Nitrógeno presurizado introducido en cámara.");
+    // NUEVO: Simulación de Ondas
+    document.getElementById('simWaveBtn').addEventListener('click', function() {
+      state.waveSim = !state.waveSim;
+      this.classList.toggle('bg-cyan-950/60', state.waveSim);
+      this.classList.toggle('border-cyan-500', state.waveSim);
+      // Log eliminado
+      updateUI();
     });
 
-    resetBtn.addEventListener('click', () => {
-      state.emergencyStop = false;
-      state.freq = 43.25;
-      state.temp = 0.105;
-      state.vacuum = -10;
-      state.laser = 780;
-      state.magFlux = 2.5;
-      state.graphene = 80;
-      state.heliumFlow = 3.5;
-      state.rfPump = 90;
-      state.laserAlignX = 0;
-      state.laserAlignY = 0;
-      state.magneticShield = false;
-      state.solitonActive = false;
-      state.seismicActive = false;
-      state.seismicShaking = 0;
-
-      freqSlider.value = 43.25;
-      tempSlider.value = 0.105;
-      vacSlider.value = -10;
-      laserSlider.value = 780;
-      magSlider.value = 2.5;
-      grapheneSlider.value = 80;
-      heliumSlider.value = 3.5;
-      rfSlider.value = 90;
-
-      freqVal.innerHTML = "43.25 GHz";
-      tempVal.innerHTML = "0.105 K";
-      vacVal.innerHTML = "10^-10 atm";
-      laserVal.innerHTML = "780 nm";
-      magVal.innerHTML = "2.5 T";
-      grapheneVal.innerHTML = "80 GPa";
-      heliumVal.innerHTML = "3.50 L/h";
-      rfVal.innerHTML = "90 mW";
-
-      dot.style.left = "calc(50% - 6px)";
-      dot.style.bottom = "calc(50% - 6px)";
-      alignValText.innerHTML = "X: 0.0 | Y: 0.0";
-      alignValText.className = "text-green-400 font-mono";
-
-      injectSeismicBtn.classList.add('bg-[#121416]');
-      injectSeismicBtn.classList.remove('bg-red-950/60', 'border-red-500');
-      seismicBtnText.innerHTML = "${TRANSLATIONS[lang].btnInjectSeismic}";
-
-      toggleShieldBtn.classList.add('bg-[#121416]');
-      toggleShieldBtn.classList.remove('bg-blue-950/60', 'border-blue-500', 'text-blue-400');
-      toggleShieldBtn.querySelector('span').innerHTML = "${TRANSLATIONS[lang].btnMagneticShield}: OFF";
-
-      injectSolitonBtn.classList.remove('bg-purple-950/60', 'border-purple-500', 'text-purple-400');
-
-      updateCalculations();
-      addLog("Sistemas de resonancia restaurados y estabilizados.");
+    // NUEVO: Simulación de Flujo Energético
+    document.getElementById('simFlowBtn').addEventListener('click', function() {
+      state.flowSim = !state.flowSim;
+      this.classList.toggle('bg-green-950/60', state.flowSim);
+      this.classList.toggle('border-green-500', state.flowSim);
+      // Log eliminado
+      updateUI();
     });
 
-    // Web camera AR integration
+    // NUEVO: Generar Pulso de Resonancia
+    document.getElementById('pulseBtn').addEventListener('click', function() {
+      if (state.emergency) return;
+      triggerPulse();
+      this.classList.add('bg-pink-950/60', 'border-pink-500');
+      setTimeout(() => {
+        this.classList.remove('bg-pink-950/60', 'border-pink-500');
+      }, 2000);
+    });
+
+    // Emergencia
+    document.getElementById('emergencyBtn').addEventListener('click', () => {
+      state.emergency = true;
+      // Log eliminado
+      updateUI();
+    });
+
+    // Reset
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      state.emergency = false;
+      state.seismic = false;
+      state.shield = false;
+      state.soliton = false;
+      state.waveSim = false;
+      state.flowSim = false;
+      state.pulseActive = false;
+      state.mode = 'operacion';
+      state.freq = 43.25; state.temp = 0.105; state.vacuum = -10; state.laser = 780;
+      state.magFlux = 2.5; state.graphene = 80; state.heliumFlow = 3.5; state.rfPump = 90;
+      state.alignX = 0; state.alignY = 0;
+      // Resetear sliders y displays
+      document.getElementById('freqSlider').value = 43.25;
+      document.getElementById('freqVal').textContent = '43.25 GHz';
+      document.getElementById('tempSlider').value = 0.105;
+      document.getElementById('tempVal').textContent = '0.105 K';
+      document.getElementById('vacSlider').value = -10;
+      document.getElementById('vacVal').textContent = '10^-10 atm';
+      document.getElementById('laserSlider').value = 780;
+      document.getElementById('laserVal').textContent = '780 nm';
+      document.getElementById('magSlider').value = 2.5;
+      document.getElementById('magVal').textContent = '2.5 T';
+      document.getElementById('grapheneSlider').value = 80;
+      document.getElementById('grapheneVal').textContent = '80 GPa';
+      document.getElementById('heliumSlider').value = 3.5;
+      document.getElementById('heliumVal').textContent = '3.50 L/h';
+      document.getElementById('rfSlider').value = 90;
+      document.getElementById('rfVal').textContent = '90 mW';
+      laserDot.style.left = 'calc(50% - 7px)';
+      laserDot.style.bottom = 'calc(50% - 7px)';
+      alignVal.textContent = 'X: 0 | Y: 0';
+      alignVal.className = 'text-green-400 font-mono';
+      document.getElementById('injectSeismicBtn').classList.remove('bg-amber-950/60', 'border-amber-500');
+      document.getElementById('seismicBtnText').textContent = TRANSLATIONS[state.lang].btnInjectSeismic || 'Terremoto';
+      document.getElementById('toggleShieldBtn').classList.remove('bg-blue-950/60', 'border-blue-500');
+      document.getElementById('shieldLabel').textContent = TRANSLATIONS[state.lang].btnMagneticShield || 'Blindaje Magnético: OFF';
+      document.getElementById('injectSolitonBtn').classList.remove('bg-purple-950/60', 'border-purple-500', 'text-purple-400');
+      document.getElementById('simWaveBtn').classList.remove('bg-cyan-950/60', 'border-cyan-500');
+      document.getElementById('simFlowBtn').classList.remove('bg-green-950/60', 'border-green-500');
+      document.getElementById('pulseBtn').classList.remove('bg-pink-950/60', 'border-pink-500');
+      // Modo operacion activo
+      document.querySelectorAll('.mode-btn').forEach(b => {
+        b.className = 'mode-btn py-1.5 px-2 bg-[#121416] rounded-lg border border-[#2A2F35] text-gray-400 hover:border-[#4FC3F7] transition';
+      });
+      document.querySelector('.mode-btn[data-mode="operacion"]').className = 'mode-btn py-1.5 px-2 bg-[#2A2F35] rounded-lg border border-[#4FC3F7] text-white font-bold';
+      updateUI();
+      // Log eliminado
+    });
+
+    // Vistas
+    document.querySelectorAll('.view-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.view-btn').forEach(b => {
+          b.className = 'view-btn px-2 py-1 text-[10px] font-mono font-bold rounded-lg transition bg-[#1E2225]/80 text-gray-300 border border-[#2A2F35]';
+        });
+        btn.className = 'view-btn px-2 py-1 text-[10px] font-mono font-bold rounded-lg transition bg-[#4FC3F7] text-gray-950 border border-[#4FC3F7] active';
+        state.view = btn.dataset.view;
+        // Log eliminado
+        applyViewEffects(clock3.getElapsedTime());
+      });
+    });
+
+    // Enfoque
+    document.getElementById('focusSelect').addEventListener('change', (e) => {
+      state.focus = e.target.value;
+      // Log eliminado
+    });
+
+    // AR
     let cameraStream = null;
-    arModeToggle.addEventListener('click', () => {
-      state.arMode = !state.arMode;
-      if (state.arMode) {
+    document.getElementById('arToggleBtn').addEventListener('click', function() {
+      state.ar = !state.ar;
+      if (state.ar) {
         navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
           .then(stream => {
             cameraStream = stream;
             arVideo.srcObject = stream;
             arVideo.classList.remove('hidden');
-            arModeToggle.classList.add('bg-emerald-600');
-            addLog("AR mode successfully synchronized. Place target over flat surface.");
+            this.classList.add('bg-emerald-600');
+            // Log eliminado
           })
-          .catch(err => {
-            alert("No camera device accessible for AR. Overlaying grid.");
-            state.arMode = false;
+          .catch(() => {
+            state.ar = false;
+            alert('Cámara no accesible. Modo AR desactivado.');
           });
       } else {
-        if (cameraStream) {
-          cameraStream.getTracks().forEach(t => t.stop());
-        }
+        if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
         arVideo.srcObject = null;
         arVideo.classList.add('hidden');
-        arModeToggle.classList.remove('bg-emerald-600');
-        addLog("AR Mode deactivated.");
+        this.classList.remove('bg-emerald-600');
+        // Log eliminado
       }
     });
 
-    // Standalone Animation & Render Loop (Compiled into HTML)
-    let time = 0;
-    function draw() {
-      time += 0.02;
-      const w = canvas.width = canvas.offsetWidth;
-      const h = canvas.height = canvas.offsetHeight;
-      ctx.clearRect(0, 0, w, h);
-
-      // Support seismic shaking motion in the 3D canvas
-      const seismicDx = state.seismicActive ? (Math.random() - 0.5) * 8 : 0;
-      const seismicDy = state.seismicActive ? (Math.random() - 0.5) * 8 : 0;
-
-      const cx = w / 2 + seismicDx;
-      const cy = h / 2 + seismicDy;
-      const currentScale = 120 * state.scale;
-      const cameraDist = 400;
-
-      function project(x, y, z) {
-        const cosY = Math.cos(state.rotY);
-        const sinY = Math.sin(state.rotY);
-        let x1 = x * cosY - z * sinY;
-        let z1 = x * sinY + z * cosY;
-
-        const cosX = Math.cos(state.rotX);
-        const sinX = Math.sin(state.rotX);
-        let y2 = y * cosX - z1 * sinX;
-        let z2 = y * sinX + z1 * cosX;
-
-        const factor = currentScale / (cameraDist + z2);
-        return {
-          sx: cx + x1 * factor,
-          sy: cy - y2 * factor,
-          visible: (cameraDist + z2) > 10,
-          depth: z2
-        };
-      }
-
-      // Draw Atom-Chips Cooling Laser Paths
-      if (!state.emergencyStop) {
-        const sensorPlates = [
-          { x: -100, y: 160, z: 0 },
-          { x: -40, y: 160, z: 0 },
-          { x: 40, y: 160, z: 0 },
-          { x: 100, y: 160, z: 0 }
-        ];
-
-        sensorPlates.forEach((plate, i) => {
-          // Dynamic Wavelength Color Selection
-          let laserColor = '#81C784';
-          const wl = state.laser;
-          if (wl > 760) laserColor = '#E53935';
-          else if (wl < 450) laserColor = '#D1C4E9';
-          else if (wl < 560) laserColor = '#81C784';
-          else laserColor = '#4FC3F7';
-
-          ctx.strokeStyle = laserColor;
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          const pStart = project(plate.x, plate.y, plate.z);
-          const pEnd = project(plate.x * 0.7, 90, plate.z * 0.7);
-          
-          if (pStart.visible && pEnd.visible) {
-            const steps = 15;
-            for (let s = 0; s <= steps; s++) {
-              const tRatio = s / steps;
-              const xPos = pStart.sx + (pEnd.sx - pStart.sx) * tRatio;
-              const yPos = pStart.sy + (pEnd.sy - pStart.sy) * tRatio;
-              const waveAmp = 6 * (1 - tRatio) * Math.sin(time * 12 + tRatio * Math.PI * 4);
-              ctx.lineTo(xPos + Math.cos(state.rotY) * waveAmp, yPos + waveAmp);
-            }
-            ctx.stroke();
-          }
-        });
-      }
-
-      // Grid for AR mode
-      if (state.arMode) {
-        ctx.strokeStyle = 'rgba(79, 195, 247, 0.2)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        for (let i = -3; i <= 3; i++) {
-          const p1 = project(i * 100, -120, -300);
-          const p2 = project(i * 100, -120, 300);
-          if (p1.visible && p2.visible) {
-            ctx.moveTo(p1.sx, p1.sy);
-            ctx.lineTo(p2.sx, p2.sy);
-          }
-        }
-        ctx.stroke();
-      }
-
-      // Draw Main Sphere (Chamber)
-      const latCount = 6, lonCount = 10, radius = 100;
-      ctx.strokeStyle = 'rgba(207, 216, 220, 0.4)';
-      ctx.lineWidth = 1;
-      for (let lat = 1; lat < latCount; lat++) {
-        const phi = (lat * Math.PI) / latCount;
-        const rLat = radius * Math.sin(phi);
-        const yLat = radius * Math.cos(phi);
-        ctx.beginPath();
-        for (let lon = 0; lon <= lonCount; lon++) {
-          const theta = (lon * 2 * Math.PI) / lonCount;
-          const p = project(rLat * Math.cos(theta), yLat, rLat * Math.sin(theta));
-          if (p.visible) {
-            if (lon === 0) ctx.moveTo(p.sx, p.sy);
-            else ctx.lineTo(p.sx, p.sy);
-          }
-        }
-        ctx.stroke();
-      }
-
-      // Draw Mu-Metal Magnetic Shielding Envelope
-      if (state.magneticShield && !state.emergencyStop) {
-        ctx.strokeStyle = 'rgba(59, 130, 246, 0.45)';
-        ctx.lineWidth = 1.5;
-        const shieldRad = 135;
-        for (let lat = 1; lat < latCount; lat++) {
-          const phi = (lat * Math.PI) / latCount;
-          const rLat = shieldRad * Math.sin(phi);
-          const yLat = shieldRad * Math.cos(phi);
-          ctx.beginPath();
-          for (let lon = 0; lon <= lonCount; lon++) {
-            const theta = (lon * 2 * Math.PI) / lonCount;
-            const p = project(rLat * Math.cos(theta), yLat, rLat * Math.sin(theta));
-            if (p.visible) {
-              if (lon === 0) ctx.moveTo(p.sx, p.sy);
-              else ctx.lineTo(p.sx, p.sy);
-            }
-          }
-          ctx.stroke();
-        }
-      }
-
-      // Draw BEC Core cloud (Bose-Einstein Condensate inside chamber core)
-      if (!state.emergencyStop && state.becStability > 0) {
-        const cloudRadius = 24 * (state.becStability / 100);
-        const particleCount = Math.round(150 * (state.becStability / 100));
-        ctx.fillStyle = 'rgba(6, 182, 212, 0.18)';
-        ctx.shadowColor = '#06b6d4';
-        ctx.shadowBlur = 15;
-        
-        // Draw cloud particles with fuzzy Gaussian dispersion
-        for (let i = 0; i < particleCount; i++) {
-          const u1 = Math.random();
-          const u2 = Math.random();
-          const normDist = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-          const offsetDist = normDist * (cloudRadius * 0.45);
-          const theta = Math.random() * Math.PI * 2;
-          const phi = Math.random() * Math.PI;
-
-          const cxParticle = offsetDist * Math.sin(phi) * Math.cos(theta);
-          const cyParticle = offsetDist * Math.cos(phi);
-          const czParticle = offsetDist * Math.sin(phi) * Math.sin(theta);
-
-          const projPart = project(cxParticle, cyParticle, czParticle);
-          if (projPart.visible) {
-            ctx.beginPath();
-            ctx.arc(projPart.sx, projPart.sy, Math.random() * 2 + 0.5, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-        ctx.shadowBlur = 0;
-      }
-
-      // Intersecting strings inside with Soliton wave integration
-      if (!state.emergencyStop) {
-        ctx.lineWidth = 2.5;
-        ctx.shadowColor = '#4FC3F7';
-        ctx.shadowBlur = 10 + state.magFlux * 3;
-        for (let l = 0; l < 3; l++) {
-          ctx.strokeStyle = l === 0 ? '#4FC3F7' : l === 1 ? '#D1C4E9' : '#81C784';
-          ctx.beginPath();
-          let first = true;
-          for (let s = 0; s <= 100; s++) {
-            const radPhase = (s * 2 * Math.PI) / 100;
-            const stringFreq = state.freq / 12;
-            const elasticityFactor = state.graphene / 80;
-            const fluctuation = 1 + 0.15 * elasticityFactor * Math.sin(time * 18 + radPhase * stringFreq);
-            
-            // Inyectar pulso Solitón viajero en las órbitas cósmicas
-            let solitonFactor = 1.0;
-            if (state.solitonActive) {
-              const pulsePos = (time * 1.5) % (Math.PI * 2);
-              const distToPulse = Math.abs(radPhase - pulsePos);
-              if (distToPulse < 0.6) {
-                solitonFactor = 1.0 + 0.55 * Math.cos((distToPulse / 0.6) * Math.PI / 2);
-              }
-            }
-            
-            const rString = 50 * fluctuation * solitonFactor;
-
-            let x = rString * Math.cos(radPhase);
-            let y = rString * Math.sin(radPhase) * Math.cos(time + l * Math.PI / 3);
-            let z = rString * Math.sin(radPhase) * Math.sin(time + l * Math.PI / 3);
-
-            const p = project(x, y, z);
-            if (p.visible) {
-              if (first) { ctx.moveTo(p.sx, p.sy); first = false; }
-              else ctx.lineTo(p.sx, p.sy);
-            }
-          }
-          ctx.stroke();
-        }
-        ctx.shadowBlur = 0;
-      } else {
-        // Red Emergency static decay lines
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = '#E53935';
-        ctx.beginPath();
-        for (let i = 0; i < 20; i++) {
-          const offsetRadius = 40 + Math.random() * 20;
-          const theta = Math.random() * Math.PI * 2;
-          const p = project(offsetRadius * Math.cos(theta), offsetRadius * Math.sin(theta), Math.sin(theta) * 10);
-          if (p.visible) ctx.lineTo(p.sx, p.sy);
-        }
-        ctx.stroke();
-      }
-
-      // Draw cylinders/ports
-      const axes = [
-        { dx: 1, dy: 0, dz: 0 }, { dx: -1, dy: 0, dz: 0 },
-        { dx: 0, dy: 1, dz: 0 }, { dx: 0, dy: -1, dz: 0 },
-        { dx: 0.707, dy: 0, dz: 0.707 }, { dx: -0.707, dy: 0, dz: -0.707 }
-      ];
-
-      axes.forEach(ax => {
-        let u = Math.abs(ax.dx) < 0.9 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 1, z: 0 };
-        const v = {
-          x: ax.dy * u.z - ax.dz * u.y,
-          y: ax.dz * u.x - ax.dx * u.z,
-          z: ax.dx * u.y - ax.dy * u.x
-        };
-        const lenV = Math.hypot(v.x, v.y, v.z);
-        const vN = { x: v.x / lenV, y: v.y / lenV, z: v.z / lenV };
-        const wB = {
-          x: ax.dy * vN.z - ax.dz * vN.y,
-          y: ax.dz * vN.x - ax.dx * vN.z,
-          z: ax.dx * vN.y - ax.dy * vN.x
-        };
-
-        const steps = 10, dInner = 100, dOuter = 125, portRad = 20;
-        const innerRing = [], outerRing = [];
-
-        for (let i = 0; i <= steps; i++) {
-          const th = (i * 2 * Math.PI) / steps;
-          const cos = Math.cos(th);
-          const sin = Math.sin(th);
-          const rX = portRad * (cos * vN.x + sin * wB.x);
-          const rY = portRad * (cos * vN.y + sin * wB.y);
-          const rZ = portRad * (cos * vN.z + sin * wB.z);
-
-          innerRing.push(project(ax.dx * dInner + rX, ax.dy * dInner + rY, ax.dz * dInner + rZ));
-          outerRing.push(project(ax.dx * dOuter + rX, ax.dy * dOuter + rY, ax.dz * dOuter + rZ));
-        }
-
-        ctx.strokeStyle = '#CFD8DC';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        for (let i = 0; i < steps; i++) {
-          if (innerRing[i].visible && outerRing[i].visible) {
-            ctx.moveTo(innerRing[i].sx, innerRing[i].sy);
-            ctx.lineTo(outerRing[i].sx, outerRing[i].sy);
-          }
-        }
-        ctx.stroke();
-
-        ctx.beginPath();
-        outerRing.forEach((p, i) => {
-          if (p.visible) {
-            if (i === 0) ctx.moveTo(p.sx, p.sy);
-            else ctx.lineTo(p.sx, p.sy);
-          }
-        });
-        ctx.closePath();
-        ctx.stroke();
+    // Idioma (completo)
+    function setLanguage(lang) {
+      state.lang = lang;
+      document.querySelectorAll('.lang-btn').forEach(b => {
+        b.className = 'lang-btn px-2 py-1 text-xs font-bold rounded-md text-gray-400 hover:text-white';
+        if (b.dataset.lang === lang) b.className = 'lang-btn px-2 py-1 text-xs font-bold rounded-md bg-[#4FC3F7] text-[#121416]';
       });
-
-      // Server Units representation
-      const serverNodes = [
-        { x: 210, y: -100, z: -30 }, { x: 250, y: -100, z: -30 },
-        { x: 250, y: 70, z: -30 }, { x: 210, y: 70, z: -30 },
-        { x: 210, y: -100, z: 30 }, { x: 250, y: -100, z: 30 },
-        { x: 250, y: 70, z: 30 }, { x: 210, y: 70, z: 30 }
-      ];
-      const projServer = serverNodes.map(n => project(n.x, n.y, n.z));
-      ctx.strokeStyle = '#CFD8DC';
-      ctx.beginPath();
-      [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]].forEach(([i, j]) => {
-        if (projServer[i].visible && projServer[j].visible) {
-          ctx.moveTo(projServer[i].sx, projServer[i].sy);
-          ctx.lineTo(projServer[j].sx, projServer[j].sy);
-        }
+      const t = TRANSLATIONS[lang];
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.dataset.i18n;
+        if (t && t[key]) el.textContent = t[key];
       });
-      ctx.stroke();
-
-      requestAnimationFrame(draw);
+      // Botones especiales
+      const seismicSpan = document.getElementById('seismicBtnText');
+      if (state.seismic) seismicSpan.textContent = t.btnStopSeismic || 'Detener Terremoto';
+      else seismicSpan.textContent = t.btnInjectSeismic || 'Terremoto';
+      const shieldLabel = document.getElementById('shieldLabel');
+      const shieldKey = state.shield ? 'btnMagneticShieldOn' : 'btnMagneticShield';
+      shieldLabel.textContent = t[shieldKey] || (state.shield ? 'Blindaje Magnético: ON' : 'Blindaje Magnético: OFF');
+      if (state.emergency) statusText.textContent = t.statusEmergency;
+      else statusText.textContent = t.statusNormal;
+      updateUI();
     }
-    draw();
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
+    });
 
+    // ============================================================
+    // 12. INICIO
+    // ============================================================
+    function init() {
+      initThree();
+      animateThree();
+      setLanguage('es');
+      updateUI();
+      // Logs eliminados
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+    window.addEventListener('resize', () => {
+      const w = mount.clientWidth, h = mount.clientHeight;
+      if (camera) { camera.aspect = w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h); }
+    });
   </script>
 </body>
 </html>
