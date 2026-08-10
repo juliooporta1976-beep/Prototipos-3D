@@ -1,830 +1,1778 @@
-<html lang="es"><head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>H3N2-Shield Fusion — Simulador Biomédico 3D Avanzado (V3.0)</title>
-<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200;400;700;900&family=JetBrains+Mono:wght@300;500;700&display=swap" rel="stylesheet">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-<style>
-:root{
-  --bg:#0D1117;--bg2:#151B23;--card:#1A2030;--border:#2A3040;
-  --text:#E6EDF3;--muted:#6B7B8D;--accent:#00E5A0;--accent2:#4FC3F7;
-  --danger:#FF5252;--safe:#00E676;--warn:#FFB74D;--chem:#CE93D8;--viro:#FF4081;
-  --font-ui:'Exo 2',sans-serif;--font-mono:'JetBrains Mono',monospace;
-}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{font-size:14px}
-body{background:var(--bg);color:var(--text);font-family:var(--font-ui);overflow-x:hidden;min-height:100vh}
-::-webkit-scrollbar{width:6px}
-::-webkit-scrollbar-track{background:var(--bg2)}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-::-webkit-scrollbar-thumb:hover{background:var(--muted)}
-body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
-  background:radial-gradient(ellipse 80% 60% at 20% 30%,rgba(0,229,160,.04),transparent),
-             radial-gradient(ellipse 60% 80% at 80% 70%,rgba(79,195,247,.03),transparent),
-             radial-gradient(ellipse 50% 50% at 50% 50%,rgba(13,17,23,1),transparent);
-}
-.glass{background:rgba(26,32,48,.75);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px}
-.glass-sm{background:rgba(26,32,48,.6);backdrop-filter:blur(8px);border:1px solid rgba(42,48,64,.6);border-radius:8px}
-.accent{color:var(--accent)}.accent2{color:var(--accent2)}.danger{color:var(--danger)}.safe{color:var(--safe)}.warn{color:var(--warn)}.chem{color:var(--chem)}.viro{color:var(--viro)}
-.mono{font-family:var(--font-mono)}
-.text-xs{font-size:.7rem}.text-sm{font-size:.8rem}.text-md{font-size:.95rem}.text-lg{font-size:1.15rem}.text-xl{font-size:1.5rem}.text-2xl{font-size:2rem}
-.tracking{letter-spacing:.15em}.tracking-sm{letter-spacing:.08em}
-.uppercase{text-transform:uppercase}
-.fw-200{font-weight:200}.fw-400{font-weight:400}.fw-700{font-weight:700}.fw-900{font-weight:900}
-.container{max-width:1440px;margin:0 auto;padding:0 1rem;position:relative;z-index:1}
-.main-grid{display:grid;grid-template-columns:280px 1fr 280px;gap:1rem;margin-top:1rem}
-@media(max-width:1100px){.main-grid{grid-template-columns:1fr;}.side-panel{display:none}.side-panel.mobile-open{display:block;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.8);padding:1rem;overflow-y:auto}}
-.sim-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-top:1rem} /* Ajustado a 3 columnas para 6 tarjetas */
-@media(max-width:900px){.sim-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:500px){.sim-grid{grid-template-columns:1fr}}
-.header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:.75rem 0;border-bottom:1px solid var(--border);gap:.5rem}
-.lang-btn{padding:.25rem .6rem;border-radius:6px;font-size:.7rem;font-weight:700;cursor:pointer;border:none;transition:all .2s;font-family:var(--font-mono)}
-.lang-btn.active{background:var(--accent);color:var(--bg)}
-.lang-btn:not(.active){background:transparent;color:var(--muted);border:1px solid var(--border)}
-.lang-btn:not(.active):hover{color:var(--text);border-color:var(--muted)}
-.badge{font-size:.65rem;padding:.2rem .5rem;border-radius:6px;font-family:var(--font-mono);border:1px solid}
-.hud-tabs{display:flex;gap:2px;background:rgba(0,0,0,.3);border-radius:8px;padding:3px;position:relative;overflow:hidden}
-.hud-tab{flex:1;text-align:center;padding:.4rem .2rem;font-size:.55rem;font-family:var(--font-mono);color:var(--muted);cursor:pointer;border-radius:6px;transition:all .25s;position:relative;z-index:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hud-tab.active{color:var(--bg);font-weight:700}
-.hud-tab:not(.active):hover{color:var(--text)}
-.tab-indicator{position:absolute;top:3px;bottom:3px;border-radius:6px;background:var(--accent);transition:all .35s cubic-bezier(.4,0,.2,1);z-index:0}
-.metric{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:8px;padding:.6rem .75rem; position:relative;}
-.metric-label{font-size:.6rem;color:var(--muted);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.05em}
-.metric-value{font-size:1.4rem;font-weight:900;font-family:var(--font-mono);line-height:1.2;margin-top:.15rem}
-.metric-sub{font-size:.6rem;color:var(--muted);font-family:var(--font-mono);margin-top:.1rem}
-.canvas-wrap{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:#0A0E13;min-height:420px}
-.canvas-wrap canvas{display:block;width:100%;height:100%;cursor:crosshair} /* Actualizado para micro-interacción */
-.canvas-wrap canvas:active{cursor:grabbing}
-.canvas-overlay{position:absolute;top:.75rem;left:.75rem;font-size:.6rem;font-family:var(--font-mono);color:var(--muted);background:rgba(0,0,0,.7);padding:.3rem .6rem;border-radius:6px;border:1px solid var(--border);pointer-events:none}
-.canvas-focus-label{position:absolute;bottom:.75rem;left:50%;transform:translateX(-50%);font-size:.65rem;font-family:var(--font-mono);color:var(--accent);background:rgba(0,0,0,.8);padding:.3rem .8rem;border-radius:20px;border:1px solid var(--accent);opacity:0;transition:opacity .3s;pointer-events:none}
-.canvas-focus-label.visible{opacity:1}
-/* Tooltip para Inspección de Partículas */
-.particle-tooltip{position:absolute;font-size:.65rem;font-family:var(--font-mono);color:var(--text);background:rgba(13,17,23,.9);padding:.4rem .6rem;border-radius:6px;border:1px solid var(--accent2);pointer-events:none;opacity:0;transition:opacity .2s;z-index:10;backdrop-filter:blur(4px); box-shadow:0 4px 12px rgba(0,0,0,0.5);}
-.particle-tooltip.visible{opacity:1}
-.sim-card{border-radius:10px;overflow:hidden;border:1px solid var(--border);background:var(--card)}
-.sim-card-header{padding:.4rem .6rem;font-size:.6rem;font-family:var(--font-mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.4rem}
-.sim-card-header i{font-size:.55rem}
-.sim-card canvas{display:block;width:100%;height:120px;background:#080B0F}
-.ctrl-section{padding:.75rem}
-.ctrl-label{font-size:.6rem;color:var(--muted);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem}
-.ctrl-btn{width:100%;padding:.5rem .75rem;border-radius:8px;border:1px solid var(--border);background:rgba(0,0,0,.3);color:var(--text);font-size:.7rem;font-family:var(--font-mono);font-weight:700;cursor:pointer;transition:all .2s;text-transform:uppercase;letter-spacing:.05em}
-.ctrl-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,229,160,.05)}
-.ctrl-btn.primary{background:linear-gradient(135deg,rgba(0,229,160,.2),rgba(79,195,247,.15));border-color:var(--accent);color:var(--accent)}
-.ctrl-btn.primary:hover{background:linear-gradient(135deg,rgba(0,229,160,.3),rgba(79,195,247,.25))}
-.ctrl-btn.danger{border-color:var(--danger);color:var(--danger);background:rgba(255,82,82,.08)}
-.ctrl-btn.danger:hover{background:rgba(255,82,82,.15)}
-.ctrl-btn.warn{border-color:var(--warn);color:var(--warn);background:rgba(255,183,77,.08)}
-.ctrl-btn.warn:hover{background:rgba(255,183,77,.15)}
-.flow-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:2px} /* Expandido para hiperventilación */
-.flow-btn{padding:.35rem .1rem;font-size:.48rem;font-family:var(--font-mono);text-align:center;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .2s;font-weight:500; word-break: break-all;}
-.flow-btn.active{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:700}
-.flow-btn:not(.active):hover{color:var(--text);border-color:var(--muted)}
-.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:.35rem .5rem;border-radius:6px;border:1px solid rgba(42,48,64,.4);background:rgba(0,0,0,.15);font-size:.65rem;font-family:var(--font-mono);color:var(--muted);cursor:pointer;transition:all .2s}
-.toggle-row:hover{border-color:var(--border);color:var(--text)}
-.toggle-row input[type="checkbox"]{accent-color:var(--accent);cursor:pointer;width:14px;height:14px}
-.toggle-row.on{border-color:rgba(0,229,160,.3);color:var(--accent)}
-.slider-row{display:flex;flex-direction:column;gap:.2rem}
-.slider-header{display:flex;justify-content:space-between;font-size:.6rem;font-family:var(--font-mono);color:var(--muted)}
-.slider-header span:last-child{color:var(--accent2);font-weight:700}
-input[type="range"]{-webkit-appearance:none;width:100%;height:4px;background:var(--border);border-radius:2px;outline:none;cursor:pointer}
-input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent2);border:2px solid var(--bg);cursor:pointer;box-shadow:0 0 6px rgba(79,195,247,.4)}
-.preset-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px}
-.preset-btn{padding:.35rem .2rem;font-size:.5rem;font-family:var(--font-mono);text-align:center;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .2s}
-.preset-btn:hover{color:var(--text);border-color:var(--accent);background:rgba(0,229,160,.05)}
-.log-bar{display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;border-top:1px solid var(--border);font-size:.6rem;font-family:var(--font-mono);color:var(--muted);overflow:hidden;white-space:nowrap}
-.log-bar .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;animation:pulse-dot 2s infinite}
-@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.3}}
-.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:1rem}
-@media(max-width:800px){.features-grid{grid-template-columns:1fr}}
-.feature-card{padding:1.25rem;border-radius:10px;border:1px solid var(--border);background:rgba(26,32,48,.5);transition:border-color .3s}
-.feature-card:hover{border-color:var(--accent)}
-.feature-card h3{font-size:.85rem;font-weight:700;margin-bottom:.4rem}
-.feature-card p{font-size:.72rem;color:var(--muted);line-height:1.6}
-.doc-section{margin-top:1rem;border-radius:10px;border:1px solid var(--border);background:rgba(26,32,48,.5);overflow:hidden}
-.doc-tabs{display:flex;border-bottom:1px solid var(--border)}
-.doc-tab{padding:.6rem 1rem;font-size:.7rem;font-family:var(--font-mono);color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
-.doc-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.doc-tab:hover:not(.active){color:var(--text)}
-.doc-content{padding:1rem;font-size:.75rem;color:var(--muted);line-height:1.7}
-.toast-container{position:fixed;top:1rem;right:1rem;z-index:200;display:flex;flex-direction:column;gap:.5rem;pointer-events:none}
-.toast{padding:.6rem 1rem;border-radius:8px;font-size:.7rem;font-family:var(--font-mono);background:rgba(26,32,48,.95);border:1px solid var(--border);backdrop-filter:blur(12px);pointer-events:auto;animation:toast-in .3s ease-out;max-width:320px}
-.toast.success{border-color:var(--safe);color:var(--safe)}
-.toast.warning{border-color:var(--warn);color:var(--warn)}
-.toast.danger{border-color:var(--danger);color:var(--danger)}
-.toast.info{border-color:var(--accent2);color:var(--accent2)}
-@keyframes toast-in{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
-@keyframes toast-out{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(40px)}}
-.modal-overlay{position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
-.modal-overlay.open{display:flex}
-.modal{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.5rem;max-width:420px;width:90%}
-.modal h3{font-size:1rem;font-weight:700;margin-bottom:.75rem}
-.kb-row{display:flex;justify-content:space-between;align-items:center;padding:.3rem 0;font-size:.72rem}
-.kb-key{background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:4px;padding:.15rem .5rem;font-family:var(--font-mono);font-size:.65rem;color:var(--accent);min-width:28px;text-align:center}
-.boot-screen{position:fixed;inset:0;z-index:300;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s}
-.boot-screen.hidden{opacity:0;pointer-events:none}
-.boot-text{font-family:var(--font-mono);font-size:.7rem;color:var(--accent);letter-spacing:.1em;overflow:hidden;white-space:nowrap;border-right:2px solid var(--accent);animation:blink .6s step-end infinite}
-@keyframes blink{50%{border-color:transparent}}
-.boot-bar{width:200px;height:2px;background:var(--border);border-radius:1px;margin-top:1rem;overflow:hidden}
-.boot-bar-inner{height:100%;background:var(--accent);border-radius:1px;animation:boot-fill 1.8s ease-in-out forwards}
-@keyframes boot-fill{from{width:0}to{width:100%}}
-.mobile-toggle{display:none;position:fixed;bottom:1rem;right:1rem;z-index:50;width:48px;height:48px;border-radius:50%;background:var(--accent);color:var(--bg);border:none;font-size:1.2rem;cursor:pointer;box-shadow:0 4px 20px rgba(0,229,160,.3)}
-@media(max-width:1100px){.mobile-toggle{display:flex;align-items:center;justify-content:center}}
-.footer{margin-top:2rem;padding:1rem 0;border-top:1px solid var(--border);text-align:center;font-size:.65rem;color:var(--muted);font-family:var(--font-mono)}
-.download-section{margin-top:1rem;padding:1.25rem;border-radius:10px;border:1px solid rgba(0,229,160,.2);background:linear-gradient(135deg,rgba(0,229,160,.05),rgba(79,195,247,.03))}
-@keyframes glow-pulse{0%,100%{box-shadow:0 0 8px rgba(0,229,160,.15)}50%{box-shadow:0 0 20px rgba(0,229,160,.3)}}
-.glow-active{animation:glow-pulse 2s infinite}
-.canvas-wrap::after{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);border-radius:12px}
-@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-</style>
+<!DOCTYPE html>
+<html lang="es" id="htmlRoot" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title id="pageTitle">H3N2-Shield Fusion — Simulador Biomédico 3D V4.0 | Dr. Julio César Oporta Barrera</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #05080e;
+      color: #f1f5f9;
+      font-family: 'Exo 2', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      user-select: none;
+      width: 100vw;
+      height: 100vh;
+    }
+    #canvas3d {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      position: fixed;
+      top: 0; left: 0;
+      z-index: 1;
+      background: #05080e;
+    }
+    .center-title-overlay {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 5;
+      pointer-events: none;
+      text-align: center;
+      color: rgba(56, 189, 248, 0.85);
+      font-family: 'Exo 2', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-shadow: 0 0 12px rgba(56,189,248,0.4), 0 0 30px rgba(0,0,0,0.8);
+      white-space: nowrap;
+      line-height: 1.3;
+    }
+    .hud-layer {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 6px;
+    }
+    .interactive { pointer-events: auto; }
+    .glass-panel {
+      background: rgba(10, 14, 22, 0.82);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(79, 195, 247, 0.22);
+      border-radius: 8px;
+      padding: 5px 8px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.55);
+    }
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 4px 8px;
+    }
+    .title-group h1 {
+      font-size: 1.23rem;
+      font-weight: 700;
+      color: #4fc3f7;
+      letter-spacing: 0.4px;
+      line-height: 1.2;
+    }
+    .title-group p {
+      font-size: 0.78rem;
+      color: #94a3b8;
+      margin-top: 1px;
+    }
+    .author-badge {
+      font-size: 0.78rem;
+      color: #38bdf8;
+      font-weight: 600;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 1px 5px;
+      border-radius: 4px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      display: inline-block;
+      margin-top: 1px;
+    }
+    .btn-row { display: flex; gap: 3px; flex-wrap: wrap; }
+    .hud-btn {
+      background: rgba(12, 20, 36, 0.75);
+      color: #e2e8f0;
+      border: 1px solid rgba(79, 195, 247, 0.18);
+      padding: 3px 7px;
+      border-radius: 5px;
+      font-size: 0.83rem;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .hud-btn:hover {
+      background: rgba(79, 195, 247, 0.2);
+      border-color: #4fc3f7;
+      color: #fff;
+      transform: translateY(-1px);
+    }
+    .hud-btn.active {
+      background: #0284c7;
+      border-color: #38bdf8;
+      color: #fff;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+    }
+    .main-body {
+      display: flex;
+      justify-content: space-between;
+      flex: 1;
+      margin: 4px 0;
+      gap: 5px;
+      min-height: 0;
+      pointer-events: none;
+      max-height: calc(100vh - 110px);
+    }
+    .side-panel {
+      width: 200px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      overflow-y: auto;
+      max-height: 100%;
+      font-size: 0.93rem;
+      pointer-events: auto;
+      padding: 5px 6px;
+      background: rgba(10, 14, 22, 0.78);
+      backdrop-filter: blur(10px);
+      border-radius: 8px;
+      border: 1px solid rgba(79, 195, 247, 0.12);
+    }
+    .side-panel::-webkit-scrollbar { width: 3px; }
+    .side-panel::-webkit-scrollbar-thumb { background: #2A3040; border-radius: 2px; }
+    .hud-tabs {
+      display: flex;
+      gap: 2px;
+      background: rgba(0,0,0,0.35);
+      border-radius: 6px;
+      padding: 2px;
+      overflow-x: auto;
+    }
+    .hud-tab {
+      flex: 1;
+      text-align: center;
+      padding: .15rem .25rem;
+      font-size: 0.63rem;
+      font-weight: 700;
+      color: #6B7B8D;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all .25s;
+      white-space: nowrap;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+      min-width: 32px;
+    }
+    .hud-tab.active {
+      color: #0b0e14;
+      background: #00E5A0;
+    }
+    .hud-tab:not(.active):hover { color: #E6EDF3; }
+    .hud-panel { display: none; }
+    .hud-panel.active { display: block; }
+    .metric {
+      background: rgba(0,0,0,0.25);
+      border: 1px solid #2A3040;
+      border-radius: 4px;
+      padding: .2rem .4rem;
+      margin-bottom: .2rem;
+    }
+    .metric-label {
+      font-size: 0.63rem;
+      color: #6B7B8D;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .metric-value {
+      font-size: 1.17rem;
+      font-weight: 900;
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.2;
+      margin-top: .05rem;
+    }
+    .metric-sub {
+      font-size: 0.63rem;
+      color: #6B7B8D;
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: .05rem;
+    }
+    .bottom-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+      background: rgba(10, 14, 22, 0.78);
+      backdrop-filter: blur(10px);
+      border-radius: 8px;
+      border: 1px solid rgba(79, 195, 247, 0.12);
+      padding: 3px 6px;
+      margin-bottom: 1px;
+    }
+    .bottom-controls .flow-grid { display: flex; gap: 2px; }
+    .flow-btn {
+      padding: 2px 5px;
+      font-size: 0.6rem;
+      font-family: 'JetBrains Mono', monospace;
+      text-align: center;
+      border-radius: 3px;
+      border: 1px solid #2A3040;
+      background: transparent;
+      color: #6B7B8D;
+      cursor: pointer;
+      transition: all .2s;
+      font-weight: 500;
+      line-height: 1.2;
+      min-width: 28px;
+    }
+    .flow-btn.active { background: #00E5A0; color: #0b0e14; border-color: #00E5A0; font-weight: 700; }
+    .flow-btn:not(.active):hover { color: #E6EDF3; border-color: #6B7B8D; }
+    .ctrl-btn {
+      padding: 2px 6px;
+      font-size: 0.72rem;
+      border-radius: 4px;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .ctrl-btn.primary { background: #00E5A0; color: #0b0e14; }
+    .ctrl-btn.danger { background: #FF5252; color: #fff; }
+    .ctrl-btn.warn { background: #FFB74D; color: #0b0e14; }
+    .ctrl-btn:hover { filter: brightness(1.2); }
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.72rem;
+      color: #6B7B8D;
+      cursor: pointer;
+    }
+    .toggle-row input[type="checkbox"] { accent-color: #00E5A0; cursor: pointer; width: 10px; height: 10px; }
+    .toggle-row.on { color: #00E5A0; }
+    .preset-btn {
+      padding: 2px 5px;
+      font-size: 0.63rem;
+      border-radius: 3px;
+      border: 1px solid #2A3040;
+      background: transparent;
+      color: #6B7B8D;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .preset-btn:hover { color: #E6EDF3; border-color: #00E5A0; background: rgba(0,229,160,.05); }
+    .slider-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      font-size: 0.63rem;
+      color: #94a3b8;
+      min-width: 50px;
+    }
+    .slider-container input[type="range"] {
+      accent-color: #38bdf8;
+      cursor: pointer;
+      width: 60px;
+      height: 3px;
+      -webkit-appearance: none;
+      background: #2A3040;
+      border-radius: 2px;
+      outline: none;
+    }
+    .slider-container input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 8px; height: 8px; border-radius: 50%; background: #38bdf8; border: none; cursor: pointer;
+    }
+    .slider-header { display: flex; justify-content: space-between; font-size: 0.57rem; color: #6B7B8D; }
+    .dock-wrapper {
+      pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-height: 120px;
+      overflow-y: auto;
+      margin-top: 2px;
+    }
+    .dock-container {
+      background: rgba(10, 14, 22, 0.78);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(79, 195, 247, 0.1);
+      border-radius: 5px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    .dock-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 2px 7px;
+      cursor: pointer;
+      color: #94a3b8;
+      font-size: 0.78rem;
+      font-weight: 600;
+      transition: background 0.2s;
+      user-select: none;
+    }
+    .dock-header:hover { background: rgba(79, 195, 247, 0.05); }
+    .dock-header .toggle-icon { font-size: 0.83rem; transition: transform 0.3s; }
+    .dock-container.collapsed .dock-header .toggle-icon { transform: rotate(-90deg); }
+    .dock-body {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px;
+      padding: 0 5px 3px 5px;
+      transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+      max-height: 200px;
+      opacity: 1;
+      overflow: hidden;
+    }
+    .dock-container.collapsed .dock-body { max-height: 0; opacity: 0; padding: 0 5px; }
+    .mode-btn, .adv-btn {
+      padding: 2px 5px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+      border-radius: 3px;
+      background: rgba(12, 20, 36, 0.65);
+      border: 1px solid rgba(79, 195, 247, 0.1);
+      color: #cbd5e1;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .mode-btn:hover, .mode-btn.active { background: rgba(14, 165, 233, 0.2); border-color: #38bdf8; color: #fff; }
+    .adv-btn:hover, .adv-btn.active { background: rgba(79, 195, 247, 0.15); border-color: #4fc3f7; color: #fff; }
+
+    /* Tooltip 3D */
+    .tooltip-3d {
+      position: absolute;
+      z-index: 50;
+      background: rgba(10,14,22,0.92);
+      border: 1px solid #4fc3f7;
+      border-radius: 6px;
+      padding: .4rem .6rem;
+      font-size: 0.83rem;
+      color: #e2e8f0;
+      max-width: 220px;
+      pointer-events: none;
+      display: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px);
+    }
+    .tooltip-3d.visible { display: block; }
+
+    /* Modal overlay */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,0.7);
+      display: none; justify-content: center; align-items: center;
+      backdrop-filter: blur(6px);
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: rgba(10,14,22,0.95);
+      border: 1px solid #4fc3f7;
+      border-radius: 10px;
+      padding: 1rem;
+      max-width: 520px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+      color: #e2e8f0;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    .modal-box h2 { color: #4fc3f7; font-size: 1.27rem; margin-bottom: 0.5rem; }
+    .modal-box h3 { color: #00E5A0; font-size: 1.05rem; margin-bottom: 0.4rem; }
+    .modal-box p { margin-bottom: 0.4rem; }
+    .close-btn {
+      float: right; background: none; border: none; color: #94a3b8; font-size: 1.8rem; cursor: pointer;
+    }
+    .close-btn:hover { color: #fff; }
+
+    /* Toast */
+    .toast-container {
+      position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);
+      z-index: 200; display: flex; flex-direction: column; gap: .3rem; pointer-events: none;
+    }
+    .toast {
+      background: rgba(10,14,22,0.92); border: 1px solid #4fc3f7; border-radius: 6px;
+      padding: .35rem .7rem; font-size: 0.83rem; color: #e2e8f0;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5); animation: toast-in .3s ease;
+      pointer-events: none; white-space: nowrap;
+    }
+    .toast.warning { border-color: #FFB74D; color: #FFB74D; }
+    .toast.danger { border-color: #FF5252; color: #FF5252; }
+    .toast.success { border-color: #00E5A0; color: #00E5A0; }
+    @keyframes toast-in { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes toast-out { from { opacity:1; transform:translateY(0); } to { opacity:0; transform:translateY(-10px); } }
+
+    /* Focus label */
+    .canvas-focus-label {
+      position: absolute; z-index: 20; font-size: 0.68rem; color: #00E5A0;
+      font-family: 'JetBrains Mono', monospace; pointer-events: none; display: none;
+    }
+    .canvas-focus-label.visible { display: block; }
+
+    .doc-section {
+      pointer-events: auto;
+      border-radius: 4px; border: 1px solid #2A3040;
+      background: rgba(20,26,42,0.55); overflow: hidden; margin-top: 1px;
+    }
+    .doc-tabs { display: flex; border-bottom: 1px solid #2A3040; }
+    .doc-tab { padding: .2rem .4rem; font-size: 0.63rem; color: #6B7B8D; cursor: pointer; border-bottom: 2px solid transparent; transition: all .2s; }
+    .doc-tab.active { color: #00E5A0; border-bottom-color: #00E5A0; }
+    .doc-content { padding: .25rem .4rem; font-size: 0.72rem; color: #6B7B8D; line-height: 1.4; }
+
+    @media (max-width: 1100px) { .side-panel { width: 160px; } }
+    @media (max-width: 700px) { .side-panel { display: none; } .header-bar { flex-direction: column; align-items: flex-start; } }
+    @media (max-width: 500px) { }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200;400;700;900&family=JetBrains+Mono:wght@300;500;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-<div class="boot-screen hidden" id="bootScreen" style="display: none;">
-  <div style="font-size:1.8rem;font-weight:900;letter-spacing:.05em;margin-bottom:.5rem">H3N2<span class="accent">-</span>Shield</div>
-  <div class="boot-text" id="bootText">SISTEMA LISTO.</div>
-  <div class="boot-bar"><div class="boot-bar-inner"></div></div>
-</div>
+  <div id="canvas3d"></div>
+  <div id="centerTitle" class="center-title-overlay">H3N2 -SHIELD FUSION</div>
 
-<div class="toast-container" id="toastContainer"></div>
-
-<div class="modal-overlay" id="kbModal">
-  <div class="modal">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
-      <h3 class="accent mono text-sm">ATAJOS DE TECLADO</h3>
-      <button onclick="toggleKbModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem"><i class="fas fa-times"></i></button>
-    </div>
-    <div class="kb-row"><span>Modo Reposo</span><span class="kb-key">1</span></div>
-    <div class="kb-row"><span>Modo Activo</span><span class="kb-key">2</span></div>
-    <div class="kb-row"><span>Respiración Sinusoidal</span><span class="kb-key">3</span></div>
-    <div class="kb-row"><span>Simular Tos</span><span class="kb-key">4</span></div>
-    <div class="kb-row"><span>Simular Estornudo</span><span class="kb-key">5</span></div>
-    <div class="kb-row"><span>Modo Hiperventilación</span><span class="kb-key">6</span></div>
-    <div class="kb-row"><span>Aplicar Spray</span><span class="kb-key">S</span></div>
-    <div class="kb-row"><span>Vista Explotada</span><span class="kb-key">E</span></div>
-    <div class="kb-row"><span>Electrostático ON/OFF</span><span class="kb-key">F</span></div>
-    <div class="kb-row"><span>Nanofibras ON/OFF</span><span class="kb-key">N</span></div>
-    <div class="kb-row"><span>Ayuda</span><span class="kb-key">?</span></div>
-    <div class="kb-row"><span>Cerrar foco/tooltip</span><span class="kb-key">Esc</span></div>
+  <div class="tooltip-3d" id="tooltip3d">
+    <strong id="tooltipTitle">Componente</strong><br>
+    <span id="tooltipDesc">Descripción</span>
   </div>
-</div>
 
-<div class="container">
-  <header class="header">
-    <div>
-      <div class="text-xs mono tracking accent" style="opacity:.7">AUTOR / INVENTOR</div>
-      <div class="text-lg fw-900" style="letter-spacing:-.02em">Dr. Julio César Oporta Barrera</div>
-      <div class="text-xs mono" style="color:var(--muted)">H3N2-Shield Fusion — Simulador Biomédico 3D Avanzado V3.0</div>
-    </div>
-    <div style="display:flex;flex-wrap:wrap;gap:.4rem;align-items:center">
-      <div style="display:flex;gap:2px;background:rgba(0,0,0,.3);border-radius:6px;padding:2px">
-        <button class="lang-btn active" data-lang="es" onclick="setLang('es')">ES</button>
-        <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
-        <button class="lang-btn" data-lang="zh" onclick="setLang('zh')">中文</button>
+  <div class="modal-overlay" id="projectModal">
+    <div class="modal-box">
+      <button class="close-btn" onclick="closeModal()">&times;</button>
+      <h2 id="modalTitle">H3N2-Shield Fusion</h2>
+      <div id="modalBody">
+        <p id="modalP1"></p>
+        <p id="modalP2"></p>
+        <p id="modalP3"></p>
+        <p id="modalP4"></p>
+        <p id="modalP5"></p>
       </div>
-      <span class="badge" style="border-color:var(--border);color:var(--muted)">PATENTE PROV. 2026</span>
-      <span class="badge" style="border-color:rgba(255,64,129,.5);color:var(--viro)">EXPANSION_V3.0</span>
-      <button onclick="toggleKbModal()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:.2rem .5rem;color:var(--muted);cursor:pointer;font-size:.7rem" title="Atajos de teclado"><i class="fas fa-keyboard"></i></button>
     </div>
-  </header>
+  </div>
 
-  <div class="main-grid">
-    <aside class="side-panel" id="leftPanel">
-      <div class="glass" style="display:flex;flex-direction:column;gap:.5rem;overflow:hidden">
-        <div style="padding:.5rem .5rem 0">
-          <div class="hud-tabs" id="hudTabs">
-            <div class="tab-indicator" id="tabIndicator" style="left: 3px; width: 45px;"></div>
-            <div class="hud-tab active" data-tab="tactical" onclick="switchHudTab('tactical')">TACTICO</div>
-            <div class="hud-tab" data-tab="biomech" onclick="switchHudTab('biomech')">BIO MEC</div>
-            <div class="hud-tab" data-tab="cfd" onclick="switchHudTab('cfd')">CFD</div>
-            <div class="hud-tab" data-tab="virology" onclick="switchHudTab('virology')">VIRO</div>
-            <div class="hud-tab" data-tab="supply" onclick="switchHudTab('supply')">SUMIN</div>
+  <div class="modal-overlay" id="kbModal">
+    <div class="modal-box">
+      <h3 class="accent" id="kbTitle">ATAJOS DE TECLADO</h3>
+      <div id="kbContent"></div>
+      <button onclick="closeKbModal()" style="margin-top:.5rem;background:#00E5A0;border:none;padding:.3rem 1rem;border-radius:6px;font-weight:700;cursor:pointer;color:#0b0e14;width:100%;" id="kbCloseBtn">Cerrar</button>
+    </div>
+  </div>
+
+  <div class="hud-layer">
+    <header class="header-bar interactive glass-panel">
+      <div class="title-group">
+        <h1 id="mainTitle">H3N2-SHIELD FUSION — KIT SEMANAL DE DEFENSA NASAL</h1>
+        <p id="subTitle">Prototipo 3D Interactivo • OMNIA-5000 / ISO 13485</p>
+        <div class="author-badge" id="authorBadge">Dr. Julio César Oporta Barrera</div>
+      </div>
+      <div class="btn-row">
+        <button class="hud-btn" id="langBtn" onclick="toggleLang()">🌐 ES</button>
+        <button class="hud-btn" id="explodedToggle" onclick="toggleExploded()">💥 Despiece</button>
+        <button class="hud-btn" id="xrayToggle" onclick="toggleXray()">🔬 Rayos-X</button>
+        <button class="hud-btn" id="coughBtn" onclick="triggerCough()">💨 Tos</button>
+        <button class="hud-btn" id="centerBtn" onclick="resetCamera()">🔄 Centrar</button>
+        <button class="hud-btn" id="breathBtn" onclick="toggleBreath()">🌬️ Respiración</button>
+        <button class="hud-btn" id="projectBtn" onclick="openModal()">📖 Proyecto</button>
+        <button class="hud-btn" id="tourBtn" onclick="startTour()">🎯 Tour</button>
+        <button class="hud-btn" onclick="toggleKbModal()">⌨️</button>
+        <button class="hud-btn" id="hudToggleBtn" onclick="toggleHUD()">👁️ Ocultar HUD</button>
+      </div>
+    </header>
+
+    <div class="main-body">
+      <div class="side-panel interactive" id="leftPanel">
+        <h3 style="font-size: 0.9rem;color:#38bdf8;margin-bottom:2px;" id="panelEngineering">📐 Parámetros</h3>
+        <div class="slider-container">
+          <label style="font-size: 0.72rem;" id="explodeLabel">Despiece</label>
+          <input type="range" id="explodeSlider" min="0" max="1" step="0.01" value="0" oninput="setExplode(this.value)">
+        </div>
+        <div class="slider-container">
+          <label style="font-size: 0.72rem;" id="flowLabel">Caudal (L/min)</label>
+          <input type="range" id="flowSlider" min="0" max="300" step="5" value="30" oninput="setFlowSlider(this.value)">
+          <span id="flowVal" style="font-size: 0.72rem;color:#38bdf8;font-family:monospace;">30</span>
+        </div>
+        <div>
+          <h4 style="font-size: 0.78rem;color:#94a3b8;margin-bottom:1px;" id="layersTitle">Capas</h4>
+          <label style="display:block;font-size: 0.72rem;"><input type="checkbox" checked onchange="toggleLayer('spray',this.checked)"> <span id="layerSpray">Ampolla</span></label>
+          <label style="display:block;font-size: 0.72rem;"><input type="checkbox" checked onchange="toggleLayer('nozzle',this.checked)"> <span id="layerNozzle">Boquilla</span></label>
+          <label style="display:block;font-size: 0.72rem;"><input type="checkbox" checked onchange="toggleLayer('chassis',this.checked)"> <span id="layerChassis">TPE</span></label>
+          <label style="display:block;font-size: 0.72rem;"><input type="checkbox" checked onchange="toggleLayer('seal',this.checked)"> <span id="layerSeal">Sellado</span></label>
+          <label style="display:block;font-size: 0.72rem;"><input type="checkbox" checked onchange="toggleLayer('nanofiber',this.checked)"> <span id="layerNanofiber">Nanofibras</span></label>
+          <label style="display:block;font-size: 0.72rem;"><input type="checkbox" checked onchange="toggleLayer('labyrinth',this.checked)"> <span id="layerLabyrinth">Laberinto</span></label>
+          <label style="display:block;font-size: 0.72rem;"><input type="checkbox" checked onchange="toggleLayer('particles',this.checked)"> <span id="layerParticles">Aerosoles</span></label>
+        </div>
+        <div class="accordion" style="margin-top:2px;">
+          <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)" style="font-size: 0.72rem;color:#38bdf8;cursor:pointer;" id="specsHeader">📋 Especificaciones</div>
+            <div class="accordion-content" style="font-size: 0.63rem;color:#94a3b8;display:none;" id="specsContent"></div>
           </div>
         </div>
+        <div style="font-size: 0.63rem;color:#94a3b8;margin-top:2px;" id="isoText"></div>
+      </div>
 
-        <div style="padding:.5rem;flex:1;overflow-y:auto;max-height:480px" id="hudContent">
-          <div class="hud-panel" id="panel-tactical" style="display: block;">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
-              <div class="metric"><div class="metric-label" data-t="efficiency">Eficiencia Captura</div><div class="metric-value accent" id="mEfficiency" style="color: var(--accent);">94.5%</div><div class="metric-sub" id="mEffSub">N80 equivalente</div></div>
-              <div class="metric"><div class="metric-label" data-t="pressureDrop">Caida de Presion</div><div class="metric-value" id="mPressure" style="color:var(--text)">4.1 Pa</div><div class="metric-sub" id="mPressSub">Dentro de objetivo</div></div>
+      <div class="side-panel interactive" id="rightPanel" style="margin-left:auto;">
+        <div class="hud-tabs">
+          <div class="hud-tab active" data-tab="tactical" onclick="switchHudTab('tactical')">TÁCT</div>
+          <div class="hud-tab" data-tab="biomech" onclick="switchHudTab('biomech')">BIO</div>
+          <div class="hud-tab" data-tab="cfd" onclick="switchHudTab('cfd')">CFD</div>
+          <div class="hud-tab" data-tab="virology" onclick="switchHudTab('virology')">VIRO</div>
+          <div class="hud-tab" data-tab="supply" onclick="switchHudTab('supply')">SUMIN</div>
+        </div>
+        <div id="hudContent" style="flex:1;overflow-y:auto;max-height:200px;padding-top:2px;">
+          <div class="hud-panel active" id="panel-tactical">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.2rem">
+              <div class="metric"><div class="metric-label" id="lblEfficiency">Eficiencia</div><div class="metric-value" id="mEfficiency" style="color:#00E5A0;">94.5%</div><div class="metric-sub" id="mEffSub">N80</div></div>
+              <div class="metric"><div class="metric-label" id="lblPressure">ΔP</div><div class="metric-value" id="mPressure" style="color:#E6EDF3;">4.1 Pa</div><div class="metric-sub" id="mPressSub">OK</div></div>
             </div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label" data-t="residenceTime">Multiplicador Residencia</div><div style="display:flex;align-items:baseline;gap:.5rem;margin-top:.2rem"><span class="metric-value accent2" id="mResidence">2.5x</span><span class="text-xs mono" style="color:var(--muted)">RP-1</span></div></div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label" data-t="particleSpeed">Velocidad Particulas</div><div class="metric-value" id="mSpeed" style="font-size:1.1rem;color:var(--warn)">0.18 m/s</div></div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label" data-t="particleCount">Densidad Enjambre</div><div class="metric-value" id="mDensity" style="font-size:1.1rem">50</div></div>
+            <div class="metric"><div class="metric-label" id="lblResidence">Residencia</div><div class="metric-value" id="mResidence" style="color:#4FC3F7;">2.5x</div></div>
+            <div class="metric"><div class="metric-label" id="lblSpeed">Velocidad</div><div class="metric-value" id="mSpeed" style="font-size: 1.05rem;color:#FFB74D;">0.18 m/s</div></div>
+            <div class="metric"><div class="metric-label" id="lblDensity">Enjambre</div><div class="metric-value" id="mDensity" style="font-size: 1.05rem;">50</div></div>
           </div>
-
-          <div class="hud-panel" id="panel-biomech" style="display:none">
-            <div class="metric"><div class="metric-label">Frecuencia Respiratoria</div><div class="metric-value safe" id="mRespRate">15 rpm</div></div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label">Volumen Tidal</div><div class="metric-value accent2" id="mTidalVol">500 mL</div></div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label">Presion Peak Inspiratoria</div><div class="metric-value" id="mPeakPress" style="color:var(--text)">-2.1 cmH2O</div></div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label">Estrés de Sellado TPE</div><div class="metric-value" id="mTpeStress" style="font-size:1.1rem;color:var(--warn)">Normal</div></div>
-            <div style="margin-top:.5rem;border:1px solid var(--border);border-radius:6px;overflow:hidden">
-              <canvas id="waveformMini" style="width:100%;height:80px;display:block;background:#080B0F" width="0" height="0"></canvas>
-            </div>
+          <div class="hud-panel" id="panel-biomech">
+            <div class="metric"><div class="metric-label" id="lblRespRate">Frecuencia</div><div class="metric-value" id="mRespRate" style="color:#00E676;">15 rpm</div></div>
+            <div class="metric"><div class="metric-label" id="lblTidalVol">Vol. Tidal</div><div class="metric-value" id="mTidalVol" style="color:#4FC3F7;">500 mL</div></div>
+            <div class="metric"><div class="metric-label" id="lblPeakPress">Pico Insp.</div><div class="metric-value" id="mPeakPress" style="color:#E6EDF3;">-2.1 cmH2O</div></div>
+            <div class="metric"><div class="metric-label" id="lblTpeStress">Estrés TPE</div><div class="metric-value" id="mTpeStress" style="font-size: 1.05rem;color:#FFB74D;">Normal</div></div>
+            <div style="border:1px solid #2A3040;border-radius:3px;overflow:hidden;margin-top:.2rem;"><canvas id="waveformMini" style="width:100%;height:35px;display:block;background:#05080E;"></canvas></div>
           </div>
-
-          <div class="hud-panel" id="panel-cfd" style="display:none">
-            <div class="metric"><div class="metric-label">Numero de Reynolds</div><div class="metric-value accent2" id="mReynolds" style="color: var(--danger);">6630</div><div class="metric-sub">Regimen: Turbulento</div></div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label">Velocidad Maxima</div><div class="metric-value warn" id="mMaxVel">0.45 m/s</div></div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label">Velocidad Media</div><div class="metric-value" id="mAvgVel" style="color:var(--text);font-size:1.1rem">0.18 m/s</div></div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label">Turbulencia (k)</div><div class="metric-value" id="mTurbK" style="font-size:1.1rem;color:var(--muted)">0.0006 m²/s²</div></div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label">Caida Presion CFD</div><div class="metric-value" id="mCfdPress" style="font-size:1.1rem">4.1 Pa</div></div>
+          <div class="hud-panel" id="panel-cfd">
+            <div class="metric"><div class="metric-label" id="lblReynolds">Reynolds</div><div class="metric-value" id="mReynolds" style="color:#FF5252;">6630</div><div class="metric-sub" id="mReynoldsSub">Turbulento</div></div>
+            <div class="metric"><div class="metric-label" id="lblMaxVel">Vel. Máx.</div><div class="metric-value" id="mMaxVel" style="color:#FFB74D;">0.45 m/s</div></div>
+            <div class="metric"><div class="metric-label" id="lblAvgVel">Vel. Media</div><div class="metric-value" id="mAvgVel" style="font-size: 1.05rem;">0.18 m/s</div></div>
+            <div class="metric"><div class="metric-label" id="lblTurbK">Turbulencia k</div><div class="metric-value" id="mTurbK" style="font-size: 0.9rem;color:#6B7B8D;">0.0006</div></div>
+            <div class="metric"><div class="metric-label" id="lblCfdPress">ΔP CFD</div><div class="metric-value" id="mCfdPress" style="font-size: 1.05rem;">4.1 Pa</div></div>
           </div>
-
-          <div class="hud-panel" id="panel-virology" style="display:none">
-            <div class="metric"><div class="metric-label">Carga Viral Neutralizada</div><div class="metric-value viro" id="mViralLoad">0.0 Log10</div><div class="metric-sub">Lisis por Spray Químico</div></div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label">Tasa Resistencia Mutación</div><div class="metric-value" id="mMutRate" style="font-size:1.1rem;color:var(--text)">99.8%</div></div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label">Integridad de Envoltura (Prom)</div><div class="metric-value" id="mEnvInteg" style="font-size:1.1rem;color:var(--warn)">100%</div></div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label">Cobertura Spray</div><div class="metric-value chem" id="mSprayCov">0%</div></div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label">Tasa Union Molecular</div><div class="metric-value" id="mBindRate" style="font-size:1.1rem;color:var(--chem)">0.0 mg/h</div></div>
+          <div class="hud-panel" id="panel-virology">
+            <div class="metric"><div class="metric-label" id="lblViralLoad">Carga Viral</div><div class="metric-value" id="mViralLoad" style="color:#FF4081;">0.0 Log10</div></div>
+            <div class="metric"><div class="metric-label" id="lblMutRate">Mutación</div><div class="metric-value" id="mMutRate" style="font-size: 1.05rem;">99.8%</div></div>
+            <div class="metric"><div class="metric-label" id="lblEnvInteg">Envoltura</div><div class="metric-value" id="mEnvInteg" style="font-size: 1.05rem;color:#FFB74D;">100%</div></div>
+            <div class="metric"><div class="metric-label" id="lblSprayCov">Cobertura Spray</div><div class="metric-value" id="mSprayCov" style="color:#CE93D8;">0%</div></div>
+            <div class="metric"><div class="metric-label" id="lblBindRate">Unión Molecular</div><div class="metric-value" id="mBindRate" style="font-size: 1.05rem;color:#CE93D8;">0.0 mg/h</div></div>
           </div>
-
-          <div class="hud-panel" id="panel-supply" style="display:none">
-            <div class="metric"><div class="metric-label">Integridad PLA</div><div class="metric-value safe" id="mPlaIntegrity" style="color: var(--safe);">100%</div><div class="metric-sub" id="mPlaSub">Sin degradacion</div></div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label">Humedad Ambiente</div><div class="metric-value accent2" id="mHumidity" style="color: var(--accent2);">45%</div></div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label">Stock Filtros</div><div class="metric-value" style="font-size:1.1rem;color:var(--text)">52 uds</div></div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label">Lote Produccion</div><div class="metric-value" style="font-size:1rem;color:var(--muted);font-weight:400">LOT-2026-0847</div></div>
-            <div class="metric" style="margin-top:.5rem"><div class="metric-label">Estado Regulatorio</div><div class="metric-value safe" style="font-size:.85rem">PATENTE PROVISIONAL ACTIVA</div></div>
+          <div class="hud-panel" id="panel-supply">
+            <div class="metric"><div class="metric-label" id="lblPlaIntegrity">Integridad PLA</div><div class="metric-value" id="mPlaIntegrity" style="color:#00E676;">100%</div><div class="metric-sub" id="mPlaSub">Sin degradación</div></div>
+            <div class="metric"><div class="metric-label" id="lblHumidity">Humedad</div><div class="metric-value" id="mHumidity" style="color:#4FC3F7;">45%</div></div>
+            <div class="metric"><div class="metric-label" id="lblStock">Stock</div><div class="metric-value" style="font-size: 1.05rem;">52 uds</div></div>
+            <div class="metric"><div class="metric-label" id="lblLote">Lote</div><div class="metric-value" style="font-size: 0.9rem;color:#6B7B8D;font-weight:400;">LOT-2026-0847</div></div>
+          </div>
+        </div>
+        <div class="status-box" style="margin-top:2px;padding:2px 4px;background:rgba(56,189,248,0.05);border-left:2px solid #38bdf8;border-radius:3px;">
+          <div class="mode-name" id="modeNameDisplay" style="font-size: 0.72rem;font-weight:700;color:#38bdf8;">MODO CFD</div>
+          <div class="mode-desc" id="modeDescDisplay" style="font-size: 0.57rem;color:#94a3b8;">Flujo transitorio</div>
+        </div>
+        <div style="display:flex;gap:4px;margin-top:2px;">
+          <div class="chart-container" style="flex:1;height:35px;background:rgba(0,0,0,0.2);border-radius:3px;padding:1px;"><canvas id="efficiencyChart" style="width:100%;height:100%;"></canvas></div>
+          <div class="flow-meter" style="display:flex;align-items:center;gap:3px;">
+            <canvas id="flowMeter" width="30" height="30" style="width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,0.3);"></canvas>
+            <div><div class="label" style="font-size: 0.57rem;color:#94a3b8;">Flujo</div><div class="value" id="flowMeterValue" style="font-size: 0.87rem;font-weight:700;color:#38bdf8;">30</div></div>
           </div>
         </div>
       </div>
-    </aside>
-
-    <div style="display:flex;flex-direction:column;gap:0">
-      <div class="canvas-wrap" id="canvasWrap" style="flex:1">
-        <canvas id="canvas3d" width="1233" height="696"></canvas>
-        <div class="canvas-overlay"><span style="color:var(--accent)">●</span> <span data-t="dragHint">ARRASTRE PARA ROTAR · CLIC EN PARTÍCULA INSPECCIONAR · DOBL-CLIC FOCO · SCROLL ZOOM</span></div>
-        <div class="canvas-focus-label" id="focusLabel"></div>
-        <div class="particle-tooltip" id="particleTooltip">
-            <div style="color:var(--accent2); font-weight:700; margin-bottom:2px;">ANÁLISIS DE NODO</div>
-            <div>Tamaño: <span id="ttSize">--</span> µm</div>
-            <div>Estado: <span id="ttState">--</span></div>
-            <div>Carga Eléctrica: <span id="ttCharge">--</span> q</div>
-        </div>
-      </div>
-      <div class="log-bar glass-sm" style="border-radius:0 0 12px 12px;border-top:none">
-        <div class="dot"></div>
-        <span id="logText" style="flex:1;overflow:hidden;text-overflow:ellipsis">Sistema listo. Modo: Reposo.</span>
-        <span style="color:var(--accent);flex-shrink:0" id="logFlow">10 L/min</span>
-      </div>
     </div>
 
-    <aside class="side-panel" id="rightPanel">
-      <div class="glass" style="display:flex;flex-direction:column;gap:0;overflow:hidden">
-        <div class="ctrl-section" style="border-bottom:1px solid var(--border)">
-          <div class="ctrl-label" data-t="flowMode">Modo de Flujo de Aire</div>
-          <div class="flow-grid" id="flowGrid">
-            <button class="flow-btn active" data-flow="resting" onclick="setFlow('resting')">10<br>L/m</button>
-            <button class="flow-btn" data-flow="active" onclick="setFlow('active')">30<br>L/m</button>
-            <button class="flow-btn" data-flow="breathing" onclick="setFlow('breathing')">~15<br>SIN</button>
-            <button class="flow-btn" data-flow="hyperventilation" onclick="setFlow('hyperventilation')">120<br>HIP</button> <button class="flow-btn" data-flow="cough" onclick="triggerCough()">300<br>TOS</button>
-            <button class="flow-btn" data-flow="sneezing" onclick="triggerSneezing()">450<br>EST</button>
+    <div style="display:flex;flex-direction:column;gap:2px;pointer-events:none;margin-top:2px;">
+      <div class="bottom-controls interactive">
+        <span style="font-size: 0.63rem;color:#6B7B8D;" id="flowLabelCtrl">FLUJO:</span>
+        <div class="flow-grid">
+          <button class="flow-btn active" data-flow="resting" onclick="setFlow('resting')">10</button>
+          <button class="flow-btn" data-flow="active" onclick="setFlow('active')">30</button>
+          <button class="flow-btn" data-flow="breathing" onclick="setFlow('breathing')">~15</button>
+          <button class="flow-btn" data-flow="hyperventilation" onclick="setFlow('hyperventilation')">120</button>
+          <button class="flow-btn" data-flow="cough" onclick="triggerCough()">300</button>
+          <button class="flow-btn" data-flow="sneezing" onclick="triggerSneezing()">450</button>
+        </div>
+        <button class="ctrl-btn primary" onclick="triggerSpray()" id="btnSpray">💧 Spray</button>
+        <button class="ctrl-btn danger" onclick="triggerCough()" id="btnCoughCtrl">💨 Tos</button>
+        <button class="ctrl-btn warn" onclick="triggerSneezing()" id="btnSneeze">🌪️ Estornudo</button>
+        <label class="toggle-row on" onclick="toggleElectrostatic()"><span>⚡</span><input type="checkbox" checked id="chkElectro"></label>
+        <label class="toggle-row on" onclick="toggleNanofibers()"><span>🧬</span><input type="checkbox" checked id="chkNano"></label>
+        <label class="toggle-row" onclick="toggleExploded()"><span>💥</span><input type="checkbox" id="chkExploded"></label>
+        <button class="preset-btn" onclick="applyPreset('clinical')" id="btnPresetClinic">Clínico</button>
+        <button class="preset-btn" onclick="applyPreset('stress')" id="btnPresetStress">Estrés</button>
+        <button class="preset-btn" onclick="applyPreset('degraded')" id="btnPresetDegr">Degradado</button>
+        <div class="slider-container"><div class="slider-header"><span id="lblField">Campo</span><span id="valField">1.5kV</span></div><input type="range" min="0.5" max="3" step="0.1" value="1.5" oninput="setField(this.value)"></div>
+        <div class="slider-container"><div class="slider-header"><span id="lblDensityCtrl">Densidad</span><span id="valDensity">85%</span></div><input type="range" min="30" max="100" step="1" value="85" oninput="setDensity(this.value)"></div>
+        <div class="slider-container"><div class="slider-header"><span id="lblHumidityCtrl">Humedad</span><span id="valHumidity">45%</span></div><input type="range" min="10" max="95" step="1" value="45" oninput="setHumidity(this.value)"></div>
+        <div class="slider-container"><div class="slider-header"><span id="lblDegradation">Degradación</span><span id="valPla">0 sem</span></div><input type="range" min="0" max="12" step="1" value="0" oninput="setPlaWeeks(this.value)"></div>
+      </div>
+
+      <div class="dock-wrapper interactive">
+        <div class="dock-container" id="dockMain">
+          <div class="dock-header" onclick="toggleDock('dockMain')"><span id="dockMainTitle">🎮 Modos</span><span class="toggle-icon">▼</span></div>
+          <div class="dock-body">
+            <button class="mode-btn" data-mode="standby" onclick="setMode('standby',this)">1.Reposo</button>
+            <button class="mode-btn" data-mode="analysis" onclick="setMode('analysis',this)">2.CAD</button>
+            <button class="mode-btn" data-mode="diagnostic" onclick="setMode('diagnostic',this)">3.ISO</button>
+            <button class="mode-btn active" data-mode="simulation" onclick="setMode('simulation',this)">4.CFD</button>
+            <button class="mode-btn" data-mode="operation" onclick="setMode('operation',this)">5.Protocolo</button>
+            <button class="mode-btn" data-mode="maintenance" onclick="setMode('maintenance',this)">6.R2R</button>
+            <button class="mode-btn" data-mode="emergency" onclick="setMode('emergency',this)">7.Tos</button>
+            <button class="mode-btn" data-mode="energy" onclick="setMode('energy',this)">8.Electrost</button>
+            <button class="mode-btn" data-mode="ai" onclick="setMode('ai',this)">9.IA</button>
+            <button class="mode-btn" data-mode="hybrid" onclick="setMode('hybrid',this)">10.Sinergia</button>
           </div>
         </div>
-
-        <div class="ctrl-section" style="border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:.4rem">
-          <div class="ctrl-label" data-t="consoleTitle">Consola de Activacion</div>
-          <button class="ctrl-btn primary" onclick="triggerSpray()"><i class="fas fa-spray-can" style="margin-right:.4rem"></i><span data-t="sprayBtn">Aplicar Spray Monodosis</span></button>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem">
-            <button class="ctrl-btn danger" onclick="triggerCough()"><i class="fas fa-lungs" style="margin-right:.3rem"></i><span data-t="coughBtn">Tos (Impulso)</span></button>
-            <button class="ctrl-btn warn" onclick="triggerSneezing()"><i class="fas fa-wind" style="margin-right:.3rem"></i><span data-t="sneezingBtn">Estornudo</span></button>
-          </div>
-        </div>
-
-        <div class="ctrl-section" style="border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:.35rem">
-          <div class="ctrl-label">Sistemas</div>
-          <label class="toggle-row on" id="togElectro" onclick="toggleElectrostatic()"><span data-t="electrostaticCharge">Carga Electrostatica</span><input type="checkbox" checked=""></label>
-          <label class="toggle-row on" id="togFibers" onclick="toggleNanofibers()"><span data-t="nanofiberFilter">Filtro Nanofibras</span><input type="checkbox" checked=""></label>
-          <label class="toggle-row" id="togExploded" onclick="toggleExploded()"><span data-t="explodedViewToggle">Vista Explotada 3D</span><input type="checkbox"></label>
-        </div>
-
-        <div class="ctrl-section" style="border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:.5rem">
-          <div class="ctrl-label">Parametros Avanzados</div>
-          <div class="slider-row"><div class="slider-header"><span data-t="fieldStrengthSlider">Fuerza Campo</span><span id="valField">1.5 kV</span></div><input type="range" min="0.5" max="3" step="0.1" value="1.5" oninput="setField(this.value)"></div>
-          <div class="slider-row"><div class="slider-header"><span data-t="nanofiberDensitySlider">Densidad Nanofibras</span><span id="valDensity">85%</span></div><input type="range" min="30" max="100" step="1" value="85" oninput="setDensity(this.value)"></div>
-          <div class="slider-row"><div class="slider-header"><span data-t="humiditySlider">Humedad Ambiente</span><span id="valHumidity">45%</span></div><input type="range" min="10" max="95" step="1" value="45" oninput="setHumidity(this.value)"></div>
-          <div class="slider-row"><div class="slider-header"><span data-t="plaWeeksSlider">Degradacion Fibra</span><span id="valPla">0 sem</span></div><input type="range" min="0" max="12" step="1" value="0" oninput="setPlaWeeks(this.value)"></div>
-        </div>
-
-        <div class="ctrl-section" style="display:flex;flex-direction:column;gap:.4rem">
-          <div class="ctrl-label">Presets Rapidos</div>
-          <div class="preset-grid">
-            <button class="preset-btn" onclick="applyPreset('clinical')">Clinico</button>
-            <button class="preset-btn" onclick="applyPreset('stress')">Estres</button>
-            <button class="preset-btn" onclick="applyPreset('degraded')">Degradado</button>
+        <div class="dock-container" id="dockAdv">
+          <div class="dock-header" onclick="toggleDock('dockAdv')"><span id="dockAdvTitle">⚡ Avanzada</span><span class="toggle-icon">▼</span></div>
+          <div class="dock-body">
+            <button class="adv-btn" data-adv="filtration" onclick="setAdvancedMode('filtration',this)">Filtración</button>
+            <button class="adv-btn" data-adv="turbulent" onclick="setAdvancedMode('turbulent',this)">Turbulento</button>
+            <button class="adv-btn" data-adv="viral" onclick="setAdvancedMode('viral',this)">Carga Viral</button>
+            <button class="adv-btn" data-adv="pressure" onclick="setAdvancedMode('pressure',this)">Presión</button>
+            <button class="adv-btn" data-adv="flowvis" onclick="setAdvancedMode('flowvis',this)">Flujo</button>
+            <button class="adv-btn" data-adv="coughchamber" onclick="setAdvancedMode('coughchamber',this)">Cámara Tos</button>
+            <button class="adv-btn" data-adv="aging" onclick="setAdvancedMode('aging',this)">Envejecimiento</button>
+            <button class="adv-btn" data-adv="synergy" onclick="setAdvancedMode('synergy',this)">Sinergia</button>
           </div>
         </div>
       </div>
-    </aside>
-  </div>
 
-  <div class="sim-grid">
-    <div class="sim-card">
-      <div class="sim-card-header"><i class="fas fa-heart-pulse accent"></i> <span data-t="hudBiomechTitle">Onda Pulmonar en Tiempo Real</span></div>
-      <canvas id="simWaveform" width="516" height="180"></canvas>
-    </div>
-    <div class="sim-card">
-      <div class="sim-card-header"><i class="fas fa-chart-bar accent2"></i> <span>Distribucion de Tamanho de Particulas</span></div>
-      <canvas id="simHistogram" width="516" height="180"></canvas>
-    </div>
-    <div class="sim-card">
-      <div class="sim-card-header"><i class="fas fa-wind accent2"></i> <span data-t="hudCFDTitle">Campo de Velocidad CFD</span></div>
-      <canvas id="simCFD" width="516" height="180"></canvas>
-    </div>
-    <div class="sim-card">
-      <div class="sim-card-header"><i class="fas fa-temperature-half warn"></i> <span>Mapa Termico del Filtro</span></div>
-      <canvas id="simThermal" width="516" height="180"></canvas>
-    </div>
-    <div class="sim-card">
-      <div class="sim-card-header"><i class="fas fa-virus-slash viro"></i> <span>Cinetica de Neutralizacion Viral</span></div>
-      <canvas id="simVirology" width="516" height="180"></canvas>
-    </div>
-    <div class="sim-card">
-      <div class="sim-card-header"><i class="fas fa-compress-alt danger"></i> <span>Estres Mecanico del Soporte TPE</span></div>
-      <canvas id="simFatigue" width="516" height="180"></canvas>
+      <div class="doc-section interactive">
+        <div class="doc-tabs">
+          <div class="doc-tab active" onclick="switchDocTab(this,'physics')" id="docTabPhysics">Física</div>
+          <div class="doc-tab" onclick="switchDocTab(this,'electro')" id="docTabElectro">Electrostática</div>
+          <div class="doc-tab" onclick="switchDocTab(this,'protocol')" id="docTabProtocol">Protocolo</div>
+        </div>
+        <div class="doc-content" id="docContent"></div>
+      </div>
     </div>
   </div>
 
-  <div class="features-grid">
-    <div class="feature-card">
-      <h3 class="accent" data-t="sprayTitle">1. Spray Mucoadhesivo (Monodosis)</h3>
-      <p data-t="sprayDesc">Formulacion de liberacion prolongada (12-24h) con polimeros clinicos y un aditivo antiviral fijado covalentemente. Retiene y neutraliza localmente el virus H3N2.</p>
-    </div>
-    <div class="feature-card">
-      <h3 style="color:var(--accent2)" data-t="filterTitle">2. Filtro Endonasal Desechable</h3>
-      <p data-t="filterDesc">Soporte de TPE biocompatible que alberga microcanales en forma de laberinto (angulo de 25-35 grados) y una media de nanofibras de PLA electrostaticas. Prolonga el tiempo de residencia de gotas sin exceder 10 Pa de caida de presion.</p>
-    </div>
-    <div class="feature-card">
-      <h3 style="color:var(--warn)" data-t="swarmTitle">3. Sistema de Nodos IA de Enjambre</h3>
-      <p data-t="swarmDesc">Los agentes virtuales simulan viriones de H3N2 y aerosoles. Su comportamiento biomecanico responde a la fisica de fluidos del laberinto endonasal y a la atraccion electrostatica electret.</p>
-    </div>
-  </div>
+  <div class="toast-container" id="toastContainer"></div>
 
-  <div class="doc-section">
-    <div class="doc-tabs">
-      <div class="doc-tab active" onclick="switchDocTab(this,'physics')" data-t="docTab1">Fisica y Biomecanica</div>
-      <div class="doc-tab" onclick="switchDocTab(this,'electro')" data-t="docTab2">Electrostatica</div>
-      <div class="doc-tab" onclick="switchDocTab(this,'protocol')" data-t="docTab3">Protocolo de Uso</div>
-    </div>
-    <div class="doc-content" id="docContent" data-t="physicsContent">La geometria de microcanales redirige el flujo mediante cambios de direccion e induce micro-turbulencias controladas que depositan las gotas mayores (&gt;5 um) por inercia fisica. El angulo de 25-35 grados maximiza la longitud de recorrido sin incrementar excesivamente la caida de presion. La simulacion CFD confirma que el regimen de flujo permanece laminar (Re &lt; 500) en condiciones normales de respiracion, transicionando a turbulento solo durante eventos de tos o estornudo.</div>
-  </div>
+  <script>
+    // ==================== MULTILANGUAGE SYSTEM ====================
+    const TRANSLATIONS = {
+      ES: {
+        pageTitle: 'H3N2-Shield Fusion — Simulador Biomédico 3D V4.0 | Dr. Julio César Oporta Barrera',
+        mainTitle: 'H3N2-SHIELD FUSION — KIT SEMANAL DE DEFENSA NASAL',
+        subTitle: 'Prototipo 3D Interactivo • OMNIA-5000 / ISO 13485',
+        author: 'Dr. Julio César Oporta Barrera',
+        panelEngineering: '📐 Parámetros',
+        explodeLabel: 'Despiece',
+        flowLabel: 'Caudal (L/min)',
+        layersTitle: 'Capas',
+        layerSpray: 'Ampolla',
+        layerNozzle: 'Boquilla',
+        layerChassis: 'TPE',
+        layerSeal: 'Sellado',
+        layerNanofiber: 'Nanofibras',
+        layerLabyrinth: 'Laberinto',
+        layerParticles: 'Aerosoles',
+        specsHeader: '📋 Especificaciones',
+        specsContent: '<strong>Filtro:</strong> 12×18 mm, 25-35°, L/D 3-8, TPE 25A, PLA 100-400 nm<br><strong>R2R:</strong> 10-30 kV, 10-25 cm, 0.5-5 m/min',
+        isoText: '<strong>ISO 10993:</strong> Citotoxicidad L929 >94%<br>Lixiviación 0.00 ng/mL',
+        langBtn: '🌐 ES',
+        explodedBtn: '💥 Despiece',
+        xrayBtn: '🔬 Rayos-X',
+        coughBtn: '💨 Tos',
+        centerBtn: '🔄 Centrar',
+        breathBtn: '🌬️ Respiración',
+        projectBtn: '📖 Proyecto',
+        tourBtn: '🎯 Tour',
+        hudToggleBtn: '👁️ Ocultar HUD',
+        btnSpray: '💧 Spray',
+        btnCoughCtrl: '💨 Tos',
+        btnSneeze: '🌪️ Estornudo',
+        btnPresetClinic: 'Clínico',
+        btnPresetStress: 'Estrés',
+        btnPresetDegr: 'Degradado',
+        lblField: 'Campo',
+        lblDensityCtrl: 'Densidad',
+        lblHumidityCtrl: 'Humedad',
+        lblDegradation: 'Degradación',
+        flowLabelCtrl: 'FLUJO:',
+        dockMainTitle: '🎮 Modos',
+        dockAdvTitle: '⚡ Avanzada',
+        docTabPhysics: 'Física',
+        docTabElectro: 'Electrostática',
+        docTabProtocol: 'Protocolo',
+        docPhysics: 'La geometría de microcanales redirige el flujo mediante cambios de dirección e induce micro-turbulencias controladas que depositan las gotas mayores (>5 µm) por inercia física. El ángulo de 25-35° maximiza la longitud de recorrido sin incrementar excesivamente la caída de presión. La simulación CFD confirma que el régimen de flujo permanece laminar (Re < 500) en condiciones normales de respiración, transicionando a turbulento solo durante eventos de tos o estornudo.',
+        docElectro: 'El tratamiento de corona in-line con potencia de 0.5-3.0 kW dota a las nanofibras de carga estable, capturando sub-micrones críticos mediante fuerzas de atracción Coulombianas. La retención de carga superficial supera el 70% incluso a humedades relativas del 80%, gracias a la estructura porosa del electret PLA que protege las trampas de carga internas.',
+        docProtocol: 'Frecuencia semanal: 1) Aplicar spray monodosis en ambas fosas nasales. 2) Insertar filtro endonasal ajustando los sellos de TPE blandos hasta sentir sellado suave. 3) Retirar a las 24-48 horas de uso continuo o al final de la semana. 4) Desechar el filtro en residuos biológicos. No reutilizar.',
+        lblEfficiency: 'Eficiencia', lblPressure: 'ΔP', lblResidence: 'Residencia', lblSpeed: 'Velocidad', lblDensity: 'Enjambre',
+        lblRespRate: 'Frecuencia', lblTidalVol: 'Vol. Tidal', lblPeakPress: 'Pico Insp.', lblTpeStress: 'Estrés TPE',
+        lblReynolds: 'Reynolds', lblMaxVel: 'Vel. Máx.', lblAvgVel: 'Vel. Media', lblTurbK: 'Turbulencia k', lblCfdPress: 'ΔP CFD',
+        lblViralLoad: 'Carga Viral', lblMutRate: 'Mutación', lblEnvInteg: 'Envoltura', lblSprayCov: 'Cobertura Spray', lblBindRate: 'Unión Molecular',
+        lblPlaIntegrity: 'Integridad PLA', lblHumidity: 'Humedad', lblStock: 'Stock', lblLote: 'Lote',
+        simLabelWave: 'Pulmón', simLabelHist: 'Partículas', simLabelCFD: 'CFD', simLabelTherm: 'Térmico', simLabelViro: 'Viral', simLabelFatigue: 'Estrés TPE',
+        mEffSub: 'N80', mPressSub: 'OK', mReynoldsSub: 'Turbulento', mPlaSub: 'Sin degradación',
+        modalTitle: 'H3N2-Shield Fusion',
+        modalP1: '<strong>Propósito:</strong> Reducir la transmisión y la carga inicial de H3N2 mediante una intervención nasal combinada, accesible y escalable.',
+        modalP2: '<strong>Problema que resuelve:</strong> La transmisión respiratoria de virus como H3N2 ocurre a través de partículas exhaladas. Este kit ofrece una barrera dual química (spray mucoadhesivo) y física/electrostática (filtro) para reducir la emisión de partículas infecciosas y la carga viral.',
+        modalP3: '<strong>Beneficios clave:</strong> Protección local prolongada (12-24h), captura de partículas en rangos críticos (0.3-1, 1-5, >5 µm), biodegradable, escalable industrialmente.',
+        modalP4: '<strong>Innovación:</strong> Sinergia entre el spray y el filtro, proceso roll-to-roll con nanofibras electrostáticas, aditivo antiviral no liberable fijado covalentemente.',
+        modalP5: '<strong>Impacto esperado:</strong> Reducción de emisión de partículas >90%, reducción viral in vitro ≥1.0 log, coste por kit < $10, precio objetivo $20.',
+        kbTitle: 'ATAJOS DE TECLADO',
+        kbCloseBtn: 'Cerrar',
+        modeNames: {
+          standby:'MODO REPOSO', analysis:'MODO ANÁLISIS CAD', diagnostic:'MODO DIAGNÓSTICO ISO',
+          simulation:'MODO SIMULACIÓN CFD', operation:'MODO PROTOCOLO 3 PASOS', maintenance:'MODO MANUFACTURA R2R',
+          emergency:'MODO TOS PICO', energy:'MODO ELECTROSTÁTICO', ai:'MODO IA NODAL', hybrid:'MODO SINERGIA FACTORIAL'
+        },
+        modeDescs: {
+          standby:'Rotación suave, partículas en reposo.', analysis:'Visualización de geometrías, líneas de medición.',
+          diagnostic:'Indicadores de calidad ISO.', simulation:'Flujo aéreo transitorio con partículas.',
+          operation:'Animación de uso: spray, inserción y sellado.', maintenance:'Efecto de rodillos y producción continua R2R.',
+          emergency:'Pulso de tos pico (300 L/min) con alerta roja.', energy:'Campo electrostático, líneas de chispas.',
+          ai:'Red neuronal de nodos interconectados.', hybrid:'Combinación sinérgica de todos los efectos.'
+        },
+        tooltipAmpoule:'Ampolla PET 1.5 mL con solución mucoadhesiva (alginato + polvo de ácido hialurónico + 0.3% PCMX).',
+        tooltipNozzle:'Boquilla de micro-spray (50-80 µm).',
+        tooltipChassis:'Soporte TPE Shore A 25 con anclaje mecánico.',
+        tooltipSeal:'Anillo de sellado de silicona A 20.',
+        tooltipLabyrinth:'Laberinto de 4 anillos en ángulo 30°.',
+        tooltipNanofiber:'Malla de nanofibras PLA 100-400 nm.',
+        tooltipCap:'Tapa protectora de cierre.',
+        advFiltration:'Eficiencia de Filtración', advTurbulent:'Flujo Turbulento', advViral:'Carga Viral',
+        advPressure:'Presión Dinámica', advFlowvis:'Visualización de Flujo', advCoughchamber:'Cámara Tos',
+        advAging:'Envejecimiento', advSynergy:'Sinergia',
+        tourStep0: 'Bienvenido al H3N2-Shield Fusion. Este tour guiado muestra cada componente.',
+        tourStep1: 'Ampolla: contiene solución mucoadhesiva con efecto barrera química.',
+        tourStep2: 'Boquilla: micro-spray de 50-80 µm que distribuye el spray uniformemente.',
+        tourStep3: 'Soporte TPE: chassis flexible Shore A 25 que se adapta a la anatomía nasal.',
+        tourStep4: 'Sellado: anillo de silicona A 20 que asegura hermeticidad.',
+        tourStep5: 'Laberinto: 4 anillos en ángulo 30° que generan turbulencia controlada.',
+        tourStep6: 'Nanofibras: malla PLA electrostática que captura partículas submicrónicas.',
+        tourStep7: 'Tapa: protección final del conjunto.',
+        tourStep8: 'Tour completado. Use los modos y simuladores para explorar más.',
+        centerSimMsg: 'Simulación de centrado: recalibrando cámara y órbita...',
+        projectSimMsg: 'Simulación de proyecto: desplegando análisis factorial...',
+        tourSimMsg: 'Iniciando tour guiado con simulación de componentes...'
+      },
+      EN: {
+        pageTitle: 'H3N2-Shield Fusion — 3D Biomedical Simulator V4.0 | Dr. Julio César Oporta Barrera',
+        mainTitle: 'H3N2-SHIELD FUSION — WEEKLY NASAL DEFENSE KIT',
+        subTitle: 'Interactive 3D Prototype • OMNIA-5000 / ISO 13485',
+        author: 'Dr. Julio César Oporta Barrera',
+        panelEngineering: '📐 Parameters',
+        explodeLabel: 'Exploded View',
+        flowLabel: 'Flow Rate (L/min)',
+        layersTitle: 'Layers',
+        layerSpray: 'Ampoule', layerNozzle: 'Nozzle', layerChassis: 'TPE', layerSeal: 'Seal',
+        layerNanofiber: 'Nanofibers', layerLabyrinth: 'Labyrinth', layerParticles: 'Aerosols',
+        specsHeader: '📋 Specifications',
+        specsContent: '<strong>Filter:</strong> 12×18 mm, 25-35°, L/D 3-8, TPE 25A, PLA 100-400 nm<br><strong>R2R:</strong> 10-30 kV, 10-25 cm, 0.5-5 m/min',
+        isoText: '<strong>ISO 10993:</strong> Cytotoxicity L929 >94%<br>Leaching 0.00 ng/mL',
+        langBtn: '🌐 EN',
+        explodedBtn: '💥 Exploded', xrayBtn: '🔬 X-Ray', coughBtn: '💨 Cough',
+        centerBtn: '🔄 Center', breathBtn: '🌬️ Breath',
+        projectBtn: '📖 Project', tourBtn: '🎯 Tour',
+        hudToggleBtn: '👁️ Hide HUD',
+        btnSpray: '💧 Spray', btnCoughCtrl: '💨 Cough', btnSneeze: '🌪️ Sneeze',
+        btnPresetClinic: 'Clinical', btnPresetStress: 'Stress', btnPresetDegr: 'Degraded',
+        lblField: 'Field', lblDensityCtrl: 'Density', lblHumidityCtrl: 'Humidity', lblDegradation: 'Degradation',
+        flowLabelCtrl: 'FLOW:',
+        dockMainTitle: '🎮 Modes', dockAdvTitle: '⚡ Advanced',
+        docTabPhysics: 'Physics', docTabElectro: 'Electrostatic', docTabProtocol: 'Protocol',
+        docPhysics: 'The microchannel geometry redirects flow through direction changes and induces controlled micro-turbulence that deposits larger droplets (>5 µm) by physical inertia. The 25-35° angle maximizes path length without excessively increasing pressure drop. CFD simulation confirms the flow regime remains laminar (Re < 500) under normal breathing conditions, transitioning to turbulent only during cough or sneeze events.',
+        docElectro: 'In-line corona treatment with 0.5-3.0 kW power imparts stable charge to nanofibers, capturing critical sub-micron particles via Coulombic attraction forces. Surface charge retention exceeds 70% even at 80% relative humidity, thanks to the porous electret PLA structure that protects internal charge traps.',
+        docProtocol: 'Weekly frequency: 1) Apply single-dose spray in both nostrils. 2) Insert endonasal filter adjusting soft TPE seals until gentle sealing is felt. 3) Remove after 24-48 hours of continuous use or at the end of the week. 4) Discard filter in biological waste. Do not reuse.',
+        lblEfficiency: 'Efficiency', lblPressure: 'ΔP', lblResidence: 'Residence', lblSpeed: 'Speed', lblDensity: 'Swarm',
+        lblRespRate: 'Rate', lblTidalVol: 'Tidal Vol', lblPeakPress: 'Insp. Peak', lblTpeStress: 'TPE Stress',
+        lblReynolds: 'Reynolds', lblMaxVel: 'Max Vel', lblAvgVel: 'Avg Vel', lblTurbK: 'Turb. k', lblCfdPress: 'ΔP CFD',
+        lblViralLoad: 'Viral Load', lblMutRate: 'Mutation', lblEnvInteg: 'Envelope', lblSprayCov: 'Spray Cov', lblBindRate: 'Mol. Binding',
+        lblPlaIntegrity: 'PLA Integrity', lblHumidity: 'Humidity', lblStock: 'Stock', lblLote: 'Batch',
+        simLabelWave: 'Lung', simLabelHist: 'Particles', simLabelCFD: 'CFD', simLabelTherm: 'Thermal', simLabelViro: 'Viral', simLabelFatigue: 'TPE Stress',
+        mEffSub: 'N80', mPressSub: 'OK', mReynoldsSub: 'Turbulent', mPlaSub: 'No degradation',
+        modalTitle: 'H3N2-Shield Fusion',
+        modalP1: '<strong>Purpose:</strong> Reduce H3N2 transmission and initial viral load through a combined, accessible and scalable nasal intervention.',
+        modalP2: '<strong>Problem solved:</strong> Respiratory transmission of viruses like H3N2 occurs through exhaled particles. This kit offers a dual chemical (mucoadhesive spray) and physical/electrostatic (filter) barrier to reduce infectious particle emission and viral load.',
+        modalP3: '<strong>Key benefits:</strong> Extended local protection (12-24h), particle capture in critical ranges (0.3-1, 1-5, >5 µm), biodegradable, industrially scalable.',
+        modalP4: '<strong>Innovation:</strong> Synergy between spray and filter, roll-to-roll process with electrostatic nanofibers, non-leachable antiviral additive covalently fixed.',
+        modalP5: '<strong>Expected impact:</strong> >90% particle emission reduction, in vitro viral reduction ≥1.0 log, cost per kit < $10, target price $20.',
+        kbTitle: 'KEYBOARD SHORTCUTS',
+        kbCloseBtn: 'Close',
+        modeNames: {
+          standby:'STANDBY MODE', analysis:'CAD ANALYSIS MODE', diagnostic:'ISO DIAGNOSTIC MODE',
+          simulation:'CFD SIMULATION MODE', operation:'3-STEP PROTOCOL MODE', maintenance:'R2R MANUFACTURING MODE',
+          emergency:'PEAK COUGH MODE', energy:'ELECTROSTATIC MODE', ai:'AI NODAL MODE', hybrid:'FACTORIAL SYNERGY MODE'
+        },
+        modeDescs: {
+          standby:'Gentle rotation, particles at rest.', analysis:'Geometry visualization, measurement lines.',
+          diagnostic:'ISO quality indicators.', simulation:'Transient airflow with particles.',
+          operation:'Usage animation: spray, insertion and sealing.', maintenance:'Rolling and continuous R2R production effect.',
+          emergency:'Peak cough pulse (300 L/min) with red alert.', energy:'Electrostatic field, spark lines.',
+          ai:'Neural network of interconnected nodes.', hybrid:'Synergistic combination of all effects.'
+        },
+        tooltipAmpoule:'PET ampoule 1.5 mL with mucoadhesive solution (alginate + hyaluronic acid powder + 0.3% PCMX).',
+        tooltipNozzle:'Micro-spray nozzle (50-80 µm).',
+        tooltipChassis:'TPE Shore A 25 support with mechanical anchoring.',
+        tooltipSeal:'Silicone A 20 sealing ring.',
+        tooltipLabyrinth:'4-ring labyrinth at 30° angle.',
+        tooltipNanofiber:'PLA nanofiber mesh 100-400 nm.',
+        tooltipCap:'Protective closure cap.',
+        advFiltration:'Filtration Efficiency', advTurbulent:'Turbulent Flow', advViral:'Viral Load',
+        advPressure:'Dynamic Pressure', advFlowvis:'Flow Visualization', advCoughchamber:'Cough Chamber',
+        advAging:'Aging', advSynergy:'Synergy',
+        tourStep0: 'Welcome to H3N2-Shield Fusion. This guided tour shows each component.',
+        tourStep1: 'Ampoule: contains mucoadhesive solution with chemical barrier effect.',
+        tourStep2: 'Nozzle: 50-80 µm micro-spray that distributes spray uniformly.',
+        tourStep3: 'TPE support: flexible Shore A 25 chassis adapting to nasal anatomy.',
+        tourStep4: 'Seal: silicone A 20 ring ensuring airtightness.',
+        tourStep5: 'Labyrinth: 4 rings at 30° angle generating controlled turbulence.',
+        tourStep6: 'Nanofibers: electrostatic PLA mesh capturing sub-micron particles.',
+        tourStep7: 'Cap: final protection of the assembly.',
+        tourStep8: 'Tour completed. Use modes and simulators to explore more.',
+        centerSimMsg: 'Centering simulation: recalibrating camera and orbit...',
+        projectSimMsg: 'Project simulation: deploying factorial analysis...',
+        tourSimMsg: 'Starting guided tour with component simulation...'
+      },
+    ZH: {
+    pageTitle: 'H3N2-Shield Fusion — 3D生物医学模拟器 V4.0 | Julio César Oporta Barrera 博士',
+    mainTitle: 'H3N2-SHIELD FUSION — 每周鼻腔防御套装',
+    subTitle: '交互式3D原型 • OMNIA-5000 / ISO 13485',
+    author: 'Julio César Oporta Barrera 博士',
+    panelEngineering: '📐 参数',
+    explodeLabel: '分解视图',
+    flowLabel: '流量 (L/min)',
+    layersTitle: '层',
+    layerSpray: '安瓿', layerNozzle: '喷嘴', layerChassis: 'TPE', layerSeal: '密封',
+    layerNanofiber: '纳米纤维', layerLabyrinth: '迷宫', layerParticles: '气溶胶',
+    specsHeader: '📋 规格',
+    specsContent: '<strong>过滤器:</strong> 12×18 mm, 25-35°, L/D 3-8, TPE 25A, PLA 100-400 nm<br><strong>R2R:</strong> 10-30 kV, 10-25 cm, 0.5-5 m/min',
+    isoText: '<strong>ISO 10993:</strong> 细胞毒性 L929 >94%<br>析出物 0.00 ng/mL',
+    langBtn: '🌐 中文',
+    explodedBtn: '💥 分解', xrayBtn: '🔬 X射线', coughBtn: '💨 咳嗽',
+    centerBtn: '🔄 居中', breathBtn: '🌬️ 呼吸',
+    projectBtn: '📖 项目', tourBtn: '🎯 导览',
+    hudToggleBtn: '👁️ 隐藏HUD',
+    btnSpray: '💧 喷雾', btnCoughCtrl: '💨 咳嗽', btnSneeze: '🌪️ 打喷嚏',
+    btnPresetClinic: '临床', btnPresetStress: '压力', btnPresetDegr: '退化',
+    lblField: '场强', lblDensityCtrl: '密度', lblHumidityCtrl: '湿度', lblDegradation: '退化',
+    flowLabelCtrl: '流量:',
+    dockMainTitle: '🎮 模式', dockAdvTitle: '⚡ 高级',
+    docTabPhysics: '物理', docTabElectro: '静电', docTabProtocol: '协议',
+    docPhysics: '微通道几何结构通过方向改变重新引导气流，并产生受控的微湍流，通过物理惯性使较大的液滴(>5 µm)沉积。25-35°角度在不显著增加压降的情况下最大化路径长度。CFD模拟证实，在正常呼吸条件下流动状态保持层流(Re < 500)，仅在咳嗽或打喷嚏事件中转变为湍流。',
+    docElectro: '在线电晕处理功率为0.5-3.0 kW，赋予纳米纤维稳定电荷，通过库仑吸引力捕获关键的亚微米颗粒。即使在80%相对湿度下，表面电荷保持率也超过70%，这得益于多孔驻极体PLA结构保护内部电荷陷阱。',
+    docProtocol: '每周频率：1) 在两侧鼻孔中使用单剂量喷雾。 2) 插入鼻内过滤器，调整软TPE密封圈直至感到轻柔密封。 3) 连续使用24-48小时后或周末结束时取出。 4) 将过滤器丢弃在生物废弃物中。请勿重复使用。',
+    lblEfficiency: '效率', lblPressure: 'ΔP', lblResidence: '停留', lblSpeed: '速度', lblDensity: '群集',
+    lblRespRate: '频率', lblTidalVol: '潮气量', lblPeakPress: '吸气峰值', lblTpeStress: 'TPE应力',
+    lblReynolds: '雷诺数', lblMaxVel: '最大速度', lblAvgVel: '平均速度', lblTurbK: '湍流k', lblCfdPress: 'ΔP CFD',
+    lblViralLoad: '病毒载量', lblMutRate: '突变', lblEnvInteg: '包膜', lblSprayCov: '喷雾覆盖', lblBindRate: '分子结合',
+    lblPlaIntegrity: 'PLA完整性', lblHumidity: '湿度', lblStock: '库存', lblLote: '批次',
+    simLabelWave: '肺部', simLabelHist: '颗粒', simLabelCFD: 'CFD', simLabelTherm: '热', simLabelViro: '病毒', simLabelFatigue: 'TPE应力',
+    mEffSub: 'N80', mPressSub: '正常', mReynoldsSub: '湍流', mPlaSub: '无退化',
+    modalTitle: 'H3N2-Shield Fusion',
+    modalP1: '<strong>目的：</strong>通过联合、可及且可扩展的鼻腔干预措施减少H3N2传播和初始病毒载量。',
+    modalP2: '<strong>解决的问题：</strong>H3N2等病毒的呼吸道传播通过呼出颗粒发生。该套装提供化学(粘膜粘附喷雾)和物理/静电(过滤器)双重屏障，以减少感染性颗粒排放和病毒载量。',
+    modalP3: '<strong>主要优势：</strong>延长局部保护(12-24h)，在临界范围内捕获颗粒(0.3-1, 1-5, >5 µm)，可生物降解，工业可扩展。',
+    modalP4: '<strong>创新：</strong>喷雾与过滤器之间的协同作用，采用静电纳米纤维的卷对卷工艺，共价固定的不可浸出抗病毒添加剂。',
+    modalP5: '<strong>预期影响：</strong>颗粒排放减少>90%，体外病毒减少≥1.0 log，每套成本<$10，目标价格$20。',
+    kbTitle: '键盘快捷键',
+    kbCloseBtn: '关闭',
+    modeNames: {
+      standby:'待机模式', analysis:'CAD分析模式', diagnostic:'ISO诊断模式',
+      simulation:'CFD模拟模式', operation:'3步协议模式', maintenance:'R2R制造模式',
+      emergency:'峰值咳嗽模式', energy:'静电模式', ai:'AI节点模式', hybrid:'因子协同模式'
+    },
+    modeDescs: {
+      standby:'轻柔旋转，颗粒静止。', analysis:'几何可视化，测量线。',
+      diagnostic:'ISO质量指标。', simulation:'带颗粒的瞬态气流。',
+      operation:'使用动画：喷雾、插入和密封。', maintenance:'滚动和连续R2R生产效果。',
+      emergency:'峰值咳嗽脉冲(300 L/min)并红色警报。', energy:'静电场，火花线。',
+      ai:'互连节点的神经网络。', hybrid:'所有效果的协同组合。'
+    },
+    tooltipAmpoule:'PET安瓿1.5 mL，含粘膜粘附溶液(海藻酸盐+透明质酸粉末+0.3% PCMX)。',
+    tooltipNozzle:'微喷雾喷嘴(50-80 µm)。',
+    tooltipChassis:'TPE邵氏A 25支撑，带机械锚固。',
+    tooltipSeal:'硅胶A 20密封圈。',
+    tooltipLabyrinth:'4环迷宫，30°角。',
+    tooltipNanofiber:'PLA纳米纤维网100-400 nm。',
+    tooltipCap:'保护性闭合盖。',
+    advFiltration:'过滤效率', advTurbulent:'湍流', advViral:'病毒载量',
+    advPressure:'动态压力', advFlowvis:'流量可视化', advCoughchamber:'咳嗽室',
+    advAging:'老化', advSynergy:'协同',
+    tourStep0: '欢迎来到H3N2-Shield Fusion。此导览展示每个组件。',
+    tourStep1: '安瓿：含具有化学屏障效果的粘膜粘附溶液。',
+    tourStep2: '喷嘴：50-80 µm微喷雾，均匀分布喷雾。',
+    tourStep3: 'TPE支撑：柔性邵氏A 25底盘，适应鼻腔解剖结构。',
+    tourStep4: '密封：硅胶A 20环，确保气密性。',
+    tourStep5: '迷宫：4环30°角，产生受控湍流。',
+    tourStep6: '纳米纤维：静电PLA网，捕获亚微米颗粒。',
+    tourStep7: '盖：组件的最终保护。',
+    tourStep8: '导览完成。使用模式和模拟器进一步探索。',
+    centerSimMsg: '居中模拟：重新校准相机和轨道...',
+    projectSimMsg: '项目模拟：部署因子分析...',
+    tourSimMsg: '开始组件模拟导览...'
+  }
+    };
 
-  <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem">
-    <span class="badge" style="border-color:var(--border);color:var(--muted)" data-t="dimensions">Dimensiones: 12mm x 18mm</span>
-    <span class="badge" style="border-color:var(--border);color:var(--muted)" data-t="tpeSupport">TPE: Shore A 25±5</span>
-    <span class="badge" style="border-color:var(--border);color:var(--muted)" data-t="fiberDiameter">Fibra: 100-400 nm</span>
-    <span class="badge" style="border-color:var(--border);color:var(--muted)" data-t="pressureGoal">Presion: ≤10 Pa</span>
-    <span class="badge" style="border-color:var(--border);color:var(--muted)" data-t="angleRange">Angulo: 25-35 grados</span>
-  </div>
-
-  <footer class="footer" data-t="copyright">Todos los derechos reservados. Dr. Julio Cesar Oporta Barrera. Patente Provisional 2026.</footer>
-</div>
-
-<button class="mobile-toggle" id="mobileToggle" onclick="toggleMobilePanel()"><i class="fas fa-sliders"></i></button>
-
-<script>
-const TR = {
-  es: {
-    efficiency:"Eficiencia Captura",pressureDrop:"Caida de Presion",residenceTime:"Multiplicador Residencia",
-    particleSpeed:"Velocidad Particulas",particleCount:"Densidad Enjambre",flowMode:"Modo de Flujo de Aire",
-    electrostaticCharge:"Carga Electrostatica",nanofiberFilter:"Filtro Nanofibras",explodedViewToggle:"Vista Explotada 3D",
-    fieldStrengthSlider:"Fuerza Campo",nanofiberDensitySlider:"Densidad Nanofibras",humiditySlider:"Humedad Ambiente",
-    plaWeeksSlider:"Degradacion Fibra",sprayBtn:"Aplicar Spray Monodosis",coughBtn:"Tos (Impulso)",sneezingBtn:"Estornudo",
-    dragHint:"ARRASTRE PARA ROTAR · CLIC EN PARTÍCULA INSPECCIONAR · DOBL-CLIC FOCO · SCROLL ZOOM",
-    hudBiomechTitle:"Onda Pulmonar en Tiempo Real",hudCFDTitle:"Campo de Velocidad CFD",
-    sprayTitle:"1. Spray Mucoadhesivo (Monodosis)",filterTitle:"2. Filtro Endonasal Desechable",swarmTitle:"3. Sistema de Nodos IA de Enjambre",
-    sprayDesc:"Formulacion de liberacion prolongada (12-24h) con polimeros clinicos y un aditivo antiviral fijado covalentemente. Retiene y neutraliza localmente el virus H3N2.",
-    filterDesc:"Soporte de TPE biocompatible que alberga microcanales en forma de laberinto (angulo de 25-35 grados) y una media de nanofibras de PLA electrostaticas. Prolonga el tiempo de residencia de gotas sin exceder 10 Pa de caida de presion.",
-    swarmDesc:"Los agentes virtuales simulan viriones de H3N2 y aerosoles. Su comportamiento biomecanico responde a la fisica de fluidos del laberinto endonasal y a la atraccion electrostatica electret.",
-    dimensions:"Dimensiones: 12mm x 18mm",tpeSupport:"TPE: Shore A 25±5",fiberDiameter:"Fibra: 100-400 nm",pressureGoal:"Presion: ≤10 Pa",angleRange:"Angulo: 25-35 grados",
-    docTab1:"Fisica y Biomecanica",docTab2:"Electrostatica",docTab3:"Protocolo de Uso",
-    physicsContent:"La geometria de microcanales redirige el flujo mediante cambios de direccion e induce micro-turbulencias controladas que depositan las gotas mayores (>5 um) por inercia fisica. El angulo de 25-35 grados maximiza la longitud de recorrido sin incrementar excesivamente la caida de presion. La simulacion CFD confirma que el regimen de flujo permanece laminar (Re < 500) en condiciones normales de respiracion, transicionando a turbulento solo durante eventos de tos o estornudo.",
-    electroContent:"El tratamiento de corona in-line con potencia de 0.5-3.0 kW dota a las nanofibras de carga estable, capturando sub-micrones criticos mediante fuerzas de atraccion Coulombianas. La retencion de carga superficial supera el 70% incluso a humedades relativas del 80%, gracias a la estructura porosa del electret PLA que protege las trampas de carga internas.",
-    protocolContent:"Frecuencia semanal: 1) Aplicar spray monodosis en ambas fosas nasales. 2) Insertar filtro endonasal ajustando los sellos de TPE blandos hasta sentir sellado suave. 3) Retirar a las 24-48 horas de uso continuo o al final de la semana. 4) Desechar el filtro en residuos biologicos. No reutilizar.",
-    copyright:"Todos los derechos reservados. Dr. Julio Cesar Oporta Barrera. Patente Provisional 2026.",
-    consoleTitle:"Consola de Activacion",
-    toastSpray:"Spray mucoadhesivo aplicado. Pelicula protectora activa 12-24h.",
-    toastCough:"Pulso de tos simulado a 300 L/min. Evaluando retencion aerodinamica.",
-    toastSneeze:"Estornudo extremo a 450 L/min. Prueba bajo carga critica.",
-    toastBreathing:"Modo respiracion sinusoidal activado. Frecuencia: 15 rpm.",
-    toastHyper:"Modo Hiperventilación. Alto estrés de frecuencia (120 L/min).",
-    focusEntry:"Zona de Entrada — Aplicacion de spray y captura quimica",
-    focusLabyrinth:"Laberinto de Microcanales — Redireccion inercial",
-    focusNanofiber:"Malla de Nanofibras PLA — Captura electrostatica",
-    focusExit:"Zona de Salida — Aire filtrado",
-    logReady:"Sistema listo. Modo: Reposo.",
-  },
-  en: { dragHint: "DRAG TO ROTATE · CLICK PARTICLE TO INSPECT · DOUBLE-CLICK TO FOCUS · SCROLL ZOOM", toastHyper: "Hyperventilation mode activated."}
-};
-
-function t(key){ return (TR[S.lang] && TR[S.lang][key]) || TR.es[key] || key; }
-
-const S = {
-  lang:'es', flowMode:'resting', electrostatic:true, nanofibersActive:true,
-  sprayActive:false, sprayGlow:0, explodedView:false,
-  fieldStrength:1.5, nanofiberDensity:85, ambientHumidity:45, plaWeeks:0,
-  activeHudTab:'tactical',
-  efficiency:94.2, pressureDrop:4.2, residenceTime:2.4, particleDensity:65,
-  breathingPhase:0, currentFlowRate:10, time:0, accumulatedStress:0,
-  focusTarget:null, focusTransition:0, selectedParticle:null,
-  sprayAppliedAt:0, sprayDuration:86400000,
-  sizeDist:{captured:[0,0,0,0,0,0],escaped:[0,0,0,0,0,0]},
-  waveformHistory:[], virologyHistory:[], fatigueHistory:[], cfdField:[]
-};
-
-let canvas3d, ctx3d, canvasWrap;
-let simWf, ctxWf, simHist, ctxHist, simCfd, ctxCfd, simTherm, ctxTherm, wfMini, ctxWfMini, simViro, ctxViro, simFatigue, ctxFatigue;
-const rot = {x:0.4, y:0.7};
-let zoom = 25;
-let isDragging = false, lastMouse = {x:0,y:0};
-let touchDist = 0;
-
-function toast(msg, type='info'){
-  const c = document.getElementById('toastContainer');
-  const d = document.createElement('div');
-  d.className = 'toast ' + type;
-  d.textContent = msg;
-  c.appendChild(d);
-  setTimeout(()=>{ d.style.animation='toast-out .3s forwards'; setTimeout(()=>d.remove(),300); }, 3500);
-}
-
-function setLog(msg){ document.getElementById('logText').textContent = msg; }
-function applyTranslations(){ document.querySelectorAll('[data-t]').forEach(el=>{ const key = el.getAttribute('data-t'); if(TR[S.lang] && TR[S.lang][key]) el.textContent = TR[S.lang][key]; }); }
-function setLang(l){ S.lang = l; document.querySelectorAll('.lang-btn').forEach(b=>{ b.classList.toggle('active', b.dataset.lang===l); }); applyTranslations(); const activeDoc = document.querySelector('.doc-tab.active'); if(activeDoc) activeDoc.click(); setLog(t('logReady')); }
-
-function switchHudTab(tab){
-  S.activeHudTab = tab;
-  document.querySelectorAll('.hud-tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===tab));
-  document.querySelectorAll('.hud-panel').forEach(p=>p.style.display='none');
-  const panel = document.getElementById('panel-'+tab);
-  if(panel) panel.style.display = 'block';
-  const activeBtn = document.querySelector(`.hud-tab[data-tab="${tab}"]`);
-  const indicator = document.getElementById('tabIndicator');
-  if(activeBtn && indicator){ indicator.style.left = activeBtn.offsetLeft + 'px'; indicator.style.width = activeBtn.offsetWidth + 'px'; }
-}
-
-function switchDocTab(el, key){
-  document.querySelectorAll('.doc-tab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  const contentKey = key + 'Content';
-  document.getElementById('docContent').innerHTML = t(contentKey);
-}
-
-function setFlow(mode){
-  S.flowMode = mode;
-  document.querySelectorAll('.flow-btn').forEach(b=>b.classList.toggle('active', b.dataset.flow===mode));
-  if(mode==='breathing'){ toast(t('toastBreathing'),'info'); setLog('Modo Respiracion Sinusoidal activado. Freq: 15 rpm.'); }
-  else if (mode==='hyperventilation'){ toast(t('toastHyper')||'Modo hiperventilación activado (120 L/min)','warning'); setLog('Estrés aerodinámico severo continuo.'); }
-  else { const rates = {resting:'10 L/min',active:'30 L/min',cough:'300 L/min',sneezing:'450 L/min'}; setLog('Modo: ' + mode.charAt(0).toUpperCase()+mode.slice(1) + '. Flujo: ' + (rates[mode]||'')); }
-  document.getElementById('logFlow').textContent = mode==='breathing' ? '~15 L/min SIN' : mode==='hyperventilation' ? '120 L/min HIP' : ({resting:'10 L/min',active:'30 L/min',cough:'300 L/min',sneezing:'450 L/min'}[mode]||'');
-}
-
-function triggerCough(){ S.flowMode='cough'; document.querySelectorAll('.flow-btn').forEach(b=>b.classList.toggle('active', b.dataset.flow==='cough')); toast(t('toastCough'),'danger'); setLog(t('toastCough')); document.getElementById('logFlow').textContent='300 L/min'; for(let i=0;i<40;i++) spawnParticle(true); setTimeout(()=>setFlow('resting'), 3500); }
-function triggerSneezing(){ S.flowMode='sneezing'; document.querySelectorAll('.flow-btn').forEach(b=>b.classList.toggle('active', b.dataset.flow==='sneezing')); toast(t('toastSneeze'),'warning'); setLog(t('toastSneeze')); document.getElementById('logFlow').textContent='450 L/min'; for(let i=0;i<80;i++) spawnParticle(true); setTimeout(()=>setFlow('resting'), 4000); }
-function triggerSpray(){ S.sprayActive = true; S.sprayAppliedAt = Date.now(); S.sprayGlow = 0; toast(t('toastSpray'),'success'); setLog(t('toastSpray')); let start = Date.now(); const anim = ()=>{ const p = Math.min(1, (Date.now()-start)/1200); S.sprayGlow = p; if(p<1) requestAnimationFrame(anim); else setTimeout(()=>{ S.sprayGlow=0; },1500); }; requestAnimationFrame(anim); }
-
-function toggleElectrostatic(){ S.electrostatic = !S.electrostatic; document.getElementById('togElectro').classList.toggle('on', S.electrostatic); document.getElementById('togElectro').querySelector('input').checked = S.electrostatic; rebuildModel(); }
-function toggleNanofibers(){ S.nanofibersActive = !S.nanofibersActive; document.getElementById('togFibers').classList.toggle('on', S.nanofibersActive); document.getElementById('togFibers').querySelector('input').checked = S.nanofibersActive; rebuildModel(); }
-function toggleExploded(){ S.explodedView = !S.explodedView; document.getElementById('togExploded').classList.toggle('on', S.explodedView); document.getElementById('togExploded').querySelector('input').checked = S.explodedView; rebuildModel(); }
-function setField(v){ S.fieldStrength=parseFloat(v); document.getElementById('valField').textContent=v+' kV'; rebuildModel(); }
-function setDensity(v){ S.nanofiberDensity=parseInt(v); document.getElementById('valDensity').textContent=v+'%'; rebuildModel(); }
-function setHumidity(v){ S.ambientHumidity=parseInt(v); document.getElementById('valHumidity').textContent=v+'%'; }
-function setPlaWeeks(v){ S.plaWeeks=parseInt(v); document.getElementById('valPla').textContent=v+' sem'; }
-
-function applyPreset(name){
-  if(name==='clinical'){ setFlow('resting'); S.fieldStrength=1.5; S.nanofiberDensity=85; S.ambientHumidity=45; S.plaWeeks=0; S.electrostatic=true; S.nanofibersActive=true; document.getElementById('togElectro').classList.add('on'); document.getElementById('togElectro').querySelector('input').checked=true; document.getElementById('togFibers').classList.add('on'); document.getElementById('togFibers').querySelector('input').checked=true; toast('Preset Clinico aplicado.','info'); }
-  else if(name==='stress'){ setFlow('active'); S.fieldStrength=3.0; S.nanofiberDensity=100; S.ambientHumidity=80; S.plaWeeks=0; S.electrostatic=true; S.nanofibersActive=true; document.getElementById('togElectro').classList.add('on'); document.getElementById('togElectro').querySelector('input').checked=true; document.getElementById('togFibers').classList.add('on'); document.getElementById('togFibers').querySelector('input').checked=true; toast('Preset Estres aplicado. Humedad alta + campo maximo.','warning'); }
-  else if(name==='degraded'){ setFlow('resting'); S.fieldStrength=0.8; S.nanofiberDensity=55; S.ambientHumidity=75; S.plaWeeks=10; S.electrostatic=true; S.nanofibersActive=true; document.getElementById('togElectro').classList.add('on'); document.getElementById('togElectro').querySelector('input').checked=true; document.getElementById('togFibers').classList.add('on'); document.getElementById('togFibers').querySelector('input').checked=true; toast('Preset Degradado aplicado. Fibra degradada 10 semanas.','danger'); }
-  document.querySelector('[oninput*="setField"]').value = S.fieldStrength; document.getElementById('valField').textContent = S.fieldStrength+' kV'; document.querySelector('[oninput*="setDensity"]').value = S.nanofiberDensity; document.getElementById('valDensity').textContent = S.nanofiberDensity+'%'; document.querySelector('[oninput*="setHumidity"]').value = S.ambientHumidity; document.getElementById('valHumidity').textContent = S.ambientHumidity+'%'; document.querySelector('[oninput*="setPlaWeeks"]').value = S.plaWeeks; document.getElementById('valPla').textContent = S.plaWeeks+' sem'; rebuildModel();
-}
-
-let modelPts = [], modelEdges = [];
-function constructModel(){
-  const pts=[], eds=[]; const silver="rgba(176,190,197,0.6)", cyan="rgba(79,195,247,0.85)", white="rgba(236,239,241,0.5)";
-  const zO = S.explodedView ? -12 : 0, zL = S.explodedView ? -2 : 0, zG = S.explodedView ? 10 : 0, zN = S.explodedView ? -22 : 0;
-  const seg=16, rad=6, len=18;
-  for(let j=0;j<=4;j++){ const cz = -len/2 + (len/4)*j + zO; const rs = j===0?0.8:j===4?0.9:1.0; for(let i=0;i<seg;i++){ const th=(i/seg)*Math.PI*2; pts.push({x:Math.cos(th)*rad*rs, y:Math.sin(th)*rad*rs, z:cz, color:rs===1.0?silver:"rgba(100,110,120,0.4)"}); } }
-  for(let j=0;j<=4;j++){ const base=j*seg; for(let i=0;i<seg;i++){ eds.push({p1:base+i, p2:base+(i+1)%seg, color:"rgba(120,144,156,0.3)", w:1}); if(j<4) eds.push({p1:base+i, p2:base+i+seg, color:"rgba(90,100,110,0.2)", w:1}); } }
-  const labStart = pts.length;
-  for(let layer=0;layer<3;layer++){ const lr = 2.5 + layer*1.2; const bSeg = 28; const offset = layer * 0.7; for(let i=0;i<bSeg;i++){ const prog=i/bSeg; const angle = prog*Math.PI*6 + offset; pts.push({x:Math.cos(angle)*lr, y:Math.sin(angle)*lr, z:-len/2+len*prog+zL, color:layer===0?cyan:layer===1?"rgba(0,229,160,0.6)":"rgba(255,183,77,0.5)"}); } for(let i=0;i<bSeg-1;i++){ eds.push({p1:labStart+layer*bSeg+i, p2:labStart+layer*bSeg+i+1, color:layer===0?"rgba(79,195,247,0.5)":layer===1?"rgba(0,229,160,0.4)":"rgba(255,183,77,0.35)", w:layer===0?2:1}); } }
-  if(S.nanofibersActive){ const gStart=pts.length; const gR=5.2, gS=6; const step=Math.max(1.0, 3-(S.nanofiberDensity/50)); for(let x=-gS;x<=gS;x+=step){ for(let y=-gS;y<=gS;y+=step){ if(x*x+y*y<=gR*gR) pts.push({x,y,z:len/2+zG, color:white, isFiber:true}); } } const gCnt=pts.length-gStart; for(let a=0;a<gCnt;a++){ for(let b=a+1;b<gCnt;b++){ const dx=pts[gStart+a].x-pts[gStart+b].x, dy=pts[gStart+a].y-pts[gStart+b].y; if(Math.sqrt(dx*dx+dy*dy)<2.5){ eds.push({p1:gStart+a, p2:gStart+b, color:S.electrostatic?"rgba(79,195,247,0.4)":"rgba(236,239,241,0.25)", w:1}); } } } }
-  const nStart=pts.length; for(let i=0;i<12;i++){ const a=(i/11)*Math.PI; pts.push({x:-rad*1.8+Math.cos(a)*rad*0.4, y:rad*1.5+Math.sin(a)*rad*1.2, z:-len/1.5+(len*1.4*(i/12))+zN, color:white}); } for(let i=0;i<11;i++) eds.push({p1:nStart+i, p2:nStart+i+1, color:"rgba(236,239,241,0.12)", w:1.5});
-  modelPts=pts; modelEdges=eds;
-}
-function rebuildModel(){ constructModel(); }
-
-let swarm = [];
-const SIZE_BINS = [0.1,0.3,1,3,5,10,20];
-let particleIDCounter = 0;
-
-function spawnParticle(isCough=false){
-  const angle=Math.random()*Math.PI*2, r=Math.random()*4.5;
-  let spd = 0.15;
-  if(S.flowMode==='active') spd=0.28;
-  if(S.flowMode==='hyperventilation') spd=0.65;
-  if(S.flowMode==='cough'||isCough) spd=0.85;
-  if(S.flowMode==='sneezing') spd=1.5;
-  const logSize = Math.random()*3 - 0.5;
-  const sizeUm = Math.exp(logSize);
-  swarm.push({
-    id: particleIDCounter++,
-    x:Math.cos(angle)*r, y:Math.sin(angle)*r, z:-12-Math.random()*8,
-    vx:(Math.random()-0.5)*0.05, vy:(Math.random()-0.5)*0.05, vz:spd+Math.random()*0.1,
-    state:'flying', size:1.5+Math.random()*2, sizeUm, trail:[], px:0, py:0, pz:0
-  });
-}
-function initSwarm(){ swarm=[]; for(let i=0;i<S.particleDensity;i++) spawnParticle(); }
-
-function project(pt, cx, cy){
-  const cosX=Math.cos(rot.x), sinX=Math.sin(rot.x), cosY=Math.cos(rot.y), sinY=Math.sin(rot.y);
-  let x1=pt.x*cosY-pt.z*sinY, z1=pt.x*sinY+pt.z*cosY; let y2=pt.y*cosX-z1*sinX, z2=pt.y*sinX+z1*cosX;
-  const d=40, persp=d/(d+z2);
-  let offX=0, offY=0, sc=zoom;
-  if(S.focusTarget){ const targets = {entry:{x:0,y:0,z:-9}, labyrinth:{x:0,y:0,z:0}, nanofiber:{x:0,y:0,z:9}, exit:{x:0,y:0,z:14}}; const ft = targets[S.focusTarget]; if(ft){ const ft_x1=ft.x*cosY-ft.z*sinY, ft_z1=ft.x*sinY+ft.z*cosY; const ft_y2=ft.y*cosX-ft_z1*sinX; offX = -ft_x1*sc*S.focusTransition*0.5; offY = -ft_y2*sc*S.focusTransition*0.5; sc *= 1 + S.focusTransition*0.8; } }
-  return {px:cx+offX+x1*sc*persp, py:cy+offY+y2*sc*persp, pz:z2};
-}
-
-function render3D(){
-  if(!canvas3d) return;
-  const w=canvas3d.width, h=canvas3d.height, cx=w/2, cy=h/2;
-  ctx3d.clearRect(0,0,w,h);
-  const grad=ctx3d.createRadialGradient(cx,cy,10,cx,cy,Math.max(cx,cy)); grad.addColorStop(0,'#1A2030'); grad.addColorStop(1,'#0A0E13'); ctx3d.fillStyle=grad; ctx3d.fillRect(0,0,w,h);
-  ctx3d.strokeStyle="rgba(79,195,247,0.02)"; ctx3d.lineWidth=1; for(let x=0;x<w;x+=40){ctx3d.beginPath();ctx3d.moveTo(x,0);ctx3d.lineTo(x,h);ctx3d.stroke();} for(let y=0;y<h;y+=40){ctx3d.beginPath();ctx3d.moveTo(0,y);ctx3d.lineTo(w,y);ctx3d.stroke();}
-  if(!isDragging) rot.y+=0.005;
-  const proj = modelPts.map(p=>project(p,cx,cy));
-  const sortedEdges = modelEdges.map(e=>({...e, avgZ:(proj[e.p1].pz+proj[e.p2].pz)/2})).sort((a,b)=>b.avgZ-a.avgZ);
-  ctx3d.lineCap='round'; sortedEdges.forEach(e=>{ const p1=proj[e.p1], p2=proj[e.p2]; if(!p1||!p2) return; const alpha=Math.max(0.06, Math.min(1.0, 1.0-(e.avgZ+15)/35)); ctx3d.strokeStyle = e.color.replace(/[\d.]+\)$/, alpha.toFixed(2)+')'); ctx3d.lineWidth = (e.w||1)*(0.5+alpha); ctx3d.beginPath(); ctx3d.moveTo(p1.px,p1.py); ctx3d.lineTo(p2.px,p2.py); ctx3d.stroke(); });
-  
-  if(S.sprayActive && S.sprayGlow>0){ ctx3d.save(); ctx3d.shadowBlur=15; ctx3d.shadowColor="#4FC3F7"; ctx3d.fillStyle=`rgba(79,195,247,${0.12*S.sprayGlow})`; const sp=project({x:0,y:0,z:S.explodedView?-21:-9},cx,cy); ctx3d.beginPath(); ctx3d.arc(sp.px,sp.py,5.5*zoom*(1.1-S.sprayGlow*0.1),0,Math.PI*2); ctx3d.fill(); ctx3d.restore(); }
-  
-  const lenMax=9;
-  swarm.forEach(p=>{
-    if(p.state==='flying'){
-      const prog=(p.z+lenMax)/(lenMax*2);
-      if(prog>=0&&prog<=1){ const a=prog*Math.PI*6; p.vx+=(Math.cos(a)*3.8-p.x)*0.012; p.vy+=(Math.sin(a)*3.8-p.y)*0.012; }
-      if(S.sprayActive && p.z>=-9 && p.z<=-4){ if(Math.sqrt(p.x*p.x+p.y*p.y)>=3.8){ p.state='captured_chemical'; p.vx=0; p.vy=0; p.vz=0; recordCapture(p.sizeUm, true); } }
-      if(S.nanofibersActive && S.electrostatic && p.z>=2 && p.z<=9){ const df=1/Math.max(0.5,9-p.z); p.vx+=(0-p.x)*0.035*df*(S.fieldStrength/1.5); p.vy+=(0-p.y)*0.035*df*(S.fieldStrength/1.5); }
-      if(S.nanofibersActive && p.z>=8.5){ if(Math.sqrt(p.x*p.x+p.y*p.y)<=5.8){ p.state='captured_electro'; p.vx=0; p.vy=0; p.vz=0; p.z=8.5+(Math.random()-0.5)*0.3; recordCapture(p.sizeUm, false); } }
-      if(p.z>=-4 && p.z<=4 && p.sizeUm>5 && Math.random()<0.008*(p.sizeUm/10)){ p.state='captured_electro'; p.vx=0; p.vy=0; p.vz=0; recordCapture(p.sizeUm, false); }
-      
-      let fv = S.flowMode==='sneezing'?1.5:S.flowMode==='cough'?1.1:S.flowMode==='hyperventilation'?0.7:S.flowMode==='active'?0.35:0.18;
-      if(S.flowMode==='breathing') fv = 0.08 + 0.14*(0.5+0.5*Math.sin(S.breathingPhase));
-      p.z += p.vz*fv*4.5; p.x+=p.vx; p.y+=p.vy;
-      if(p.z>14){ p.state='escaped'; recordCapture(p.sizeUm, false, true); }
+    let currentLang = 'ES';
+    function getText(key) {
+      const t = TRANSLATIONS[currentLang];
+      return t[key] !== undefined ? t[key] : (TRANSLATIONS['ES'][key] || '');
     }
-    const pr=project({x:p.x,y:p.y,z:p.z},cx,cy);
-    p.px = pr.px; p.py = pr.py; p.pz = pr.pz; 
-    
-    if(p.state==='flying'){ p.trail.push({x:pr.px,y:pr.py}); if(p.trail.length>8) p.trail.shift(); }
-    if(p.trail.length>1){ ctx3d.beginPath(); ctx3d.moveTo(p.trail[0].x,p.trail[0].y); for(let k=1;k<p.trail.length;k++) ctx3d.lineTo(p.trail[k].x,p.trail[k].y); ctx3d.strokeStyle=p.state==='captured_electro'?"rgba(79,195,247,0.12)":"rgba(244,67,54,0.15)"; ctx3d.lineWidth=p.size*0.3; ctx3d.stroke(); }
-    
-    const pr2=Math.max(1, p.size*(40/(40+pr.pz)));
-    
-    if(S.selectedParticle && S.selectedParticle.id === p.id) {
-        ctx3d.beginPath(); ctx3d.arc(pr.px,pr.py,pr2+4,0,Math.PI*2);
-        ctx3d.strokeStyle = "#FFF"; ctx3d.lineWidth = 1.5; ctx3d.stroke();
+    function toggleLang() {
+      currentLang = currentLang === 'ES' ? 'EN' : currentLang === 'EN' ? 'ZH' : 'ES';
+      updateLanguage();
+      document.documentElement.lang = currentLang === 'ES' ? 'es' : currentLang === 'EN' ? 'en' : 'zh';
+      toast(getText('langBtn').replace('🌐 ','') + (currentLang==='ZH'?' 已激活':' activated'), 'info');
     }
-    
-    ctx3d.beginPath(); ctx3d.arc(pr.px,pr.py,pr2,0,Math.PI*2);
-    if(p.state==='captured_electro'){ctx3d.fillStyle="#00E676";ctx3d.shadowBlur=8;ctx3d.shadowColor="#00E676";}
-    else if(p.state==='captured_chemical'){ctx3d.fillStyle="#29B6F6";ctx3d.shadowBlur=8;ctx3d.shadowColor="#29B6F6";}
-    else{ctx3d.fillStyle="rgba(244,67,54,0.85)";ctx3d.shadowBlur=0;}
-    ctx3d.fill(); ctx3d.shadowBlur=0;
-    
-    if(p.state==='escaped'||(p.state!=='flying'&&Math.random()<0.003)){ Object.assign(p, createFreshParticle()); p.id = particleIDCounter++; }
-  });
-  
-  ctx3d.fillStyle="rgba(79,195,247,0.25)"; ctx3d.font="10px 'JetBrains Mono',monospace"; ctx3d.fillText(`ROT: X:${rot.x.toFixed(2)} Y:${rot.y.toFixed(2)} ZOOM:${zoom.toFixed(0)}`,12,h-28);
-  const flowLabel = S.flowMode==='breathing'?`SINUSOIDAL ${S.currentFlowRate.toFixed(0)} L/MIN`:
-    ({resting:'10 L/MIN',active:'30 L/MIN',hyperventilation:'120 L/MIN (HIPER)',cough:'300 L/MIN (MAX)',sneezing:'450 L/MIN (EXTREMO)'}[S.flowMode]||'');
-  ctx3d.fillText(`FLUJO: ${flowLabel}`,12,h-14);
-}
+    function updateLanguage() {
+      const ids = Object.keys(TRANSLATIONS.ES);
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const val = getText(id);
+        if (typeof val === 'string') {
+          if (val.startsWith('<')) el.innerHTML = val; else el.textContent = val;
+        }
+      });
+      // Update document title
+      document.title = getText('pageTitle');
+      // Update keyboard shortcuts
+      buildKbModal();
+      // Update doc content if visible
+      const activeDoc = document.querySelector('.doc-tab.active');
+      if (activeDoc) {
+        const key = activeDoc.id === 'docTabPhysics' ? 'docPhysics' : activeDoc.id === 'docTabElectro' ? 'docElectro' : 'docProtocol';
+        document.getElementById('docContent').innerHTML = getText(key);
+      }
+      // Update mode display
+      const modeName = getText('modeNames')[currentMode] || '';
+      const modeDesc = getText('modeDescs')[currentMode] || '';
+      document.getElementById('modeNameDisplay').textContent = modeName;
+      document.getElementById('modeDescDisplay').textContent = modeDesc;
+      // Update efficiency/pressure sub labels
+      const eff = parseFloat(document.getElementById('mEfficiency').textContent);
+      document.getElementById('mEffSub').textContent = eff > 95 ? (currentLang==='ES'?'N95+':currentLang==='EN'?'N95+':'N95+') : eff > 85 ? (currentLang==='ES'?'N80':currentLang==='EN'?'N80':'N80') : (currentLang==='ES'?'Sub':currentLang==='EN'?'Sub':'低于');
+      const pd = parseFloat(document.getElementById('mPressure').textContent);
+      document.getElementById('mPressSub').textContent = pd <= 10 ? (currentLang==='ES'?'OK':currentLang==='EN'?'OK':'正常') : (currentLang==='ES'?'EXCEDE':currentLang==='EN'?'EXCEEDS':'超标');
+      const re = parseInt(document.getElementById('mReynolds').textContent);
+      document.getElementById('mReynoldsSub').textContent = re > 2000 ? (currentLang==='ES'?'Turbulento':currentLang==='EN'?'Turbulent':'湍流') : (currentLang==='ES'?'Laminar':currentLang==='EN'?'Laminar':'层流');
+      const pla = parseFloat(document.getElementById('mPlaIntegrity').textContent);
+      document.getElementById('mPlaSub').textContent = pla > 90 ? (currentLang==='ES'?'Sin degrad.':currentLang==='EN'?'No degrad.':'无退化') : pla > 50 ? (currentLang==='ES'?'Degrad. mod.':currentLang==='EN'?'Mod. degrad.':'中度退化') : (currentLang==='ES'?'Degrad. crític.':currentLang==='EN'?'Crit. degrad.':'严重退化');
+      // Update HUD tab labels
+      const tabs = document.querySelectorAll('.hud-tab');
+      const tabLabels = currentLang==='ES' ? ['TÁCT','BIO','CFD','VIRO','SUMIN'] : currentLang==='EN' ? ['TACT','BIO','CFD','VIR','SUPPLY'] : ['战术','生物','CFD','病毒','供应'];
+      tabs.forEach((t,i)=>{ if(tabLabels[i]) t.textContent = tabLabels[i]; });
+      // Update mode buttons labels
+      const modeBtnLabels = currentLang==='ES' ? ['1.Reposo','2.CAD','3.ISO','4.CFD','5.Protocolo','6.R2R','7.Tos','8.Electrost','9.IA','10.Sinergia'] : currentLang==='EN' ? ['1.Standby','2.CAD','3.ISO','4.CFD','5.Protocol','6.R2R','7.Cough','8.Electro','9.AI','10.Synergy'] : ['1.待机','2.CAD','3.ISO','4.CFD','5.协议','6.R2R','7.咳嗽','8.静电','9.AI','10.协同'];
+      document.querySelectorAll('.mode-btn').forEach((b,i)=>{ if(modeBtnLabels[i]) b.textContent = modeBtnLabels[i]; });
+      // Update advanced buttons
+      const advLabels = currentLang==='ES' ? ['Filtración','Turbulento','Carga Viral','Presión','Flujo','Cámara Tos','Envejecimiento','Sinergia'] : currentLang==='EN' ? ['Filtration','Turbulent','Viral Load','Pressure','Flow','Cough Chamber','Aging','Synergy'] : ['过滤','湍流','病毒载量','压力','流量','咳嗽室','老化','协同'];
+      document.querySelectorAll('.adv-btn').forEach((b,i)=>{ if(advLabels[i]) b.textContent = advLabels[i]; });
+      // Rebuild specs
+      document.getElementById('specsContent').innerHTML = getText('specsContent');
+    }
 
-function createFreshParticle(){ const angle=Math.random()*Math.PI*2, r=Math.random()*4.5; let spd=0.15; if(S.flowMode==='active') spd=0.28; if(S.flowMode==='hyperventilation') spd=0.65; const logSize=Math.random()*3-0.5; return {x:Math.cos(angle)*r, y:Math.sin(angle)*r, z:-12-Math.random()*8, vx:(Math.random()-0.5)*0.05, vy:(Math.random()-0.5)*0.05, vz:spd+Math.random()*0.1, state:'flying', size:1.5+Math.random()*2, sizeUm:Math.exp(logSize), trail:[]}; }
-function recordCapture(sizeUm, isChemical, isEscaped=false){ let bin=0; for(let i=0;i<SIZE_BINS.length-1;i++){ if(sizeUm>=SIZE_BINS[i]&&sizeUm<SIZE_BINS[i+1]){bin=i;break;} if(i===SIZE_BINS.length-2) bin=i; } if(isEscaped) S.sizeDist.escaped[bin]++; else S.sizeDist.captured[bin]++; }
+    // ==================== GLOBALS ====================
+    let scene, camera, renderer, prototypeGroup, clickableObjects=[];
+    let ampouleGroup, nozzleGroup, chassisGroup, sealRingGroup, labyrinthGroup, nanofiberGroup, capGroup;
+    let particlesSystem, particlePositions, particleSizes, particleVelocities=[];
+    let streamlinesGroup, streamlineMeshes=[];
+    let sparkLines, nodeNetwork, rollerGroup, conveyorGroup;
+    let measurementLines, gridHelper, starField;
+    let raycaster, mouse, isDragging=false, prevMouseX, prevMouseY;
+    let currentMode='simulation', advancedMode=null, modeColor=0x38bdf8;
+    let rotationSpeed=0.002, explodeValue=0, targetExplodeValue=0, explodedView=false;
+    let isXray=false, shockWaveActive=false, shockWaveRadius=0;
+    let breathActive=false, breathTime=0;
+    let flowMode='active', currentFlowRate=30, currentFlow=30;
+    let electrostaticActive=true, nanofibersActive=true, sprayActive=false, sprayAppliedAt=0;
+    let fieldStrength=1.5, nanofiberDensity=85, ambientHumidity=45, plaWeeks=0;
+    let efficiency=94.5, pressureDrop=4.1, residenceTime=2.5, particleDensity=50, accumulatedStress=0;
+    let alertFlash=0, hudVisible=true;
+    let waveformHistory=[], virologyHistory=[], fatigueHistory=[];
+    let swarm=[], particleIDCounter=0;
+    const SIZE_BINS=[0.3,1,3,5,10,25]; const sizeDist={captured:[0,0,0,0,0,0], escaped:[0,0,0,0,0,0]};
+    const PARTICLE_COUNT=200;
+    let wfMini;
+    let ctxWfMini;
+    let chartCanvas, chartCtx, flowMeterCanvas, flowMeterCtx;
+    let logTextEl;
+    let selectedObject=null;
+    let breathingPhase=0;
 
-// ================= SIMULATORS =================
-function renderWaveform(cvs, ctx, w, h, isMini){
-  ctx.fillStyle='#080B0F'; ctx.fillRect(0,0,w,h);
-  ctx.strokeStyle="rgba(79,195,247,0.06)"; ctx.lineWidth=0.5; for(let y=0;y<h;y+=h/6){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();} for(let x=0;x<w;x+=w/10){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
-  ctx.strokeStyle="rgba(255,255,255,0.1)"; ctx.beginPath(); ctx.moveTo(0,h/2); ctx.lineTo(w,h/2); ctx.stroke();
-  const data=S.waveformHistory; if(data.length<2) return;
-  const maxPts=isMini?80:200; const start=Math.max(0,data.length-maxPts); const slice=data.slice(start);
-  ctx.beginPath(); slice.forEach((v,i)=>{ const x=(i/(maxPts-1))*w; const y=h/2 - (v/500)*h*0.4; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); }); ctx.strokeStyle="#00E5A0"; ctx.lineWidth=isMini?1.5:2; ctx.stroke();
-  ctx.strokeStyle="rgba(0,229,160,0.15)"; ctx.lineWidth=isMini?4:6; ctx.stroke();
-  if(!isMini){ ctx.fillStyle="rgba(0,229,160,0.5)"; ctx.font="9px 'JetBrains Mono',monospace"; ctx.fillText("FLUJO (L/min)",4,12); ctx.fillText("+250",4,h/2-4); ctx.fillText("-250",4,h/2+12); }
-}
+    // ==================== THREE.JS INIT ====================
+    function initThree() {
+      const container = document.getElementById('canvas3d');
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x05080e);
+      scene.fog = new THREE.FogExp2(0x05080e, 0.018);
 
-function renderHistogram(cvs, ctx, w, h){
-  ctx.fillStyle='#080B0F'; ctx.fillRect(0,0,w,h);
-  const labels=['<0.3','0.3-1','1-3','3-5','5-10','>10']; const n=6; const pad=30, barW=(w-pad*2)/n, gap=2; const maxVal=Math.max(1,...S.sizeDist.captured,...S.sizeDist.escaped);
-  for(let i=0;i<n;i++){ const x=pad+i*barW; const capH=(S.sizeDist.captured[i]/maxVal)*(h-30); const escH=(S.sizeDist.escaped[i]/maxVal)*(h-30);
-    ctx.fillStyle="rgba(0,230,118,0.7)"; ctx.fillRect(x+gap,h-15-capH,barW-gap*2,capH);
-    ctx.fillStyle="rgba(244,67,54,0.7)"; ctx.fillRect(x+gap,h-15-capH-escH,barW-gap*2,escH);
-    ctx.fillStyle="rgba(255,255,255,0.4)"; ctx.font="8px 'JetBrains Mono',monospace"; ctx.textAlign="center"; ctx.fillText(labels[i],x+barW/2,h-4); }
-  ctx.textAlign="left"; ctx.fillStyle="rgba(0,230,118,0.7)"; ctx.fillRect(w-70,6,8,8); ctx.fillStyle="rgba(255,255,255,0.5)"; ctx.font="8px 'JetBrains Mono',monospace"; ctx.fillText("Capturado",w-58,13); ctx.fillStyle="rgba(244,67,54,0.7)"; ctx.fillRect(w-70,18,8,8); ctx.fillStyle="rgba(255,255,255,0.5)"; ctx.fillText("Escapado",w-58,25); ctx.fillStyle="rgba(255,255,255,0.3)"; ctx.fillText("um",w-14,h-4);
-}
+      camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 15, 38);
 
-function renderCFD(cvs, ctx, w, h){
-  ctx.fillStyle='#080B0F'; ctx.fillRect(0,0,w,h);
-  const cols=14, rows=8; const cellW=w/cols, cellH=h/rows;
-  const flowFactor = S.flowMode==='sneezing'?15:S.flowMode==='cough'?10:S.flowMode==='hyperventilation'?5:S.flowMode==='active'?2:1;
-  for(let r=0;r<rows;r++){ for(let c=0;c<cols;c++){ const cx2=cellW*(c+0.5), cy2=cellH*(r+0.5); const prog=c/cols; let vx=flowFactor*0.8; let vy=0;
-      if(prog>0.2&&prog<0.8){ const labAngle=prog*Math.PI*6; vx*=0.6; vy=Math.sin(labAngle)*flowFactor*0.4; }
-      if(prog>0.75) vx*=Math.max(0.1, 1-(prog-0.75)/0.25);
-      if(S.flowMode==='breathing'){ const bf=0.5+0.5*Math.sin(S.breathingPhase); vx*=bf; vy*=bf; }
-      const mag=Math.sqrt(vx*vx+vy*vy); const maxMag=flowFactor*1.2; const norm=Math.min(1,mag/Math.max(0.1,maxMag));
-      let cr,cg,cb; if(norm<0.33){const t2=norm/0.33; cr=0; cg=Math.floor(100+155*t2); cb=Math.floor(200*(1-t2));} else if(norm<0.66){const t2=(norm-0.33)/0.33; cr=Math.floor(255*t2); cg=255; cb=0;} else{const t2=(norm-0.66)/0.34; cr=255; cg=Math.floor(255*(1-t2)); cb=0;}
-      const arrowLen=Math.max(3, norm*cellW*0.4); const angle=Math.atan2(vy,vx);
-      ctx.save(); ctx.translate(cx2,cy2); ctx.rotate(angle); ctx.strokeStyle=`rgba(${cr},${cg},${cb},0.8)`; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(-arrowLen/2,0); ctx.lineTo(arrowLen/2,0); ctx.stroke(); ctx.beginPath(); ctx.moveTo(arrowLen/2,0); ctx.lineTo(arrowLen/2-3,-2); ctx.moveTo(arrowLen/2,0); ctx.lineTo(arrowLen/2-3,2); ctx.stroke(); ctx.restore(); } }
-  ctx.fillStyle="rgba(255,255,255,0.25)"; ctx.font="8px 'JetBrains Mono',monospace"; ctx.textAlign="center"; ctx.fillText("ENTRADA",w*0.1,h-4); ctx.fillText("LABERINTO",w*0.5,h-4); ctx.fillText("NANOFIBRA",w*0.85,h-4); ctx.textAlign="left";
-}
+      renderer = new THREE.WebGLRenderer({antialias:true, alpha:false});
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.1;
+      container.appendChild(renderer.domElement);
 
-function renderThermal(cvs, ctx, w, h){
-  const imgData=ctx.createImageData(w,h); const flowFactor = S.flowMode==='sneezing'?3:S.flowMode==='cough'?2:S.flowMode==='hyperventilation'?1.5:S.flowMode==='active'?1.2:1; const baseTemp=33;
-  for(let y=0;y<h;y++){ for(let x=0;x<w;x++){ const prog=x/w; let temp=baseTemp;
-      if(prog>0.2&&prog<0.8) temp += flowFactor*0.5*Math.sin((prog-0.2)/0.6*Math.PI);
-      if(prog>0.75) temp += flowFactor*1.5*((prog-0.75)/0.25);
-      if(S.sprayActive && prog<0.3) temp -= 2*S.sprayGlow;
-      if(S.flowMode==='breathing') temp += Math.sin(S.breathingPhase)*0.3*flowFactor;
-      temp += (Math.random()-0.5)*0.3;
-      const norm=Math.max(0,Math.min(1,(temp-28)/10)); let r,g,b; if(norm<0.5){const t2=norm/0.5; r=0; g=Math.floor(100*t2); b=Math.floor(200*(1-t2)+55*t2);} else{const t2=(norm-0.5)/0.5; r=Math.floor(255*t2); g=Math.floor(100*(1-t2)+100*t2); b=0;}
-      const idx=(y*w+x)*4; imgData.data[idx]=r; imgData.data[idx+1]=g; imgData.data[idx+2]=b; imgData.data[idx+3]=180; } }
-  ctx.putImageData(imgData,0,0); ctx.fillStyle="rgba(255,255,255,0.4)"; ctx.font="8px 'JetBrains Mono',monospace"; ctx.fillText("28°C",4,h-4); ctx.textAlign="right"; ctx.fillText("38°C",w-4,h-4); ctx.textAlign="left"; ctx.fillStyle="rgba(255,255,255,0.25)"; ctx.fillText("MAPA TERMICO",4,12);
-}
+      const am = new THREE.AmbientLight(0x405060, 0.6);
+      scene.add(am);
+      const key = new THREE.DirectionalLight(0xffffff, 1.2);
+      key.position.set(10, 30, 15);
+      key.castShadow = true;
+      key.shadow.mapSize.width = 1024;
+      key.shadow.mapSize.height = 1024;
+      scene.add(key);
+      const fill = new THREE.DirectionalLight(0x88ccff, 0.4);
+      fill.position.set(-10, 10, -10);
+      scene.add(fill);
+      const rim = new THREE.PointLight(0x00aaff, 0.8, 60);
+      rim.position.set(-15, 5, 15);
+      scene.add(rim);
+      const under = new THREE.PointLight(0x004488, 0.5, 40);
+      under.position.set(0, -8, 0);
+      scene.add(under);
 
-function renderVirology(cvs, ctx, w, h){
-  ctx.fillStyle='#080B0F'; ctx.fillRect(0,0,w,h);
-  ctx.strokeStyle="rgba(255,64,129,0.06)"; ctx.lineWidth=0.5; for(let y=0;y<h;y+=h/4){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();} for(let x=0;x<w;x+=w/10){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
-  const data=S.virologyHistory; if(data.length<2) return; const maxPts=150; const start=Math.max(0,data.length-maxPts); const slice=data.slice(start);
-  ctx.beginPath(); slice.forEach((v,i)=>{ const x=(i/(maxPts-1))*w; const y=h - (v/100)*h*0.8; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); }); ctx.strokeStyle="#FF4081"; ctx.lineWidth=2; ctx.stroke();
-  ctx.fillStyle="rgba(255,64,129,0.5)"; ctx.font="9px 'JetBrains Mono',monospace"; ctx.fillText("LISIS VIRAL (%)",4,12);
-}
+      gridHelper = new THREE.GridHelper(120, 60, 0x1a2a3a, 0x0d1520);
+      gridHelper.position.y = -18;
+      scene.add(gridHelper);
 
-function renderFatigue(cvs, ctx, w, h){
-  ctx.fillStyle='#080B0F'; ctx.fillRect(0,0,w,h);
-  ctx.strokeStyle="rgba(255,82,82,0.06)"; ctx.lineWidth=0.5; for(let y=0;y<h;y+=h/4){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();} for(let x=0;x<w;x+=w/10){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
-  const data=S.fatigueHistory; if(data.length<2) return; const maxPts=150; const start=Math.max(0,data.length-maxPts); const slice=data.slice(start);
-  ctx.beginPath(); slice.forEach((v,i)=>{ const x=(i/(maxPts-1))*w; const y=h - (Math.min(v, 100)/100)*h*0.8; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); }); ctx.strokeStyle="#FF5252"; ctx.lineWidth=2; ctx.stroke();
-  ctx.fillStyle="rgba(255,82,82,0.5)"; ctx.font="9px 'JetBrains Mono',monospace"; ctx.fillText("ESTRÉS TPE ACOMULADO",4,12);
-}
+      measurementLines = new THREE.Group();
+      scene.add(measurementLines);
 
-function updateMetrics(){
-  let baseEff=45; let electroContrib=35*(S.fieldStrength/1.5); if(S.ambientHumidity>50) electroContrib*=Math.max(0.1,1-(S.ambientHumidity-50)*0.015); let fiberContrib=15*(S.nanofiberDensity/85); if(S.plaWeeks>0) fiberContrib*=Math.max(0.05,1-(S.plaWeeks/12));
-  if(S.electrostatic) baseEff+=electroContrib; if(S.nanofibersActive) baseEff+=fiberContrib; if(S.sprayActive) baseEff+=4;
-  let flowNoise=S.flowMode==='sneezing'?-15:S.flowMode==='cough'?-8:S.flowMode==='hyperventilation'?-10:S.flowMode==='active'?-1.5:0;
-  if(S.flowMode==='breathing') flowNoise=-0.5*Math.sin(S.breathingPhase);
-  S.efficiency=parseFloat(Math.min(99.9,Math.max(10,baseEff+flowNoise+(Math.random()-0.5)*1.5)).toFixed(1));
+      const starGeo = new THREE.BufferGeometry();
+      const starPos = new Float32Array(3000 * 3);
+      for (let i=0;i<3000;i++) { starPos[i*3]=(Math.random()-0.5)*400; starPos[i*3+1]=(Math.random()-0.5)*400; starPos[i*3+2]=(Math.random()-0.5)*400; }
+      starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+      starField = new THREE.Points(starGeo, new THREE.PointsMaterial({color:0x8899aa, size:0.25, transparent:true, opacity:0.6, sizeAttenuation:true}));
+      scene.add(starField);
 
-  let baseP=S.flowMode==='sneezing'?72.4:S.flowMode==='cough'?48.5:S.flowMode==='hyperventilation'?25.0:S.flowMode==='active'?9.1:4.1;
-  if(S.flowMode==='breathing') baseP=4.1+3*(0.5+0.5*Math.sin(S.breathingPhase));
-  if(!S.nanofibersActive) baseP*=0.7;
-  S.pressureDrop=parseFloat(Math.max(0.5,baseP+(Math.random()-0.5)*(S.flowMode==='sneezing'||S.flowMode==='cough'?2:0.4)).toFixed(1));
-  S.accumulatedStress += S.pressureDrop * 0.005; 
+      build3DModel();
+      buildParticlesSystem();
+      buildStreamlines();
+      buildExtraEffects();
+      buildR2RComponents();
 
-  let baseR=S.flowMode==='sneezing'?1.4:S.flowMode==='cough'?1.8:S.flowMode==='hyperventilation'?1.6:S.flowMode==='active'?2.3:2.5;
-  S.residenceTime=parseFloat((baseR+(Math.random()-0.5)*0.1).toFixed(1));
+      raycaster = new THREE.Raycaster();
+      mouse = new THREE.Vector2();
 
-  let vel=S.flowMode==='sneezing'?1.5:S.flowMode==='cough'?1.1:S.flowMode==='hyperventilation'?0.7:S.flowMode==='active'?0.35:0.18;
-  if(S.flowMode==='breathing') vel=0.08+0.14*(0.5+0.5*Math.sin(S.breathingPhase));
+      container.addEventListener('mousedown', (e)=>{ isDragging=true; prevMouseX=e.clientX; prevMouseY=e.clientY; });
+      window.addEventListener('mouseup', ()=>{ isDragging=false; });
+      window.addEventListener('mousemove', (e)=>{
+        if (!isDragging) return;
+        prototypeGroup.rotation.y += (e.clientX - prevMouseX) * 0.008;
+        prototypeGroup.rotation.x += (e.clientY - prevMouseY) * 0.008;
+        prevMouseX = e.clientX; prevMouseY = e.clientY;
+      });
+      container.addEventListener('wheel', (e)=>{ camera.position.z = Math.max(12, Math.min(80, camera.position.z + e.deltaY * 0.05)); });
+      container.addEventListener('click', (e)=>{
+        const rect = container.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(clickableObjects);
+        if (intersects.length > 0) { handleObjectClick(intersects[0].object); }
+        else { hideTooltip(); if (selectedObject) { try { selectedObject.material.emissive.setHex(0x000000); selectedObject.material.emissiveIntensity = 0; } catch(err){} selectedObject = null; } }
+      });
+      window.addEventListener('resize', ()=>{
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    }
 
-  let target=S.flowMode==='cough'?140:S.flowMode==='sneezing'?180:S.flowMode==='hyperventilation'?110:S.flowMode==='active'?90:S.flowMode==='breathing'?65:50;
-  if(swarm.length<target) while(swarm.length<target) spawnParticle(); else if(swarm.length>target) swarm.length=target;
-  S.particleDensity=swarm.length;
+    function build3DModel() {
+      prototypeGroup = new THREE.Group(); scene.add(prototypeGroup);
+      const ti = new THREE.MeshStandardMaterial({color:0x242b35, metalness:0.9, roughness:0.35});
+      const cp = new THREE.MeshPhysicalMaterial({color:0xe2e8f0, metalness:0.1, roughness:0.1, transparent:true, opacity:0.75, transmission:0.8, ior:1.52});
+      const tpe = new THREE.MeshStandardMaterial({color:0x334155, metalness:0.2, roughness:0.6});
+      const seal = new THREE.MeshStandardMaterial({color:0x4fc3f7, metalness:0.1, roughness:0.3, transparent:true, opacity:0.85});
+      const nano = new THREE.MeshStandardMaterial({color:0x38bdf8, metalness:0.4, roughness:0.2, emissive:0x0369a1, emissiveIntensity:0.4, wireframe:true});
+      const gold = new THREE.MeshStandardMaterial({color:0x0284c7, metalness:0.8, roughness:0.2});
 
-  if(S.flowMode==='breathing'){ S.currentFlowRate=15+10*Math.sin(S.breathingPhase); } else { S.currentFlowRate={resting:10,active:30,hyperventilation:120,cough:300,sneezing:450}[S.flowMode]||10; }
-  const re = Math.round(S.currentFlowRate * 0.012 / 0.0000181);
+      ampouleGroup = new THREE.Group();
+      const aGeo = new THREE.CylinderGeometry(2.4, 2.4, 10, 32);
+      const aMesh = new THREE.Mesh(aGeo, cp); aMesh.position.y = -7; aMesh.userData = {type:'ampoule'}; ampouleGroup.add(aMesh); clickableObjects.push(aMesh);
+      const fGeo = new THREE.CylinderGeometry(2.1, 2.1, 8, 32);
+      const fMat = new THREE.MeshStandardMaterial({color:0x06b6d4, transparent:true, opacity:0.85, roughness:0.1});
+      const fMesh = new THREE.Mesh(fGeo, fMat); fMesh.position.y = -7; ampouleGroup.add(fMesh);
+      const nGeo = new THREE.CylinderGeometry(1.2, 1.8, 3, 32);
+      const nMesh = new THREE.Mesh(nGeo, cp); nMesh.position.y = -1; ampouleGroup.add(nMesh);
+      prototypeGroup.add(ampouleGroup);
 
-  document.getElementById('mEfficiency').textContent=S.efficiency+'%'; document.getElementById('mEfficiency').style.color=S.efficiency>90?'var(--accent)':S.efficiency>70?'var(--warn)':'var(--danger)'; document.getElementById('mEffSub').textContent=S.efficiency>95?'N95+ equivalente':S.efficiency>85?'N80 equivalente':'Sub-estandar';
-  document.getElementById('mPressure').textContent=S.pressureDrop+' Pa'; document.getElementById('mPressure').style.color=S.pressureDrop>10?'var(--danger)':S.pressureDrop>7?'var(--warn)':'var(--text)'; document.getElementById('mPressSub').textContent=S.pressureDrop<=10?'Dentro de objetivo':'EXCEDE OBJETIVO';
-  document.getElementById('mResidence').textContent=S.residenceTime+'x'; document.getElementById('mSpeed').textContent=vel.toFixed(2)+' m/s'; document.getElementById('mDensity').textContent=S.particleDensity;
+      nozzleGroup = new THREE.Group();
+      const nozGeo = new THREE.ConeGeometry(1.6, 4, 32);
+      const nozMesh = new THREE.Mesh(nozGeo, ti); nozMesh.position.y = 2.5; nozMesh.userData = {type:'nozzle'}; nozzleGroup.add(nozMesh); clickableObjects.push(nozMesh);
+      const tipGeo = new THREE.CylinderGeometry(0.3, 0.4, 1, 16);
+      const tip = new THREE.Mesh(tipGeo, gold); tip.position.y = 4.8; nozzleGroup.add(tip);
+      prototypeGroup.add(nozzleGroup);
 
-  const respRate = S.flowMode==='breathing'?'15 SIN':S.flowMode==='hyperventilation'?'30 rpm (HIP)':'15 rpm';
-  document.getElementById('mRespRate').textContent=respRate;
-  document.getElementById('mTidalVol').textContent=S.flowMode==='breathing'?(400+100*Math.sin(S.breathingPhase)).toFixed(0)+' mL':S.flowMode==='hyperventilation'?'250 mL':'500 mL';
-  const peakP = S.flowMode==='sneezing'?'-12.5':S.flowMode==='cough'?'-8.2':S.flowMode==='hyperventilation'?'-5.5':'-2.1';
-  document.getElementById('mPeakPress').textContent=peakP+' cmH2O'; document.getElementById('mPeakPress').style.color=Math.abs(parseFloat(peakP))>5?'var(--danger)':'var(--text)';
-  document.getElementById('mTpeStress').textContent=S.accumulatedStress>80?'Crítico':S.accumulatedStress>40?'Medio':'Normal'; document.getElementById('mTpeStress').style.color=S.accumulatedStress>80?'var(--danger)':S.accumulatedStress>40?'var(--warn)':'var(--safe)';
+      chassisGroup = new THREE.Group();
+      const chGeo = new THREE.CylinderGeometry(4.8, 4.4, 9, 32, 1, true);
+      const chMesh = new THREE.Mesh(chGeo, tpe); chMesh.position.y = 10; chMesh.userData = {type:'chassis'}; chassisGroup.add(chMesh); clickableObjects.push(chMesh);
+      const tabGeo = new THREE.BoxGeometry(1.2, 3.5, 0.8);
+      const tab = new THREE.Mesh(tabGeo, tpe); tab.position.set(4.6, 9.5, 0); chassisGroup.add(tab);
+      prototypeGroup.add(chassisGroup);
 
-  document.getElementById('mReynolds').textContent=re; document.getElementById('mReynolds').style.color=re>2000?'var(--danger)':re>500?'var(--warn)':'var(--accent2)';
-  document.getElementById('mMaxVel').textContent=(vel*2.5).toFixed(2)+' m/s'; document.getElementById('mAvgVel').textContent=vel.toFixed(2)+' m/s'; document.getElementById('mTurbK').textContent=(vel*vel*0.02).toFixed(4)+' m²/s²'; document.getElementById('mCfdPress').textContent=S.pressureDrop+' Pa';
+      sealRingGroup = new THREE.Group();
+      const sTorus = new THREE.TorusGeometry(4.8, 0.75, 24, 48);
+      const sMesh = new THREE.Mesh(sTorus, seal); sMesh.rotation.x = Math.PI/2; sMesh.position.y = 13.5; sMesh.userData = {type:'seal'}; sealRingGroup.add(sMesh); clickableObjects.push(sMesh);
+      prototypeGroup.add(sealRingGroup);
 
-  let viroLysis = 0;
-  if(S.sprayActive){ const elapsed=Date.now()-S.sprayAppliedAt; const remaining=Math.max(0,S.sprayDuration-elapsed); const hours=Math.floor(remaining/3600000); const mins=Math.floor((remaining%3600000)/60000); document.getElementById('mSprayCov').textContent='92%'; document.getElementById('mBindRate').textContent=(0.8+Math.random()*0.2).toFixed(1)+' mg/h'; document.getElementById('mSprayTime').textContent=hours+':'+String(mins).padStart(2,'0'); document.getElementById('mSprayTime').style.color=remaining<3600000?'var(--warn)':'var(--safe)'; viroLysis = 99.9; }
-  else { document.getElementById('mSprayCov').textContent='0%'; document.getElementById('mBindRate').textContent='0.0 mg/h'; document.getElementById('mSprayTime') && (document.getElementById('mSprayTime').textContent='--:--'); document.getElementById('mSprayTime') && (document.getElementById('mSprayTime').style.color='var(--muted)'); viroLysis = S.efficiency; }
-  
-  if (document.getElementById('mViralLoad')) { document.getElementById('mViralLoad').textContent = (viroLysis/20).toFixed(1) + ' Log10'; document.getElementById('mEnvInteg').textContent = (100 - viroLysis).toFixed(1) + '%'; document.getElementById('mMutRate').textContent = '99.8%'; }
+      labyrinthGroup = new THREE.Group();
+      for (let i=0;i<4;i++) { const rGeo = new THREE.TorusGeometry(2.8 - i*0.5, 0.25, 16, 32); const rMesh = new THREE.Mesh(rGeo, ti); rMesh.rotation.x = Math.PI/2 + (i%2===0 ? 0.35 : -0.35); rMesh.position.y = 8 + i*1.6; rMesh.userData = {type:'labyrinth'}; labyrinthGroup.add(rMesh); clickableObjects.push(rMesh); }
+      prototypeGroup.add(labyrinthGroup);
 
-  const plaInt = Math.max(0, 100 - (S.plaWeeks/12)*100);
-  document.getElementById('mPlaIntegrity').textContent=plaInt.toFixed(0)+'%'; document.getElementById('mPlaIntegrity').style.color=plaInt>70?'var(--safe)':plaInt>30?'var(--warn)':'var(--danger)'; document.getElementById('mPlaSub').textContent=plaInt>90?'Sin degradacion':plaInt>50?'Degradacion moderada':'Degradacion critica'; document.getElementById('mHumidity').textContent=S.ambientHumidity+'%'; document.getElementById('mHumidity').style.color=S.ambientHumidity>70?'var(--warn)':'var(--accent2)';
-}
+      nanofiberGroup = new THREE.Group();
+      const ng = new THREE.CylinderGeometry(4.2, 4.2, 0.5, 32);
+      const nm = new THREE.Mesh(ng, nano); nm.position.y = 12.5; nm.userData = {type:'nanofiber'}; nanofiberGroup.add(nm); clickableObjects.push(nm);
+      prototypeGroup.add(nanofiberGroup);
 
-function handleDblClick(e){
-  const rect=canvas3d.getBoundingClientRect(); const mx=(e.clientX-rect.left)*(canvas3d.width/rect.width); const my=(e.clientY-rect.top)*(canvas3d.height/rect.height);
-  const cx=canvas3d.width/2, cy=canvas3d.height/2;
-  const zones={ entry:project({x:0,y:0,z:-9},cx,cy), labyrinth:project({x:0,y:0,z:0},cx,cy), nanofiber:project({x:0,y:0,z:9},cx,cy), exit:project({x:0,y:0,z:14},cx,cy) };
-  let closest=null, minDist=60; for(const [name,pt] of Object.entries(zones)){ const d=Math.sqrt((mx-pt.px)**2+(my-pt.py)**2); if(d<minDist){minDist=d;closest=name;} }
-  if(closest){ S.focusTarget=closest; S.focusTransition=0; document.getElementById('focusLabel').textContent=t('focus'+closest.charAt(0).toUpperCase()+closest.slice(1)); document.getElementById('focusLabel').classList.add('visible'); }
-}
+      capGroup = new THREE.Group();
+      const cg = new THREE.CylinderGeometry(4.6, 4.6, 1.2, 32, 1, true);
+      const cm = new THREE.Mesh(cg, gold); cm.position.y = 14.5; cm.userData = {type:'cap'}; capGroup.add(cm); clickableObjects.push(cm);
+      prototypeGroup.add(capGroup);
+    }
 
-function handleClick(e){
-  const rect=canvas3d.getBoundingClientRect(); 
-  const mx=(e.clientX-rect.left)*(canvas3d.width/rect.width); 
-  const my=(e.clientY-rect.top)*(canvas3d.height/rect.height);
-  let closest = null; let minDist = 20; 
-  
-  swarm.forEach(p => {
-      const d = Math.hypot(mx - p.px, my - p.py);
-      if(d < minDist) { minDist = d; closest = p; }
-  });
-  
-  const tt = document.getElementById('particleTooltip');
-  if(closest) {
-      S.selectedParticle = closest;
-      tt.style.left = (e.clientX - rect.left + 15) + 'px';
-      tt.style.top = (e.clientY - rect.top - 15) + 'px';
-      document.getElementById('ttSize').textContent = closest.sizeUm.toFixed(2);
-      document.getElementById('ttState').textContent = closest.state === 'flying' ? 'En vuelo' : closest.state === 'captured_electro' ? 'Capt. Electro' : closest.state === 'captured_chemical' ? 'Capt. Quím' : 'Escapado';
-      document.getElementById('ttCharge').textContent = S.electrostatic ? (closest.sizeUm * 0.5).toFixed(2) + 'e-' : '0';
-      tt.classList.add('visible');
-  } else {
-      S.selectedParticle = null;
-      tt.classList.remove('visible');
-  }
-}
+    function buildParticlesSystem() {
+      const geo = new THREE.BufferGeometry();
+      particlePositions = new Float32Array(PARTICLE_COUNT * 3);
+      particleSizes = new Float32Array(PARTICLE_COUNT);
+      for (let i=0;i<PARTICLE_COUNT;i++) resetParticle(i);
+      geo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+      geo.setAttribute('size', new THREE.BufferAttribute(particleSizes, 1));
+      const mat = new THREE.PointsMaterial({color:0x4fc3f7, size:0.6, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, sizeAttenuation:true});
+      particlesSystem = new THREE.Points(geo, mat);
+      prototypeGroup.add(particlesSystem);
+      initSwarm();
+    }
 
-function setupEvents(){
-  canvas3d.addEventListener('mousedown',e=>{isDragging=true;lastMouse={x:e.clientX,y:e.clientY};});
-  window.addEventListener('mousemove',e=>{ if(!isDragging)return; rot.y+=(e.clientX-lastMouse.x)*0.008; rot.x+= (e.clientY-lastMouse.y)*0.008; rot.x=Math.max(-Math.PI/2.2,Math.min(Math.PI/2.2,rot.x)); lastMouse={x:e.clientX,y:e.clientY}; });
-  window.addEventListener('mouseup',()=>{isDragging=false;});
-  canvas3d.addEventListener('wheel',e=>{ e.preventDefault(); zoom=Math.max(10,Math.min(50,zoom+e.deltaY*-0.015)); },{passive:false});
-  canvas3d.addEventListener('dblclick',handleDblClick);
-  canvas3d.addEventListener('click',handleClick); 
+    function resetParticle(i) {
+      const theta = Math.random()*Math.PI*2, radius = 0.5 + Math.random()*4.5;
+      particlePositions[i*3] = Math.cos(theta)*radius;
+      particlePositions[i*3+1] = -12 + Math.random()*3;
+      particlePositions[i*3+2] = Math.sin(theta)*radius;
+      const speed = 0.06 + Math.random()*0.3;
+      const sizeCat = Math.random() < 0.3 ? 'large' : (Math.random() < 0.6 ? 'med' : 'small');
+      particleVelocities[i] = {
+        vx:(Math.random()-0.5)*0.08, vy:speed, vz:(Math.random()-0.5)*0.08,
+        trapped:false, sizeCategory:sizeCat, phase:Math.random()*Math.PI*2,
+        color:new THREE.Color().setHSL(Math.random()*0.2+0.5, 0.8, 0.6), viral:Math.random()<0.1
+      };
+    }
 
-  canvas3d.addEventListener('touchstart',e=>{ if(e.touches.length===1){ isDragging=true; lastMouse={x:e.touches[0].clientX,y:e.touches[0].clientY}; } else if(e.touches.length===2){ isDragging=false; const dx=e.touches[0].clientX-e.touches[1].clientX; const dy=e.touches[0].clientY-e.touches[1].clientY; touchDist=Math.sqrt(dx*dx+dy*dy); } e.preventDefault(); },{passive:false});
-  canvas3d.addEventListener('touchmove',e=>{ if(e.touches.length===1&&isDragging){ const dx=e.touches[0].clientX-lastMouse.x; const dy=e.touches[0].clientY-lastMouse.y; rot.y+=dx*0.008; rot.x+=dy*0.008; rot.x=Math.max(-Math.PI/2.2,Math.min(Math.PI/2.2,rot.x)); lastMouse={x:e.touches[0].clientX,y:e.touches[0].clientY}; } else if(e.touches.length===2){ const dx=e.touches[0].clientX-e.touches[1].clientX; const dy=e.touches[0].clientY-e.touches[1].clientY; const newDist=Math.sqrt(dx*dx+dy*dy); zoom=Math.max(10,Math.min(50,zoom+(newDist-touchDist)*0.05)); touchDist=newDist; } e.preventDefault(); },{passive:false});
-  canvas3d.addEventListener('touchend',()=>{isDragging=false;});
+    function buildStreamlines() {
+      streamlinesGroup = new THREE.Group(); streamlineMeshes = [];
+      for (let j=0;j<8;j++) {
+        const pts = [
+          new THREE.Vector3(Math.cos(j)*2, -10, Math.sin(j)*2),
+          new THREE.Vector3(Math.cos(j+0.5)*2.8, 2, Math.sin(j+0.5)*2.8),
+          new THREE.Vector3(Math.cos(j-0.5)*1.5, 8, Math.sin(j-0.5)*1.5),
+          new THREE.Vector3(Math.cos(j)*3.2, 13, Math.sin(j)*3.2),
+          new THREE.Vector3(Math.cos(j)*0.5, 20, Math.sin(j)*0.5)
+        ];
+        const curve = new THREE.CatmullRomCurve3(pts);
+        const tube = new THREE.TubeGeometry(curve, 32, 0.08, 8, false);
+        const mat = new THREE.MeshBasicMaterial({color:0x38bdf8, transparent:true, opacity:0.35});
+        const mesh = new THREE.Mesh(tube, mat);
+        streamlinesGroup.add(mesh); streamlineMeshes.push(mesh);
+      }
+      prototypeGroup.add(streamlinesGroup);
+    }
 
-  window.addEventListener('keydown',e=>{ const k=e.key.toLowerCase(); if(k==='1') setFlow('resting'); else if(k==='2') setFlow('active'); else if(k==='3') setFlow('breathing'); else if(k==='4') triggerCough(); else if(k==='5') triggerSneezing(); else if(k==='6') setFlow('hyperventilation'); else if(k==='s'&&!e.ctrlKey) triggerSpray(); else if(k==='e') toggleExploded(); else if(k==='f') toggleElectrostatic(); else if(k==='n') toggleNanofibers(); else if(k==='?') toggleKbModal(); else if(k==='escape'){ S.focusTarget=null; S.focusTransition=0; document.getElementById('focusLabel').classList.remove('visible'); document.getElementById('particleTooltip').classList.remove('visible'); const m=document.getElementById('kbModal'); if(m.classList.contains('open')) toggleKbModal(); } });
-  window.addEventListener('resize',resizeCanvases);
-}
+    function buildExtraEffects() {
+      const lm = new THREE.LineBasicMaterial({color:0xffaa00, transparent:true, opacity:0.6});
+      for (let i=0;i<8;i++) { const a=(i/8)*Math.PI*2; const pts=[new THREE.Vector3(Math.cos(a)*2, -2, Math.sin(a)*2), new THREE.Vector3(Math.cos(a)*5, -2, Math.sin(a)*5)]; const g=new THREE.BufferGeometry().setFromPoints(pts); const l=new THREE.Line(g, lm); measurementLines.add(l); }
+      sparkLines = new THREE.Group(); sparkLines.visible = false;
+      const sm = new THREE.LineBasicMaterial({color:0xffaa88, transparent:true, opacity:0.8});
+      for (let i=0;i<30;i++) { const pts=[new THREE.Vector3((Math.random()-0.5)*8, (Math.random()-0.5)*8, (Math.random()-0.5)*8), new THREE.Vector3((Math.random()-0.5)*8, (Math.random()-0.5)*8, (Math.random()-0.5)*8)]; const g=new THREE.BufferGeometry().setFromPoints(pts); const l=new THREE.Line(g, sm); sparkLines.add(l); }
+      scene.add(sparkLines);
+      nodeNetwork = new THREE.Group(); nodeNetwork.visible = false;
+      const nm = new THREE.PointsMaterial({color:0x66ffcc, size:0.3, transparent:true, blending:THREE.AdditiveBlending});
+      const pos = [];
+      for (let i=0;i<60;i++) pos.push((Math.random()-0.5)*12, (Math.random()-0.5)*12+5, (Math.random()-0.5)*12);
+      const ng = new THREE.BufferGeometry(); ng.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      const np = new THREE.Points(ng, nm); nodeNetwork.add(np);
+      const lm2 = new THREE.LineBasicMaterial({color:0x66ffcc, transparent:true, opacity:0.2});
+      for (let i=0;i<20;i++) { const i1=Math.floor(Math.random()*20), i2=Math.floor(Math.random()*20); if (i1===i2) continue; const p1=new THREE.Vector3(pos[i1*3], pos[i1*3+1], pos[i1*3+2]); const p2=new THREE.Vector3(pos[i2*3], pos[i2*3+1], pos[i2*3+2]); const g=new THREE.BufferGeometry().setFromPoints([p1,p2]); const l=new THREE.Line(g, lm2); nodeNetwork.add(l); }
+      scene.add(nodeNetwork);
+    }
 
-function toggleKbModal(){ document.getElementById('kbModal').classList.toggle('open'); }
-let mobilePanelOpen=false;
-function toggleMobilePanel(){ mobilePanelOpen=!mobilePanelOpen; document.getElementById('leftPanel').classList.toggle('mobile-open',mobilePanelOpen); document.getElementById('rightPanel').classList.toggle('mobile-open',mobilePanelOpen); if(!mobilePanelOpen){ document.getElementById('leftPanel').classList.remove('mobile-open'); document.getElementById('rightPanel').classList.remove('mobile-open'); } }
-function resizeCanvases(){ [canvas3d,simWf,simHist,simCfd,simTherm,wfMini,simViro,simFatigue].forEach(c=>{ if(!c)return; c.width=c.clientWidth*(window.devicePixelRatio>1?1.5:1); c.height=c.clientHeight*(window.devicePixelRatio>1?1.5:1); }); }
+    function buildR2RComponents() {
+      rollerGroup = new THREE.Group(); rollerGroup.visible = false;
+      const rm = new THREE.MeshStandardMaterial({color:0x888888, metalness:0.8, roughness:0.2});
+      for (let i=0;i<3;i++) { const c=new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 3, 16), rm); c.position.set(i*3-3, 2, 0); c.rotation.z = Math.PI/2; rollerGroup.add(c); const b=new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 2), new THREE.MeshBasicMaterial({color:0x444444})); b.position.set(i*3-3, 1.5, 0); rollerGroup.add(b); }
+      scene.add(rollerGroup);
+      conveyorGroup = new THREE.Group(); conveyorGroup.visible = false;
+      const fm = new THREE.MeshBasicMaterial({color:0x66ccff, transparent:true, opacity:0.5});
+      for (let i=0;i<20;i++) { const l=new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 2), fm); l.position.set((Math.random()-0.5)*6, 1.8+Math.random()*0.5, (Math.random()-0.5)*1); conveyorGroup.add(l); }
+      scene.add(conveyorGroup);
+    }
 
-let lastMetricUpdate=0; let frameCount=0;
-function mainLoop(ts){
-  S.time=ts*0.001; frameCount++;
-  if(S.flowMode==='breathing') S.breathingPhase+=0.025;
-  if(S.flowMode==='hyperventilation') S.breathingPhase+=0.08; 
-  if(S.focusTarget) S.focusTransition=Math.min(1,S.focusTransition+0.03);
+    // ==================== SWARM ====================
+    function initSwarm() { swarm = []; for (let i=0;i<50;i++) spawnParticle(false); }
+    function spawnParticle(isCough) {
+      const angle = Math.random()*Math.PI*2, r = Math.random()*4.5;
+      let spd = 0.15;
+      if (flowMode === 'active') spd = 0.28;
+      if (flowMode === 'hyperventilation') spd = 0.65;
+      if (flowMode === 'cough' || isCough) spd = 0.85;
+      if (flowMode === 'sneezing') spd = 1.5;
+      const logSize = Math.random()*3 - 0.5; const sizeUm = Math.exp(logSize);
+      swarm.push({id:particleIDCounter++, x:Math.cos(angle)*r, y:Math.sin(angle)*r, z:-12-Math.random()*8, vx:(Math.random()-0.5)*0.05, vy:(Math.random()-0.5)*0.05, vz:spd+Math.random()*0.1, state:'flying', size:1.5+Math.random()*2, sizeUm, trail:[]});
+    }
+    function recordCapture(sizeUm, isChemical, isEscaped) {
+      let bin = 0;
+      for (let i=0;i<SIZE_BINS.length-1;i++) { if (sizeUm >= SIZE_BINS[i] && sizeUm < SIZE_BINS[i+1]) { bin = i; break; } if (i === SIZE_BINS.length-2) bin = i; }
+      if (isEscaped) sizeDist.escaped[bin]++; else sizeDist.captured[bin]++;
+    }
 
-  if(frameCount%2===0){
-    S.waveformHistory.push(S.currentFlowRate - (S.flowMode==='breathing'?15:S.flowMode==='hyperventilation'?40:10));
-    if(S.waveformHistory.length>300) S.waveformHistory.shift();
-    let lysisRate = S.sprayActive ? 95 + Math.random()*5 : S.efficiency;
-    S.virologyHistory.push(lysisRate);
-    if(S.virologyHistory.length>300) S.virologyHistory.shift();
-    S.fatigueHistory.push(S.accumulatedStress);
-    if(S.fatigueHistory.length>300) S.fatigueHistory.shift();
-  }
+    // ==================== INTERACTIONS ====================
+    function handleObjectClick(obj) {
+      if (selectedObject && selectedObject !== obj) { try { selectedObject.material.emissive.setHex(0x000000); selectedObject.material.emissiveIntensity = 0; } catch(e){} }
+      try { obj.material.emissive.setHex(0x4fc3f7); obj.material.emissiveIntensity = 0.3; } catch(e){}
+      selectedObject = obj;
+      const type = obj.userData.type;
+      const tooltip = document.getElementById('tooltip3d');
+      document.getElementById('tooltipTitle').innerText = type.toUpperCase();
+      document.getElementById('tooltipDesc').innerText = getText('tooltip' + type.charAt(0).toUpperCase() + type.slice(1)) || 'Component';
+      tooltip.classList.add('visible');
+      clearTimeout(window.tooltipTimeout);
+      window.tooltipTimeout = setTimeout(()=> tooltip.classList.remove('visible'), 3000);
+    }
+    function hideTooltip() { document.getElementById('tooltip3d').classList.remove('visible'); }
 
-  render3D();
+    // ==================== ANIMATION LOOP ====================
+    function animate() {
+      requestAnimationFrame(animate);
+      breathingPhase += 0.02;
 
-  if(frameCount%3===0){
-    if(simWf&&ctxWf) renderWaveform(simWf,ctxWf,simWf.width,simWf.height,false);
-    if(simHist&&ctxHist) renderHistogram(simHist,ctxHist,simHist.width,simHist.height);
-    if(simCfd&&ctxCfd) renderCFD(simCfd,ctxCfd,simCfd.width,simCfd.height);
-    if(simTherm&&ctxTherm) renderThermal(simTherm,ctxTherm,simTherm.width,simTherm.height);
-    if(wfMini&&ctxWfMini) renderWaveform(wfMini,ctxWfMini,wfMini.width,wfMini.height,true);
-    if(simViro&&ctxViro) renderVirology(simViro,ctxViro,simViro.width,simViro.height);
-    if(simFatigue&&ctxFatigue) renderFatigue(simFatigue,ctxFatigue,simFatigue.width,simFatigue.height);
-  }
+      if (breathActive) { breathTime += 0.02; const f = 10 + 10*(0.5+0.5*Math.sin(breathTime*1.5)); currentFlowRate = Math.round(f/5)*5; document.getElementById('flowSlider').value = currentFlowRate; document.getElementById('flowVal').innerText = currentFlowRate + ' L/min'; updateTelemetry(); }
 
-  if(ts-lastMetricUpdate>1000){ updateMetrics(); lastMetricUpdate=ts; }
-  requestAnimationFrame(mainLoop);
-}
+      explodeValue += (targetExplodeValue - explodeValue) * 0.08;
+      if (ampouleGroup) ampouleGroup.position.y = -explodeValue * 14;
+      if (nozzleGroup) nozzleGroup.position.y = -explodeValue * 5;
+      if (chassisGroup) chassisGroup.position.y = 0;
+      if (sealRingGroup) sealRingGroup.position.y = explodeValue * 8;
+      if (labyrinthGroup) labyrinthGroup.position.y = explodeValue * 3;
+      if (nanofiberGroup) nanofiberGroup.position.y = explodeValue * 12;
+      if (capGroup) capGroup.position.y = explodeValue * 18;
 
-function init(){
-  canvas3d=document.getElementById('canvas3d'); ctx3d=canvas3d.getContext('2d'); canvasWrap=document.getElementById('canvasWrap');
-  simWf=document.getElementById('simWaveform'); ctxWf=simWf.getContext('2d');
-  simHist=document.getElementById('simHistogram'); ctxHist=simHist.getContext('2d');
-  simCfd=document.getElementById('simCFD'); ctxCfd=simCfd.getContext('2d');
-  simTherm=document.getElementById('simThermal'); ctxTherm=simTherm.getContext('2d');
-  wfMini=document.getElementById('waveformMini'); ctxWfMini=wfMini.getContext('2d');
-  simViro=document.getElementById('simVirology'); ctxViro=simViro.getContext('2d');
-  simFatigue=document.getElementById('simFatigue'); ctxFatigue=simFatigue.getContext('2d');
+      if (currentMode === 'standby') prototypeGroup.rotation.y += rotationSpeed;
+      if (starField) starField.rotation.y += 0.0001;
+      if (shockWaveActive) { shockWaveRadius += 0.3; if (shockWaveRadius > 20) shockWaveActive = false; }
 
-  resizeCanvases(); constructModel(); initSwarm(); setupEvents(); applyTranslations();
-  setTimeout(()=>switchHudTab('tactical'),50);
+      if (particlesSystem && particlePositions) {
+        const flowFactor = currentFlowRate / 30;
+        const adv = advancedMode;
+        for (let i=0;i<PARTICLE_COUNT;i++) {
+          const vel = particleVelocities[i];
+          if (!vel.trapped) {
+            particlePositions[i*3+1] += vel.vy * flowFactor * 0.8;
+            particlePositions[i*3] += vel.vx + Math.sin(particlePositions[i*3+1]*0.5 + vel.phase) * 0.04;
+            particlePositions[i*3+2] += vel.vz + Math.cos(particlePositions[i*3+1]*0.5 + vel.phase) * 0.04;
 
-  const bootEl=document.getElementById('bootScreen'); const bootText=document.getElementById('bootText');
-  const msgs=['INICIALIZANDO SIMULADOR BIOMEDICO V3.0...','CARGANDO GEOMETRIA 3D...','ACTIVANDO ENJAMBRE IA...','CALIBRANDO HUD TACTICO Y VIROLOGICO...','SISTEMA LISTO.'];
-  let mi=0; const bootInterval=setInterval(()=>{ mi++; if(mi<msgs.length) bootText.textContent=msgs[mi]; if(mi>=msgs.length){ clearInterval(bootInterval); bootEl.classList.add('hidden'); setTimeout(()=>bootEl.style.display='none',600); } },400);
+            if (adv === 'filtration') { const sz = vel.sizeCategory; if (sz === 'large') particlesSystem.material.color.setHex(0xff4444); else if (sz === 'med') particlesSystem.material.color.setHex(0xffaa44); else particlesSystem.material.color.setHex(0x44ff44); if (particlePositions[i*3+1] > 8 && particlePositions[i*3+1] < 14) { if (Math.random() < 0.08) vel.trapped = true; } }
+            else if (adv === 'turbulent') { particlePositions[i*3] += (Math.random()-0.5)*0.06; particlePositions[i*3+2] += (Math.random()-0.5)*0.06; }
+            else if (adv === 'viral') { if (vel.viral) { particlesSystem.material.color.setHex(0xff0000); if (particlePositions[i*3+1] > 9 && particlePositions[i*3+1] < 13) { if (Math.random() < 0.1) vel.trapped = true; } } else { particlesSystem.material.color.setHex(0x44aaff); } }
+            else if (adv === 'pressure') { const sc = 1 + 0.2*Math.sin(particlePositions[i*3+1]*0.5 + Date.now()*0.003); particleSizes[i] = 0.4 + 0.3*sc; const p = 1 + 0.02*Math.sin(Date.now()*0.002); prototypeGroup.scale.set(p, p, p); }
+            else if (adv === 'flowvis') { const speed = Math.sqrt(vel.vx*vel.vx + vel.vy*vel.vy + vel.vz*vel.vz); const hue = 0.6 - speed*0.3; streamlinesGroup.children.forEach((mesh, idx)=>{ mesh.material.color.setHSL(hue, 0.8, 0.5); }); }
+            else if (adv === 'coughchamber') { if (Math.random() < 0.02) { particlePositions[i*3] = (Math.random()-0.5)*2; particlePositions[i*3+1] = -5 + Math.random()*2; particlePositions[i*3+2] = (Math.random()-0.5)*2; vel.vy = 0.2 + Math.random()*0.4; vel.vx = (Math.random()-0.5)*0.2; vel.vz = (Math.random()-0.5)*0.2; } if (particlePositions[i*3+1] > 7 && particlePositions[i*3+1] < 14) { if (Math.random() < 0.05) vel.trapped = true; } }
+            else if (adv === 'aging') { const degrad = plaWeeks/12; if (particlePositions[i*3+1] > 8 && particlePositions[i*3+1] < 14) { if (Math.random() < 0.02 + degrad*0.05) vel.trapped = false; } particlesSystem.material.color.setHSL(0.1 + degrad*0.2, 0.8, 0.5); }
+            else if (adv === 'synergy') { if (sprayActive && particlePositions[i*3+1] > -4 && particlePositions[i*3+1] < 2) { if (Math.random() < 0.03) vel.trapped = true; particlesSystem.material.color.setHex(0xaa88ff); } }
 
-  requestAnimationFrame(mainLoop);
-}
-document.addEventListener('DOMContentLoaded',init);
-</script>
-</body></html>
+            if (particlePositions[i*3+1] > 7 && particlePositions[i*3+1] < 14) {
+              if (vel.sizeCategory === 'large' && Math.random() < 0.06) vel.trapped = true;
+              else if (vel.sizeCategory === 'med' && Math.random() < 0.03) vel.trapped = true;
+              else if (particlePositions[i*3+1] > 12.2 && Math.random() < 0.05) vel.trapped = true;
+            }
+            if (particlePositions[i*3+1] > 24) resetParticle(i);
+          } else { if (Math.random() < 0.01) resetParticle(i); }
+        }
+        particlesSystem.geometry.attributes.position.needsUpdate = true;
+      }
+
+      const streamColor = new THREE.Color(modeColor);
+      streamlineMeshes.forEach((mesh, idx)=>{
+        mesh.material.color.copy(streamColor);
+        if (currentMode === 'simulation' || currentMode === 'hybrid' || currentMode === 'emergency' || advancedMode === 'turbulent' || advancedMode === 'coughchamber') {
+          mesh.material.opacity = 0.5 + 0.4 * Math.sin(Date.now()*0.003 + idx*1.5);
+        } else { mesh.material.opacity = 0.3; }
+        const s = 1 + 0.05*Math.sin(Date.now()*0.002 + idx);
+        mesh.scale.set(s, s, s);
+      });
+
+      if (sparkLines && sparkLines.visible) {
+        sparkLines.children.forEach((line)=>{
+          if (line.isLine) {
+            const pos = line.geometry.attributes.position; const arr = pos.array;
+            for (let i=0;i<arr.length;i+=3) { arr[i] += (Math.random()-0.5)*0.2; arr[i+1] += (Math.random()-0.5)*0.2; arr[i+2] += (Math.random()-0.5)*0.2; arr[i] = Math.max(-5, Math.min(5, arr[i])); arr[i+1] = Math.max(0, Math.min(10, arr[i+1])); arr[i+2] = Math.max(-5, Math.min(5, arr[i+2])); }
+            pos.needsUpdate = true;
+          }
+        });
+      }
+
+      if (currentMode === 'maintenance') {
+        rollerGroup.visible = true; conveyorGroup.visible = true;
+        rollerGroup.children.forEach((child)=>{ if (child.isMesh && child.geometry.type === 'CylinderGeometry') child.rotation.x += 0.02; });
+        conveyorGroup.children.forEach((child)=>{ child.position.x += 0.005; if (child.position.x > 3) child.position.x = -3; });
+      } else { rollerGroup.visible = false; conveyorGroup.visible = false; }
+
+      if (currentMode === 'emergency') {
+        alertFlash += 0.05; const intensity = 0.5 + 0.5*Math.sin(alertFlash*12);
+        scene.background.setHSL(0, 1, 0.02 + intensity*0.08);
+        camera.position.z += Math.sin(alertFlash*10)*0.02;
+      } else {
+        scene.background.setHSL(0.6, 0.2, 0.05);
+        if (camera.position.z !== 38) camera.position.z += (38 - camera.position.z)*0.02;
+      }
+      if (shockWaveActive) scene.background.setHSL(0.6, 0.8, 0.08 + 0.05*Math.sin(shockWaveRadius*2));
+
+      updateCharts();
+      updateTelemetry();
+      renderer.render(scene, camera);
+    }
+
+    // ==================== CHARTS ====================
+    function updateCharts() {
+      if (chartCanvas && chartCtx) {
+        const w = chartCanvas.width, h = chartCanvas.height;
+        chartCtx.clearRect(0, 0, w, h);
+        const eff = {large:92+Math.random()*6, med:82+Math.random()*10, small:68+Math.random()*12};
+        const colors = ['#ff6b6b','#ffd93d','#6bcb77']; const labels = ['>5µm','1-5µm','0.3-1µm'];
+        const values = [eff.large, eff.med, eff.small]; const barWidth = w*0.2, gap = w*0.05, maxVal = 100;
+        for (let i=0;i<3;i++) { const x = gap + i*(barWidth + gap); const height = (values[i]/maxVal)*(h-10); const y = h - 10 - height; chartCtx.fillStyle = colors[i]; chartCtx.fillRect(x, y, barWidth, height); chartCtx.fillStyle = '#e2e8f0'; chartCtx.font = '6px sans-serif'; chartCtx.textAlign = 'center'; chartCtx.fillText(labels[i], x+barWidth/2, h-2); chartCtx.fillText(values[i].toFixed(0)+'%', x+barWidth/2, y-3); }
+      }
+      if (flowMeterCanvas && flowMeterCtx) {
+        const ctx = flowMeterCtx; const cw = 30, ch = 30; ctx.clearRect(0, 0, cw, ch); const cx = 15, cy = 15, radius = 12;
+        ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI*2); ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fill();
+        const flowNorm = Math.min(currentFlowRate/300, 1); const startAngle = -Math.PI*0.75; const endAngle = startAngle + flowNorm*Math.PI*1.5;
+        ctx.beginPath(); ctx.arc(cx, cy, radius*0.7, startAngle, endAngle); ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 4; ctx.stroke();
+        ctx.fillStyle = '#e2e8f0'; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(Math.round(currentFlowRate), cx, cy-1);
+        ctx.font = '4px sans-serif'; ctx.fillText('L/m', cx, cy+6);
+        document.getElementById('flowMeterValue').innerText = Math.round(currentFlowRate);
+      }
+      if (wfMini) renderWaveform(wfMini, ctxWfMini, wfMini.width, wfMini.height, true);
+    }
+
+    function renderWaveform(cvs, ctx, w, h, isMini) { if (!cvs) return; ctx.fillStyle = '#05080E'; ctx.fillRect(0,0,w,h); if (waveformHistory.length < 2) return; const maxPts = isMini ? 60 : 100; const start = Math.max(0, waveformHistory.length - maxPts); const slice = waveformHistory.slice(start); ctx.beginPath(); slice.forEach((v,i)=>{ const x = (i/(maxPts-1))*w; const y = h/2 - (v/500)*h*0.4; i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y); }); ctx.strokeStyle = '#00E5A0'; ctx.lineWidth = isMini ? 1 : 1.5; ctx.stroke(); }
+    function renderHistogram(cvs, ctx, w, h) { if (!cvs) return; ctx.fillStyle = '#05080E'; ctx.fillRect(0,0,w,h); const labels = ['<0.3','0.3-1','1-3','3-5','5-10','>10']; const n = 6; const pad = 20, barW = (w-pad*2)/n, gap = 1; const maxVal = Math.max(1, ...sizeDist.captured, ...sizeDist.escaped); for (let i=0;i<n;i++) { const x = pad + i*barW; const capH = (sizeDist.captured[i]/maxVal)*(h-20); const escH = (sizeDist.escaped[i]/maxVal)*(h-20); ctx.fillStyle = "rgba(0,230,118,0.6)"; ctx.fillRect(x+gap, h-10-capH, barW-gap*2, capH); ctx.fillStyle = "rgba(244,67,54,0.6)"; ctx.fillRect(x+gap, h-10-capH-escH, barW-gap*2, escH); ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.font = "5px sans-serif"; ctx.textAlign = "center"; ctx.fillText(labels[i], x+barW/2, h-3); } }
+    function renderCFD(cvs, ctx, w, h) { if (!cvs) return; ctx.fillStyle = '#05080E'; ctx.fillRect(0,0,w,h); const cols = 10, rows = 6; const cellW = w/cols, cellH = h/rows; const flowFactor = flowMode==='sneezing'?15:flowMode==='cough'?10:flowMode==='hyperventilation'?5:flowMode==='active'?2:1; for (let r=0;r<rows;r++) { for (let c=0;c<cols;c++) { const cx2 = cellW*(c+0.5), cy2 = cellH*(r+0.5); const prog = c/cols; let vx = flowFactor*0.6, vy = 0; if (prog > 0.2 && prog < 0.8) { const labAngle = prog*Math.PI*6; vx *= 0.6; vy = Math.sin(labAngle)*flowFactor*0.3; } if (prog > 0.75) vx *= Math.max(0.1, 1-(prog-0.75)/0.25); if (flowMode === 'breathing') { const bf = 0.5+0.5*Math.sin(breathingPhase); vx *= bf; vy *= bf; } const mag = Math.sqrt(vx*vx+vy*vy); const norm = Math.min(1, mag/(flowFactor*0.8+0.1)); const arrowLen = Math.max(2, norm*cellW*0.25); const angle = Math.atan2(vy, vx); ctx.save(); ctx.translate(cx2, cy2); ctx.rotate(angle); ctx.strokeStyle = `rgba(0,229,160,${0.3+0.5*norm})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-arrowLen/2, 0); ctx.lineTo(arrowLen/2, 0); ctx.stroke(); ctx.restore(); } } }
+    function renderThermal(cvs, ctx, w, h) { if (!cvs) return; ctx.fillStyle = '#05080E'; ctx.fillRect(0,0,w,h); const grad = ctx.createLinearGradient(0,0,w,0); grad.addColorStop(0,'#1a237e'); grad.addColorStop(0.5,'#ff6f00'); grad.addColorStop(1,'#b71c1c'); ctx.fillStyle = grad; ctx.fillRect(0,0,w,h); ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = '5px sans-serif'; ctx.fillText(currentLang==='ES'?'TÉRMICO':currentLang==='EN'?'THERMAL':'TÉRMICO', 4, 8); }
+    function renderVirology(cvs, ctx, w, h) { if (!cvs) return; ctx.fillStyle = '#05080E'; ctx.fillRect(0,0,w,h); if (virologyHistory.length < 2) return; const maxPts = 100; const start = Math.max(0, virologyHistory.length - maxPts); const slice = virologyHistory.slice(start); ctx.beginPath(); slice.forEach((v,i)=>{ const x = (i/(maxPts-1))*w; const y = h - (v/100)*h*0.8; i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y); }); ctx.strokeStyle = '#FF4081'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fillStyle = 'rgba(255,64,129,0.4)'; ctx.font = '5px sans-serif'; ctx.fillText(currentLang==='ES'?'LISIS VIRAL':currentLang==='EN'?'VIRAL LYSIS':'LISIS VIRAL', 4, 8); }
+    function renderFatigue(cvs, ctx, w, h) { if (!cvs) return; ctx.fillStyle = '#05080E'; ctx.fillRect(0,0,w,h); if (fatigueHistory.length < 2) return; const maxPts = 100; const start = Math.max(0, fatigueHistory.length - maxPts); const slice = fatigueHistory.slice(start); ctx.beginPath(); slice.forEach((v,i)=>{ const x = (i/(maxPts-1))*w; const y = h - (Math.min(v,100)/100)*h*0.8; i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y); }); ctx.strokeStyle = '#FF5252'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fillStyle = 'rgba(255,82,82,0.4)'; ctx.font = '5px sans-serif'; ctx.fillText(currentLang==='ES'?'ESTRÉS TPE':currentLang==='EN'?'TPE STRESS':'ESTRÉS TPE', 4, 8); }
+
+    // ==================== TELEMETRY ====================
+    function updateTelemetry() {
+      let baseEff = 45, electroContrib = 35*(fieldStrength/1.5);
+      if (ambientHumidity > 50) electroContrib *= Math.max(0.1, 1-(ambientHumidity-50)*0.015);
+      let fiberContrib = 15*(nanofiberDensity/85);
+      if (plaWeeks > 0) fiberContrib *= Math.max(0.05, 1-(plaWeeks/12));
+      if (electrostaticActive) baseEff += electroContrib;
+      if (nanofibersActive) baseEff += fiberContrib;
+      if (sprayActive) baseEff += 4;
+      let flowNoise = flowMode==='sneezing'?-15:flowMode==='cough'?-8:flowMode==='hyperventilation'?-10:flowMode==='active'?-1.5:0;
+      if (flowMode === 'breathing') flowNoise = -0.5*Math.sin(breathingPhase);
+      efficiency = parseFloat(Math.max(10, Math.min(99.9, baseEff + flowNoise + (Math.random()-0.5)*1.5)).toFixed(1));
+
+      let baseP = flowMode==='sneezing'?72.4:flowMode==='cough'?48.5:flowMode==='hyperventilation'?25.0:flowMode==='active'?9.1:4.1;
+      if (flowMode === 'breathing') baseP = 4.1 + 3*(0.5+0.5*Math.sin(breathingPhase));
+      if (!nanofibersActive) baseP *= 0.7;
+      pressureDrop = parseFloat(Math.max(0.5, baseP + (Math.random()-0.5)*(flowMode==='sneezing'||flowMode==='cough'?2:0.4)).toFixed(1));
+      accumulatedStress += pressureDrop * 0.005;
+
+      let baseR = flowMode==='sneezing'?1.4:flowMode==='cough'?1.8:flowMode==='hyperventilation'?1.6:flowMode==='active'?2.3:2.5;
+      residenceTime = parseFloat((baseR + (Math.random()-0.5)*0.1).toFixed(1));
+
+      let vel = flowMode==='sneezing'?1.5:flowMode==='cough'?1.1:flowMode==='hyperventilation'?0.7:flowMode==='active'?0.35:0.18;
+      if (flowMode === 'breathing') vel = 0.08 + 0.14*(0.5+0.5*Math.sin(breathingPhase));
+
+      let target = flowMode==='cough'?140:flowMode==='sneezing'?180:flowMode==='hyperventilation'?110:flowMode==='active'?90:flowMode==='breathing'?65:50;
+      if (swarm.length < target) while (swarm.length < target) spawnParticle(); else if (swarm.length > target) swarm.length = target;
+      particleDensity = swarm.length;
+
+      if (flowMode === 'breathing') { currentFlow = 15 + 10*Math.sin(breathingPhase); } else { currentFlow = {resting:10, active:30, hyperventilation:120, cough:300, sneezing:450}[flowMode] || 10; }
+      currentFlowRate = Math.round(currentFlow);
+
+      const re = Math.round(currentFlow * 0.012 / 0.0000181);
+
+      document.getElementById('mEfficiency').textContent = efficiency + '%'; document.getElementById('mEfficiency').style.color = efficiency > 90 ? '#00E5A0' : efficiency > 70 ? '#FFB74D' : '#FF5252';
+      document.getElementById('mEffSub').textContent = efficiency > 95 ? 'N95+' : efficiency > 85 ? 'N80' : (currentLang==='ES'?'Sub':currentLang==='EN'?'Sub':'低于');
+      document.getElementById('mPressure').textContent = pressureDrop + ' Pa'; document.getElementById('mPressure').style.color = pressureDrop > 10 ? '#FF5252' : pressureDrop > 7 ? '#FFB74D' : '#E6EDF3';
+      document.getElementById('mPressSub').textContent = pressureDrop <= 10 ? 'OK' : (currentLang==='ES'?'EXCEDE':currentLang==='EN'?'EXCEEDS':'超标');
+      document.getElementById('mResidence').textContent = residenceTime + 'x';
+      document.getElementById('mSpeed').textContent = vel.toFixed(2) + ' m/s';
+      document.getElementById('mDensity').textContent = particleDensity;
+
+      const respRate = flowMode === 'breathing' ? '15 SIN' : flowMode === 'hyperventilation' ? '30 rpm' : '15 rpm';
+      document.getElementById('mRespRate').textContent = respRate;
+      document.getElementById('mTidalVol').textContent = flowMode === 'breathing' ? (400 + 100*Math.sin(breathingPhase)).toFixed(0) + ' mL' : flowMode === 'hyperventilation' ? '250 mL' : '500 mL';
+      const peakP = flowMode === 'sneezing' ? '-12.5' : flowMode === 'cough' ? '-8.2' : flowMode === 'hyperventilation' ? '-5.5' : '-2.1';
+      document.getElementById('mPeakPress').textContent = peakP + ' cmH2O'; document.getElementById('mPeakPress').style.color = Math.abs(parseFloat(peakP)) > 5 ? '#FF5252' : '#E6EDF3';
+      document.getElementById('mTpeStress').textContent = accumulatedStress > 80 ? (currentLang==='ES'?'Crítico':currentLang==='EN'?'Critical':'严重') : accumulatedStress > 40 ? (currentLang==='ES'?'Medio':currentLang==='EN'?'Medium':'中等') : (currentLang==='ES'?'Normal':currentLang==='EN'?'Normal':'正常');
+      document.getElementById('mTpeStress').style.color = accumulatedStress > 80 ? '#FF5252' : accumulatedStress > 40 ? '#FFB74D' : '#00E676';
+
+      document.getElementById('mReynolds').textContent = re; document.getElementById('mReynolds').style.color = re > 2000 ? '#FF5252' : re > 500 ? '#FFB74D' : '#4FC3F7';
+      document.getElementById('mReynoldsSub').textContent = re > 2000 ? (currentLang==='ES'?'Turbulento':currentLang==='EN'?'Turbulent':'湍流') : (currentLang==='ES'?'Laminar':currentLang==='EN'?'Laminar':'层流');
+      document.getElementById('mMaxVel').textContent = (vel*2.5).toFixed(2) + ' m/s';
+      document.getElementById('mAvgVel').textContent = vel.toFixed(2) + ' m/s';
+      document.getElementById('mTurbK').textContent = (vel*vel*0.02).toFixed(4);
+      document.getElementById('mCfdPress').textContent = pressureDrop + ' Pa';
+
+      let viroLysis = 0;
+      if (sprayActive) { const elapsed = Date.now() - sprayAppliedAt; viroLysis = 99.9; document.getElementById('mSprayCov').textContent = '92%'; document.getElementById('mBindRate').textContent = (0.8+Math.random()*0.2).toFixed(1) + ' mg/h'; } else { document.getElementById('mSprayCov').textContent = '0%'; document.getElementById('mBindRate').textContent = '0.0 mg/h'; viroLysis = efficiency; }
+      document.getElementById('mViralLoad').textContent = (viroLysis/20).toFixed(1) + ' Log10';
+      document.getElementById('mEnvInteg').textContent = (100 - viroLysis).toFixed(1) + '%';
+      document.getElementById('mMutRate').textContent = '99.8%';
+
+      const plaInt = Math.max(0, 100 - (plaWeeks/12)*100);
+      document.getElementById('mPlaIntegrity').textContent = plaInt.toFixed(0) + '%'; document.getElementById('mPlaIntegrity').style.color = plaInt > 70 ? '#00E676' : plaInt > 30 ? '#FFB74D' : '#FF5252';
+      document.getElementById('mPlaSub').textContent = plaInt > 90 ? (currentLang==='ES'?'Sin degrad.':currentLang==='EN'?'No degrad.':'无退化') : plaInt > 50 ? (currentLang==='ES'?'Degrad. mod.':currentLang==='EN'?'Mod. degrad.':'中度退化') : (currentLang==='ES'?'Degrad. crític.':currentLang==='EN'?'Crit. degrad.':'严重退化');
+      document.getElementById('mHumidity').textContent = ambientHumidity + '%'; document.getElementById('mHumidity').style.color = ambientHumidity > 70 ? '#FFB74D' : '#4FC3F7';
+
+      waveformHistory.push(currentFlow - (flowMode==='breathing'?15:flowMode==='hyperventilation'?40:10));
+      if (waveformHistory.length > 300) waveformHistory.shift();
+      virologyHistory.push(viroLysis); if (virologyHistory.length > 300) virologyHistory.shift();
+      fatigueHistory.push(accumulatedStress); if (fatigueHistory.length > 300) fatigueHistory.shift();
+    }
+
+    // ==================== CONTROLS ====================
+    function setFlow(mode) {
+      flowMode = mode;
+      document.querySelectorAll('.flow-btn').forEach(b => b.classList.toggle('active', b.dataset.flow === mode));
+      if (mode === 'breathing') toast(currentLang==='ES'?'Respiración sinusoidal':currentLang==='EN'?'Sinusoidal breathing':'正弦呼吸', 'info');
+      else if (mode === 'hyperventilation') toast(currentLang==='ES'?'Hiperventilación':currentLang==='EN'?'Hyperventilation':'过度换气', 'warning');
+      else if (mode === 'cough') triggerCough();
+      else if (mode === 'sneezing') triggerSneezing();
+      else { const rates = {resting:'10 L/min', active:'30 L/min'}; setLog('Flow: ' + (rates[mode]||'')); }
+      document.getElementById('flowSlider').value = currentFlowRate;
+    }
+    function setFlowSlider(val) { currentFlowRate = parseFloat(val); document.getElementById('flowVal').innerText = currentFlowRate + ' L/min'; updateTelemetry(); }
+    function triggerCough() {
+      flowMode = 'cough'; setLog(currentLang==='ES'?'Tos pico (300 L/min)':currentLang==='EN'?'Peak cough (300 L/min)':'峰值咳嗽(300 L/min)'); shockWaveActive = true; shockWaveRadius = 0; scene.background.setHSL(0, 1, 0.15); triggerParticleBurst(0xff3333);
+      document.querySelectorAll('.flow-btn').forEach(b => b.classList.toggle('active', b.dataset.flow === 'cough'));
+      for (let i=0;i<40;i++) spawnParticle(true);
+      setTimeout(()=>{ setFlow('resting'); shockWaveActive = false; }, 1500);
+    }
+    function triggerSneezing() {
+      flowMode = 'sneezing'; setLog(currentLang==='ES'?'Estornudo (450 L/min)':currentLang==='EN'?'Sneeze (450 L/min)':'打喷嚏(450 L/min)'); shockWaveActive = true; shockWaveRadius = 0; scene.background.setHSL(0, 1, 0.18); triggerParticleBurst(0xff6600);
+      document.querySelectorAll('.flow-btn').forEach(b => b.classList.toggle('active', b.dataset.flow === 'sneezing'));
+      for (let i=0;i<60;i++) spawnParticle(true);
+      setTimeout(()=>{ setFlow('resting'); shockWaveActive = false; }, 1200);
+    }
+    function triggerSpray() {
+      sprayActive = true; sprayAppliedAt = Date.now(); setLog(currentLang==='ES'?'Spray aplicado':currentLang==='EN'?'Spray applied':'已应用喷雾'); triggerParticleBurst(0x00aaff);
+      setTimeout(()=>{ sprayActive = false; }, 3000);
+    }
+    function toggleExploded() { explodedView = !explodedView; targetExplodeValue = explodedView ? 0.85 : 0; document.getElementById('explodedToggle').classList.toggle('active', explodedView); document.getElementById('explodeSlider').value = targetExplodeValue; document.getElementById('chkExploded').checked = explodedView; }
+    function setExplode(val) { targetExplodeValue = parseFloat(val); explodedView = targetExplodeValue > 0.1; document.getElementById('explodedToggle').classList.toggle('active', explodedView); document.getElementById('chkExploded').checked = explodedView; }
+    function toggleElectrostatic() { electrostaticActive = !electrostaticActive; document.querySelector('[onclick="toggleElectrostatic()"]').classList.toggle('on', electrostaticActive); rebuildModel(); toast(currentLang==='ES'?'Electrostático ' + (electrostaticActive?'ON':'OFF'):currentLang==='EN'?'Electrostatic ' + (electrostaticActive?'ON':'OFF'):'静电 ' + (electrostaticActive?'开启':'关闭'), electrostaticActive?'success':'info'); }
+    function toggleNanofibers() { nanofibersActive = !nanofibersActive; document.querySelector('[onclick="toggleNanofibers()"]').classList.toggle('on', nanofibersActive); rebuildModel(); toast(currentLang==='ES'?'Nanofibras ' + (nanofibersActive?'ON':'OFF'):currentLang==='EN'?'Nanofibers ' + (nanofibersActive?'ON':'OFF'):'纳米纤维 ' + (nanofibersActive?'开启':'关闭'), nanofibersActive?'success':'info'); }
+    function setField(val) { fieldStrength = parseFloat(val); document.getElementById('valField').textContent = val + 'kV'; updateTelemetry(); }
+    function setDensity(val) { nanofiberDensity = parseInt(val); document.getElementById('valDensity').textContent = val + '%'; updateTelemetry(); }
+    function setHumidity(val) { ambientHumidity = parseInt(val); document.getElementById('valHumidity').textContent = val + '%'; updateTelemetry(); }
+    function setPlaWeeks(val) { plaWeeks = parseInt(val); document.getElementById('valPla').textContent = val + (currentLang==='ES'?' sem':currentLang==='EN'?' wk':' 周'); updateTelemetry(); }
+
+    function applyPreset(name) {
+      if (name === 'clinical') { setFlow('resting'); fieldStrength = 1.5; nanofiberDensity = 85; ambientHumidity = 45; plaWeeks = 0; electrostaticActive = true; nanofibersActive = true; toast(currentLang==='ES'?'Preset Clínico':currentLang==='EN'?'Clinical Preset':'临床预设', 'info'); }
+      else if (name === 'stress') { setFlow('active'); fieldStrength = 3.0; nanofiberDensity = 100; ambientHumidity = 80; plaWeeks = 0; electrostaticActive = true; nanofibersActive = true; toast(currentLang==='ES'?'Preset Estrés':currentLang==='EN'?'Stress Preset':'压力预设', 'warning'); }
+      else if (name === 'degraded') { setFlow('resting'); fieldStrength = 0.8; nanofiberDensity = 55; ambientHumidity = 75; plaWeeks = 10; electrostaticActive = true; nanofibersActive = true; toast(currentLang==='ES'?'Preset Degradado':currentLang==='EN'?'Degraded Preset':'退化预设', 'danger'); }
+      document.querySelector('[oninput*="setField"]').value = fieldStrength; document.getElementById('valField').textContent = fieldStrength + 'kV';
+      document.querySelector('[oninput*="setDensity"]').value = nanofiberDensity; document.getElementById('valDensity').textContent = nanofiberDensity + '%';
+      document.querySelector('[oninput*="setHumidity"]').value = ambientHumidity; document.getElementById('valHumidity').textContent = ambientHumidity + '%';
+      document.querySelector('[oninput*="setPlaWeeks"]').value = plaWeeks; document.getElementById('valPla').textContent = plaWeeks + (currentLang==='ES'?' sem':currentLang==='EN'?' wk':' 周');
+      rebuildModel();
+    }
+
+    // ==================== MODES ====================
+    function setMode(modeKey, btnEl) {
+      currentMode = modeKey;
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+      const name = getText('modeNames')[modeKey] || '';
+      const desc = getText('modeDescs')[modeKey] || '';
+      document.getElementById('modeNameDisplay').innerText = name;
+      document.getElementById('modeDescDisplay').innerText = desc;
+      if (measurementLines) measurementLines.visible = false;
+      if (sparkLines) sparkLines.visible = false;
+      if (nodeNetwork) nodeNetwork.visible = false;
+      if (gridHelper) gridHelper.visible = true;
+      let burstColor = 0x4fc3f7;
+      switch(modeKey) {
+        case 'standby': modeColor = 0x4fc3f7; rotationSpeed = 0.003; burstColor = 0x4fc3f7; break;
+        case 'analysis': modeColor = 0xffaa00; rotationSpeed = 0.001; if (measurementLines) measurementLines.visible = true; burstColor = 0xffaa00; break;
+        case 'diagnostic': modeColor = 0x00ff88; rotationSpeed = 0.002; burstColor = 0x00ff88; break;
+        case 'simulation': modeColor = 0x38bdf8; rotationSpeed = 0.002; burstColor = 0x38bdf8; break;
+        case 'operation': modeColor = 0xff66aa; rotationSpeed = 0.001; burstColor = 0xff66aa; break;
+        case 'maintenance': modeColor = 0xccaa44; rotationSpeed = 0.0015; burstColor = 0xccaa44; break;
+        case 'emergency': modeColor = 0xff3333; rotationSpeed = 0.005; burstColor = 0xff3333; triggerCough(); break;
+        case 'energy': modeColor = 0xaa88ff; rotationSpeed = 0.002; if (sparkLines) sparkLines.visible = true; burstColor = 0xaa88ff; break;
+        case 'ai': modeColor = 0x66ffcc; rotationSpeed = 0.001; if (nodeNetwork) nodeNetwork.visible = true; burstColor = 0x66ffcc; break;
+        case 'hybrid': modeColor = 0xffffff; rotationSpeed = 0.003; if (measurementLines) measurementLines.visible = true; if (sparkLines) sparkLines.visible = true; if (nodeNetwork) nodeNetwork.visible = true; burstColor = 0xffffff; break;
+        default: modeColor = 0x4fc3f7;
+      }
+      if (particlesSystem) particlesSystem.material.color.setHex(modeColor);
+      triggerParticleBurst(burstColor);
+      prototypeGroup.scale.set(0.9, 0.9, 0.9);
+      setTimeout(()=>{ prototypeGroup.scale.set(1,1,1); }, 200);
+      updateTelemetry();
+    }
+
+    function setAdvancedMode(modeKey, btnEl) {
+      if (advancedMode === modeKey) { advancedMode = null; btnEl.classList.remove('active'); if (particlesSystem) particlesSystem.material.color.setHex(modeColor); streamlineMeshes.forEach(m => m.material.color.setHex(0x38bdf8)); prototypeGroup.scale.set(1,1,1); document.querySelectorAll('.adv-btn').forEach(b => b.classList.remove('active')); const desc = getText('modeDescs')[currentMode] || ''; document.getElementById('modeDescDisplay').innerText = desc; return; }
+      document.querySelectorAll('.adv-btn').forEach(b => b.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+      advancedMode = modeKey;
+      triggerParticleBurst(0xaa88ff);
+      const descKey = 'adv' + modeKey.charAt(0).toUpperCase() + modeKey.slice(1);
+      document.getElementById('modeDescDisplay').innerText = getText(descKey) || (currentLang==='ES'?'Simulación avanzada':currentLang==='EN'?'Advanced simulation':'Simulación avanzada');
+    }
+
+    function triggerParticleBurst(color) {
+      const count = 150; const pos = new Float32Array(count*3), cols = new Float32Array(count*3), dirs = [];
+      for (let i=0;i<count;i++) { const theta = Math.random()*Math.PI*2, phi = Math.random()*Math.PI*2, r = 2+Math.random()*5; pos[i*3] = Math.cos(theta)*Math.sin(phi)*r; pos[i*3+1] = Math.sin(theta)*Math.sin(phi)*r + 5; pos[i*3+2] = Math.cos(phi)*r; const c = new THREE.Color(color); cols[i*3] = c.r; cols[i*3+1] = c.g; cols[i*3+2] = c.b; dirs.push({x:(Math.random()-0.5)*0.3, y:(Math.random()-0.5)*0.3, z:(Math.random()-0.5)*0.3}); }
+      const geom = new THREE.BufferGeometry(); geom.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geom.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+      const mat = new THREE.PointsMaterial({size:0.5, vertexColors:true, transparent:true, opacity:1, blending:THREE.AdditiveBlending, sizeAttenuation:true});
+      const burst = new THREE.Points(geom, mat); scene.add(burst);
+      let life = 1.0; const animateBurst = ()=>{ const p = burst.geometry.attributes.position.array; for (let i=0;i<count;i++) { p[i*3] += dirs[i].x*0.1; p[i*3+1] += dirs[i].y*0.1; p[i*3+2] += dirs[i].z*0.1; dirs[i].y += 0.003; } burst.geometry.attributes.position.needsUpdate = true; life -= 0.008; burst.material.opacity = Math.max(0, life); if (life > 0) requestAnimationFrame(animateBurst); else scene.remove(burst); }; animateBurst();
+    }
+
+    // ==================== XRAY ====================
+    function toggleXray() {
+      isXray = !isXray;
+      prototypeGroup.traverse((child)=>{ if (child.isMesh && child.material) { child.material.wireframe = isXray; child.material.transparent = isXray; child.material.opacity = isXray ? 0.6 : 1.0; } });
+      document.getElementById('xrayToggle').classList.toggle('active', isXray);
+    }
+
+    // ==================== REBUILD ====================
+    function rebuildModel() {
+      const ex = explodedView ? 0.85 : 0; targetExplodeValue = ex;
+      if (nanofiberGroup) nanofiberGroup.visible = nanofibersActive;
+      if (particlesSystem) { if (electrostaticActive) { particlesSystem.material.color.setHex(modeColor); } else { particlesSystem.material.color.setHex(0x888888); } }
+      if (sparkLines) { sparkLines.children.forEach(line=>{ if (line.isLine) { line.material.color.setHex(electrostaticActive ? 0xffaa88 : 0x444444); } }); }
+    }
+
+    // ==================== UTILITIES ====================
+    function toast(msg, type='info') {
+      const c = document.getElementById('toastContainer');
+      const d = document.createElement('div');
+      d.className = 'toast ' + type;
+      d.textContent = msg;
+      c.appendChild(d);
+      setTimeout(()=>{ d.style.animation = 'toast-out .3s forwards'; setTimeout(()=> d.remove(), 300); }, 3000);
+    }
+    function setLog(msg) { if (logTextEl) logTextEl.textContent = msg; }
+
+    function switchHudTab(tab) {
+      document.querySelectorAll('.hud-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+      document.querySelectorAll('.hud-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + tab).classList.add('active');
+    }
+    function switchDocTab(el, key) {
+      document.querySelectorAll('.doc-tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      const contents = { physics: getText('docPhysics'), electro: getText('docElectro'), protocol: getText('docProtocol') };
+      document.getElementById('docContent').innerHTML = contents[key] || '';
+    }
+    function openModal() { document.getElementById('projectModal').classList.add('active'); runProjectSimulation(); }
+    function closeModal() { document.getElementById('projectModal').classList.remove('active'); }
+    document.getElementById('projectModal').addEventListener('click', function(e){ if (e.target === this) closeModal(); });
+    function toggleKbModal() { document.getElementById('kbModal').classList.toggle('active'); }
+    function closeKbModal() { document.getElementById('kbModal').classList.remove('active'); }
+    document.getElementById('kbModal').addEventListener('click', function(e){ if (e.target === this) closeKbModal(); });
+    function toggleBreath() { breathActive = !breathActive; document.getElementById('breathBtn').classList.toggle('active', breathActive); if (!breathActive) { currentFlowRate = 30; document.getElementById('flowSlider').value = 30; document.getElementById('flowVal').innerText = '30 L/min'; updateTelemetry(); } }
+
+    // ==================== CENTER BUTTON WITH SIMULATION ====================
+    function resetCamera() {
+      // Camera centering animation
+      const startPos = camera.position.clone();
+      const targetPos = new THREE.Vector3(0, 15, 38);
+      const startRot = prototypeGroup.rotation.y;
+      const targetRot = 0;
+      let t = 0;
+      function animateCenter() {
+        t += 0.03;
+        if (t > 1) t = 1;
+        const ease = 1 - Math.pow(1 - t, 3); // ease out cubic
+        camera.position.lerpVectors(startPos, targetPos, ease);
+        prototypeGroup.rotation.y = startRot + (targetRot - startRot) * ease;
+        prototypeGroup.rotation.x = prototypeGroup.rotation.x * (1 - ease);
+        if (t < 1) requestAnimationFrame(animateCenter);
+        else {
+          prototypeGroup.rotation.set(0, 0, 0);
+          toast(getText('centerSimMsg'), 'info');
+        }
+      }
+      animateCenter();
+      // Trigger particle burst for visual feedback
+      triggerParticleBurst(0x00E5A0);
+      // Brief flash effect
+      scene.background.setHex(0x0a1525);
+      setTimeout(()=> scene.background.setHex(0x05080e), 400);
+    }
+
+    // ==================== PROJECT BUTTON WITH SIMULATION ====================
+    function runProjectSimulation() {
+      // Flash background blue
+      scene.background.setHex(0x0a1a2a);
+      setTimeout(()=> scene.background.setHex(0x05080e), 600);
+      // Particle burst
+      triggerParticleBurst(0x4fc3f7);
+      // Show toast
+      toast(getText('projectSimMsg'), 'success');
+      // Briefly rotate prototype
+      const startY = prototypeGroup.rotation.y;
+      let rotT = 0;
+      function animateProjRot() {
+        rotT += 0.04;
+        prototypeGroup.rotation.y = startY + Math.sin(rotT * Math.PI) * 0.5;
+        if (rotT < 1) requestAnimationFrame(animateProjRot);
+        else prototypeGroup.rotation.y = startY;
+      }
+      animateProjRot();
+    }
+
+    // ==================== TOUR BUTTON WITH SIMULATION ====================
+    let tourStep = 0;
+    let tourActive = false;
+    const tourTargets = ['ampoule', 'nozzle', 'chassis', 'seal', 'labyrinth', 'nanofiber', 'cap'];
+    function startTour() {
+      if (tourActive) return;
+      tourActive = true; tourStep = 0;
+      toast(getText('tourSimMsg'), 'success');
+      runTourStep();
+    }
+    function runTourStep() {
+      if (!tourActive) return;
+      if (tourStep >= tourTargets.length) {
+        tourActive = false;
+        toast(getText('tourStep8'), 'success');
+        // Reset camera
+        const startPos = camera.position.clone();
+        const targetPos = new THREE.Vector3(0, 15, 38);
+        let t = 0;
+        function animateTourEnd() { t += 0.03; if (t > 1) t = 1; const ease = 1 - Math.pow(1 - t, 3); camera.position.lerpVectors(startPos, targetPos, ease); if (t < 1) requestAnimationFrame(animateTourEnd); }
+        animateTourEnd();
+        return;
+      }
+      // Highlight component by type
+      const type = tourTargets[tourStep];
+      const objMap = {ampoule: ampouleGroup, nozzle: nozzleGroup, chassis: chassisGroup, seal: sealRingGroup, labyrinth: labyrinthGroup, nanofiber: nanofiberGroup, cap: capGroup};
+      const targetObj = objMap[type];
+      if (targetObj) {
+        // Calculate target camera position based on object bounding sphere
+        const box = new THREE.Box3().setFromObject(targetObj);
+        const center = box.getCenter(new THREE.Vector3());
+        const startPos = camera.position.clone();
+        const targetPos = new THREE.Vector3(center.x + 8, center.y, center.z + 18);
+        let t = 0;
+        function animateTourCam() {
+          t += 0.02;
+          if (t > 1) t = 1;
+          const ease = 1 - Math.pow(1 - t, 3);
+          camera.position.lerpVectors(startPos, targetPos, ease);
+          if (t < 1) requestAnimationFrame(animateTourCam);
+          else {
+            // Emissive flash on component
+            targetObj.traverse((child)=>{ if (child.isMesh && child.material) { try { child.material.emissive.setHex(0x00E5A0); child.material.emissiveIntensity = 0.5; } catch(e){} } });
+            setTimeout(()=>{
+              targetObj.traverse((child)=>{ if (child.isMesh && child.material) { try { child.material.emissive.setHex(0x000000); child.material.emissiveIntensity = 0; } catch(e){} } });
+              // Show tooltip
+              const tooltip = document.getElementById('tooltip3d');
+              document.getElementById('tooltipTitle').innerText = type.toUpperCase();
+              document.getElementById('tooltipDesc').innerText = getText('tooltip' + type.charAt(0).toUpperCase() + type.slice(1)) || 'Component';
+              tooltip.classList.add('visible');
+              setTimeout(()=> tooltip.classList.remove('visible'), 2500);
+              // Toast
+              toast(getText('tourStep' + tourStep), 'info');
+              // Next step
+              tourStep++;
+              setTimeout(runTourStep, 2800);
+            }, 800);
+          }
+        }
+        animateTourCam();
+      } else {
+        tourStep++;
+        runTourStep();
+      }
+    }
+
+    function toggleLayer(layer, visible) {
+      const map = {spray:ampouleGroup, nozzle:nozzleGroup, chassis:chassisGroup, seal:sealRingGroup, nanofiber:nanofiberGroup, labyrinth:labyrinthGroup, particles:particlesSystem};
+      const obj = map[layer]; if (obj) obj.visible = visible;
+      if (layer === 'particles' && streamlinesGroup) streamlinesGroup.visible = visible;
+    }
+    function toggleHUD() {
+      hudVisible = !hudVisible;
+      document.querySelectorAll('.side-panel, .bottom-controls, .dock-wrapper, .doc-section').forEach(el => { el.style.display = hudVisible ? '' : 'none'; });
+      document.getElementById('hudToggleBtn').innerText = hudVisible ? getText('hudToggleBtn') : (currentLang==='ES'?'👁️ Mostrar HUD':currentLang==='EN'?'👁️ Show HUD':'👁️ Mostrar HUD');
+    }
+    function toggleDock(id) { document.getElementById(id).classList.toggle('collapsed'); }
+    function toggleAccordion(el) { const content = el.nextElementSibling; content.style.display = content.style.display === 'none' ? 'block' : 'none'; }
+
+    // ==================== KEYBOARD MODAL ====================
+    function buildKbModal() {
+      const container = document.getElementById('kbContent');
+      if (!container) return;
+      const items = currentLang==='ES' ? [
+        ['Modo Reposo','1'], ['Modo Activo','2'], ['Respiración SIN','3'], ['Tos','4'], ['Estornudo','5'],
+        ['Hiperventilación','6'], ['Spray','S'], ['Vista Explotada','E'], ['Electrostático','F'], ['Nanofibras','N'], ['Ayuda','?']
+      ] : currentLang==='EN' ? [
+        ['Standby Mode','1'], ['Active Mode','2'], ['Sinus Breathing','3'], ['Cough','4'], ['Sneeze','5'],
+        ['Hyperventilation','6'], ['Spray','S'], ['Exploded View','E'], ['Electrostatic','F'], ['Nanofibers','N'], ['Help','?']
+      ] : [
+        ['待机模式','1'], ['主动模式','2'], ['正弦呼吸','3'], ['咳嗽','4'], ['打喷嚏','5'],
+        ['过度换气','6'], ['喷雾','S'], ['分解视图','E'], ['静电','F'], ['纳米纤维','N'], ['帮助','?']
+      ];
+      container.innerHTML = '';
+      items.forEach(([label, key])=>{
+        const row = document.createElement('div');
+        row.className = 'kb-row';
+        row.style.cssText = 'display:flex;justify-content:space-between;padding:.2rem 0;font-size: 0.9rem;';
+        row.innerHTML = `<span>${label}</span><span class="kb-key" style="background:rgba(0,0,0,.4);border:1px solid #2A3040;border-radius:4px;padding:.1rem .4rem;font-family:monospace;font-size: 0.83rem;color:#00E5A0;">${key}</span>`;
+        container.appendChild(row);
+      });
+    }
+
+    // ==================== KEYBOARD SHORTCUTS ====================
+    window.addEventListener('keydown', (e)=>{
+      if (e.key === '1') setMode('standby', document.querySelector('.mode-btn[data-mode="standby"]'));
+      if (e.key === '2') setMode('simulation', document.querySelector('.mode-btn[data-mode="simulation"]'));
+      if (e.key === '3') toggleBreath();
+      if (e.key === '4') triggerCough();
+      if (e.key === '5') triggerSneezing();
+      if (e.key === '6') setFlow('hyperventilation');
+      if (e.key === 's' || e.key === 'S') triggerSpray();
+      if (e.key === 'e' || e.key === 'E') toggleExploded();
+      if (e.key === 'f' || e.key === 'F') toggleElectrostatic();
+      if (e.key === 'n' || e.key === 'N') toggleNanofibers();
+      if (e.key === '?') toggleKbModal();
+    });
+
+    // ==================== INIT ====================
+    function init() {
+      logTextEl = document.getElementById('logText');
+      initThree();
+      wfMini = document.getElementById('waveformMini'); ctxWfMini = wfMini.getContext('2d');
+      chartCanvas = document.getElementById('efficiencyChart'); chartCtx = chartCanvas.getContext('2d');
+      flowMeterCanvas = document.getElementById('flowMeter'); flowMeterCtx = flowMeterCanvas.getContext('2d');
+
+      [wfMini, chartCanvas, flowMeterCanvas].forEach(c=>{ if (c) { c.width = c.clientWidth || 200; c.height = c.clientHeight || 40; } });
+
+      document.getElementById('flowVal').innerText = '30 L/min';
+      setMode('simulation', document.querySelector('.mode-btn[data-mode="simulation"]'));
+      buildKbModal();
+      updateLanguage();
+      animate();
+      setLog(currentLang==='ES'?'Sistema listo. Modo: Simulación CFD.':currentLang==='EN'?'System ready. Mode: CFD Simulation.':'系统就绪。模式：CFD模拟。');
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
