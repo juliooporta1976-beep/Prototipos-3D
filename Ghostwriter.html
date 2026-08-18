@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AI Ghostwriter LEGACY — Dr. Julio César Oporta Barrera</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    :root {
+      --titanio: #1e2433;
+      --grafito: #0a0e17;
+      --cian-vivid: #00e5ff;
+      --cian-glow: #38bdf8;
+      --oro-quantum: #f59e0b;
+      --carmesi-vital: #f43f5e;
+      --esmeralda-snu: #10b981;
+      --plata: #cbd5e1;
+      --texto-oscuro: #0f172a;
+      --texto-medio: #1e293b;
+      --texto-claro: #f1f5f9;
+      --panel-bg: rgba(10, 14, 23, 0.92);
+      --card-bg: #0f1523;
+      --border-cyan: rgba(0, 229, 255, 0.32);
+      --border-subtle: rgba(51, 65, 85, 0.7);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+    body {
+      background: var(--grafito);
+      color: var(--texto-claro);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      width: 100vw; height: 100vh; overflow: hidden; position: relative; font-size: 14px;
+    }
+    #canvas-container {
+      position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; cursor: grab;
+    }
+    #canvas-container:active { cursor: grabbing; }
+    .hud-glass {
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-cyan);
+      box-shadow: 0 12px 36px -4px rgba(0,0,0,0.8), 0 0 20px rgba(0,229,255,0.12);
+    }
+    .scrollbar-none::-webkit-scrollbar { display: none; }
+    .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+    .custom-scroll::-webkit-scrollbar { width: 5px; }
+    .custom-scroll::-webkit-scrollbar-track { background: rgba(15,23,42,0.5); }
+    .custom-scroll::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.35); border-radius: 6px; }
+    .custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(0,229,255,0.65); }
+
+    button { font-family: inherit; cursor: pointer; border: none; outline: none; }
+    .btn-tactical {
+      background: rgba(15,23,42,0.9);
+      border: 1px solid var(--border-subtle);
+      color: #94a3b8;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-weight: 600;
+    }
+    .btn-tactical:hover {
+      border-color: var(--cian-vivid);
+      color: #ffffff;
+      background: rgba(14,116,144,0.25);
+      box-shadow: 0 0 12px rgba(0,229,255,0.25);
+    }
+    .btn-tactical.active {
+      background: rgba(8,145,178,0.9);
+      border-color: var(--cian-vivid);
+      color: #ffffff;
+      box-shadow: 0 0 16px rgba(0,229,255,0.55);
+    }
+    input[type=range] {
+      -webkit-appearance: none;
+      background: #1e293b;
+      height: 6px;
+      border-radius: 4px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 15px; height: 15px; border-radius: 50%;
+      background: var(--cian-vivid);
+      cursor: pointer;
+      box-shadow: 0 0 10px var(--cian-vivid);
+    }
+    @keyframes pulseGlow {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.55; transform: scale(0.94); }
+    }
+    .animate-pulse-slow { animation: pulseGlow 2.2s infinite ease-in-out; }
+    @keyframes spinLinear { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .animate-spin-slow { animation: spinLinear 14s linear infinite; }
+
+    .radar-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%), linear-gradient(90deg, rgba(0,229,255,0.02), rgba(255,255,255,0.01), rgba(0,229,255,0.02));
+      background-size: 100% 3px, 6px 100%;
+      pointer-events: none;
+      opacity: 0.3;
+      z-index: 2;
+    }
+    .paper-card {
+      background: #e2e8f0;
+      color: #0f172a;
+      border: 1px solid #94a3b8;
+      border-radius: 8px;
+      font-family: Georgia, Cambria, serif;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .dark-card {
+      background: #090d16;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+    }
+    #notification-bar {
+      position: absolute;
+      bottom: 85px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      z-index: 35;
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-cyan);
+      border-radius: 30px;
+      padding: 10px 28px;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 13px;
+      color: var(--cian-vivid);
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+      opacity: 0;
+      white-space: nowrap;
+      box-shadow: 0 0 30px rgba(0,229,255,0.25);
+    }
+    #notification-bar.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .toggle-block .block-content { transition: max-height 0.3s ease, opacity 0.3s ease; overflow: hidden; }
+    .toggle-block.collapsed .block-content { max-height: 0 !important; opacity: 0; padding: 0 !important; margin: 0 !important; }
+    .toggle-block .block-header {
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+    }
+    .toggle-block .block-header .toggle-icon { transition: transform 0.2s; font-size: 12px; color: #94a3b8; }
+    .toggle-block.collapsed .block-header .toggle-icon { transform: rotate(-90deg); }
+
+    /* Control de zoom */
+    .zoom-control {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(9,13,22,0.7);
+      padding: 2px 6px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+    }
+    .zoom-control button {
+      background: transparent;
+      color: #94a3b8;
+      font-size: 16px;
+      padding: 0 4px;
+      line-height: 1.4;
+      border: none;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .zoom-control button:hover { color: #00e5ff; }
+    .zoom-control span {
+      font-size: 11px;
+      color: #cbd5e1;
+      min-width: 24px;
+      text-align: center;
+      font-family: ui-monospace, monospace;
+    }
+
+    /* Palabras del léxico clickeables */
+    .lexicon-word {
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .lexicon-word:hover {
+      background: rgba(0, 229, 255, 0.3) !important;
+      box-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="canvas-container"></div>
+  <div class="radar-overlay"></div>
+  <div id="notification-bar"></div>
+
+  <!-- HEADER -->
+  <header style="position:absolute; top:12px; left:12px; right:12px; z-index:20; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; pointer-events:none;">
+    <div class="hud-glass" style="padding:8px 16px; border-radius:12px; pointer-events:auto; display:flex; align-items:center; gap:12px;">
+      <div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="width:10px; height:10px; border-radius:50%; background:#00e5ff; box-shadow:0 0 12px #00e5ff; display:inline-block;" class="animate-pulse-slow"></span>
+          <span id="txt-author-header" style="color:#facc15; font-weight:800; font-size:13px; font-family:ui-monospace, monospace; letter-spacing:1.5px; text-transform:uppercase;" data-i18n="authorHeader">Dr. Julio César Oporta Barrera</span>
+          <span style="font-size:10px; color:#94a3b8; font-family:ui-monospace, monospace; padding:2px 6px; border-radius:4px; background:#0f172a; border:1px solid #334155;" data-i18n="dateStamp">PROTOTIPO 3D AUTÓNOMO</span>
+        </div>
+        <h1 id="txt-app-title" style="font-size:14px; font-weight:900; color:#38bdf8; font-family:ui-monospace, monospace; letter-spacing:1px; margin-top:2px;" data-i18n="appTitle">AI GHOSTWRITER LEGACY</h1>
+        <p id="txt-app-subtitle" style="font-size:10px; color:#94a3b8;" data-i18n="appSubtitle">Clonación Literaria con ADN Narrativo: Preservando y Expandiendo Legados a través de la IA</p>
+      </div>
+    </div>
+    <div class="hud-glass" style="padding:8px 12px; border-radius:12px; pointer-events:auto; display:flex; align-items:center; gap:6px; font-family:ui-monospace, monospace; font-size:12px;">
+      <div style="display:flex; gap:3px; background:#090d16; padding:3px; border-radius:8px; border:1px solid #1e293b;">
+        <button id="lang-es" class="btn-tactical active" style="padding:3px 8px; font-size:11px;" onclick="setLanguage('es')">ES</button>
+        <button id="lang-en" class="btn-tactical" style="padding:3px 8px; font-size:11px;" onclick="setLanguage('en')">EN</button>
+        <button id="lang-zh" class="btn-tactical" style="padding:3px 8px; font-size:11px;" onclick="setLanguage('zh')">中文</button>
+      </div>
+      <button id="audio-toggle-btn" class="btn-tactical active" onclick="toggleAudio()" data-i18n="audioToggle">🔊 AUDIO</button>
+      <button class="btn-tactical" style="background:linear-gradient(135deg,#7c3aed,#db2777);color:#fff;border-color:#a855f7;" onclick="triggerVoiceClone()" data-i18n="voiceClone">🎤 Clonar Voz</button>
+      <button class="btn-tactical" style="background:linear-gradient(135deg,#0284c7,#4f46e5);color:#fff;border-color:#00e5ff;" onclick="openArModal()" data-i18n="arMode">📷 AR / WebXR</button>
+      <!-- TOUR ELIMINADO -->
+    </div>
+  </header>
+
+  <!-- 10 MODOS -->
+  <div style="position:absolute; top:78px; left:12px; right:12px; z-index:15; display:flex; gap:5px; overflow-x:auto; padding-bottom:4px;" class="scrollbar-none">
+    <button id="mode-idle" class="btn-tactical" onclick="setMode('idle')" data-i18n="modes.idle">1. Reposo</button>
+    <button id="mode-analysis" class="btn-tactical active" onclick="setMode('analysis')" data-i18n="modes.analysis">2. Ingesta</button>
+    <button id="mode-diagnostic" class="btn-tactical" onclick="setMode('diagnostic')" data-i18n="modes.diagnostic">3. Diagnóstico</button>
+    <button id="mode-simulation" class="btn-tactical" onclick="setMode('simulation')" data-i18n="modes.simulation">4. Simulación</button>
+    <button id="mode-operation" class="btn-tactical" onclick="setMode('operation')" data-i18n="modes.operation">5. Operación</button>
+    <button id="mode-maintenance" class="btn-tactical" onclick="setMode('maintenance')" data-i18n="modes.maintenance">6. Mantenimiento</button>
+    <button id="mode-emergency" class="btn-tactical" onclick="setMode('emergency')" data-i18n="modes.emergency">7. Emergencia</button>
+    <button id="mode-energetic" class="btn-tactical" onclick="setMode('energetic')" data-i18n="modes.energetic">8. Energético</button>
+    <button id="mode-ai_neural" class="btn-tactical" onclick="setMode('ai_neural')" data-i18n="modes.ai_neural">9. Red Neuronal</button>
+    <button id="mode-hybrid" class="btn-tactical" onclick="setMode('hybrid')" data-i18n="modes.hybrid">10. Híbrido</button>
+  </div>
+
+  <!-- PANEL IZQUIERDO -->
+  <div id="left-panel" class="hud-glass" style="position:absolute; top:122px; bottom:56px; left:12px; width:380px; max-width:calc(100vw - 24px); border-radius:14px; z-index:15; display:flex; flex-direction:column; padding:12px; transition:transform 0.3s ease, opacity 0.3s ease;">
+    <!-- Bloque: Progenitor -->
+    <div class="toggle-block" style="margin-bottom:8px;">
+      <div class="block-header" onclick="toggleBlock(this)">
+        <span style="font-size:10px; color:#94a3b8; font-family:ui-monospace, monospace; font-weight:bold;" data-i18n="authorSelector">PROGENITOR LITERARIO:</span>
+        <span class="toggle-icon">▼</span>
+      </div>
+      <div class="block-content" style="max-height:200px; overflow:visible; padding-top:4px;">
+        <select id="author-select" onchange="changeAuthor(this.value)" style="display:block; background:#090d16; color:#38bdf8; border:1px solid #334155; border-radius:6px; padding:4px 8px; font-size:12px; font-weight:bold; font-family:ui-monospace, monospace; outline:none; width:100%;">
+          <option value="corvalan" data-i18n="authors.corvalan">Elías Corvalán (Caso Canónico)</option>
+          <option value="poe" data-i18n="authors.poe">Edgar Allan Poe</option>
+          <option value="shakespeare" data-i18n="authors.shakespeare">William Shakespeare</option>
+          <option value="austen" data-i18n="authors.austen">Jane Austen</option>
+        </select>
+        <div style="text-align:right; margin-top:3px;">
+          <span style="font-size:9px; color:#94a3b8; font-family:ui-monospace, monospace; display:block;" data-i18n="corpusIngested">CORPUS INGERIDO</span>
+          <span id="author-words" style="font-size:12px; font-weight:bold; color:#facc15; font-family:ui-monospace, monospace;">150k palabras</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bloque: Pestañas genoma -->
+    <div class="toggle-block" style="margin-bottom:8px;">
+      <div class="block-header" onclick="toggleBlock(this)">
+        <span style="font-size:10px; color:#94a3b8; font-family:ui-monospace, monospace; font-weight:bold;" data-i18n="genomeTabs">ANÁLISIS GENÓMICO</span>
+        <span class="toggle-icon">▼</span>
+      </div>
+      <div class="block-content" style="max-height:400px; overflow:visible; padding-top:4px;">
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:4px; background:#090d16; padding:3px; border-radius:8px; border:1px solid #1e293b; margin-bottom:8px;">
+          <button id="tab-btn-stylistic" class="btn-tactical active" style="padding:5px 2px; font-size:11px; text-align:center;" onclick="setGenomeTab('stylistic')" data-i18n="genomes.stylistic">Estilístico</button>
+          <button id="tab-btn-emotional" class="btn-tactical" style="padding:5px 2px; font-size:11px; text-align:center;" onclick="setGenomeTab('emotional')" data-i18n="genomes.emotional">Emocional</button>
+          <button id="tab-btn-philosophical" class="btn-tactical" style="padding:5px 2px; font-size:11px; text-align:center;" onclick="setGenomeTab('philosophical')" data-i18n="genomes.philosophical">Filosófico</button>
+          <button id="tab-btn-snu" class="btn-tactical" style="padding:5px 2px; font-size:11px; text-align:center;" onclick="setGenomeTab('snu')" data-i18n="genomes.snu">SNU NFT</button>
+        </div>
+        <div id="genome-content" class="custom-scroll" style="flex:1; overflow-y:auto; padding-right:4px; font-size:12px; min-height:120px; max-height:250px;"></div>
+      </div>
+    </div>
+
+    <!-- Bloque: Ingesta -->
+    <div class="toggle-block" style="border-top:1px solid rgba(0,229,255,0.2); padding-top:8px; margin-top:4px;">
+      <div class="block-header" onclick="toggleBlock(this)">
+        <span style="font-size:11px; font-weight:bold; color:#94a3b8; font-family:ui-monospace, monospace;" data-i18n="ingestionTitle">📥 INGESTA DE CORPUS</span>
+        <span class="toggle-icon">▼</span>
+      </div>
+      <div class="block-content" style="max-height:300px; overflow:visible; padding-top:4px;">
+        <div style="display:flex; gap:4px; margin-bottom:4px;">
+          <button onclick="loadSampleCorpus('corvalan')" class="btn-tactical" style="padding:2px 6px; font-size:10px;" data-i18n="authors.corvalan">Corvalán</button>
+          <button onclick="loadSampleCorpus('poe')" class="btn-tactical" style="padding:2px 6px; font-size:10px;" data-i18n="authors.poe">Poe</button>
+        </div>
+        <textarea id="corpus-input" placeholder="Pega texto del autor o carga un archivo..." style="width:100%; height:42px; background:#090d16; border:1px solid #334155; border-radius:6px; color:#f1f5f9; padding:6px; font-size:11px; resize:none; outline:none; font-family:ui-monospace, monospace;" data-i18n-placeholder="corpusPlaceholder"></textarea>
+        <button onclick="triggerAnalyzeCorpus()" class="btn-tactical" style="width:100%; margin-top:4px; padding:6px; background:rgba(0,229,255,0.15); border-color:#00e5ff; color:#00e5ff; font-weight:bold;" data-i18n="actions.extractDNA">🔬 Extraer ADN Narrativo</button>
+      </div>
+    </div>
+  </div>
+
+  <button id="toggle-left-btn" onclick="toggleLeftPanel()" class="btn-tactical" style="position:absolute; top:122px; left:396px; z-index:16; padding:8px 6px; border-radius:0 8px 8px 0; border-left:none;">◀</button>
+
+  <!-- PANEL DERECHO -->
+  <div id="right-panel" class="hud-glass" style="position:absolute; top:122px; bottom:56px; right:12px; width:390px; max-width:calc(100vw - 24px); border-radius:14px; z-index:15; display:flex; flex-direction:column; padding:12px; transition:transform 0.3s ease, opacity 0.3s ease;">
+    <!-- Bloque: Transformer -->
+    <div class="toggle-block" style="border-bottom:1px solid rgba(0,229,255,0.2); padding-bottom:8px; margin-bottom:8px;">
+      <div class="block-header" onclick="toggleBlock(this)">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="color:#34d399; font-size:14px;">⚡</span>
+          <h2 style="font-size:12px; font-weight:bold; color:#34d399; font-family:ui-monospace, monospace; letter-spacing:1px;" data-i18n="transformerTitle">TRANSFORMER GENERATIVO</h2>
+        </div>
+        <span class="toggle-icon">▼</span>
+      </div>
+      <div class="block-content" style="max-height:600px; overflow:visible; padding-top:4px;">
+        <canvas id="dna-2d-canvas" style="width:100%; height:50px; border-radius:8px; border:1px solid #1e293b; background:#090d16; margin-bottom:8px;"></canvas>
+        <div class="custom-scroll" style="max-height:110px; overflow-y:auto; background:#090d16; border:1px solid #1e293b; border-radius:8px; padding:6px 10px; margin-bottom:8px; font-size:11px; font-family:ui-monospace, monospace;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+            <span style="color:#cbd5e1;" data-i18n="sliders.complexity">Complejidad Sintáctica:</span>
+            <span id="lbl-dna-complex" style="color:#00e5ff; font-weight:bold;">75%</span>
+          </div>
+          <input type="range" id="sld-dna-complex" min="10" max="100" value="75" oninput="document.getElementById('lbl-dna-complex').innerText=this.value+'%'; updateSceneFromSliders();" style="width:100%; margin-bottom:4px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+            <span style="color:#cbd5e1;" data-i18n="sliders.melancholy">Melancolía (Afectivo):</span>
+            <span id="lbl-dna-melan" style="color:#f43f5e; font-weight:bold;">85%</span>
+          </div>
+          <input type="range" id="sld-dna-melan" min="0" max="100" value="85" oninput="document.getElementById('lbl-dna-melan').innerText=this.value+'%'; updateSceneFromSliders();" style="width:100%; margin-bottom:4px; accent-color:#f43f5e;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+            <span style="color:#cbd5e1;" data-i18n="sliders.onto">Fatalismo Temporal (Ontológico):</span>
+            <span id="lbl-dna-onto" style="color:#f59e0b; font-weight:bold;">70%</span>
+          </div>
+          <input type="range" id="sld-dna-onto" min="0" max="100" value="70" oninput="document.getElementById('lbl-dna-onto').innerText=this.value+'%'; updateSceneFromSliders();" style="width:100%; accent-color:#f59e0b;">
+        </div>
+
+        <!-- EL BLOQUE DEL PROMPT HA SIDO ELIMINADO -->
+
+        <div id="generation-output-box" class="custom-scroll paper-card" style="flex:1; padding:10px; overflow-y:auto; margin-bottom:6px; min-height:80px; max-height:150px;"></div>
+
+        <div style="background:#090d16; border:1px solid #1e293b; border-radius:8px; padding:8px; font-size:11px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span style="font-family:ui-monospace, monospace; color:#94a3b8;" data-i18n="curatorScore">Fidelidad Curador Humano:</span>
+            <span id="curator-val" style="font-family:ui-monospace, monospace; font-weight:bold; color:#facc15;">96/100 (Aprobado)</span>
+          </div>
+          <input type="range" min="50" max="100" value="96" oninput="document.getElementById('curator-val').innerText = this.value + '/100 (Aprobado)'" style="width:100%; margin-bottom:6px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:10px; color:#64748b; font-family:ui-monospace, monospace;" data-i18n="snuLabel">SNU ERC-721</span>
+            <button id="mint-btn" onclick="mintNft()" class="btn-tactical" style="padding:3px 10px; border-radius:6px; font-size:10px; color:#34d399; border-color:#059669;" data-i18n="actions.mintNFT">🔗 Acuñar SNU NFT</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button id="toggle-right-btn" onclick="toggleRightPanel()" class="btn-tactical" style="position:absolute; top:122px; right:406px; z-index:16; padding:8px 6px; border-radius:8px 0 0 8px; border-right:none;">▶</button>
+
+  <!-- BARRA INFERIOR DE CÁMARA (bajada a bottom:40px) -->
+  <div class="hud-glass" style="position:absolute; bottom:40px; left:50%; transform:translateX(-50%); z-index:15; padding:5px 12px; border-radius:16px; display:flex; align-items:center; gap:6px; font-family:ui-monospace, monospace; font-size:11px; flex-wrap:wrap; justify-content:center;">
+    <button class="btn-tactical active" onclick="setCameraView('orbit')" data-i18n="cameraViews.orbit">Orbital 360°</button>
+    <button class="btn-tactical" onclick="setCameraView('book')" data-i18n="cameraViews.book">Códice</button>
+    <button class="btn-tactical" onclick="setCameraView('dna')" data-i18n="cameraViews.dna">ADN</button>
+    <button class="btn-tactical" onclick="setCameraView('tree')" data-i18n="cameraViews.tree">Árbol</button>
+    <button class="btn-tactical" onclick="setCameraView('brain')" data-i18n="cameraViews.brain">Córtex</button>
+    <button class="btn-tactical" onclick="setCameraView('blockchain')" data-i18n="cameraViews.blockchain">Blockchain</button>
+    <button class="btn-tactical" onclick="setCameraView('quill')" data-i18n="cameraViews.quill">Pluma</button>
+    <div style="height:14px; width:1px; background:#334155; margin:0 4px;"></div>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <span style="color:#facc15; font-size:10px;" data-i18n="explodedView">DESPIECE:</span>
+      <input type="range" min="0" max="1" step="0.05" value="0" oninput="setExplode(this.value)" style="width:65px;">
+    </div>
+    <button id="xray-btn" class="btn-tactical" onclick="toggleXray()" data-i18n="xray">👁️ X-Ray</button>
+    <!-- TOUR ELIMINADO -->
+    <button class="btn-tactical" onclick="openNodeGraphModal()" data-i18n="neuralGraph">🧠 Nodos IA</button>
+
+    <!-- Control de zoom -->
+    <div style="height:14px; width:1px; background:#334155; margin:0 4px;"></div>
+    <div class="zoom-control">
+      <button onclick="zoomCamera(-1)" data-i18n="zoomOut" title="Alejar">−</button>
+      <span id="zoom-level">100%</span>
+      <button onclick="zoomCamera(1)" data-i18n="zoomIn" title="Acercar">+</button>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="hud-glass" style="position:absolute; bottom:6px; left:12px; right:12px; z-index:15; padding:5px 14px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; font-family:ui-monospace, monospace; font-size:11px; color:#94a3b8;">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="width:8px; height:8px; border-radius:50%; background:#34d399; box-shadow:0 0 8px #34d399;" class="animate-pulse-slow"></span>
+        <span style="color:#34d399; font-weight:bold;" data-i18n="systemActive">SISTEMA ACTIVO</span>
+      </div>
+      <span>|</span>
+      <span data-i18n="engineLabel">MOTOR: <strong style="color:#00e5ff;">THREE.JS / WEBGL PBR</strong></span>
+      <span>|</span>
+      <span data-i18n="renderLabel">RENDER: <strong style="color:#f1f5f9;">14,280 POLÍGONOS</strong></span>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <span>FPS: <strong id="fps-counter" style="color:#34d399;">60</strong></span>
+      <span>|</span>
+      <span data-i18n="latencyLabel">LATENCIA: <strong style="color:#00e5ff;">1.2ms</strong></span>
+      <span>|</span>
+      <span style="color:#facc15; font-weight:bold;" data-i18n="copyright">DR. JULIO CÉSAR OPORTA BARRERA © 2025</span>
+    </div>
+  </footer>
+
+  <!-- MODAL NODOS -->
+  <div id="ai-nodes-modal" style="display:none; position:fixed; inset:0; z-index:50; background:rgba(0,0,0,0.85); backdrop-filter:blur(8px); align-items:center; justify-content:center; padding:16px;">
+    <div class="hud-glass" style="width:100%; max-width:850px; border-radius:16px; padding:20px; position:relative;">
+      <button onclick="closeNodeGraphModal()" style="position:absolute; top:12px; right:12px; background:#1e293b; color:#fff; border-radius:50%; width:28px; height:28px; font-weight:bold;">✕</button>
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid rgba(0,229,255,0.2);">
+        <span style="font-size:20px;">🧠</span>
+        <h3 style="font-size:15px; font-weight:bold; color:#00e5ff; font-family:ui-monospace, monospace;" data-i18n="neuralTitle">PIPELINE DE DECISIÓN NEURONAL (6 NODOS)</h3>
+      </div>
+      <div id="ai-nodes-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px,1fr)); gap:8px; margin-bottom:16px;"></div>
+      <div id="ai-node-detail" style="background:#090d16; border:1px solid #1e293b; border-radius:8px; padding:12px; font-size:12px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <strong id="node-detail-title" style="color:#38bdf8; font-size:13px;">Narrative DNA Synthesizer</strong>
+          <p id="node-detail-desc" style="color:#94a3b8; font-size:11px; margin-top:2px;">Binding stylistic, emotional and philosophical genomes into unified tensor vector.</p>
+        </div>
+        <div style="font-family:ui-monospace, monospace; text-align:right;">
+          <span style="color:#34d399; font-weight:bold; display:block;">TENSOR [1, 768, 128]</span>
+          <span style="color:#94a3b8; font-size:10px;">LATENCIA 1.42ms</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL AR -->
+  <div id="ar-modal" style="display:none; position:fixed; inset:0; z-index:50; background:rgba(0,0,0,0.9); backdrop-filter:blur(12px); flex-direction:column; justify-content:space-between; padding:20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:18px;">📷</span>
+        <h2 style="font-size:15px; font-weight:bold; color:#00e5ff; font-family:ui-monospace, monospace;" data-i18n="arTitle">REALIDAD AUMENTADA (WEBXR & PROYECCIÓN 3D)</h2>
+      </div>
+      <button onclick="closeArModal()" style="background:#1e293b; color:#fff; border-radius:50%; width:32px; height:32px; font-weight:bold;">✕</button>
+    </div>
+    <div style="position:relative; flex:1; margin:16px 0; border:1px solid rgba(0,229,255,0.4); border-radius:16px; background:#070b12; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+      <video id="ar-video-feed" playsinline muted autoplay style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0.45;"></video>
+      <div style="position:absolute; width:240px; height:240px; border:2px dashed rgba(0,229,255,0.4); border-radius:50%;" class="animate-spin-slow"></div>
+      <div id="ar-holo-model" style="position:relative; z-index:10; display:flex; flex-direction:column; align-items:center; transform:scale(1.0);">
+        <div style="width:5px; height:220px; background:linear-gradient(to top, #00e5ff, #38bdf8, transparent); box-shadow:0 0 25px #00e5ff;" class="animate-pulse-slow"></div>
+        <div style="width:200px; height:48px; background:rgba(2,132,199,0.3); border:2px solid #00e5ff; border-radius:24px; display:flex; align-items:center; justify-content:center; margin-top:-20px; box-shadow:0 0 30px rgba(0,229,255,0.8);">
+          <span style="font-size:11px; font-family:ui-monospace, monospace; font-weight:bold; color:#00e5ff;" data-i18n="arAnchored">[ADN ANCLADO A SUPERFICIE]</span>
+        </div>
+      </div>
+      <div style="position:absolute; bottom:16px; left:16px; right:16px; background:rgba(9,13,22,0.9); border:1px solid rgba(0,229,255,0.3); border-radius:10px; padding:10px; text-align:center; font-size:11px; color:#cbd5e1;" data-i18n="arInstruction">
+        Apunta la cámara a una superficie horizontal plana. El Códice y la Doble Hélice se anclan automáticamente.
+      </div>
+    </div>
+    <div style="background:rgba(15,23,42,0.9); border:1px solid #334155; border-radius:12px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; font-family:ui-monospace, monospace; font-size:11px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span data-i18n="scaleLabel">ESCALA:</span>
+        <input type="range" min="0.5" max="2.0" step="0.1" value="1.0" oninput="document.getElementById('ar-holo-model').style.transform = 'scale(' + this.value + ')'" style="width:90px;">
+      </div>
+      <button onclick="closeArModal()" class="btn-tactical" style="padding:6px 16px; border-radius:8px; background:#0284c7; color:#fff; font-weight:bold;" data-i18n="backToStation">Volver a la Estación</button>
+    </div>
+  </div>
+
+  <script>
+    // ============================
+    // 1. DATOS Y TRADUCCIONES
+    // ============================
+    const authorProfiles = [{"id":"corvalan","name":"Elías Corvalán","period":"Siglo XX (Realismo Mágico / Fatalismo)","genre":"Relato Corto, Realismo Mágico, Filosofía del Tiempo","description":{"es":"Caso de estudio canónico del manual. Famoso por sus relatos sobre la colisión del tiempo circular y la memoria inexorable.","en":"Canonical manual study case. Renowned for short tales of circular time collisions and inexorable memory.","zh":"系统白皮书标准案例。以探讨循环时间碰撞与不可逆记忆的魔幻现实主义短篇见长。"},"corpusWords":150000,"stylisticGenome":{"avgSentenceLength":14.5,"subordinateClauseRatio":0.38,"passiveVoiceRatio":0.23,"lexicalRichness":0.82,"posDistribution":{"noun":0.25,"verb":0.18,"adj":0.11,"adp":0.08,"adv":0.06,"punct":0.12},"characteristicLexicon":["tiempo","polvo","silencio","memoria","reloj","arena","grieta","ayer","pasillo","sombra"],"punctuationStyle":"Uso denso de punto y coma (;) y guiones largos (—) para ramificaciones meditativas."},"emotionalGenome":{"dominant":["Melancolía","Nostalgia","Resignación Fatalista"],"plutchikValues":{"joy":0.1,"trust":0.35,"fear":0.45,"surprise":0.2,"sadness":0.85,"disgust":0.3,"anger":0.25,"anticipation":0.7},"polarity":{"positive":0.15,"neutral":0.45,"negative":0.4},"narrativeTone":"Crescendo de desesperanza al cierre de cada relato con descenso a polaridad negativa extrema."},"philosophicalGenome":{"weltanschauung":"Fatalismo Temporal & Fenomenología del Recuerdo","recurringThemes":["Memoria vs Olvido","Tiempo Lineal vs Circular","Destino Ineludible vs Libre Albedrío"],"archetypes":["El Sabio Solitario","El Antihéroe Condenado","El Guardián del Umbral"],"semanticGraphEdges":[{"source":"recuerdo","target":"dolor","relationship":"causa"},{"source":"recuerdo","target":"pérdida","relationship":"identidad"},{"source":"polvo","target":"historia","relationship":"metáfora"},{"source":"polvo","target":"silencio","relationship":"equivalencia"},{"source":"pasillo","target":"transición","relationship":"motivo_frontera"}]},"blockchainSnu":{"hash":"0x8f2d9c4b7e1a3f608d5e9b2c4a7f1e3d5c7b9a0f","tokenId":"SNU-GENOME-00124","contractAddress":"0x3c7e91B36f5cA8125C0a24f0f9b31dD8E7b5e408","mintTimestamp":"2025-09-07T14:30:00Z"}},{"id":"poe","name":"Edgar Allan Poe","period":"1809 - 1849 (Romanticismo Oscuro / Gótico)","genre":"Terror Psicológico, Cuento Gótico, Detective Ficción","description":{"es":"Maestro del terror psicológico, la cadencia fúnebre y el examen implacable de la culpa humana.","en":"Master of psychological terror, somber cadence and relentless examination of human guilt.","zh":"暗黑浪漫主义先驱，心理恐怖大师，善于以阴郁节律探讨罪疚与死亡。"},"corpusWords":420000,"stylisticGenome":{"avgSentenceLength":22.8,"subordinateClauseRatio":0.52,"passiveVoiceRatio":0.28,"lexicalRichness":0.89,"posDistribution":{"noun":0.28,"verb":0.16,"adj":0.14,"adp":0.1,"adv":0.09,"punct":0.15},"characteristicLexicon":["macabro","latido","sepulcro","pavor","catacumba","cuervo","pesadumbre","agonía","maldición"],"punctuationStyle":"Frecuente uso de signos de exclamación (!), guiones de corte dramático y repetición anafórica."},"emotionalGenome":{"dominant":["Terror Psicológico","Remordimiento","Fascinación Necrofílica"],"plutchikValues":{"joy":0.05,"trust":0.15,"fear":0.95,"surprise":0.65,"sadness":0.75,"disgust":0.6,"anger":0.4,"anticipation":0.85},"polarity":{"positive":0.08,"neutral":0.22,"negative":0.7},"narrativeTone":"Descenso vertiginoso a la paranoia y la descomposición mental del narrador."},"philosophicalGenome":{"weltanschauung":"El Demonio de la Perversidad & Desintegración de la Razón","recurringThemes":["La Muerte de la Belleza","La Locura Inevitable","La Autodestrucción Inconsciente"],"archetypes":["El Narrador Poco Confiable","La Amada Difunta","La Sombra Doppelgänger"],"semanticGraphEdges":[{"source":"corazón","target":"culpa","relationship":"amplificación"},{"source":"sepulcro","target":"eternidad","relationship":"confinamiento"},{"source":"razón","target":"demencia","relationship":"erosión"}]},"blockchainSnu":{"hash":"0x19a4e8d3b7c2f01948ae5b8214fa790d23891bca","tokenId":"SNU-GENOME-00001","contractAddress":"0x3c7e91B36f5cA8125C0a24f0f9b31dD8E7b5e408","mintTimestamp":"2025-08-12T10:15:22Z"}},{"id":"shakespeare","name":"William Shakespeare","period":"1564 - 1616 (Renacimiento Isabelino)","genre":"Drama Teatral, Tragedia, Comedia, Sonetos","description":{"es":"El bardo inmortal, arquitecto de la condición humana, maestro del verso blanco y la ironía cósmica.","en":"The immortal bard, architect of the human condition, master of blank verse and cosmic irony.","zh":"不朽的吟游诗人，人类情感与宇宙讽刺的伟大构建者，抑扬格五音步大师。"},"corpusWords":884000,"stylisticGenome":{"avgSentenceLength":17.2,"subordinateClauseRatio":0.44,"passiveVoiceRatio":0.15,"lexicalRichness":0.96,"posDistribution":{"noun":0.24,"verb":0.22,"adj":0.12,"adp":0.09,"adv":0.08,"punct":0.14},"characteristicLexicon":["corona","sombra","traición","sangre","honor","destino","tempestad","espejo","tiempo"],"punctuationStyle":"Pausa cesura en pentámetro yámbico, monólogos introspectivos y réplicas ingeniosas."},"emotionalGenome":{"dominant":["Ambición Trágica","Amor Sublime","Desengaño Existencial"],"plutchikValues":{"joy":0.5,"trust":0.55,"fear":0.7,"surprise":0.6,"sadness":0.8,"disgust":0.45,"anger":0.75,"anticipation":0.8},"polarity":{"positive":0.35,"neutral":0.3,"negative":0.35},"narrativeTone":"Estructura en cinco actos: exposición, clímax catártico y caída trágica o resolución armónica."},"philosophicalGenome":{"weltanschauung":"El Mundo como Gran Teatro (Theatrum Mundi)","recurringThemes":["El Poder y la Corrupción","La Apariencia vs Realidad","El Destino Guiado por los Astros"],"archetypes":["El Héroe Trágico","El Bufón Sabio","El Tirano Usurpador"],"semanticGraphEdges":[{"source":"corona","target":"pesadumbre","relationship":"fardo"},{"source":"ambición","target":"ruina","relationship":"catalizador"},{"source":"teatro","target":"vida","relationship":"metáfora_universal"}]},"blockchainSnu":{"hash":"0x7e29b1049ca38f519d08e1a49c9f280a714d5e89","tokenId":"SNU-GENOME-00007","contractAddress":"0x3c7e91B36f5cA8125C0a24f0f9b31dD8E7b5e408","mintTimestamp":"2025-07-20T08:00:00Z"}},{"id":"austen","name":"Jane Austen","period":"1775 - 1817 (Regencia Británica / Realismo Social)","genre":"Novela Social, Ironía Romántica, Costumbrismo","description":{"es":"Pionera del discurso indirecto libre, observación sociológica incisiva y elegancia estilística.","en":"Pioneer of free indirect discourse, incisive social observation and stylistic elegance.","zh":"自由间接引语先驱，敏锐的社会心理洞察与极具修养的讽刺幽默。"},"corpusWords":650000,"stylisticGenome":{"avgSentenceLength":25.1,"subordinateClauseRatio":0.58,"passiveVoiceRatio":0.19,"lexicalRichness":0.86,"posDistribution":{"noun":0.26,"verb":0.19,"adj":0.13,"adp":0.11,"adv":0.08,"punct":0.11},"characteristicLexicon":["decoro","sensatez","orgullo","prejuicio","fortuna","matrimonio","ingenio","sociedad"],"punctuationStyle":"Oraciones extensas y equilibradas con cláusulas yuxtapuestas y matices dialécticos sutiles."},"emotionalGenome":{"dominant":["Ironía Refinada","Afecto Cauteloso","Satisfacción Moral"],"plutchikValues":{"joy":0.65,"trust":0.7,"fear":0.2,"surprise":0.4,"sadness":0.3,"disgust":0.25,"anger":0.2,"anticipation":0.75},"polarity":{"positive":0.55,"neutral":0.35,"negative":0.1},"narrativeTone":"Malentendidos iniciales que evolucionan hacia la madurez y la reconciliación moral."},"philosophicalGenome":{"weltanschauung":"Moral Ilustrada & Autonomía Femenina en la Estructura de Clases","recurringThemes":["Autoconocimiento y Juicio","El Deber vs la Inclinación Personal","La Hipocresía Institucional"],"archetypes":["La Heroína Perspicaz","El Aristócrata Orgulloso Reformado","La Matriarca Ambiciosa"],"semanticGraphEdges":[{"source":"orgullo","target":"ceguera","relationship":"obstáculo"},{"source":"sensatez","target":"armonía","relationship":"resolución"},{"source":"sociedad","target":"convención","relationship":"escenario"}]},"blockchainSnu":{"hash":"0x5a18c39e08fd472199ab64f20819dc745e128b90","tokenId":"SNU-GENOME-00042","contractAddress":"0x3c7e91B36f5cA8125C0a24f0f9b31dD8E7b5e408","mintTimestamp":"2025-06-15T16:20:00Z"}}];
+
+    const aiPipelineNodes = [
+      {id:"node_ingest",name:"Corpus Ingestion",desc:"Reading raw UTF-8 literary manuscripts",icon:"📥"},
+      {id:"node_clean",name:"Tokenization & Normalization",desc:"POS Tagging, Lemmatization, N-Gram frequency",icon:"🧹"},
+      {id:"node_stylistic",name:"Stylistic Genome Vectorizer",desc:"Computing syntactic depth & sentence cadence",icon:"📐"},
+      {id:"node_emotional",name:"Affective Vector Engine",desc:"Extracting 8D emotion space & sentiment polarity",icon:"❤️"},
+      {id:"node_welt",name:"Weltanschauung Semantic Graph",desc:"Mapping philosophical ontological nodes & archetypes",icon:"🌌"},
+      {id:"node_dna",name:"Narrative DNA Synthesizer (SNU)",desc:"Binding 3 genomes into high-dimensional vector",icon:"🧬"},
+      {id:"node_transformer",name:"Autoregressive Transformer (Cloner)",desc:"Generating next-token sequence with DNA priors",icon:"⚡"},
+      {id:"node_discriminator",name:"GAN Adversarial Discriminator",desc:"Scoring authenticity against original author corpus",icon:"🎭"},
+      {id:"node_curator",name:"Human-in-the-Loop Curator",desc:"Expert validation of emotional & stylistic nuance",icon:"👤"},
+      {id:"node_blockchain",name:"Smart Contract NFT Registry",desc:"Minting immutable provenance hash on Ethereum",icon:"🔗"}
+    ];
+
+    const i18n = {
+      es: {
+        appTitle:"AI GHOSTWRITER LEGACY",
+        appSubtitle:"Clonación Literaria con ADN Narrativo: Preservando y Expandiendo Legados a través de la IA",
+        authorHeader:"Dr. Julio César Oporta Barrera",
+        dateStamp:"Prototipo 3D Autónomo",
+        modes: { idle:"Reposo", analysis:"Ingesta", diagnostic:"Diagnóstico", simulation:"Simulación", operation:"Operación", maintenance:"Mantenimiento", emergency:"Emergencia", energetic:"Energético", ai_neural:"Red Neuronal", hybrid:"Híbrido" },
+        cameraViews: { orbit:"Orbital 360°", book:"Códice", dna:"ADN", tree:"Árbol", brain:"Córtex", blockchain:"Blockchain", quill:"Pluma" },
+        actions: { extractDNA:"🔬 Extraer ADN Narrativo", generateStory:"✨ Sintetizar Obra con ADN Narrativo", mintNFT:"🔗 Acuñar SNU NFT" },
+        authorSelector:"PROGENITOR LITERARIO:",
+        corpusIngested:"CORPUS INGERIDO",
+        genomeTabs:"ANÁLISIS GENÓMICO",
+        ingestionTitle:"📥 INGESTA DE CORPUS",
+        transformerTitle:"TRANSFORMER GENERATIVO",
+        curatorScore:"Fidelidad Curador Humano:",
+        snuLabel:"SNU ERC-721",
+        systemActive:"SISTEMA ACTIVO",
+        engineLabel:"MOTOR: <strong style='color:#00e5ff;'>THREE.JS / WEBGL PBR</strong>",
+        renderLabel:"RENDER: <strong style='color:#f1f5f9;'>14,280 POLÍGONOS</strong>",
+        latencyLabel:"LATENCIA: <strong style='color:#00e5ff;'>1.2ms</strong>",
+        copyright:"DR. JULIO CÉSAR OPORTA BARRERA © 2025",
+        authors: { corvalan:"Elías Corvalán (Caso Canónico)", poe:"Edgar Allan Poe", shakespeare:"William Shakespeare", austen:"Jane Austen" },
+        genomes: { stylistic:"Estilístico", emotional:"Emocional", philosophical:"Filosófico", snu:"SNU NFT" },
+        sliders: { complexity:"Complejidad Sintáctica:", melancholy:"Melancolía (Afectivo):", onto:"Fatalismo Temporal (Ontológico):" },
+        promptLabel:"Prompt con Restricción ADN:",
+        loadPrompt:"Cargar Prompt",
+        corpusPlaceholder:"Pega texto del autor o carga un archivo...",
+        promptPlaceholder:"Escribe el motivo inicial...",
+        audioToggle:"🔊 AUDIO",
+        voiceClone:"🎤 Clonar Voz",
+        arMode:"📷 AR / WebXR",
+        xray:"👁️ X-Ray",
+        neuralGraph:"🧠 Nodos IA",
+        explodedView:"DESPIECE:",
+        arTitle:"REALIDAD AUMENTADA (WEBXR & PROYECCIÓN 3D)",
+        arInstruction:"Apunta la cámara a una superficie horizontal plana. El Códice y la Doble Hélice se anclan automáticamente.",
+        arAnchored:"[ADN ANCLADO A SUPERFICIE]",
+        scaleLabel:"ESCALA:",
+        backToStation:"Volver a la Estación",
+        neuralTitle:"PIPELINE DE DECISIÓN NEURONAL (6 NODOS)",
+        zoomIn:"Acercar",
+        zoomOut:"Alejar",
+        lexiconSimulationPrefix:"🧬 Simulando ADN: "
+      },
+      en: {
+        appTitle:"AI GHOSTWRITER LEGACY",
+        appSubtitle:"Literary Cloning with Narrative DNA: Preserving and Expanding Legacies via AI",
+        authorHeader:"Dr. Julio César Oporta Barrera",
+        dateStamp:"Autonomous 3D Prototype",
+        modes: { idle:"Standby", analysis:"Ingestion", diagnostic:"Diagnostic", simulation:"Simulation", operation:"Operation", maintenance:"Maintenance", emergency:"Emergency", energetic:"Energetic", ai_neural:"Neural Network", hybrid:"Hybrid" },
+        cameraViews: { orbit:"360° Orbit", book:"Codex", dna:"DNA", tree:"Tree", brain:"Cortex", blockchain:"Blockchain", quill:"Quill" },
+        actions: { extractDNA:"🔬 Extract Narrative DNA", generateStory:"✨ Synthesize Work with Narrative DNA", mintNFT:"🔗 Mint SNU NFT" },
+        authorSelector:"LITERARY PROGENITOR:",
+        corpusIngested:"CORPUS INGESTED",
+        genomeTabs:"GENOME ANALYSIS",
+        ingestionTitle:"📥 CORPUS INGESTION",
+        transformerTitle:"GENERATIVE TRANSFORMER",
+        curatorScore:"Human Curator Fidelity:",
+        snuLabel:"SNU ERC-721",
+        systemActive:"SYSTEM ACTIVE",
+        engineLabel:"ENGINE: <strong style='color:#00e5ff;'>THREE.JS / WEBGL PBR</strong>",
+        renderLabel:"RENDER: <strong style='color:#f1f5f9;'>14,280 POLYGONS</strong>",
+        latencyLabel:"LATENCY: <strong style='color:#00e5ff;'>1.2ms</strong>",
+        copyright:"DR. JULIO CÉSAR OPORTA BARRERA © 2025",
+        authors: { corvalan:"Elías Corvalán (Canonical Case)", poe:"Edgar Allan Poe", shakespeare:"William Shakespeare", austen:"Jane Austen" },
+        genomes: { stylistic:"Stylistic", emotional:"Emotional", philosophical:"Philosophical", snu:"SNU NFT" },
+        sliders: { complexity:"Syntactic Complexity:", melancholy:"Melancholy (Affective):", onto:"Temporal Fatalism (Ontological):" },
+        promptLabel:"Prompt Conditioned by Narrative DNA:",
+        loadPrompt:"Load Prompt",
+        corpusPlaceholder:"Paste author text or upload a file...",
+        promptPlaceholder:"Write the initial motif...",
+        audioToggle:"🔊 AUDIO",
+        voiceClone:"🎤 Clone Voice",
+        arMode:"📷 AR / WebXR",
+        xray:"👁️ X-Ray",
+        neuralGraph:"🧠 AI Nodes",
+        explodedView:"EXPLODE:",
+        arTitle:"AUGMENTED REALITY (WEBXR & 3D PROJECTION)",
+        arInstruction:"Point your camera at a flat horizontal surface. The Codex and DNA Helix will anchor automatically.",
+        arAnchored:"[DNA ANCHORED TO SURFACE]",
+        scaleLabel:"SCALE:",
+        backToStation:"Back to Station",
+        neuralTitle:"NEURAL DECISION PIPELINE (6 NODES)",
+        zoomIn:"Zoom In",
+        zoomOut:"Zoom Out",
+        lexiconSimulationPrefix:"🧬 Simulating DNA: "
+      },
+      zh: {
+        appTitle:"AI GHOSTWRITER LEGACY",
+        appSubtitle:"叙事基因文学克隆系统：通过人工智能传承与拓展文学遗产",
+        authorHeader:"Julio César Oporta Barrera 博士",
+        dateStamp:"独立3D原型系统",
+        modes: { idle:"待机", analysis:"摄取", diagnostic:"诊断", simulation:"仿真", operation:"运行", maintenance:"维护", emergency:"应急", energetic:"能量", ai_neural:"神经网络", hybrid:"混合" },
+        cameraViews: { orbit:"360° 环绕", book:"法典", dna:"DNA", tree:"树", brain:"皮层", blockchain:"区块链", quill:"羽毛笔" },
+        actions: { extractDNA:"🔬 提取叙事DNA", generateStory:"✨ 基于叙事DNA合成作品", mintNFT:"🔗 铸造SNU NFT" },
+        authorSelector:"文学先驱：",
+        corpusIngested:"语料已摄取",
+        genomeTabs:"基因组分析",
+        ingestionTitle:"📥 语料摄取",
+        transformerTitle:"生成式Transformer",
+        curatorScore:"人类策展人保真度：",
+        snuLabel:"SNU ERC-721",
+        systemActive:"系统运行中",
+        engineLabel:"引擎：<strong style='color:#00e5ff;'>THREE.JS / WEBGL PBR</strong>",
+        renderLabel:"渲染：<strong style='color:#f1f5f9;'>14,280 多边形</strong>",
+        latencyLabel:"延迟：<strong style='color:#00e5ff;'>1.2ms</strong>",
+        copyright:"Julio César Oporta Barrera 博士 © 2025",
+        authors: { corvalan:"埃利亚斯·科尔瓦兰 (标准案例)", poe:"埃德加·爱伦·坡", shakespeare:"威廉·莎士比亚", austen:"简·奥斯汀" },
+        genomes: { stylistic:"文体", emotional:"情感", philosophical:"哲学", snu:"SNU NFT" },
+        sliders: { complexity:"句法复杂度：", melancholy:"忧郁（情感）：", onto:"时间宿命（本体）：" },
+        promptLabel:"由叙事DNA调控的提示词：",
+        loadPrompt:"加载提示",
+        corpusPlaceholder:"粘贴作者文本或上传文件...",
+        promptPlaceholder:"写下初始动机...",
+        audioToggle:"🔊 音频",
+        voiceClone:"🎤 克隆声音",
+        arMode:"📷 AR / WebXR",
+        xray:"👁️ X光透视",
+        neuralGraph:"🧠 AI节点",
+        explodedView:"爆炸展开：",
+        arTitle:"增强现实 (WEBXR & 3D投影)",
+        arInstruction:"将相机对准水平平面。法典和DNA双螺旋将自动锚定。",
+        arAnchored:"[DNA锚定于表面]",
+        scaleLabel:"缩放：",
+        backToStation:"返回工作站",
+        neuralTitle:"神经决策流水线 (6个节点)",
+        zoomIn:"放大",
+        zoomOut:"缩小",
+        lexiconSimulationPrefix:"🧬 模拟DNA："
+      }
+    };
+
+    // ============================
+    // 2. ESTADO Y UTILIDADES
+    // ============================
+    let currentLang = 'es';
+    let currentAuthorId = 'corvalan';
+    let currentGenomeTab = 'stylistic';
+    let currentMode = 'analysis';
+    let isXray = false;
+    let explodeFactor = 0;
+    let leftPanelOpen = true;
+    let rightPanelOpen = true;
+    let audioActive = true;
+    let notifTimer = null;
+    let modeInterval = null;
+    let lexiconInterval = null; // para efectos de léxico
+
+    function showNotification(msg, duration = 2400) {
+      const bar = document.getElementById('notification-bar');
+      bar.innerText = msg;
+      bar.classList.add('show');
+      clearTimeout(notifTimer);
+      notifTimer = setTimeout(() => bar.classList.remove('show'), duration);
+    }
+
+    // ============================
+    // 3. AUDIO
+    // ============================
+    let audioCtx = null;
+    function getAudioCtx() {
+      if (!audioCtx) {
+        const AudioClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioClass();
+      }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+    function playTone(freq1, freq2, duration) {
+      if (!audioActive) return;
+      try {
+        const ctx = getAudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq1, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq2, ctx.currentTime + duration * 0.6);
+        gain.gain.setValueAtTime(0.06, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+      } catch (e) {}
+    }
+    function playChime() { playTone(587.33, 880, 0.35); }
+    function playSynthesis() { playTone(329.63, 659.25, 0.45); }
+
+    function toggleAudio() {
+      audioActive = !audioActive;
+      const btn = document.getElementById('audio-toggle-btn');
+      btn.classList.toggle('active', audioActive);
+      btn.innerText = audioActive ? '🔊 AUDIO' : '🔇 MUTED';
+      showNotification(audioActive ? '🔊 Audio: ACTIVADO' : '🔇 Audio: SILENCIADO');
+    }
+
+    // ============================
+    // 4. MULTILENGUAJE
+    // ============================
+    function updateUILanguage() {
+      const langData = i18n[currentLang] || i18n.es;
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        const parts = key.split('.');
+        let val = langData;
+        for (let p of parts) {
+          if (val && val[p] !== undefined) val = val[p];
+          else { val = null; break; }
+        }
+        if (val !== null) {
+          if (el.tagName === 'INPUT' && el.type === 'text') {
+            el.placeholder = val;
+          } else if (el.tagName === 'TEXTAREA') {
+            el.placeholder = val;
+          } else {
+            el.innerHTML = val;
+          }
+        }
+      });
+      const sel = document.getElementById('author-select');
+      Array.from(sel.options).forEach(opt => {
+        const key = opt.getAttribute('data-i18n');
+        if (key) {
+          const parts = key.split('.');
+          let val = langData;
+          for (let p of parts) { if (val && val[p] !== undefined) val = val[p]; else { val = null; break; } }
+          if (val !== null) opt.text = val;
+        }
+      });
+      renderGenomeTab();
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (key && key.startsWith('sliders.')) {
+          const parts = key.split('.');
+          let val = langData;
+          for (let p of parts) { if (val && val[p] !== undefined) val = val[p]; else { val = null; break; } }
+          if (val !== null) el.innerText = val;
+        }
+      });
+      showNotification('🌐 Idioma: ' + currentLang.toUpperCase(), 1200);
+    }
+
+    function setLanguage(lang) {
+      if (!i18n[lang]) return;
+      currentLang = lang;
+      document.querySelectorAll('[id^="lang-"]').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('lang-' + lang);
+      if (activeBtn) activeBtn.classList.add('active');
+      updateUILanguage();
+    }
+
+    // ============================
+    // 5. TOGGLE DE BLOQUES (ACORDEÓN)
+    // ============================
+    function toggleBlock(headerElement) {
+      const block = headerElement.closest('.toggle-block');
+      if (!block) return;
+      block.classList.toggle('collapsed');
+      const icon = block.querySelector('.toggle-icon');
+      if (icon) icon.innerText = block.classList.contains('collapsed') ? '▶' : '▼';
+      playChime();
+    }
+
+    document.querySelectorAll('.toggle-block').forEach(b => b.classList.remove('collapsed'));
+
+    // ============================
+    // 6. THREE.JS – ESCENA 3D
+    // ============================
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x070b12);
+    scene.fog = new THREE.FogExp2(0x070b12, 0.018);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 7, 18);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.35;
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    // Luces
+    const ambientLight = new THREE.AmbientLight(0x1e293b, 1.8);
+    scene.add(ambientLight);
+    const keyLight = new THREE.PointLight(0x00e5ff, 4.2, 45, 1.3);
+    keyLight.position.set(5, 12, 8);
+    keyLight.castShadow = true;
+    scene.add(keyLight);
+    const rimLight = new THREE.PointLight(0xffb74d, 3.2, 35, 1.2);
+    rimLight.position.set(-7, 9, -7);
+    scene.add(rimLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.3);
+    dirLight.position.set(0, 18, 6);
+    scene.add(dirLight);
+
+    // Grupo pedestal
+    const pedestalGroup = new THREE.Group();
+    scene.add(pedestalGroup);
+    const baseMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(9, 10, 0.7, 64),
+      new THREE.MeshStandardMaterial({ color: 0x111827, metalness: 0.9, roughness: 0.2 })
+    );
+    baseMesh.position.y = -0.35;
+    pedestalGroup.add(baseMesh);
+    const innerRing = new THREE.Mesh(
+      new THREE.RingGeometry(6.5, 6.8, 64),
+      new THREE.MeshBasicMaterial({ color: 0x00e5ff, side: THREE.DoubleSide, transparent: true, opacity: 0.8 })
+    );
+    innerRing.rotation.x = -Math.PI / 2;
+    innerRing.position.y = 0.02;
+    pedestalGroup.add(innerRing);
+    const gridHelper = new THREE.GridHelper(36, 36, 0x00e5ff, 0x1e293b);
+    gridHelper.position.y = -0.4;
+    pedestalGroup.add(gridHelper);
+    const radarGeo = new THREE.RingGeometry(0.5, 8.2, 64, 1, 0, Math.PI / 3);
+    const radarMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, side: THREE.DoubleSide, transparent: true, opacity: 0.18 });
+    const radarSweep = new THREE.Mesh(radarGeo, radarMat);
+    radarSweep.rotation.x = -Math.PI / 2;
+    radarSweep.position.y = 0.03;
+    pedestalGroup.add(radarSweep);
+
+    // Módulo 1: Códice
+    const bookGroup = new THREE.Group();
+    bookGroup.name = 'book';
+    scene.add(bookGroup);
+    const altar = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.2, 2.7, 1.2, 32),
+      new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.92, roughness: 0.18 })
+    );
+    altar.position.y = 0.6;
+    bookGroup.add(altar);
+    const pageMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.65, metalness: 0.1 });
+    const leftPage = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.1, 2.2), pageMat);
+    leftPage.position.set(-0.8, 1.35, 0); leftPage.rotation.z = 0.15;
+    bookGroup.add(leftPage);
+    const rightPage = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.1, 2.2), pageMat);
+    rightPage.position.set(0.8, 1.35, 0); rightPage.rotation.z = -0.15;
+    bookGroup.add(rightPage);
+    const spine = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.12, 2.3, 16),
+      new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.95 })
+    );
+    spine.rotation.x = Math.PI / 2;
+    spine.position.set(0, 1.28, 0);
+    bookGroup.add(spine);
+    const glyphGeo = new THREE.BufferGeometry();
+    const glyphPos = new Float32Array(60 * 3);
+    for (let i = 0; i < 60; i++) {
+      glyphPos[i*3] = (Math.random() - 0.5) * 2.4;
+      glyphPos[i*3+1] = 1.4 + Math.random() * 2.5;
+      glyphPos[i*3+2] = (Math.random() - 0.5) * 2.4;
+    }
+    glyphGeo.setAttribute('position', new THREE.BufferAttribute(glyphPos, 3));
+    const bookGlyphs = new THREE.Points(glyphGeo, new THREE.PointsMaterial({
+      color: 0x00e5ff, size: 0.15, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending
+    }));
+    bookGroup.add(bookGlyphs);
+
+    // Módulo 2: Doble hélice ADN
+    const dnaGroup = new THREE.Group();
+    dnaGroup.name = 'dna';
+    dnaGroup.position.set(0, 2.6, 0);
+    scene.add(dnaGroup);
+    const rungCount = 32;
+    const sphereGeo = new THREE.SphereGeometry(0.11, 16, 16);
+    const matStylistic = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.8, roughness: 0.2 });
+    const matEmotional = new THREE.MeshStandardMaterial({ color: 0xf43f5e, emissive: 0xe11d48, emissiveIntensity: 0.8, roughness: 0.2 });
+    const matPhilosophic = new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xd97706, emissiveIntensity: 0.8, roughness: 0.2 });
+    const dnaSpheres = [];
+    for (let i = 0; i < rungCount; i++) {
+      const t = i / rungCount;
+      const angle = t * Math.PI * 5.0;
+      const y = t * 5.6;
+      const x1 = Math.cos(angle) * 1.15;
+      const z1 = Math.sin(angle) * 1.15;
+      const x2 = Math.cos(angle + Math.PI) * 1.15;
+      const z2 = Math.sin(angle + Math.PI) * 1.15;
+      let curMat = matStylistic;
+      if (i % 3 === 1) curMat = matEmotional;
+      if (i % 3 === 2) curMat = matPhilosophic;
+      const n1 = new THREE.Mesh(sphereGeo, curMat);
+      n1.position.set(x1, y, z1);
+      dnaGroup.add(n1);
+      const n2 = new THREE.Mesh(sphereGeo, curMat);
+      n2.position.set(x2, y, z2);
+      dnaGroup.add(n2);
+      dnaSpheres.push(n1, n2);
+      const rung = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.025, 0.025, 2.3, 8),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 })
+      );
+      rung.position.set(0, y, 0);
+      rung.rotation.z = Math.PI / 2;
+      rung.rotation.y = -angle;
+      dnaGroup.add(rung);
+    }
+
+    // Módulo 3: Árbol
+    const treeGroup = new THREE.Group();
+    treeGroup.name = 'tree';
+    treeGroup.position.set(4.6, 0, -2.8);
+    scene.add(treeGroup);
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4, metalness: 0.85 });
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.65, 3.6, 16), trunkMat);
+    trunk.position.y = 1.8;
+    treeGroup.add(trunk);
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x34d399, emissive: 0x059669, emissiveIntensity: 0.9, roughness: 0.15, metalness: 0.9 });
+    const fruitMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xf59e0b, emissiveIntensity: 1.0, metalness: 0.95 });
+    for (let i = 0; i < 26; i++) {
+      const th = (i / 26) * Math.PI * 2;
+      const r = 1.3 + Math.sin(i * 3) * 0.9;
+      const y = 3.3 + (i % 5) * 0.65;
+      const branch = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.08, r, 8), trunkMat);
+      branch.position.set((Math.cos(th) * r) / 2, y - 0.2, (Math.sin(th) * r) / 2);
+      branch.rotation.z = Math.cos(th) * 0.8;
+      branch.rotation.x = Math.sin(th) * 0.8;
+      treeGroup.add(branch);
+      const leaf = new THREE.Mesh(new THREE.DodecahedronGeometry(0.24, 0), i % 4 === 0 ? fruitMat : leafMat);
+      leaf.position.set(Math.cos(th) * r, y + 0.2, Math.sin(th) * r);
+      treeGroup.add(leaf);
+    }
+
+    // Módulo 4: Cerebro
+    const brainGroup = new THREE.Group();
+    brainGroup.name = 'brain';
+    brainGroup.position.set(-4.8, 3.6, -2.8);
+    scene.add(brainGroup);
+    const brainMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(1.25, 24, 24),
+      new THREE.MeshStandardMaterial({ color: 0x818cf8, emissive: 0x4f46e5, emissiveIntensity: 0.6, wireframe: true })
+    );
+    brainGroup.add(brainMesh);
+    const innerBrain = new THREE.Mesh(
+      new THREE.SphereGeometry(0.65, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.45 })
+    );
+    brainGroup.add(innerBrain);
+    const synMat = new THREE.MeshBasicMaterial({ color: 0xa5b4fc });
+    for (let i = 0; i < 22; i++) {
+      const u = Math.random(), v = Math.random();
+      const theta = u * 2.0 * Math.PI, phi = Math.acos(2.0 * v - 1.0);
+      const r = 1.35 + Math.random() * 0.35;
+      const syn = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), synMat);
+      syn.position.set(r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi));
+      brainGroup.add(syn);
+    }
+
+    // Módulo 5: Pluma
+    const quillGroup = new THREE.Group();
+    quillGroup.name = 'quill';
+    quillGroup.position.set(-3.5, 2.0, 3.5);
+    scene.add(quillGroup);
+    const armBase = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 0.4, 16), trunkMat);
+    quillGroup.add(armBase);
+    const arm1 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.7, 0.18), trunkMat);
+    arm1.position.set(0, 0.95, 0); arm1.rotation.z = -0.35;
+    quillGroup.add(arm1);
+    const arm2 = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.5, 0.14), trunkMat);
+    arm2.position.set(0.45, 2.1, 0); arm2.rotation.z = 0.5;
+    quillGroup.add(arm2);
+    const feather = new THREE.Mesh(
+      new THREE.ConeGeometry(0.14, 2.0, 16),
+      new THREE.MeshStandardMaterial({ color: 0x00e5ff, emissive: 0x0284c7, emissiveIntensity: 0.9, metalness: 0.95, roughness: 0.1 })
+    );
+    feather.position.set(1.0, 2.6, 0); feather.rotation.z = -0.75;
+    quillGroup.add(feather);
+
+    // Módulo 6: Blockchain
+    const blockchainGroup = new THREE.Group();
+    blockchainGroup.name = 'blockchain';
+    blockchainGroup.position.set(0, 7.2, 0);
+    scene.add(blockchainGroup);
+    const ring1 = new THREE.Mesh(new THREE.TorusGeometry(3.6, 0.04, 16, 64), new THREE.MeshBasicMaterial({ color: 0x00e5ff, wireframe: true }));
+    ring1.rotation.x = Math.PI / 2;
+    blockchainGroup.add(ring1);
+    const ring2 = new THREE.Mesh(new THREE.TorusGeometry(4.4, 0.03, 16, 64), new THREE.MeshBasicMaterial({ color: 0xf59e0b, wireframe: true }));
+    ring2.rotation.x = Math.PI / 2.2;
+    blockchainGroup.add(ring2);
+    const blockMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, emissive: 0x0369a1, emissiveIntensity: 0.8, metalness: 0.8 });
+    for (let i = 0; i < 8; i++) {
+      const ang = (i / 8) * Math.PI * 2;
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.32, 0.48), blockMat);
+      b.position.set(Math.cos(ang) * 3.6, 0, Math.sin(ang) * 3.6);
+      b.rotation.y = ang;
+      blockchainGroup.add(b);
+    }
+
+    // Partículas
+    const partGeo = new THREE.BufferGeometry();
+    const partPos = new Float32Array(650 * 3);
+    for (let i = 0; i < 650; i++) {
+      partPos[i*3] = (Math.random() - 0.5) * 35;
+      partPos[i*3+1] = Math.random() * 18;
+      partPos[i*3+2] = (Math.random() - 0.5) * 35;
+    }
+    partGeo.setAttribute('position', new THREE.BufferAttribute(partPos, 3));
+    const ambientParticles = new THREE.Points(partGeo, new THREE.PointsMaterial({
+      color: 0x00e5ff, size: 0.09, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending
+    }));
+    scene.add(ambientParticles);
+
+    // Controles de cámara (orbit)
+    let isDragging = false;
+    let prevMouse = { x: 0, y: 0 };
+    let sphericalCoords = { radius: 18, theta: 0.2, phi: 1.1 };
+    let targetLookAt = new THREE.Vector3(0, 3.2, 0);
+    let currentLookAt = new THREE.Vector3(0, 3.2, 0);
+    let targetCamPos = new THREE.Vector3(0, 7, 18);
+
+    window.addEventListener('mousedown', (e) => {
+      if (e.target.tagName === 'CANVAS') { isDragging = true; prevMouse = { x: e.clientX, y: e.clientY }; }
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - prevMouse.x;
+      const dy = e.clientY - prevMouse.y;
+      prevMouse = { x: e.clientX, y: e.clientY };
+      sphericalCoords.theta -= dx * 0.007;
+      sphericalCoords.phi = Math.max(0.2, Math.min(Math.PI / 2 - 0.05, sphericalCoords.phi - dy * 0.007));
+    });
+    window.addEventListener('mouseup', () => { isDragging = false; });
+    window.addEventListener('wheel', (e) => {
+      sphericalCoords.radius = Math.max(6, Math.min(32, sphericalCoords.radius + e.deltaY * 0.02));
+      updateZoomLabel();
+    }, { passive: true });
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1 && e.target.tagName === 'CANVAS') {
+        isDragging = true;
+        prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    });
+    window.addEventListener('touchmove', (e) => {
+      if (!isDragging || e.touches.length !== 1) return;
+      const dx = e.touches[0].clientX - prevMouse.x;
+      const dy = e.touches[0].clientY - prevMouse.y;
+      prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      sphericalCoords.theta -= dx * 0.007;
+      sphericalCoords.phi = Math.max(0.2, Math.min(Math.PI / 2 - 0.05, sphericalCoords.phi - dy * 0.007));
+    });
+    window.addEventListener('touchend', () => { isDragging = false; });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Raycast click en objetos 3D
+    renderer.domElement.addEventListener('click', (e) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const mouse = new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1
+      );
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects([bookGroup, dnaGroup, treeGroup, brainGroup, blockchainGroup, quillGroup], true);
+      if (hits.length > 0) {
+        let obj = hits[0].object;
+        while (obj && obj.parent && obj.parent !== scene) {
+          if (['book','dna','tree','brain','blockchain','quill'].includes(obj.name)) {
+            setCameraView(obj.name);
+            return;
+          }
+          obj = obj.parent;
+        }
+      }
+    });
+
+    // Animación
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const elapsed = clock.getElapsedTime();
+
+      dnaGroup.rotation.y += delta * 0.75;
+      blockchainGroup.rotation.y -= delta * 0.35;
+      blockchainGroup.rotation.z = Math.sin(elapsed * 0.5) * 0.08;
+      brainGroup.rotation.y += delta * 0.4;
+      brainGroup.position.y = 3.6 + Math.sin(elapsed * 1.5) * 0.15;
+      bookGlyphs.rotation.y += delta * 0.2;
+      quillGroup.rotation.y = Math.sin(elapsed * 1.2) * 0.2;
+      ambientParticles.rotation.y += delta * 0.03;
+      radarSweep.rotation.z -= delta * 1.8;
+
+      const { radius, theta, phi } = sphericalCoords;
+      targetCamPos.x = targetLookAt.x + radius * Math.sin(phi) * Math.sin(theta);
+      targetCamPos.y = targetLookAt.y + radius * Math.cos(phi);
+      targetCamPos.z = targetLookAt.z + radius * Math.sin(phi) * Math.cos(theta);
+      camera.position.lerp(targetCamPos, 0.06);
+      currentLookAt.lerp(targetLookAt, 0.06);
+      camera.lookAt(currentLookAt);
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // ============================
+    // 7. CANVAS 2D ADN
+    // ============================
+    const dnaCanvas = document.getElementById('dna-2d-canvas');
+    let dna2dCtx = dnaCanvas.getContext('2d');
+    function resizeDna2d() {
+      dnaCanvas.width = dnaCanvas.offsetWidth * 2;
+      dnaCanvas.height = dnaCanvas.offsetHeight * 2;
+    }
+    resizeDna2d();
+    window.addEventListener('resize', resizeDna2d);
+
+    function draw2dDNA() {
+      if (!dna2dCtx) return;
+      const w = dnaCanvas.offsetWidth;
+      const h = dnaCanvas.offsetHeight;
+      dna2dCtx.setTransform(2, 0, 0, 2, 0, 0);
+      dna2dCtx.clearRect(0, 0, w, h);
+      const t = Date.now() * 0.002;
+      const rungs = 24;
+      const cx = w / 2;
+      const amp = 14;
+      const step = h / (rungs + 2);
+      for (let i = 0; i < rungs; i++) {
+        const y = step + i * step;
+        const a = (i / rungs) * Math.PI * 4 + t;
+        const x1 = cx + Math.sin(a) * amp;
+        const x2 = cx + Math.sin(a + Math.PI) * amp;
+        const col = i % 3 === 0 ? 'rgba(0, 229, 255, 0.7)' : i % 3 === 1 ? 'rgba(244, 63, 94, 0.7)' : 'rgba(245, 158, 11, 0.7)';
+        dna2dCtx.strokeStyle = col;
+        dna2dCtx.lineWidth = 1.5;
+        dna2dCtx.beginPath();
+        dna2dCtx.moveTo(x1, y);
+        dna2dCtx.lineTo(x2, y);
+        dna2dCtx.stroke();
+        dna2dCtx.fillStyle = col;
+        dna2dCtx.beginPath();
+        dna2dCtx.arc((x1 + x2) / 2, y, 2, 0, Math.PI * 2);
+        dna2dCtx.fill();
+      }
+      dna2dCtx.strokeStyle = '#00e5ff';
+      dna2dCtx.lineWidth = 2;
+      dna2dCtx.beginPath();
+      for (let i = 0; i <= rungs; i++) {
+        const y = step + i * step;
+        const a = (i / rungs) * Math.PI * 4 + t;
+        const x = cx + Math.sin(a) * amp;
+        i === 0 ? dna2dCtx.moveTo(x, y) : dna2dCtx.lineTo(x, y);
+      }
+      dna2dCtx.stroke();
+      dna2dCtx.strokeStyle = '#f43f5e';
+      dna2dCtx.beginPath();
+      for (let i = 0; i <= rungs; i++) {
+        const y = step + i * step;
+        const a = (i / rungs) * Math.PI * 4 + t + Math.PI;
+        const x = cx + Math.sin(a) * amp;
+        i === 0 ? dna2dCtx.moveTo(x, y) : dna2dCtx.lineTo(x, y);
+      }
+      dna2dCtx.stroke();
+      dna2dCtx.setTransform(1, 0, 0, 1, 0, 0);
+      requestAnimationFrame(draw2dDNA);
+    }
+    draw2dDNA();
+
+    // ============================
+    // 8. FUNCIONES UI
+    // ============================
+    function toggleLeftPanel() {
+      leftPanelOpen = !leftPanelOpen;
+      const p = document.getElementById('left-panel');
+      const b = document.getElementById('toggle-left-btn');
+      if (leftPanelOpen) {
+        p.style.transform = 'translateX(0)'; p.style.opacity = '1'; p.style.pointerEvents = 'auto';
+        b.style.left = '396px'; b.innerText = '◀';
+      } else {
+        p.style.transform = 'translateX(-420px)'; p.style.opacity = '0'; p.style.pointerEvents = 'none';
+        b.style.left = '12px'; b.innerText = '▶';
+      }
+    }
+
+    function toggleRightPanel() {
+      rightPanelOpen = !rightPanelOpen;
+      const p = document.getElementById('right-panel');
+      const b = document.getElementById('toggle-right-btn');
+      if (rightPanelOpen) {
+        p.style.transform = 'translateX(0)'; p.style.opacity = '1'; p.style.pointerEvents = 'auto';
+        b.style.right = '406px'; b.innerText = '▶';
+      } else {
+        p.style.transform = 'translateX(420px)'; p.style.opacity = '0'; p.style.pointerEvents = 'none';
+        b.style.right = '12px'; b.innerText = '◀';
+      }
+    }
+
+    function changeAuthor(authorId) {
+      currentAuthorId = authorId;
+      const author = authorProfiles.find(a => a.id === authorId) || authorProfiles[0];
+      document.getElementById('author-words').innerText = author.corpusWords.toLocaleString() + ' palabras';
+      renderGenomeTab();
+      loadSamplePrompt();
+      playChime();
+      const colors = { corvalan: 0x00e5ff, poe: 0xef4444, shakespeare: 0xf59e0b, austen: 0x10b981 };
+      keyLight.color.setHex(colors[authorId] || 0x00e5ff);
+    }
+
+    function setGenomeTab(tabKey) {
+      currentGenomeTab = tabKey;
+      document.querySelectorAll('[id^="tab-btn-"]').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('tab-btn-' + tabKey);
+      if (activeBtn) activeBtn.classList.add('active');
+      renderGenomeTab();
+      playChime();
+    }
+
+    // Función para renderizar el genoma con palabras clickeables
+    function renderGenomeTab() {
+      const author = authorProfiles.find(a => a.id === currentAuthorId) || authorProfiles[0];
+      const container = document.getElementById('genome-content');
+      let html = '';
+      if (currentGenomeTab === 'stylistic') {
+        const pos = author.stylisticGenome.posDistribution;
+        let posRows = Object.entries(pos).map(([k, v]) => `
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+            <span style="font-family:ui-monospace, monospace; color:#cbd5e1; text-transform:uppercase; width:45px;">${k}:</span>
+            <div style="flex:1; margin:0 8px; background:#1e293b; height:6px; border-radius:4px; overflow:hidden;">
+              <div style="background:#00e5ff; height:100%; width:${Number(v)*300}%;"></div>
+            </div>
+            <span style="font-family:ui-monospace, monospace; color:#00e5ff; width:35px; text-align:right;">${(Number(v)*100).toFixed(0)}%</span>
+          </div>
+        `).join('');
+        // Palabras clickeables
+        const words = author.stylisticGenome.characteristicLexicon.map(w => `
+          <span class="lexicon-word" data-word="${w}" style="background:rgba(0,229,255,0.12); border:1px solid rgba(0,229,255,0.3); border-radius:4px; padding:2px 6px; margin:2px; display:inline-block; color:#38bdf8;">${w}</span>
+        `).join('');
+        html = `
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;">
+            <div style="background:#090d16; padding:8px; border-radius:8px; border:1px solid #1e293b;">
+              <span style="font-size:10px; color:#94a3b8; font-family:ui-monospace, monospace; display:block;">LONG. MEDIA ORACIÓN</span>
+              <span style="font-size:14px; font-weight:bold; color:#00e5ff; font-family:ui-monospace, monospace;">${author.stylisticGenome.avgSentenceLength} palabras</span>
+            </div>
+            <div style="background:#090d16; padding:8px; border-radius:8px; border:1px solid #1e293b;">
+              <span style="font-size:10px; color:#94a3b8; font-family:ui-monospace, monospace; display:block;">VOZ PASIVA</span>
+              <span style="font-size:14px; font-weight:bold; color:#00e5ff; font-family:ui-monospace, monospace;">${(author.stylisticGenome.passiveVoiceRatio*100).toFixed(0)}%</span>
+            </div>
+          </div>
+          <div style="background:#090d16; padding:8px; border-radius:8px; border:1px solid #1e293b; margin-bottom:8px;">
+            <span style="font-size:10px; color:#94a3b8; font-family:ui-monospace, monospace; font-weight:bold; display:block; margin-bottom:6px;">DISTRIBUCIÓN POS-TAGGING</span>
+            ${posRows}
+          </div>
+          <div style="background:#090d16; padding:8px; border-radius:8px; border:1px solid #1e293b;">
+            <span style="font-size:10px; color:#94a3b8; font-family:ui-monospace, monospace; font-weight:bold; display:block; margin-bottom:4px;">LÉXICO CARACTERÍSTICO</span>
+            ${words}
+          </div>
+        `;
+      } else if (currentGenomeTab === 'emotional') {
+        const emo = author.emotionalGenome.plutchikValues;
+        let emoCards = Object.entries(emo).map(([k, v]) => `
+          <div style="background:#090d16; padding:6px 8px; border-radius:6px; border:1px solid #1e293b;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+              <span style="text-transform:capitalize; color:#cbd5e1;">${k}</span>
+              <span style="font-family:ui-monospace, monospace; color:#f43f5e; font-weight:bold;">${(Number(v)*100).toFixed(0)}%</span>
+            </div>
+            <div style="background:#1e293b; height:4px; border-radius:3px; overflow:hidden;">
+              <div style="background:#f43f5e; height:100%; width:${Number(v)*100}%;"></div>
+            </div>
+          </div>
+        `).join('');
+        html = `
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;">
+            ${emoCards}
+          </div>
+          <div style="background:#090d16; padding:8px; border-radius:8px; border:1px solid #1e293b;">
+            <span style="font-size:10px; color:#94a3b8; font-family:ui-monospace, monospace; font-weight:bold; display:block; margin-bottom:6px;">ARQUETIPO NARRATIVO</span>
+            <span style="font-size:13px; font-weight:bold; color:#f43f5e; font-family:ui-monospace, monospace;">${author.emotionalGenome.narrativeTone}</span>
+          </div>
+        `;
+      } else if (currentGenomeTab === 'philosophical') {
+        const themes = author.philosophicalGenome.recurringThemes.map(t => `
+          <span style="background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.3); border-radius:4px; padding:2px 6px; margin:2px; display:inline-block; color:#f59e0b;">${t}</span>
+        `).join('');
+        const edges = author.philosophicalGenome.semanticGraphEdges.map(e => `
+          <div style="background:#090d16; padding:4px 8px; border-radius:6px; border:1px solid #1e293b; margin-bottom:3px; display:flex; align-items:center; gap:6px; font-size:11px;">
+            <strong style="color:#00e5ff;">[${e.source}]</strong>
+            <span style="color:#f59e0b;">→ (${e.relationship}) →</span>
+            <strong style="color:#f43f5e;">[${e.target}]</strong>
+          </div>
+        `).join('');
+        html = `
+          <div style="background:#090d16; padding:8px; border-radius:8px; border:1px solid #1e293b; margin-bottom:8px;">
+            <span style="font-size:10px; color:#94a3b8; font-family:ui-monospace, monospace; display:block;">WELTANSCHAUUNG (COSMOVISIÓN)</span>
+            <span style="font-size:13px; font-weight:bold; color:#f59e0b; font-family:ui-monospace, monospace;">${author.philosophicalGenome.weltanschauung}</span>
+          </div>
+          <div style="background:#090d16; padding:8px; border-radius:8px; border:1px solid #1e293b; margin-bottom:8px;">
+            <span style="font-size:10px; color:#94a3b8; font-family:ui-monospace, monospace; font-weight:bold; display:block; margin-bottom:4px;">TEMAS ARQUETÍPICOS</span>
+            ${themes}
+          </div>
+          <div style="background:#090d16; padding:8px; border-radius:8px; border:1px solid #1e293b;">
+            <span style="font-size:10px; color:#94a3b8; font-family:ui-monospace, monospace; font-weight:bold; display:block; margin-bottom:4px;">GRAFO ONTOLÓGICO</span>
+            ${edges}
+          </div>
+        `;
+      } else {
+        const snu = author.blockchainSnu;
+        html = `
+          <div style="background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); padding:8px; border-radius:8px; margin-bottom:8px;">
+            <strong style="color:#10b981; font-size:13px; display:block;">FIRMA NARRATIVA ÚNICA (SNU)</strong>
+            <span style="font-size:11px; color:#cbd5e1;">Vector inmutable validado y certificado en blockchain.</span>
+          </div>
+          <div style="background:#090d16; padding:8px; border-radius:8px; border:1px solid #1e293b; margin-bottom:6px; font-family:ui-monospace, monospace; word-break:break-all;">
+            <span style="color:#94a3b8; font-size:10px; display:block;">TOKEN ID</span>
+            <strong style="color:#00e5ff; font-size:12px;">${snu.tokenId}</strong>
+          </div>
+          <div style="background:#090d16; padding:8px; border-radius:8px; border:1px solid #1e293b; margin-bottom:6px; font-family:ui-monospace, monospace; word-break:break-all;">
+            <span style="color:#94a3b8; font-size:10px; display:block;">GENOME HASH</span>
+            <strong style="color:#f59e0b; font-size:12px;">${snu.contractAddress}</strong>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+
+      // Añadir event listeners a las palabras del léxico
+      container.querySelectorAll('.lexicon-word').forEach(el => {
+        el.addEventListener('click', function(e) {
+          const word = this.dataset.word;
+          if (word) simulateLexiconWord(word);
+        });
+      });
+    }
+
+    // ============================
+    // SIMULACIÓN DE LÉXICO (palabras clickeables)
+    // ============================
+    function simulateLexiconWord(word) {
+      // Detener efectos anteriores
+      if (lexiconInterval) {
+        clearInterval(lexiconInterval);
+        lexiconInterval = null;
+        // Restaurar estado normal de la escena (opcional)
+      }
+      const langData = i18n[currentLang] || i18n.es;
+      const prefix = langData.lexiconSimulationPrefix || '🧬 Simulando ADN: ';
+      showNotification(prefix + word.toUpperCase(), 3000);
+      playChime();
+
+      // Efectos visuales según la palabra
+      const effects = {
+        'tiempo': () => {
+          // Ralentizar y acelerar rotación de la hélice
+          let speed = 0.75;
+          lexiconInterval = setInterval(() => {
+            dnaGroup.rotation.y += speed * 0.02;
+            speed = 0.5 + Math.sin(Date.now() * 0.001) * 0.5;
+          }, 50);
+        },
+        'polvo': () => {
+          // Partículas de polvo (cambiar tamaño y color)
+          ambientParticles.material.size = 0.2;
+          ambientParticles.material.color.setHex(0xfbbf24);
+          setTimeout(() => {
+            ambientParticles.material.size = 0.09;
+            ambientParticles.material.color.setHex(0x00e5ff);
+          }, 2000);
+        },
+        'silencio': () => {
+          // Silencio: atenuar luces y reducir movimiento
+          keyLight.intensity = 0.5;
+          rimLight.intensity = 0.5;
+          setTimeout(() => {
+            keyLight.intensity = 4.2;
+            rimLight.intensity = 3.2;
+          }, 2000);
+        },
+        'memoria': () => {
+          // Destello en el libro
+          let count = 0;
+          lexiconInterval = setInterval(() => {
+            bookGroup.children.forEach(child => {
+              if (child.isMesh && child.material && child.material.emissiveIntensity !== undefined) {
+                child.material.emissiveIntensity = 0.5 + Math.sin(count * 0.3) * 0.5;
+              }
+            });
+            count++;
+            if (count > 20) clearInterval(lexiconInterval);
+          }, 100);
+        },
+        'reloj': () => {
+          // Hacer tic-tac con el radar
+          radarSweep.rotation.z += 0.5;
+          setTimeout(() => { radarSweep.rotation.z = 0; }, 2000);
+        },
+        'arena': () => {
+          // Efecto de flujo en partículas
+          ambientParticles.rotation.y += 2;
+          setTimeout(() => { ambientParticles.rotation.y = 0; }, 2000);
+        },
+        'grieta': () => {
+          // Sacudir el árbol
+          treeGroup.position.x += 0.2;
+          setTimeout(() => { treeGroup.position.x = 4.6; }, 500);
+        },
+        'ayer': () => {
+          // Cambiar color de la luz a sepia
+          keyLight.color.setHex(0xffb74d);
+          setTimeout(() => { keyLight.color.setHex(0x00e5ff); }, 2000);
+        },
+        'pasillo': () => {
+          // Mover la cámara ligeramente
+          sphericalCoords.theta += 0.5;
+          setTimeout(() => { sphericalCoords.theta -= 0.5; }, 1500);
+        },
+        'sombra': () => {
+          // Oscurecer escena temporalmente
+          ambientLight.intensity = 0.3;
+          setTimeout(() => { ambientLight.intensity = 1.8; }, 2000);
+        }
+      };
+
+      // Ejecutar efecto si existe
+      if (effects[word]) {
+        effects[word]();
+      } else {
+        // Efecto genérico: destello en la hélice
+        dnaGroup.children.forEach(child => {
+          if (child.isMesh && child.material && child.material.color) {
+            const orig = child.material.color.getHex();
+            child.material.color.setHex(0xffffff);
+            setTimeout(() => { child.material.color.setHex(orig); }, 500);
+          }
+        });
+      }
+    }
+
+    // ============================
+    // INGESTA DE CORPUS (simulaciones diferenciadas)
+    // ============================
+    function loadSampleCorpus(authorId) {
+      // Cambiar autor y cargar texto
+      changeAuthor(authorId);
+      document.getElementById('author-select').value = authorId;
+      document.getElementById('corpus-input').value = 'El reloj de arena volvía a invertir su curso silencioso en el taller de Corvalán...';
+
+      // Simulación diferenciada según autor
+      const langData = i18n[currentLang] || i18n.es;
+      if (authorId === 'corvalan') {
+        showNotification('📖 Ingesta de Corvalán: polvo, relojes y memoria circular.', 3000);
+        // Efecto: polvo y arena
+        ambientParticles.material.size = 0.2;
+        ambientParticles.material.color.setHex(0xfbbf24);
+        keyLight.color.setHex(0xf59e0b);
+        setTimeout(() => {
+          ambientParticles.material.size = 0.09;
+          ambientParticles.material.color.setHex(0x00e5ff);
+          keyLight.color.setHex(0x00e5ff);
+        }, 3000);
+      } else if (authorId === 'poe') {
+        showNotification('🖤 Ingesta de Poe: cuervos, catacumbas y latidos.', 3000);
+        // Efecto: oscuridad y latido
+        keyLight.color.setHex(0xef4444);
+        rimLight.color.setHex(0x7c3aed);
+        let count = 0;
+        lexiconInterval = setInterval(() => {
+          const pulse = 0.5 + Math.sin(count * 0.2) * 0.5;
+          keyLight.intensity = 2 + pulse * 4;
+          count++;
+          if (count > 30) {
+            clearInterval(lexiconInterval);
+            keyLight.intensity = 4.2;
+            keyLight.color.setHex(0x00e5ff);
+            rimLight.color.setHex(0xffb74d);
+          }
+        }, 200);
+      } else {
+        // Otros autores efecto genérico
+        showNotification('📚 Ingesta de ' + authorId, 2000);
+        keyLight.color.setHex(0x10b981);
+        setTimeout(() => { keyLight.color.setHex(0x00e5ff); }, 2000);
+      }
+      playChime();
+    }
+
+    // ============================
+    // OTRAS FUNCIONES (modos, cámara, etc.)
+    // ============================
+    function loadSamplePrompt() {
+      const prompts = {
+        corvalan: 'El viejo relojero contempló la grieta en el péndulo de arena, sabiendo que el tiempo no perdona a quienes buscan revivir el pasado...',
+        poe: 'Durante todo aquel sombrío día de otoño, el latido sordo en las catacumbas parecía advertir la inminente perdición...',
+        shakespeare: '¿Acaso este cetro es más que una sombra de la corona, forjada en la vanidad de los reyes que marchan hacia el polvo...?',
+        austen: 'Es una verdad universalmente admitida que el orgullo mal disimulado suele ser el peor consejero en los salones de la sociedad...'
+      };
+      document.getElementById('prompt-input').value = prompts[currentAuthorId] || prompts.corvalan;
+      showNotification('📝 Prompt canónico cargado');
+    }
+
+    function triggerAnalyzeCorpus() {
+      playChime();
+      showNotification('🔬 Analizando corpus y calculando tensores POS...');
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress >= 100) {
+          clearInterval(interval);
+          showNotification('✅ ADN Narrativo extraído y vectorizado con éxito.');
+          dnaGroup.children.forEach(child => {
+            if (child.isMesh && child.material && child.material.color) {
+              child.material.color.setHex(0x00e5ff);
+            }
+          });
+          setTimeout(() => {
+            dnaGroup.children.forEach(child => {
+              if (child.isMesh && child.material && child.material.color) {
+                child.material.color.setHex(child.material.userData?.origColor || 0x38bdf8);
+              }
+            });
+          }, 1200);
+        }
+      }, 200);
+    }
+
+    function mintNft() {
+      const btn = document.getElementById('mint-btn');
+      showNotification('🔗 Acuñando SNU ERC-721 en blockchain...');
+      btn.innerHTML = '⏳ Acuñando...';
+      let blink = 0;
+      const interval = setInterval(() => {
+        blockchainGroup.children.forEach(child => {
+          if (child.isMesh && child.material) {
+            if (child.material.emissive) {
+              child.material.emissiveIntensity = 0.5 + Math.sin(blink * 0.5) * 0.5;
+            }
+          }
+        });
+        blink++;
+        if (blink > 20) {
+          clearInterval(interval);
+          blockchainGroup.children.forEach(child => {
+            if (child.isMesh && child.material && child.material.emissiveIntensity !== undefined) {
+              child.material.emissiveIntensity = 0.8;
+            }
+          });
+          btn.innerHTML = '✅ Acuñado';
+          showNotification('✅ Registro criptográfico confirmado en blockchain.');
+          playChime();
+        }
+      }, 100);
+    }
+
+    function triggerVoiceClone() {
+      playTone(440, 880, 0.5);
+      showNotification('🎤 Clonando registro tímbrico y prosodia...');
+      const feather = quillGroup.children.find(c => c.type === 'Mesh' && c.geometry.type === 'ConeGeometry');
+      if (feather) {
+        let pulse = 0;
+        const interval = setInterval(() => {
+          const s = 1 + Math.sin(pulse * 0.3) * 0.15;
+          feather.scale.set(s, s, s);
+          pulse++;
+          if (pulse > 30) {
+            clearInterval(interval);
+            feather.scale.set(1, 1, 1);
+            showNotification('✅ Modelo de voz fonética generado con éxito.');
+            playChime();
+          }
+        }, 50);
+      }
+    }
+
+    function setMode(modeKey) {
+      currentMode = modeKey;
+      if (modeInterval) {
+        clearInterval(modeInterval);
+        modeInterval = null;
+      }
+      if (modeKey !== 'maintenance') {
+        if (isXray) {
+          isXray = false;
+          document.getElementById('xray-btn').classList.remove('active');
+          scene.traverse(c => { if (c.isMesh && c.material) c.material.wireframe = false; });
+        }
+        if (explodeFactor > 0) {
+          setExplode(0);
+          document.querySelector('input[oninput*="setExplode"]').value = 0;
+        }
+      }
+      document.querySelectorAll('[id^="mode-"]').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('mode-' + modeKey);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      playChime();
+
+      let colorHex = 0x00e5ff;
+      if (modeKey === 'simulation') colorHex = 0xf59e0b;
+      else if (modeKey === 'operation') colorHex = 0x10b981;
+      else if (modeKey === 'maintenance') colorHex = 0xa855f7;
+      else if (modeKey === 'emergency') colorHex = 0xef4444;
+      else if (modeKey === 'energetic') colorHex = 0xfacc15;
+      else if (modeKey === 'hybrid') colorHex = 0xec4899;
+      else if (modeKey === 'idle') colorHex = 0x64748b;
+      else if (modeKey === 'analysis') colorHex = 0x00e5ff;
+      else if (modeKey === 'diagnostic') colorHex = 0x8b5cf6;
+      else if (modeKey === 'ai_neural') colorHex = 0x06b6d4;
+
+      keyLight.color.setHex(colorHex);
+      rimLight.color.setHex(modeKey === 'emergency' ? 0xff0000 : 0xffb74d);
+
+      const output = document.getElementById('generation-output-box');
+      let msg = '';
+
+      switch (modeKey) {
+        case 'idle':
+          msg = '⏸️ Sistema en espera.';
+          dnaGroup.rotation.y += 0.001;
+          ambientParticles.rotation.y += 0.001;
+          break;
+        case 'analysis':
+          msg = '📥 Ingesta activa...';
+          modeInterval = setInterval(() => {
+            const glow = Math.sin(Date.now() * 0.005) * 0.5 + 0.5;
+            bookGroup.children.forEach(child => {
+              if (child.isMesh && child.material && child.material.emissiveIntensity !== undefined) {
+                child.material.emissiveIntensity = 0.5 + glow * 0.5;
+              }
+            });
+          }, 100);
+          break;
+        case 'diagnostic':
+          msg = '🔍 Diagnóstico...';
+          scene.traverse(c => { if (c.isMesh && c.material) c.material.wireframe = true; });
+          setTimeout(() => {
+            scene.traverse(c => { if (c.isMesh && c.material) c.material.wireframe = false; });
+          }, 3000);
+          break;
+        case 'simulation':
+          msg = '🎭 Simulación generativa...';
+          const simTexts = ['El péndulo del tiempo...', 'Bajo la luz de la luna...', 'La IA comenzó a escribir...'];
+          let simIdx = 0;
+          modeInterval = setInterval(() => {
+            output.innerText = simTexts[simIdx % simTexts.length];
+            simIdx++;
+          }, 1500);
+          break;
+        case 'operation':
+          msg = '⚙️ Operación activa...';
+          modeInterval = setInterval(() => {
+            const t = Date.now() * 0.001;
+            bookGroup.rotation.y = Math.sin(t * 0.2) * 0.1;
+            dnaGroup.rotation.y += 0.02;
+            treeGroup.rotation.y = Math.sin(t * 0.3) * 0.2;
+            brainGroup.rotation.x = Math.sin(t * 0.25) * 0.15;
+            blockchainGroup.rotation.y -= 0.01;
+            quillGroup.rotation.z = Math.sin(t * 0.4) * 0.3;
+          }, 100);
+          break;
+        case 'maintenance':
+          msg = '🔧 Mantenimiento...';
+          isXray = true;
+          document.getElementById('xray-btn').classList.add('active');
+          setExplode(0.4);
+          scene.traverse(c => { if (c.isMesh && c.material) c.material.wireframe = true; });
+          break;
+        case 'emergency':
+          msg = '🚨 EMERGENCIA...';
+          modeInterval = setInterval(() => {
+            const blink = Math.floor(Date.now() / 300) % 2;
+            keyLight.intensity = blink ? 6 : 1;
+            rimLight.intensity = blink ? 5 : 0.5;
+          }, 300);
+          break;
+        case 'energetic':
+          msg = '⚡ Flujo energético...';
+          modeInterval = setInterval(() => {
+            dnaGroup.rotation.y += 0.1;
+            blockchainGroup.rotation.y -= 0.08;
+            brainGroup.rotation.x += 0.05;
+          }, 50);
+          keyLight.intensity = 8;
+          break;
+        case 'ai_neural':
+          msg = '🧠 Red Neuronal...';
+          openNodeGraphModal();
+          modeInterval = setInterval(() => {
+            const nodes = document.querySelectorAll('#ai-nodes-grid .btn-tactical');
+            nodes.forEach((n) => {
+              if (Math.random() > 0.7) {
+                n.style.borderColor = '#00e5ff';
+                n.style.boxShadow = '0 0 12px #00e5ff';
+                setTimeout(() => {
+                  n.style.borderColor = '';
+                  n.style.boxShadow = '';
+                }, 500);
+              }
+            });
+          }, 800);
+          break;
+        case 'hybrid':
+          msg = '🌀 Modo Híbrido...';
+          modeInterval = setInterval(() => {
+            const hue = (Date.now() * 0.0005) % 1;
+            keyLight.color.setHSL(hue, 1, 0.5);
+            rimLight.color.setHSL((hue + 0.3) % 1, 1, 0.5);
+            dnaGroup.rotation.y += 0.03;
+            bookGroup.rotation.y = Math.sin(Date.now() * 0.001) * 0.2;
+            treeGroup.rotation.x = Math.sin(Date.now() * 0.0015) * 0.2;
+          }, 100);
+          break;
+        default:
+          msg = 'Modo activo.';
+      }
+      showNotification(msg, 3000);
+      if (modeInterval && !['analysis','simulation','operation','emergency','energetic','ai_neural','hybrid'].includes(modeKey)) {
+        clearInterval(modeInterval);
+        modeInterval = null;
+      }
+    }
+
+    function setExplode(val) {
+      explodeFactor = parseFloat(val);
+      bookGroup.position.y = -explodeFactor * 1.5;
+      dnaGroup.position.y = 2.6 + explodeFactor * 2.5;
+      treeGroup.position.set(4.6 + explodeFactor * 4.5, 0, -2.8 - explodeFactor * 3.5);
+      brainGroup.position.set(-4.8 - explodeFactor * 4.5, 3.6, -2.8 - explodeFactor * 3.5);
+      blockchainGroup.position.y = 7.2 + explodeFactor * 5.0;
+      quillGroup.position.set(-3.5 - explodeFactor * 3.5, 2.0, 3.5 + explodeFactor * 3.5);
+    }
+
+    function setCameraView(viewKey) {
+      playChime();
+      switch (viewKey) {
+        case 'book': targetLookAt.set(0, 1.4, 0); sphericalCoords = { radius: 6.5, theta: 0.1, phi: 1.1 }; break;
+        case 'dna': targetLookAt.set(0, 4.5, 0); sphericalCoords = { radius: 8, theta: 0.4, phi: 1.3 }; break;
+        case 'tree': targetLookAt.set(4.6, 2.5, -2.8); sphericalCoords = { radius: 9, theta: 1.8, phi: 1.2 }; break;
+        case 'brain': targetLookAt.set(-4.8, 3.6, -2.8); sphericalCoords = { radius: 8, theta: -1.7, phi: 1.25 }; break;
+        case 'blockchain': targetLookAt.set(0, 7.2, 0); sphericalCoords = { radius: 10, theta: 0.3, phi: 0.7 }; break;
+        case 'quill': targetLookAt.set(-3.5, 2.0, 3.5); sphericalCoords = { radius: 7.5, theta: -0.6, phi: 1.2 }; break;
+        default: targetLookAt.set(0, 3.2, 0); sphericalCoords = { radius: 18, theta: 0.3, phi: 1.1 }; break;
+      }
+      updateZoomLabel();
+    }
+
+    function toggleXray() {
+      isXray = !isXray;
+      document.getElementById('xray-btn').classList.toggle('active', isXray);
+      scene.traverse(c => {
+        if (c.isMesh && c.material) {
+          if (Array.isArray(c.material)) c.material.forEach(m => m.wireframe = isXray);
+          else c.material.wireframe = isXray;
+        }
+      });
+      playChime();
+      showNotification(isXray ? '👁️ X-Ray ACTIVADO' : '👁️ X-Ray DESACTIVADO');
+    }
+
+    function updateSceneFromSliders() {
+      const complex = parseInt(document.getElementById('sld-dna-complex').value) / 100;
+      const melan = parseInt(document.getElementById('sld-dna-melan').value) / 100;
+      const onto = parseInt(document.getElementById('sld-dna-onto').value) / 100;
+      dnaGroup.rotation.y += (complex - 0.75) * 0.01;
+      dnaGroup.children.forEach(child => {
+        if (child.isMesh && child.material && child.material.color) {
+          const base = child.material.userData?.origColor || child.material.color.getHex();
+          if (base === 0x38bdf8) {
+            const r = 0.22 + melan * 0.5;
+            const g = 0.74 + onto * 0.2;
+            const b = 0.97 - melan * 0.5;
+            child.material.color.setRGB(Math.min(r,1), Math.min(g,1), Math.min(b,1));
+          }
+        }
+      });
+    }
+
+    function zoomCamera(delta) {
+      let newRadius = sphericalCoords.radius + delta * -1.2;
+      newRadius = Math.max(6, Math.min(32, newRadius));
+      sphericalCoords.radius = newRadius;
+      updateZoomLabel();
+      playChime();
+    }
+
+    function updateZoomLabel() {
+      const r = sphericalCoords.radius;
+      const pct = Math.round(((32 - r) / (32 - 6)) * 100);
+      document.getElementById('zoom-level').innerText = Math.max(0, Math.min(100, pct)) + '%';
+    }
+
+    function openNodeGraphModal() {
+      const grid = document.getElementById('ai-nodes-grid');
+      grid.innerHTML = '';
+      aiPipelineNodes.forEach(node => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-tactical';
+        btn.style.padding = '10px 8px';
+        btn.style.borderRadius = '8px';
+        btn.style.display = 'flex';
+        btn.style.flexDirection = 'column';
+        btn.style.alignItems = 'center';
+        btn.innerHTML = `<span style="font-size:22px; margin-bottom:4px;">${node.icon}</span><span style="font-size:11px;">${node.name}</span>`;
+        btn.onclick = () => {
+          document.getElementById('node-detail-title').innerText = node.name;
+          document.getElementById('node-detail-desc').innerText = node.desc;
+          playChime();
+        };
+        grid.appendChild(btn);
+      });
+      document.getElementById('ai-nodes-modal').style.display = 'flex';
+      playChime();
+    }
+    function closeNodeGraphModal() { document.getElementById('ai-nodes-modal').style.display = 'none'; }
+
+    function openArModal() {
+      document.getElementById('ar-modal').style.display = 'flex';
+      playChime();
+      navigator.mediaDevices?.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(stream => {
+          const video = document.getElementById('ar-video-feed');
+          video.srcObject = stream;
+          video.play();
+        }).catch(() => {});
+    }
+    function closeArModal() {
+      document.getElementById('ar-modal').style.display = 'none';
+      const video = document.getElementById('ar-video-feed');
+      if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+    }
+
+    // ============================
+    // 9. INICIALIZACIÓN
+    // ============================
+    renderGenomeTab();
+    loadSamplePrompt();
+    setLanguage('es');
+    setMode('analysis');
+    setCameraView('orbit');
+    updateZoomLabel();
+
+    setInterval(() => {
+      document.getElementById('fps-counter').innerText = 58 + Math.floor(Math.random() * 4);
+    }, 1200);
+  </script>
+</body>
+</html>
