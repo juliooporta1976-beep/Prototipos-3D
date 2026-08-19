@@ -1,779 +1,1644 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SNCIP - Sistema Nacional de Comercialización Inteligente Popular</title>
-<style>
-:root {
-  --bg: #0a0b1a; /* Fondo azul oscuro con toque púrpura */
-  --fg: #e8ecf1;
-  --muted: #7a82a0;
-  --accent: #00D4FF; /* Cian eléctrico */
-  --accent2: #FF6B35; /* Naranja vibrante */
-  --accent3: #A855F7; /* Púrpura neón */
-  --card: rgba(10, 14, 30, 0.6);
-  --border: rgba(0, 212, 255, 0.4);
-  --anthracite: #151a2b;
-  --danger: #FF3366;
-  --warning: #FFB800;
-  --success: #00FF88;
-  --synergy: #A855F7;
-  --shadow-glow: 0 0 30px rgba(0, 212, 255, 0.3);
-}
-*{margin:0;padding:0;box-sizing:border-box;}
-body{background:var(--bg);color:var(--fg);font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;overflow:hidden;width:100vw;height:100vh;cursor:default;user-select:none;}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SNCIP - Prototipo Maestro 3D</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #1a1f2a; color: #e8ecf1; }
+    #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+    .hud { position: absolute; z-index: 10; pointer-events: none; }
+    .interactive { pointer-events: auto; }
 
-/* CAPA DE HIPER-REALISMO MEJORADA */
-body::before {
-  content: ''; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-  background: radial-gradient(circle at center, transparent 30%, rgba(2,3,10,0.9) 100%);
-  pointer-events: none; z-index: 1;
-}
-body::after {
-  content: ''; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-  background: linear-gradient(rgba(18, 16, 26, 0) 50%, rgba(0, 0, 0, 0.15) 50%), linear-gradient(90deg, rgba(0, 212, 255, 0.04), rgba(168, 85, 247, 0.02), rgba(255, 107, 53, 0.04));
-  background-size: 100% 3px, 3px 100%;
-  pointer-events: none; z-index: 2; opacity: 0.5;
-}
+    :root {
+      --bg: #1a1f2a;
+      --fg: #e8ecf1;
+      --muted: #8a92a8;
+      --accent: #4FC3F7;
+      --accent2: #b0bec5;
+      --accent3: #78909c;
+      --card: rgba(26, 31, 42, 0.85);
+      --border: rgba(79, 195, 247, 0.3);
+      --success: #66bb6a;
+      --warning: #ffa726;
+      --danger: #ef5350;
+      --shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
 
-#glCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;}
-.hud{position:fixed;z-index:10;pointer-events:none;}
-.hud>*{pointer-events:auto;}
-.hud-top{top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:14px 24px;}
-.sys-title{display:flex;align-items:center;gap:14px;}
-.sys-title .logo-hex{width:48px;height:48px;background:linear-gradient(135deg,var(--accent),var(--accent3));clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;color:var(--bg); box-shadow: 0 0 30px var(--accent);}
-.sys-title h1{font-size:14px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--fg);text-shadow:0 0 20px rgba(0,212,255,0.6);max-width:400px;line-height:1.2;}
-.sys-title .subtitle{font-size:10px;color:var(--accent);letter-spacing:2.5px;text-transform:uppercase;margin-top:2px; opacity: 0.9; text-shadow: 0 0 10px var(--accent);}
-.top-right{display:flex;gap:10px;align-items:center; z-index: 20;}
-.mode-badge{padding:8px 18px;border-radius:6px;background:rgba(0,212,255,0.12);border:1px solid var(--accent);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent);transition:all 0.5s; box-shadow: 0 0 20px rgba(0,212,255,0.25); backdrop-filter: blur(6px);}
-.lang-btn{padding:6px 12px;border-radius:6px;background:var(--card);border:1px solid rgba(0,212,255,0.3);color:var(--muted);font-size:10px;cursor:pointer;transition:all 0.3s; backdrop-filter: blur(8px);}
-.lang-btn:hover,.lang-btn.active{color:var(--accent);border-color:var(--accent);background:rgba(0,212,255,0.15); box-shadow: 0 0 15px rgba(0,212,255,0.3);}
+    body::before {
+      content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(circle at 30% 40%, rgba(79,195,247,0.06), transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
 
-/* Panel de estados mejorado */
-.state-controls{position:fixed;top:12px;left:55%;transform:translateX(-50%);display:flex;flex-wrap:wrap;gap:8px;z-index:25;justify-content:center;max-width:65vw;background:rgba(10,14,30,0.75);padding:10px 20px;border-radius:12px;border:1px solid var(--border);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px); box-shadow: 0 8px 32px rgba(0,0,0,0.6), inset 0 0 30px rgba(0,212,255,0.05);}
-.state-btn{padding:6px 14px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid transparent;color:var(--muted);font-size:10px;font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:1.5px;transition:all 0.3s;white-space:nowrap; position: relative; overflow: hidden;}
-.state-btn:hover{color:var(--fg);border-color:var(--border); background:rgba(0,212,255,0.08); box-shadow: 0 0 15px rgba(0,212,255,0.1);}
-.state-btn.active{color:var(--bg);border-color:var(--accent);background:var(--accent); box-shadow: 0 0 25px var(--accent);}
-.state-btn[data-i18n="mode_synergy"].active{color:var(--bg);border-color:var(--accent3);background:var(--accent3); box-shadow: 0 0 30px var(--accent3);}
+    .top-ribbon {
+      top: 0; left: 0; width: 100%;
+      background: linear-gradient(90deg, #0d1a26, #1a2a3a, #1a0f1a);
+      border-bottom: 1px solid #2a3a4a;
+      padding: 6px 16px;
+      display: flex; justify-content: space-between; align-items: center; font-size: 11px;
+      z-index: 20;
+    }
+    .badge { padding: 3px 8px; border-radius: 4px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; }
+    .badge-nic { background: rgba(0,85,165,0.4); border: 1px solid var(--accent); color: #b3e5fc; }
+    .badge-fsln { background: rgba(211,47,47,0.3); border: 1px solid #e53935; color: #ffcdd2; }
 
-.hud-left{top:100px;left:20px;bottom:90px;width:250px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;overflow-x:hidden;}
-.hud-right{top:100px;right:20px;bottom:90px;width:270px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;overflow-x:hidden;}
+    .header-bar {
+      top: 34px; left: 0; width: 100%;
+      background: rgba(18, 24, 34, 0.92);
+      border-bottom: 1px solid #2a3644;
+      padding: 8px 16px;
+      display: flex; justify-content: space-between; align-items: center;
+      z-index: 20;
+    }
+    .header-bar .logo-3d {
+      width: 36px; height: 36px; border-radius: 8px;
+      background: linear-gradient(135deg, #1e3a5f, #0f1b2b);
+      border: 1px solid var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: bold; color: var(--accent);
+    }
+    .header-bar h1 { font-size: 18px; font-weight: bold; color: var(--accent); margin: 0; }
+    .header-bar .sub { font-size: 11px; color: #94a3b8; margin: 0; }
+    .header-bar .lang-btn {
+      background: transparent; border: 1px solid var(--border); color: var(--muted);
+      padding: 4px 10px; border-radius: 4px; font-size: 10px; cursor: pointer;
+      transition: 0.2s;
+    }
+    .header-bar .lang-btn.active { background: var(--accent); color: #0f172a; border-color: var(--accent); }
+    .header-bar .info-btn {
+      background: #1e3a5f; border: 1px solid var(--accent); color: var(--accent);
+      padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold;
+      cursor: pointer; transition: 0.2s;
+    }
+    .header-bar .info-btn:hover { background: #2a4a7a; }
 
-/* Paneles con efecto cristal mejorado y borde neón */
-.panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);transition:all 0.5s; flex-shrink:0; box-shadow: 0 8px 40px rgba(0,0,0,0.4), inset 0 0 40px rgba(0,212,255,0.03);}
-.panel:hover{border-color:var(--accent); box-shadow: 0 8px 40px rgba(0,212,255,0.15), inset 0 0 60px rgba(0,212,255,0.05); transform: translateY(-2px);}
-.panel-title{font-size:10px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(0,212,255,0.25); text-shadow: 0 0 15px var(--accent);}
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow);
+    }
+    .panel-title {
+      font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 10px; padding-bottom: 6px;
+      border-bottom: 1px solid rgba(79,195,247,0.2);
+    }
 
-/* Subsistemas */
-.subsystem-item{display:flex;align-items:center;gap:12px;padding:8px 10px;margin:0 -6px;cursor:pointer;transition:all 0.3s;border-radius:8px; border: 1px solid transparent;}
-.subsystem-item:hover{background:rgba(0,212,255,0.08); border-color: rgba(0,212,255,0.3);}
-.subsystem-item.active{background:rgba(0,212,255,0.15); border-color: var(--accent); box-shadow: inset 0 0 20px rgba(0,212,255,0.15);}
-.sub-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0; box-shadow: 0 0 15px currentColor;}
-.sub-name{font-size:11px;font-weight:700;line-height:1.2; text-transform: uppercase; letter-spacing: 0.5px;}
-.sub-status{font-size:9px;color:var(--muted);margin-top:2px; letter-spacing: 1.2px;}
-.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;animation:pulse-dot 1.5s infinite; box-shadow: 0 0 12px currentColor;}
-@keyframes pulse-dot{0%,100%{opacity:1; transform:scale(1);}50%{opacity:0.3; transform:scale(0.7);}}
+    .left-panel { top: 90px; left: 16px; width: 220px; display: flex; flex-direction: column; gap: 10px; z-index: 15; }
+    .right-panel { top: 90px; right: 16px; width: 300px; display: flex; flex-direction: column; gap: 10px; z-index: 15; }
 
-/* Indicadores */
-.indicator-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.03);}
-.indicator-row:last-child{border-bottom:none;}
-.ind-label{font-size:10px;color:var(--muted); text-transform: uppercase; letter-spacing: 0.8px;}
-.ind-value{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums; text-shadow: 0 0 15px currentColor;}
-.ind-value.positive{color:var(--success);}
-.ind-value.warning{color:var(--warning);}
-.ind-value.danger{color:var(--danger);}
-.ind-value.accent{color:var(--accent);}
+    button {
+      background: #1e2733; color: #cbd5e1; border: 1px solid #334155;
+      padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+    }
+    button:hover { background: #283546; color: #fff; }
+    button.active { background: var(--accent); color: #0f172a; font-weight: bold; border-color: var(--accent); }
+    .grid-btn { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 
-/* Mini gráficos */
-.mini-chart{width:100%;height:55px;margin-top:10px;position:relative;overflow:hidden; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);}
-.mini-chart canvas{width:100%;height:100%;}
+    input[type=range] { width: 100%; accent-color: var(--accent); }
+    .stat-box { background: #1a2330; padding: 8px; border-radius: 6px; border: 1px solid #2a3a4a; }
+    .stat-val { font-size: 16px; font-weight: bold; font-family: monospace; color: #66bb6a; }
 
-/* Barra de fases mejorada */
-.hud-bottom{bottom:0;left:0;right:0;padding:18px 30px 22px;background:linear-gradient(transparent, rgba(2,3,10,0.98));}
-.phase-bar{display:flex;gap:8px;margin-bottom:12px;}
-.phase-segment{flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,0.05);position:relative;overflow:hidden;cursor:pointer;transition:all 0.3s; border: 1px solid rgba(255,255,255,0.08);}
-.phase-segment .fill{position:absolute;top:0;left:0;height:100%;background:var(--accent);border-radius:4px;width:0%;transition:width 0.8s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 15px var(--accent);}
-.phase-segment.completed .fill{width:100%;background:var(--success); box-shadow: 0 0 20px var(--success);}
-.phase-segment.active .fill{width:var(--progress,50%);animation:phase-pulse 2s infinite;}
-@keyframes phase-pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
-.phase-labels{display:flex;justify-content:space-between;}
-.phase-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:2px;cursor:pointer;transition:color 0.3s;flex:1;text-align:center;}
-.phase-label.active{color:var(--accent); text-shadow: 0 0 15px var(--accent);}
-.phase-label.completed{color:var(--success);}
+    .bottom-bar {
+      bottom: 16px; left: 50%; transform: translateX(-50%);
+      width: 92%; max-width: 900px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 18px;
+      box-shadow: var(--shadow);
+      z-index: 15;
+    }
+    .step-btn { flex: 1; text-align: center; padding: 6px 8px; font-size: 10px; }
+    .step-desc-area { background: #18222e; padding: 8px 12px; border-radius: 8px; margin-top: 6px; }
 
-/* Controles de cámara */
-.cam-controls{position:fixed;bottom:110px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:10;}
-.cam-btn{width:40px;height:40px;border-radius:10px;background:rgba(10,14,30,0.8);border:1px solid var(--border);color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.3s;backdrop-filter:blur(12px); box-shadow: 0 4px 20px rgba(0,0,0,0.4);}
-.cam-btn:hover,.cam-btn.active{color:var(--accent);border-color:var(--accent);background:rgba(0,212,255,0.15); box-shadow: 0 0 30px rgba(0,212,255,0.4);}
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+      z-index: 1000; display: none; align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #0f1a24; border: 1px solid #2a3a4a; border-radius: 16px;
+      width: 90%; max-width: 1000px; max-height: 85vh;
+      padding: 20px; overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.9);
+    }
+    .modal-close { float: right; background: #c0392b; border: none; color: #fff; width: 32px; height: 32px; border-radius: 50%; font-size: 18px; cursor: pointer; }
+    .modal-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; border-bottom: 1px solid #2a3a4a; padding-bottom: 10px; }
+    .modal-tabs button { background: transparent; border: none; color: #94a3b8; padding: 6px 14px; border-radius: 20px; font-size: 12px; cursor: pointer; }
+    .modal-tabs button.active-tab { background: #1e3a5f; color: var(--accent); }
+    .tab-content { display: none; color: #cbd5e1; font-size: 13px; line-height: 1.6; }
+    .tab-content.active { display: block; }
+    .tab-content h3 { color: var(--accent); margin: 12px 0 6px; }
+    .tab-content table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    .tab-content th, .tab-content td { border: 1px solid #2a3a4a; padding: 6px 10px; text-align: left; }
+    .tab-content th { background: #1a2a3a; color: var(--accent); }
+    .tab-content .highlight { color: #66bb6a; font-weight: bold; }
+    .tab-content .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .tab-content .card { background: #1a2330; padding: 12px; border-radius: 8px; border-left: 3px solid var(--accent); }
 
-/* Alertas mejoradas */
-.alert-container{position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:10px;align-items:center;pointer-events:none;}
-.alert{padding:10px 28px;border-radius:8px;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;animation:alert-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275),alert-out 0.5s ease 3.2s forwards;pointer-events:auto;backdrop-filter:blur(20px); box-shadow: 0 8px 40px rgba(0,0,0,0.5);}
-.alert.info{background:rgba(0,212,255,0.15);border:1px solid var(--accent);color:var(--accent); text-shadow: 0 0 15px var(--accent);}
-.alert.success{background:rgba(0,255,136,0.15);border:1px solid var(--success);color:var(--success); text-shadow: 0 0 15px var(--success);}
-.alert.warning{background:rgba(255,184,0,0.15);border:1px solid var(--warning);color:var(--warning); text-shadow: 0 0 15px var(--warning);}
-.alert.danger{background:rgba(255,51,102,0.15);border:1px solid var(--danger);color:var(--danger); text-shadow: 0 0 15px var(--danger);}
-@keyframes alert-in{from{opacity:0;transform:translateY(-30px) scale(0.9);}to{opacity:1;transform:translateY(0) scale(1);}}
-@keyframes alert-out{to{opacity:0;transform:translateY(-15px) scale(0.95);}}
+    /* Barra de estados - posición más arriba */
+    .state-bar {
+      position: fixed; top: 56px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-wrap: wrap; gap: 4px; z-index: 25;
+      background: rgba(18, 24, 34, 0.85); padding: 6px 16px; border-radius: 30px;
+      border: 1px solid var(--border); backdrop-filter: blur(12px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      justify-content: center;
+    }
+    .state-btn {
+      background: transparent; border: none; color: var(--muted);
+      padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 600;
+      cursor: pointer; transition: 0.2s; text-transform: uppercase; letter-spacing: 1px;
+    }
+    .state-btn:hover { color: var(--fg); background: rgba(79,195,247,0.1); }
+    .state-btn.active { background: var(--accent); color: #0f172a; box-shadow: 0 0 20px var(--accent); }
 
-/* Leyenda mejorada */
-.sim-legend-container{position:fixed;top:60%;left:50%;transform:translate(-50%,-50%);z-index:20;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:12px;}
-.sim-legend-box{background:rgba(10,14,30,0.9);border:1px solid var(--accent);border-radius:16px;padding:24px 48px;box-shadow:0 0 60px rgba(0,212,255,0.3), inset 0 0 40px rgba(0,212,255,0.05);backdrop-filter:blur(30px);opacity:0;transform:scale(0.9) translateY(25px);transition:all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); position: relative; overflow: hidden;}
-.sim-legend-box::after{content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent);animation:scanline 2.5s infinite linear;}
-@keyframes scanline { 0% { left: -100%; } 100% { left: 200%; } }
-.sim-legend-box.active{opacity:1;transform:scale(1) translateY(0);}
-.sim-legend-title{font-size:18px;font-weight:900;color:var(--accent);text-transform:uppercase;letter-spacing:5px;text-align:center;margin-bottom:10px; text-shadow: 0 0 25px var(--accent);}
-.sim-legend-desc{font-size:13px;color:var(--fg);text-align:center;max-width:380px;line-height:1.7; font-weight: 500; letter-spacing: 0.8px;}
+    .indicator-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 11px; }
+    .ind-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .ind-value { font-weight: 700; font-variant-numeric: tabular-nums; }
+    .ind-value.positive { color: var(--success); }
+    .ind-value.warning { color: var(--warning); }
+    .ind-value.danger { color: var(--danger); }
+    .ind-value.accent { color: var(--accent); }
 
-/* Tooltip mejorado */
-.tooltip{position:fixed;z-index:200;background:rgba(10,14,30,0.95);border:1px solid var(--accent);border-radius:10px;padding:14px 18px;font-size:12px;max-width:240px;pointer-events:none;opacity:0;transition:opacity 0.25s;backdrop-filter:blur(20px); box-shadow: 0 12px 40px rgba(0,0,0,0.6);}
-.tooltip.visible{opacity:1;}
-.tooltip .tt-title{font-weight:800;color:var(--accent);margin-bottom:6px;font-size:13px; letter-spacing: 1.5px; text-transform: uppercase;}
-.tooltip .tt-desc{color:var(--muted);line-height:1.6;}
+    .mini-chart { width: 100%; height: 50px; margin-top: 8px; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); }
 
-/* AR modal */
-.ar-modal{position:fixed;inset:0;z-index:500;background:rgba(2,3,10,0.98);display:none;align-items:center;justify-content:center;flex-direction:column;gap:24px; backdrop-filter: blur(40px);}
-.ar-modal.visible{display:flex;}
-.ar-modal h2{font-size:24px;color:var(--accent);letter-spacing:4px; text-shadow: 0 0 30px var(--accent); text-transform: uppercase;}
-.ar-modal p{color:var(--muted);max-width:500px;text-align:center;line-height:1.8;font-size:14px;}
-.ar-close{padding:12px 30px;border-radius:10px;background:rgba(0,212,255,0.1);border:1px solid var(--accent);color:var(--accent);cursor:pointer;font-size:13px;font-weight: 700;letter-spacing:2.5px;text-transform:uppercase;transition:all 0.3s; box-shadow: 0 0 30px rgba(0,212,255,0.2);}
-.ar-close:hover{background:rgba(0,212,255,0.3); box-shadow: 0 0 50px rgba(0,212,255,0.5);}
+    .sim-legend {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(18, 24, 34, 0.92); border: 1px solid var(--accent);
+      border-radius: 16px; padding: 24px 40px; z-index: 30;
+      box-shadow: 0 0 60px rgba(79,195,247,0.2);
+      backdrop-filter: blur(20px);
+      opacity: 0; pointer-events: none; transition: opacity 0.5s, transform 0.5s;
+      transform: scale(0.9) translateY(20px);
+      text-align: center;
+    }
+    .sim-legend.active { opacity: 1; pointer-events: auto; transform: scale(1) translateY(0); }
+    .sim-legend h3 { color: var(--accent); letter-spacing: 4px; text-transform: uppercase; font-size: 16px; margin-bottom: 8px; }
+    .sim-legend p { color: var(--fg); font-size: 13px; max-width: 400px; }
 
-/* Loader */
-.loader{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;transition:opacity 0.8s;}
-.loader.hidden{opacity:0;pointer-events:none;}
-.loader-hex{width:70px;height:70px;background:linear-gradient(135deg,var(--accent),var(--accent3));clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);animation:loader-spin 1.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite; box-shadow: 0 0 60px var(--accent);}
-@keyframes loader-spin{0% {transform:rotate(0deg) scale(1);} 50% {transform:rotate(180deg) scale(1.2);} 100% {transform:rotate(360deg) scale(1);}}
-.loader-text{font-size:14px;font-weight: 700;color:var(--accent);letter-spacing:6px;text-transform:uppercase; text-shadow: 0 0 20px var(--accent);}
-.loader-bar{width:260px;height:4px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;}
-.loader-bar .fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent3));width:0%;transition:width 0.5s; box-shadow: 0 0 20px var(--accent);}
+    .tooltip { position: fixed; z-index: 200; background: rgba(18,24,34,0.95); border: 1px solid var(--accent); border-radius: 8px; padding: 10px 14px; max-width: 220px; pointer-events: none; opacity: 0; transition: opacity 0.2s; backdrop-filter: blur(12px); }
+    .tooltip.visible { opacity: 1; }
+    .tooltip .tt-title { font-weight: 800; color: var(--accent); font-size: 12px; margin-bottom: 4px; }
+    .tooltip .tt-desc { color: var(--muted); font-size: 11px; line-height: 1.4; }
 
-/* Crosshair */
-.crosshair{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:none;opacity:0.2;}
-.crosshair::before,.crosshair::after{content:'';position:absolute;background:var(--accent); box-shadow: 0 0 15px var(--accent);}
-.crosshair::before{width:1px;height:28px;left:50%;top:-14px;}
-.crosshair::after{width:28px;height:1px;top:50%;left:-14px;}
+    .ar-modal { position: fixed; inset: 0; z-index: 500; background: rgba(2,3,10,0.96); display: none; align-items: center; justify-content: center; flex-direction: column; gap: 20px; backdrop-filter: blur(30px); }
+    .ar-modal.visible { display: flex; }
+    .ar-modal h2 { color: var(--accent); letter-spacing: 4px; text-transform: uppercase; }
+    .ar-modal canvas { border: 1px solid var(--accent); border-radius: 12px; max-width: 90vw; max-height: 60vh; }
+    .ar-close { background: rgba(79,195,247,0.15); border: 1px solid var(--accent); color: var(--accent); padding: 10px 30px; border-radius: 30px; cursor: pointer; font-weight: 700; }
 
-/* Costos */
-.cost-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px;}
-.cost-item{text-align:center;padding:10px 6px;background:rgba(0,212,255,0.05);border-radius:8px;border:1px solid rgba(0,212,255,0.15); transition: all 0.3s;}
-.cost-item:hover {background: rgba(0,212,255,0.12); border-color: rgba(0,212,255,0.4); transform: translateY(-3px);}
-.cost-item .level{font-size:9px;font-weight: 700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;}
-.cost-item .amount{font-size:13px;font-weight:800;color:var(--accent);margin-top:4px; text-shadow: 0 0 15px rgba(0,212,255,0.3);}
-
-/* Botones de simulación */
-.sim-btn{width:100%;padding:12px;border-radius:8px;background:linear-gradient(135deg,rgba(0,212,255,0.15),rgba(168,85,247,0.15));border:1px solid var(--accent);color:var(--accent);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:2px;cursor:pointer;transition:all 0.3s;margin-top:12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);}
-.sim-btn:hover{background:linear-gradient(135deg,rgba(0,212,255,0.3),rgba(168,85,247,0.3));border-color:var(--fg); color: var(--fg); box-shadow: 0 0 40px rgba(0,212,255,0.5);}
-.sim-btn:active{transform:scale(0.96);}
-
-/* Flujo de pasos */
-.flow-step{display:flex;align-items:center;gap:12px;padding:6px 0;font-size:11px; font-weight: 600;}
-.flow-num{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--muted);flex-shrink:0;transition:all 0.5s;}
-.flow-step.active .flow-num{background:rgba(0,212,255,0.2);border-color:var(--accent);color:var(--accent); box-shadow: 0 0 20px var(--accent);}
-.flow-step.completed .flow-num{background:rgba(0,255,136,0.1);border-color:var(--success);color:var(--success);}
-.flow-text{color:var(--muted);transition:color 0.3s; letter-spacing: 0.5px;}
-.flow-step.active .flow-text,.flow-step.completed .flow-text{color:var(--fg);}
-
-/* Scroll */
-::-webkit-scrollbar{width:5px;}
-::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
-
-/* Responsive */
-@media(max-width:900px){
-  .hud-left,.hud-right{display:none;}
-  .state-controls{top:60px;gap:5px;padding:8px 12px;max-width:96vw; justify-content: center;}
-  .state-btn{font-size:8px;padding:4px 8px;}
-  .cam-controls{flex-direction:row;bottom:55px;right:10px;}
-  .sys-title h1{font-size:11px;max-width:200px;}
-}
-</style>
+    @media (max-width: 900px) {
+      .left-panel, .right-panel { width: 180px; }
+      .right-panel { right: 8px; }
+      .bottom-bar { width: 96%; padding: 10px; }
+      .state-bar { top: 56px; gap: 2px; padding: 4px 10px; }
+      .state-btn { font-size: 8px; padding: 2px 8px; }
+      .header-bar h1 { font-size: 14px; }
+    }
+    @media (max-width: 640px) {
+      .left-panel, .right-panel { display: none; }
+      .state-bar { top: 52px; }
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
+  <div id="canvas-container"></div>
 
-<div class="loader" id="loader">
-  <div class="loader-hex"></div>
-  <div class="loader-text" data-i18n="loading">Inicializando SNCIP</div>
-  <div class="loader-bar"><div class="fill" id="loaderFill"></div></div>
-</div>
-
-<canvas id="glCanvas"></canvas>
-<div class="crosshair"></div>
-
-<!-- LEYENDA DINÁMICA DE SIMULACIÓN MEJORADA -->
-<div class="sim-legend-container" id="simLegendContainer">
-  <div class="sim-legend-box" id="simLegendBox">
-    <div class="sim-legend-title" id="simLegendTitle">Fase Activa</div>
-    <div class="sim-legend-desc" id="simLegendDesc">Analizando datos del subsistema...</div>
-  </div>
-</div>
-
-<div class="tooltip" id="tooltip">
-  <div class="tt-title"></div>
-  <div class="tt-desc"></div>
-</div>
-
-<div class="alert-container" id="alertContainer"></div>
-
-<div class="hud hud-top">
-  <div class="sys-title">
-    <div class="logo-hex">SN</div>
-    <div>
-      <h1>Sistema Nacional de Comercialización Inteligente Popular (SNCIP)</h1>
-      <div class="subtitle" data-i18n="sysSubtitle">Plataforma de Gestión Integral</div>
+  <div class="hud top-ribbon interactive" style="z-index:20;">
+    <div style="display:flex; gap:8px; align-items:center;">
+      <span class="badge badge-nic">🇳🇮 NICARAGUA</span>
+      <span class="badge badge-fsln">🚩 F.S.L.N. 47/19</span>
+      <span style="color:#94a3b8;" data-i18n="gobierno">Gobierno de Reconciliación y Unidad Nacional — ¡El Pueblo, Presidente!</span>
     </div>
-  </div>
-  <div class="top-right">
-    <div class="mode-badge" id="modeBadge" data-i18n="mode_rest">MODO REPOSO</div>
-    <button class="lang-btn active" onclick="setLang('es')">ES</button>
-    <button class="lang-btn" onclick="setLang('en')">EN</button>
-    <button class="lang-btn" onclick="setLang('zh')">中</button>
-  </div>
-</div>
-
-<!-- ESTADOS REUBICADOS MÁS ARRIBA (ZONA CENTRAL SUPERIOR) -->
-<div class="state-controls" id="stateControls">
-  <button class="state-btn active" onclick="setState('rest')" data-i18n="mode_rest">Reposo</button>
-  <button class="state-btn" onclick="setState('analysis')" data-i18n="mode_analysis">Análisis</button>
-  <button class="state-btn" onclick="setState('diagnostic')" data-i18n="mode_diagnostic">Diagnóstico</button>
-  <button class="state-btn" onclick="setState('simulation')" data-i18n="mode_simulation">Simulación</button>
-  <button class="state-btn" onclick="setState('operation')" data-i18n="mode_operation">Operación</button>
-  <button class="state-btn" onclick="setState('maintenance')" data-i18n="mode_maintenance">Mantenimiento</button>
-  <button class="state-btn" onclick="setState('emergency')" data-i18n="mode_emergency">Emergencia</button>
-  <button class="state-btn" onclick="setState('energy')" data-i18n="mode_energy">Energético</button>
-  <button class="state-btn" onclick="setState('ai')" data-i18n="mode_ai">IA</button>
-  <button class="state-btn" onclick="setState('hybrid')" data-i18n="mode_hybrid">Híbrido</button>
-  <button class="state-btn" onclick="setState('synergy')" data-i18n="mode_synergy">Sinergia</button>
-</div>
-
-<div class="hud hud-left">
-  <div class="panel">
-    <div class="panel-title" data-i18n="subsystems">Subsistemas</div>
-    <div class="subsystem-item active" data-sub="0" onclick="focusSubsystem(0)">
-      <div class="sub-icon" style="background:rgba(0,204,255,0.2);color:#00CCFF;">&#9672;</div>
-      <div><div class="sub-name" data-i18n="sub0_name">Conexión Productiva</div><div class="sub-status"><span class="status-dot" style="background:var(--success)"></span><span data-i18n="status_active">Activo</span></div></div>
-    </div>
-    <div class="subsystem-item" data-sub="1" onclick="focusSubsystem(1)">
-      <div class="sub-icon" style="background:rgba(255,107,53,0.2);color:var(--accent2);">&#9638;</div>
-      <div><div class="sub-name" data-i18n="sub1_name">Distribución Comunitaria</div><div class="sub-status"><span class="status-dot" style="background:var(--success)"></span><span data-i18n="status_active">Activo</span></div></div>
-    </div>
-    <div class="subsystem-item" data-sub="2" onclick="focusSubsystem(2)">
-      <div class="sub-icon" style="background:rgba(255,184,0,0.2);color:var(--warning);">&#9670;</div>
-      <div><div class="sub-name" data-i18n="sub2_name">Precios Inteligentes</div><div class="sub-status"><span class="status-dot" style="background:var(--warning)"></span><span data-i18n="status_processing">Procesando</span></div></div>
-    </div>
-    <div class="subsystem-item" data-sub="3" onclick="focusSubsystem(3)">
-      <div class="sub-icon" style="background:rgba(168,85,247,0.2);color:var(--accent3);">&#9674;</div>
-      <div><div class="sub-name" data-i18n="sub3_name">Operativo Físico</div><div class="sub-status"><span class="status-dot" style="background:var(--success)"></span><span data-i18n="status_active">Activo</span></div></div>
-    </div>
-    <div class="subsystem-item" data-sub="4" onclick="focusSubsystem(4)">
-      <div class="sub-icon" style="background:rgba(100,255,150,0.2);color:#64FF96;">&#9650;</div>
-      <div><div class="sub-name" data-i18n="sub4_name">Trazabilidad</div><div class="sub-status"><span class="status-dot" style="background:var(--success)"></span><span data-i18n="status_active">Activo</span></div></div>
-    </div>
-    <div class="subsystem-item" data-sub="5" onclick="focusSubsystem(5)">
-      <div class="sub-icon" style="background:rgba(200,100,50,0.2);color:#C86432;">&#9679;</div>
-      <div><div class="sub-name" data-i18n="sub5_name">Logística Avanzada</div><div class="sub-status"><span class="status-dot" style="background:var(--success)"></span><span data-i18n="status_active">Activo</span></div></div>
-    </div>
-  </div>
-  
-  <div class="panel">
-    <div class="panel-title" data-i18n="operation_flow">Flujo de Operación</div>
-    <div class="flow-step active" id="flow0"><div class="flow-num">1</div><div class="flow-text" data-i18n="flow1">Productor entrega</div></div>
-    <div class="flow-step" id="flow1"><div class="flow-num">2</div><div class="flow-text" data-i18n="flow2">Micro-centro recibe</div></div>
-    <div class="flow-step" id="flow2"><div class="flow-num">3</div><div class="flow-text" data-i18n="flow3">Precio óptimo</div></div>
-    <div class="flow-step" id="flow3"><div class="flow-num">4</div><div class="flow-text" data-i18n="flow4">Comunidad compra</div></div>
-    <div class="flow-step" id="flow4"><div class="flow-num">5</div><div class="flow-text" data-i18n="flow5">Venta registrada</div></div>
-    <button class="sim-btn" onclick="runFlowSimulation()" data-i18n="sim_flow">Simular Flujo Completo</button>
-  </div>
-
-  <div class="panel">
-    <div class="panel-title">Módulo de Expansión</div>
-    <div class="indicator-row"><span class="ind-label">Cobertura Nacional</span><span class="ind-value positive" id="indCobertura">45.2%</span></div>
-    <div class="indicator-row"><span class="ind-label">Rutas de distribución</span><span class="ind-value accent" id="indRutas">128</span></div>
-    <button class="sim-btn" onclick="triggerInteractiveBurst()">Proyectar Escala</button>
-  </div>
-</div>
-
-<div class="hud hud-right">
-  <div class="panel">
-    <div class="panel-title" data-i18n="economic_ind">Indicadores Económicos</div>
-    <div class="indicator-row"><span class="ind-label" data-i18n="income_inc">Incremento ingresos</span><span class="ind-value positive" id="indIncome">+40.0%</span></div>
-    <div class="indicator-row"><span class="ind-label" data-i18n="intermediary_red">Reducción intermediarios</span><span class="ind-value positive" id="indInterm">-66.0%</span></div>
-    <div class="indicator-row"><span class="ind-label" data-i18n="price_stability">Estabilidad precios</span><span class="ind-value accent" id="indPrice">94.5%</span></div>
-    <div class="mini-chart"><canvas id="chartEcon"></canvas></div>
-  </div>
-  <div class="panel">
-    <div class="panel-title" data-i18n="social_ind">Indicadores Sociales</div>
-    <div class="indicator-row"><span class="ind-label" data-i18n="community_part">Participación comunitaria</span><span class="ind-value positive" id="indPart">70.0%</span></div>
-    <div class="indicator-row"><span class="ind-label" data-i18n="food_sec">Seguridad alimentaria</span><span class="ind-value positive" id="indFood">80.0%</span></div>
-    <div class="indicator-row"><span class="ind-label" data-i18n="trust_level">Nivel de confianza</span><span class="ind-value accent" id="indTrust">87.3%</span></div>
-    <div class="mini-chart"><canvas id="chartSocial"></canvas></div>
-  </div>
-  <div class="panel">
-    <div class="panel-title" data-i18n="prod_ind">Indicadores Productivos</div>
-    <div class="indicator-row"><span class="ind-label" data-i18n="inventory_rot">Rotación inventario</span><span class="ind-value accent" id="indRot">1.5x</span></div>
-    <div class="indicator-row"><span class="ind-label" data-i18n="diversification">Diversificación</span><span class="ind-value positive" id="indDiv">60.0%</span></div>
-    <div class="indicator-row"><span class="ind-label" data-i18n="micro_centers">Micro-centros activos</span><span class="ind-value accent" id="indMicro">12</span></div>
-    <div class="mini-chart"><canvas id="chartProd"></canvas></div>
-  </div>
-  
-  <div class="panel">
-    <div class="panel-title">Monitoreo de Redes</div>
-    <div class="indicator-row"><span class="ind-label">Latencia Blockchain</span><span class="ind-value accent" id="indLat">14ms</span></div>
-    <div class="indicator-row"><span class="ind-label">Auditoría OMNIA-5000</span><span class="ind-value positive">Verificado</span></div>
-    <div class="cost-grid">
-      <div class="cost-item"><div class="level" data-i18n="municipal">Municipal</div><div class="amount">$2K-8K</div></div>
-      <div class="cost-item"><div class="level" data-i18n="departmental">Departamental</div><div class="amount">$15K-40K</div></div>
-      <div class="cost-item"><div class="level" data-i18n="national">Nacional</div><div class="amount">$60K-120K</div></div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <span style="color:#fcd34d; font-weight:bold;" data-i18n="lema">2026 • 47/19 VIVA SANDINO! ¡Siempre + Allá!</span>
+      <span class="badge" style="background:#0c4a6e; color:#7dd3fc; border:1px solid #0284c7;">OMNIA-5000</span>
     </div>
   </div>
 
-  <!-- NUEVO PANEL: RESUMEN EJECUTIVO (basado en la imagen) -->
-  <div class="panel" id="panelResumen">
-    <div class="panel-title" data-i18n="exec_summary">RESUMEN EJECUTIVO</div>
-    <div class="indicator-row"><span class="ind-label" data-i18n="income">Ingresos</span><span class="ind-value positive" id="resIncome">+40%</span></div>
-    <div class="indicator-row"><span class="ind-label" data-i18n="impact_time">Impacto ≤</span><span class="ind-value accent" id="resImpact">60 DÍAS</span></div>
-    <div class="indicator-row"><span class="ind-label" data-i18n="micro_center">Micro‑centro</span><span class="ind-value positive" id="resMicro">ACTIVO</span></div>
-    <div class="indicator-row"><span class="ind-label" data-i18n="opt_price">Precios óptimos</span><span class="ind-value accent" id="resPrice">✔</span></div>
-    <div style="margin-top:10px; border-top:1px solid rgba(0,212,255,0.2); padding-top:8px;">
-      <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px;">
-        <span data-i18n="phase_diag">Diagnóstico</span>
-        <span data-i18n="phase_org">Organización</span>
-        <span data-i18n="phase_act">Activación</span>
-        <span data-i18n="phase_opt">Optimización</span>
-      </div>
-      <div style="display:flex; gap:4px;">
-        <div style="flex:1; height:5px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;"><div id="barDiag" style="height:100%; width:0%; background:var(--accent); transition:width 0.6s;"></div></div>
-        <div style="flex:1; height:5px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;"><div id="barOrg" style="height:100%; width:0%; background:var(--accent); transition:width 0.6s;"></div></div>
-        <div style="flex:1; height:5px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;"><div id="barAct" style="height:100%; width:0%; background:var(--accent); transition:width 0.6s;"></div></div>
-        <div style="flex:1; height:5px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;"><div id="barOpt" style="height:100%; width:0%; background:var(--accent); transition:width 0.6s;"></div></div>
+  <div class="hud header-bar interactive" style="z-index:20;">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div class="logo-3d">3D</div>
+      <div>
+        <h1>SNCIP</h1>
+        <p class="sub" data-i18n="subtitle">Sistema Nacional de Comercialización Inteligente Popular</p>
       </div>
     </div>
-    <div style="margin-top:8px; display:flex; justify-content:space-between; gap:6px;">
-      <div style="flex:1; text-align:center; background:rgba(0,212,255,0.05); border-radius:6px; padding:5px 0;">
-        <div style="font-size:8px; color:var(--muted); text-transform:uppercase;" data-i18n="municipal">Municipal</div>
-        <div style="font-size:11px; font-weight:800; color:var(--accent);" id="costMunicipal">$2K‑8K</div>
-      </div>
-      <div style="flex:1; text-align:center; background:rgba(0,212,255,0.05); border-radius:6px; padding:5px 0;">
-        <div style="font-size:8px; color:var(--muted); text-transform:uppercase;" data-i18n="departmental">Departamental</div>
-        <div style="font-size:11px; font-weight:800; color:var(--accent);" id="costDepartamental">$15K‑40K</div>
-      </div>
-      <div style="flex:1; text-align:center; background:rgba(0,212,255,0.05); border-radius:6px; padding:5px 0;">
-        <div style="font-size:8px; color:var(--muted); text-transform:uppercase;" data-i18n="national">Nacional</div>
-        <div style="font-size:11px; font-weight:800; color:var(--accent);" id="costNacional">$60K‑120K</div>
+    <div style="display:flex; gap:6px; align-items:center;">
+      <button class="info-btn" onclick="openModal()" data-i18n="info_btn">📘 Info</button>
+      <button class="lang-btn active" onclick="setLang('es')" id="btn-es">ES</button>
+      <button class="lang-btn" onclick="setLang('en')" id="btn-en">EN</button>
+      <button class="lang-btn" onclick="setLang('zh')" id="btn-zh">中文</button>
+    </div>
+  </div>
+
+  <!-- Barra de estados (más arriba) -->
+  <div class="state-bar" id="stateBar">
+    <button class="state-btn active" onclick="setState('rest')" data-i18n="mode_rest">Reposo</button>
+    <button class="state-btn" onclick="setState('analysis')" data-i18n="mode_analysis">Análisis</button>
+    <button class="state-btn" onclick="setState('diagnostic')" data-i18n="mode_diagnostic">Diagnóstico</button>
+    <button class="state-btn" onclick="setState('simulation')" data-i18n="mode_simulation">Simulación</button>
+    <button class="state-btn" onclick="setState('operation')" data-i18n="mode_operation">Operación</button>
+    <button class="state-btn" onclick="setState('maintenance')" data-i18n="mode_maintenance">Mantenimiento</button>
+    <button class="state-btn" onclick="setState('emergency')" data-i18n="mode_emergency">Emergencia</button>
+    <button class="state-btn" onclick="setState('energy')" data-i18n="mode_energy">Energético</button>
+    <button class="state-btn" onclick="setState('ai')" data-i18n="mode_ai">IA</button>
+    <button class="state-btn" onclick="setState('hybrid')" data-i18n="mode_hybrid">Híbrido</button>
+    <button class="state-btn" onclick="setState('synergy')" data-i18n="mode_synergy">Sinergia</button>
+  </div>
+
+  <div class="hud left-panel interactive">
+    <div class="panel">
+      <div class="panel-title" data-i18n="micro_type">Tipo de Micro-Centro</div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <button onclick="setHubType('pulperia')" id="hub-pulperia" class="active" data-i18n="hub_pulperia">1. Pulpería Comunitaria</button>
+        <button onclick="setHubType('escuela')" id="hub-escuela" data-i18n="hub_escuela">2. Escuela Comunitaria</button>
+        <button onclick="setHubType('vivienda')" id="hub-vivienda" data-i18n="hub_vivienda">3. Vivienda Comunitaria</button>
       </div>
     </div>
-    <div style="margin-top:6px; font-size:9px; color:var(--muted); text-align:center; letter-spacing:1.5px; text-transform:uppercase;" data-i18n="rapid_impact">RÁPIDO IMPACTO ≤ 60 DÍAS</div>
+    <div class="panel">
+      <div class="panel-title" data-i18n="view_title">Vistas de Cámara</div>
+      <div class="grid-btn">
+        <button onclick="setCam('orbital')" data-i18n="view_orbital">Órbita 360°</button>
+        <button onclick="setCam('frontal')" data-i18n="view_frontal">Frontal</button>
+        <button onclick="setCam('lateral')" data-i18n="view_lateral">Muelle</button>
+        <button onclick="setCam('cenital')" data-i18n="view_cenital">Cenital</button>
+        <button onclick="setCam('interna')" data-i18n="view_interna">Interior</button>
+        <button onclick="setCam('cinematica')" data-i18n="view_cinematica">Cinemática</button>
+      </div>
+    </div>
+    <div class="panel">
+      <button onclick="toggleExploded()" id="btn-exploded" style="width:100%; margin-bottom:4px;" data-i18n="btn_exploded">Vista Explotada</button>
+      <button onclick="toggleXRay()" id="btn-xray" style="width:100%; margin-bottom:4px;" data-i18n="btn_xray">Modo Rayos-X</button>
+      <button onclick="resetScene()" style="width:100%; background:#c0392b; border-color:#e74c3c; color:#fff;" data-i18n="btn_reset">⟲ Reiniciar</button>
+    </div>
   </div>
-</div>
 
-<div class="cam-controls">
-  <button class="cam-btn active" onclick="setCamView('orbit')" title="Vista orbital">&#9678;</button>
-  <button class="cam-btn" onclick="setCamView('top')" title="Vista superior">&#9650;</button>
-  <button class="cam-btn" onclick="setCamView('front')" title="Vista frontal">&#9654;</button>
-  <button class="cam-btn" onclick="setCamView('exploded')" title="Vista explosionada">&#10038;</button>
-  <button class="cam-btn" onclick="setCamView('xray')" title="Vista X-Ray">&#9673;</button>
-  <button class="cam-btn" onclick="setCamView('auto')" title="Vista automática">&#10227;</button>
-  <button class="cam-btn" onclick="setCamView('focus')" title="Enfoque módulo">&#8858;</button>
-  <button class="cam-btn" onclick="toggleAR()" title="Realidad Aumentada">&#9711;</button>
-</div>
+  <div class="hud right-panel interactive">
+    <div class="panel">
+      <div class="panel-title" data-i18n="telemetry">Telemetría de Impacto (≤ 60 Días)</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+        <div class="stat-box"><span style="font-size:10px; color:#94a3b8; display:block;" data-i18n="stat_income">Ingreso Familiar</span><span class="stat-val" id="statIncome">+40%</span></div>
+        <div class="stat-box"><span style="font-size:10px; color:#94a3b8; display:block;" data-i18n="stat_intermediaries">Intermediarios</span><span class="stat-val" style="color:#4fc3f7;" id="statInter">-66%</span></div>
+        <div class="stat-box"><span style="font-size:10px; color:#94a3b8; display:block;" data-i18n="stat_rotation">Rotación Semanal</span><span class="stat-val" style="color:#fcd34d;" id="statRot">1.5x</span></div>
+        <div class="stat-box"><span style="font-size:10px; color:#94a3b8; display:block;" data-i18n="stat_diversification">Diversificación</span><span class="stat-val" style="color:#2dd4bf;" id="statDiv">+50%</span></div>
+      </div>
+    </div>
 
-<div class="hud hud-bottom">
-  <div class="phase-bar">
-    <div class="phase-segment completed" id="phase0"><div class="fill"></div></div>
-    <div class="phase-segment completed" id="phase1"><div class="fill"></div></div>
-    <div class="phase-segment active" id="phase2" style="--progress:65%"><div class="fill"></div></div>
-    <div class="phase-segment" id="phase3" style="--progress:0%"><div class="fill"></div></div>
+    <div class="panel">
+      <div class="panel-title" data-i18n="simulator_title">Simulador de Precios e Ingresos</div>
+      <div style="margin-bottom:8px;">
+        <label style="font-size:11px; color:#cbd5e1; display:block; margin-bottom:4px;" data-i18n="product_label">Rubro: Frijol Rojo Nacional</label>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#94a3b8; margin-bottom:4px;">
+          <span data-i18n="volume_label">Volumen semanal:</span>
+          <span id="vol-display" style="font-weight:bold; color:#4fc3f7;">150 Lbs</span>
+        </div>
+        <input type="range" min="50" max="1000" step="25" value="150" id="vol-slider" oninput="updateCalculator()">
+      </div>
+      <div style="background:#17202c; padding:8px; border-radius:6px; font-size:11px; line-height:1.5;">
+        <div style="display:flex; justify-content:space-between;"><span style="color:#94a3b8;" data-i18n="calc_trad">Tradicional:</span><span id="calc-trad">C$ 3,000</span></div>
+        <div style="display:flex; justify-content:space-between;"><span style="color:#94a3b8;" data-i18n="calc_sncip">Con SNCIP:</span><span id="calc-sncip" style="color:#66bb6a; font-weight:bold;">C$ 4,200</span></div>
+        <div style="border-top:1px solid #334155; margin-top:4px; padding-top:4px; display:flex; justify-content:space-between; font-weight:bold;">
+          <span style="color:#fcd34d;" data-i18n="calc_gain">Ganancia Extra (+40%):</span>
+          <span id="calc-gain" style="color:#66bb6a;">+C$ 1,200</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Indicadores</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <div>
+          <div style="font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;" data-i18n="economic_ind">Económicos</div>
+          <div class="indicator-row"><span class="ind-label" data-i18n="income_inc">Ingresos</span><span class="ind-value positive" id="indIncome">+40.0%</span></div>
+          <div class="indicator-row"><span class="ind-label" data-i18n="intermediary_red">Intermed.</span><span class="ind-value positive" id="indInterm">-66.0%</span></div>
+          <div class="indicator-row"><span class="ind-label" data-i18n="price_stability">Estab. precios</span><span class="ind-value accent" id="indPrice">94.5%</span></div>
+        </div>
+        <div>
+          <div style="font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;" data-i18n="social_ind">Sociales</div>
+          <div class="indicator-row"><span class="ind-label" data-i18n="community_part">Participación</span><span class="ind-value positive" id="indPart">70.0%</span></div>
+          <div class="indicator-row"><span class="ind-label" data-i18n="food_sec">Seguridad alim.</span><span class="ind-value positive" id="indFood">80.0%</span></div>
+          <div class="indicator-row"><span class="ind-label" data-i18n="trust_level">Confianza</span><span class="ind-value accent" id="indTrust">87.3%</span></div>
+        </div>
+        <div style="grid-column:1/2;">
+          <div style="font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;" data-i18n="prod_ind">Productivos</div>
+          <div class="indicator-row"><span class="ind-label" data-i18n="inventory_rot">Rotación</span><span class="ind-value accent" id="indRot">1.5x</span></div>
+          <div class="indicator-row"><span class="ind-label" data-i18n="diversification">Diversificación</span><span class="ind-value positive" id="indDiv">60.0%</span></div>
+          <div class="indicator-row"><span class="ind-label" data-i18n="micro_centers">Micro-centros</span><span class="ind-value accent" id="indMicro">12</span></div>
+        </div>
+        <div style="grid-column:2/3;">
+          <div style="font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Redes</div>
+          <div class="indicator-row"><span class="ind-label">Latencia</span><span class="ind-value accent" id="indLat">14ms</span></div>
+          <div class="indicator-row"><span class="ind-label">OMNIA-5000</span><span class="ind-value positive">Verificado</span></div>
+          <div class="indicator-row"><span class="ind-label">Cobertura</span><span class="ind-value positive" id="indCob">45.2%</span></div>
+        </div>
+      </div>
+      <div style="margin-top:8px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">
+        <div style="text-align:center; background:rgba(79,195,247,0.05); border-radius:6px; padding:4px 0;"><div style="font-size:8px; color:var(--muted);" data-i18n="municipal">Municipal</div><div style="font-size:11px; font-weight:800; color:var(--accent);">$2K-8K</div></div>
+        <div style="text-align:center; background:rgba(79,195,247,0.05); border-radius:6px; padding:4px 0;"><div style="font-size:8px; color:var(--muted);" data-i18n="departmental">Departamental</div><div style="font-size:11px; font-weight:800; color:var(--accent);">$15K-40K</div></div>
+        <div style="text-align:center; background:rgba(79,195,247,0.05); border-radius:6px; padding:4px 0;"><div style="font-size:8px; color:var(--muted);" data-i18n="national">Nacional</div><div style="font-size:11px; font-weight:800; color:var(--accent);">$60K-120K</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title" data-i18n="exec_summary">RESUMEN EJECUTIVO</div>
+      <div class="indicator-row"><span class="ind-label" data-i18n="income">Ingresos</span><span class="ind-value positive" id="resIncome">+40%</span></div>
+      <div class="indicator-row"><span class="ind-label" data-i18n="impact_time">Impacto ≤</span><span class="ind-value accent" id="resImpact">60 DÍAS</span></div>
+      <div class="indicator-row"><span class="ind-label" data-i18n="micro_center">Micro‑centro</span><span class="ind-value positive" id="resMicro">ACTIVO</span></div>
+      <div class="indicator-row"><span class="ind-label" data-i18n="opt_price">Precios óptimos</span><span class="ind-value accent" id="resPrice">✔</span></div>
+      <div style="margin-top:8px; border-top:1px solid rgba(79,195,247,0.2); padding-top:8px;">
+        <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:1px;">
+          <span data-i18n="phase_diag">Diagnóstico</span>
+          <span data-i18n="phase_org">Organización</span>
+          <span data-i18n="phase_act">Activación</span>
+          <span data-i18n="phase_opt">Optimización</span>
+        </div>
+        <div style="display:flex; gap:4px; margin-top:4px;">
+          <div style="flex:1; height:5px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;"><div id="barDiag" style="height:100%; width:0%; background:var(--accent); transition:width 0.6s;"></div></div>
+          <div style="flex:1; height:5px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;"><div id="barOrg" style="height:100%; width:0%; background:var(--accent); transition:width 0.6s;"></div></div>
+          <div style="flex:1; height:5px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;"><div id="barAct" style="height:100%; width:0%; background:var(--accent); transition:width 0.6s;"></div></div>
+          <div style="flex:1; height:5px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;"><div id="barOpt" style="height:100%; width:0%; background:var(--accent); transition:width 0.6s;"></div></div>
+        </div>
+      </div>
+      <div style="margin-top:6px; font-size:9px; color:var(--muted); text-align:center; letter-spacing:1.5px; text-transform:uppercase;" data-i18n="rapid_impact">RÁPIDO IMPACTO ≤ 60 DÍAS</div>
+    </div>
   </div>
-  <div class="phase-labels">
-    <div class="phase-label completed" id="phaseL0" onclick="setPhase(0)" data-i18n="phase1">Diagnóstico D1-7</div>
-    <div class="phase-label completed" id="phaseL1" onclick="setPhase(1)" data-i18n="phase2">Organización D8-15</div>
-    <div class="phase-label active" id="phaseL2" onclick="setPhase(2)" data-i18n="phase3">Activación D16-30</div>
-    <div class="phase-label" id="phaseL3" onclick="setPhase(3)" data-i18n="phase4">Optimización D30-60</div>
+
+  <div class="hud bottom-bar interactive">
+    <div style="display:flex; justify-content:space-between; gap:6px; margin-bottom:8px;">
+      <button onclick="setStep(1)" id="step-btn-1" class="active step-btn" data-i18n="step1_btn">1. Entrega Productor</button>
+      <button onclick="setStep(2)" id="step-btn-2" class="step-btn" data-i18n="step2_btn">2. Recepción & Stock</button>
+      <button onclick="setStep(3)" id="step-btn-3" class="step-btn" data-i18n="step3_btn">3. Precio Óptimo</button>
+      <button onclick="setStep(4)" id="step-btn-4" class="step-btn" data-i18n="step4_btn">4. Compra Directa</button>
+      <button onclick="setStep(5)" id="step-btn-5" class="step-btn" data-i18n="step5_btn">5. Registro & OMNIA</button>
+    </div>
+    <div class="step-desc-area" style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <strong id="step-title" style="color:#4fc3f7;" data-i18n="step1_title">Paso 1: Productor Entrega Producto</strong>
+        <p id="step-desc" style="color:#cbd5e1; font-size:11px; margin-top:2px;" data-i18n="step1_desc">Registro físico en cartilla comunitaria con código único de trazabilidad. Verificación de calidad e higiene.</p>
+      </div>
+      <div style="display:flex; gap:6px; flex-shrink:0;">
+        <button onclick="prevStep()" data-i18n="btn_prev">Anterior</button>
+        <button onclick="toggleSim()" id="sim-play-btn" style="background:#0284c7; color:#fff;" data-i18n="btn_play">Reproducir</button>
+        <button onclick="nextStep()" data-i18n="btn_next">Siguiente</button>
+        <button onclick="runFlowSimulation()" style="background:#7b1fa2; color:#fff; border-color:#9c27b0;" data-i18n="sim_flow">▶ Flujo</button>
+      </div>
+    </div>
   </div>
-</div>
 
-<div class="ar-modal" id="arModal">
-  <h2 data-i18n="ar_title">Modo Realidad Aumentada</h2>
-  <p data-i18n="ar_desc">El modo AR requiere WebXR y un dispositivo compatible. En este prototipo offline se muestra una simulación del efecto AR.</p>
-  <canvas id="arCanvas" width="640" height="480" style="border:1px solid var(--accent);border-radius:12px;max-width:90vw;box-shadow: 0 0 40px rgba(0,212,255,0.3);"></canvas>
-  <button class="ar-close" onclick="toggleAR()" data-i18n="ar_close">Cerrar Modo AR</button>
-</div>
+  <div class="sim-legend" id="simLegend">
+    <h3 id="legendTitle">Fase Activa</h3>
+    <p id="legendDesc">Analizando datos del subsistema...</p>
+  </div>
 
-<script>
-/* ========== IDIOMAS (sin cambios) ========== */
-const LANG={
-es:{loading:"Inicializando SNCIP",sysSubtitle:"Plataforma de Gestión Integral",mode_rest:"MODO REPOSO",mode_analysis:"MODO ANÁLISIS",mode_diagnostic:"MODO DIAGNÓSTICO",mode_simulation:"MODO SIMULACIÓN",mode_operation:"MODO OPERACIÓN",mode_maintenance:"MANTENIMIENTO",mode_emergency:"EMERGENCIA",mode_energy:"MODO ENERGÉTICO",mode_ai:"MODO IA",mode_hybrid:"MODO HÍBRIDO",mode_synergy:"MODO SINERGIA TOTAL",subsystems:"Subsistemas",sub0_name:"Conexión Productiva",sub1_name:"Distribución Comunitaria",sub2_name:"Precios Inteligentes",sub3_name:"Operativo Físico",sub4_name:"Trazabilidad",sub5_name:"Logística Avanzada",status_active:"Activo",status_processing:"Procesando",status_standby:"En espera",operation_flow:"Flujo de Operación",flow1:"Productor entrega",flow2:"Micro-centro recibe",flow3:"Precio óptimo",flow4:"Comunidad compra",flow5:"Venta registrada",sim_flow:"Simular Flujo Completo",ai_system:"Sistema IA",ai_nodes:"Nodos activos",ai_connections:"Conexiones",ai_processing:"Procesamiento",ai_learning:"Aprendizaje",toggle_ai:"Alternar Capa IA",economic_ind:"Indicadores Económicos",income_inc:"Incremento ingresos",intermediary_red:"Reducción intermediarios",price_stability:"Estabilidad precios",social_ind:"Indicadores Sociales",community_part:"Participación comunitaria",food_sec:"Seguridad alimentaria",trust_level:"Nivel de confianza",prod_ind:"Indicadores Productivos",inventory_rot:"Rotación inventario",diversification:"Diversificación",micro_centers:"Micro-centros activos",cost_model:"Modelo de Costos",municipal:"Municipal",departmental:"Departamental",national:"Nacional",phase1:"Diagnóstico D1-7",phase2:"Organización D8-15",phase3:"Activación D16-30",phase4:"Optimización D30-60",ar_title:"Modo Realidad Aumentada",ar_desc:"El modo AR requiere WebXR y un dispositivo compatible. En este prototipo offline se muestra una simulación del efecto AR.",ar_close:"Cerrar Modo AR",alert_flow_start:"Iniciando simulación de flujo completo...",alert_flow_step:"Paso {n} completado",alert_flow_done:"Flujo completado exitosamente",alert_state:"Estado cambiado: {name}",alert_ai_on:"Capa IA activada",alert_ai_off:"Capa IA desactivada",alert_ar_on:"Modo AR activado",alert_ar_off:"Modo AR desactivado",
-exec_summary:"RESUMEN EJECUTIVO", income:"Ingresos", impact_time:"Impacto ≤", micro_center:"Micro‑centro", opt_price:"Precios óptimos",
-phase_diag:"Diagnóstico", phase_org:"Organización", phase_act:"Activación", phase_opt:"Optimización",
-rapid_impact:"RÁPIDO IMPACTO ≤ 60 DÍAS"}
-};
-let currentLang='es';
-function setLang(l){currentLang=l;document.querySelectorAll('.lang-btn').forEach((b,i)=>b.classList.toggle('active',['es','en','zh'][i]===l));document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.getAttribute('data-i18n');if(LANG[l]&&LANG[l][k])el.textContent=LANG[l][k];});const mb=document.getElementById('modeBadge');const sk='mode_'+currentState;if(LANG[l]&&LANG[l][sk])mb.textContent=LANG[l][sk];}
-function t(k,v){let s=(LANG[currentLang]&&LANG[currentLang][k])||(LANG.es[k])||k;if(v)Object.keys(v).forEach(x=>{s=s.replace('{'+x+'}',v[x]);});return s;}
-function showAlert(m,tp){tp=tp||'info';const c=document.getElementById('alertContainer');const a=document.createElement('div');a.className='alert '+tp;a.textContent=m;c.appendChild(a);setTimeout(()=>{if(a.parentNode)a.parentNode.removeChild(a);},3500);}
+  <div class="tooltip" id="tooltip"><div class="tt-title"></div><div class="tt-desc"></div></div>
 
-/* LEYENDAS VISUALES */
-function showSimLegend(title, desc, durationMs = 3000) {
-  const box = document.getElementById('simLegendBox');
-  box.classList.remove('active');
-  void box.offsetWidth; 
-  document.getElementById('simLegendTitle').textContent = title;
-  document.getElementById('simLegendDesc').textContent = desc;
-  box.classList.add('active');
-  if(window.simLegendTimer) clearTimeout(window.simLegendTimer);
-  window.simLegendTimer = setTimeout(() => { box.classList.remove('active'); }, durationMs);
-}
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-tabs" id="modalTabs">
+        <button class="active-tab" data-tab="tab-proyecto" data-i18n="tab_proyecto">Proyecto</button>
+        <button data-tab="tab-arquitectura" data-i18n="tab_arquitectura">Arquitectura</button>
+        <button data-tab="tab-implementacion" data-i18n="tab_implementacion">Implementación</button>
+        <button data-tab="tab-costos" data-i18n="tab_costos">Costos</button>
+        <button data-tab="tab-riesgos" data-i18n="tab_riesgos">Riesgos</button>
+        <button data-tab="tab-validacion" data-i18n="tab_validacion">Validación</button>
+        <button data-tab="tab-anexos" data-i18n="tab_anexos">Anexos</button>
+      </div>
+      <div id="tabContentContainer"></div>
+    </div>
+  </div>
 
-/* ========== MATEMÁTICAS 3D (sin cambios) ========== */
-const V3={create:(x,y,z)=>({x:x||0,y:y||0,z:z||0}),add:(a,b)=>({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z}),sub:(a,b)=>({x:a.x-b.x,y:a.y-b.y,z:a.z-b.z}),scale:(v,s)=>({x:v.x*s,y:v.y*s,z:v.z*s}),dot:(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z,cross:(a,b)=>({x:a.y*b.z-a.z*b.y,y:a.z*b.x-a.x*b.z,z:a.x*b.y-a.y*b.x}),len:(v)=>Math.sqrt(v.x*v.x+v.y*v.y+v.z*v.z),norm:(v)=>{const l=V3.len(v)||1;return{x:v.x/l,y:v.y/l,z:v.z/l};},lerp:(a,b,t)=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,z:a.z+(b.z-a.z)*t}),dist:(a,b)=>V3.len(V3.sub(a,b))};
-const M4={identity:()=>{const m=new Float32Array(16);m[0]=m[5]=m[10]=m[15]=1;return m;},perspective:(fov,asp,n,f)=>{const m=new Float32Array(16);const t=1/Math.tan(fov/2);m[0]=t/asp;m[5]=t;m[10]=(f+n)/(n-f);m[11]=-1;m[14]=2*f*n/(n-f);return m;},lookAt:(eye,c,up)=>{const m=new Float32Array(16);const z=V3.norm(V3.sub(eye,c));const x=V3.norm(V3.cross(up,z));const y=V3.cross(z,x);m[0]=x.x;m[1]=y.x;m[2]=z.x;m[4]=x.y;m[5]=y.y;m[6]=z.y;m[8]=x.z;m[9]=y.z;m[10]=z.z;m[12]=-(x.x*eye.x+x.y*eye.y+x.z*eye.z);m[13]=-(y.x*eye.x+y.y*eye.y+y.z*eye.z);m[14]=-(z.x*eye.x+z.y*eye.y+z.z*eye.z);m[15]=1;return m;},mul:(a,b)=>{const m=new Float32Array(16);for(let i=0;i<4;i++)for(let j=0;j<4;j++)m[j*4+i]=a[i]*b[j*4]+a[4+i]*b[j*4+1]+a[8+i]*b[j*4+2]+a[12+i]*b[j*4+3];return m;},translate:(v)=>{const m=M4.identity();m[12]=v.x;m[13]=v.y;m[14]=v.z;return m;},rotateX:(a)=>{const m=M4.identity(),c=Math.cos(a),s=Math.sin(a);m[5]=c;m[6]=s;m[9]=-s;m[10]=c;return m;},rotateY:(a)=>{const m=M4.identity(),c=Math.cos(a),s=Math.sin(a);m[0]=c;m[2]=-s;m[8]=s;m[10]=c;return m;},rotateZ:(a)=>{const m=M4.identity(),c=Math.cos(a),s=Math.sin(a);m[0]=c;m[1]=s;m[4]=-s;m[5]=c;return m;},scale:(v)=>{const m=M4.identity();m[0]=v.x;m[5]=v.y;m[10]=v.z;return m;}};
-function normalMat3(m){const a00=m[0],a01=m[1],a02=m[2],a10=m[4],a11=m[5],a12=m[6],a20=m[8],a21=m[9],a22=m[10];const d=a00*(a11*a22-a12*a21)-a01*(a10*a22-a12*a20)+a02*(a10*a21-a11*a20);const id=1/(d||1);return new Float32Array([(a11*a22-a12*a21)*id,(a02*a21-a01*a22)*id,(a01*a12-a02*a11)*id,(a12*a20-a10*a22)*id,(a00*a22-a02*a20)*id,(a02*a10-a00*a12)*id,(a10*a21-a11*a20)*id,(a01*a20-a00*a21)*id,(a00*a11-a01*a10)*id]);}
+  <div class="ar-modal" id="arModal">
+    <h2 data-i18n="ar_title">Modo Realidad Aumentada</h2>
+    <p data-i18n="ar_desc">Simulación AR interactiva del sistema SNCIP.</p>
+    <canvas id="arCanvas" width="640" height="480"></canvas>
+    <button class="ar-close" onclick="toggleAR()" data-i18n="ar_close">Cerrar</button>
+  </div>
 
-/* ========== GEOMETRÍAS (sin cambios) ========== */
-function createIcosahedron(r,d){r=Math.max(.001,r||1);d=d||1;const t=(1+Math.sqrt(5))/2;let v=[V3.norm({x:-1,y:t,z:0}),V3.norm({x:1,y:t,z:0}),V3.norm({x:-1,y:-t,z:0}),V3.norm({x:1,y:-t,z:0}),V3.norm({x:0,y:-1,z:t}),V3.norm({x:0,y:1,z:t}),V3.norm({x:0,y:-1,z:-t}),V3.norm({x:0,y:1,z:-t}),V3.norm({x:t,y:0,z:-1}),V3.norm({x:t,y:0,z:1}),V3.norm({x:-t,y:0,z:-1}),V3.norm({x:-t,y:0,z:1})];let f=[[0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],[1,5,9],[5,11,4],[11,10,2],[10,7,6],[7,1,8],[3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],[4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1]];for(let i=0;i<d;i++){const mc={},nf=[];function md(a,b){const k=Math.min(a,b)+'_'+Math.max(a,b);if(mc[k]!==undefined)return mc[k];const n=V3.norm(V3.scale(V3.add(v[a],v[b]),.5));v.push(n);mc[k]=v.length-1;return mc[k];}for(const ff of f){const a=md(ff[0],ff[1]),b=md(ff[1],ff[2]),c=md(ff[2],ff[0]);nf.push([ff[0],a,c],[ff[1],b,a],[ff[2],c,b],[a,b,c]);}f=nf;}const p=[],n=[],idx=[];for(let i=0;i<f.length;i++){const ff=f[i];const v0=V3.scale(v[ff[0]],r),v1=V3.scale(v[ff[1]],r),v2=V3.scale(v[ff[2]],r);const nn=V3.norm(V3.cross(V3.sub(v1,v0),V3.sub(v2,v0)));const b=i*3;p.push(v0.x,v0.y,v0.z,v1.x,v1.y,v1.z,v2.x,v2.y,v2.z);n.push(nn.x,nn.y,nn.z,nn.x,nn.y,nn.z,nn.x,nn.y,nn.z);idx.push(b,b+1,b+2);}return{positions:new Float32Array(p),normals:new Float32Array(n),indices:new Uint16Array(idx)};}
-function createBox(w,h,d){w=Math.max(.001,w||1);h=Math.max(.001,h||1);d=Math.max(.001,d||1);const hw=w/2,hh=h/2,hd=d/2,p=[],n=[],idx=[];const faces=[{v:[{x:-hw,y:-hh,z:hd},{x:hw,y:-hh,z:hd},{x:hw,y:hh,z:hd},{x:-hw,y:hh,z:hd}],n:{x:0,y:0,z:1}},{v:[{x:hw,y:-hh,z:-hd},{x:-hw,y:-hh,z:-hd},{x:-hw,y:hh,z:-hd},{x:hw,y:hh,z:-hd}],n:{x:0,y:0,z:-1}},{v:[{x:-hw,y:hh,z:hd},{x:hw,y:hh,z:hd},{x:hw,y:hh,z:-hd},{x:-hw,y:hh,z:-hd}],n:{x:0,y:1,z:0}},{v:[{x:-hw,y:-hh,z:-hd},{x:hw,y:-hh,z:-hd},{x:hw,y:-hh,z:hd},{x:-hw,y:-hh,z:hd}],n:{x:0,y:-1,z:0}},{v:[{x:hw,y:-hh,z:hd},{x:hw,y:-hh,z:-hd},{x:hw,y:hh,z:-hd},{x:hw,y:hh,z:hd}],n:{x:1,y:0,z:0}},{v:[{x:-hw,y:-hh,z:-hd},{x:-hw,y:-hh,z:hd},{x:-hw,y:hh,z:hd},{x:-hw,y:hh,z:-hd}],n:{x:-1,y:0,z:0}}];faces.forEach((f,fi)=>{const b=fi*4;f.v.forEach(vv=>{p.push(vv.x,vv.y,vv.z);n.push(f.n.x,f.n.y,f.n.z);});idx.push(b,b+1,b+2,b,b+2,b+3);});return{positions:new Float32Array(p),normals:new Float32Array(n),indices:new Uint16Array(idx)};}
-function createTorus(R,r,sg,sd){R=Math.max(.01,R||1);r=Math.max(.001,r||.3);sg=sg||32;sd=sd||16;const p=[],n=[],idx=[];for(let i=0;i<=sg;i++){const u=i/sg*Math.PI*2,cu=Math.cos(u),su=Math.sin(u);for(let j=0;j<=sd;j++){const v=j/sd*Math.PI*2,cv=Math.cos(v),sv=Math.sin(v);p.push((R+r*cv)*cu,r*sv,(R+r*cv)*su);n.push(cv*cu,sv,cv*su);}}for(let i=0;i<sg;i++)for(let j=0;j<sd;j++){const a=i*(sd+1)+j,b=a+sd+1;idx.push(a,b,a+1,b,b+1,a+1);}return{positions:new Float32Array(p),normals:new Float32Array(n),indices:new Uint16Array(idx)};}
-function createCylinder(rT,rB,h,sg){rT=Math.max(0,rT);rB=Math.max(.001,rB||.5);h=Math.max(.001,h||1);sg=sg||24;const p=[],n=[],idx=[];const sl=(rB-rT)/h;for(let i=0;i<=sg;i++){const a=i/sg*Math.PI*2,ca=Math.cos(a),sa=Math.sin(a);const nr=V3.norm({x:ca,y:sl,z:sa});p.push(rT*ca,h/2,rT*sa,rB*ca,-h/2,rB*sa);n.push(nr.x,nr.y,nr.z,nr.x,nr.y,nr.z);}for(let i=0;i<sg;i++){const a=i*2;idx.push(a,a+2,a+1,a+1,a+2,a+3);}return{positions:new Float32Array(p),normals:new Float32Array(n),indices:new Uint16Array(idx)};}
-function createHexPrism(r,h,sg){r=Math.max(.001,r||1);h=Math.max(.001,h||1);sg=sg||6;const p=[],n=[],idx=[];for(let i=0;i<sg;i++){const a1=i/sg*Math.PI*2,a2=(i+1)/sg*Math.PI*2;const fn=V3.norm({x:(Math.cos(a1)+Math.cos(a2))/2,y:0,z:(Math.sin(a1)+Math.sin(a2))/2});const b=p.length/3;p.push(r*Math.cos(a1),h/2,r*Math.sin(a1),r*Math.cos(a2),h/2,r*Math.sin(a2),r*Math.cos(a2),-h/2,r*Math.sin(a2),r*Math.cos(a1),-h/2,r*Math.sin(a1));n.push(fn.x,fn.y,fn.z,fn.x,fn.y,fn.z,fn.x,fn.y,fn.z,fn.x,fn.y,fn.z);idx.push(b,b+1,b+2,b,b+2,b+3);}for(let s=-1;s<=1;s+=2){const b=p.length/3;p.push(0,s*h/2,0);n.push(0,s,0);for(let i=0;i<=sg;i++){const a=i/sg*Math.PI*2;p.push(r*Math.cos(a),s*h/2,r*Math.sin(a));n.push(0,s,0);}for(let i=0;i<sg;i++){if(s>0)idx.push(b,b+1+i,b+2+i);else idx.push(b,b+2+i,b+1+i);}}return{positions:new Float32Array(p),normals:new Float32Array(n),indices:new Uint16Array(idx)};}
-function createGrid(sz,div){sz=sz||20;div=div||20;const p=[];const st=sz/div,hl=sz/2;for(let i=0;i<=div;i++){const pos=-hl+i*st;p.push(pos,0,-hl,pos,0,hl);p.push(-hl,0,pos,hl,0,pos);}return{positions:new Float32Array(p),count:p.length/3};}
+  <script>
+    // ============================================================
+    // TRADUCCIONES COMPLETAS (fusionadas)
+    // ============================================================
+    const translations = {
+      es: {
+        gobierno: "Gobierno de Reconciliación y Unidad Nacional — ¡El Pueblo, Presidente!",
+        lema: "2026 • 47/19 VIVA SANDINO! ¡Siempre + Allá!",
+        subtitle: "Sistema Nacional de Comercialización Inteligente Popular",
+        info_btn: "📘 Info",
+        micro_type: "Tipo de Micro-Centro",
+        hub_pulperia: "1. Pulpería Comunitaria",
+        hub_escuela: "2. Escuela Comunitaria",
+        hub_vivienda: "3. Vivienda Comunitaria",
+        view_title: "Vistas de Cámara",
+        view_orbital: "Órbita 360°",
+        view_frontal: "Frontal",
+        view_lateral: "Muelle",
+        view_cenital: "Cenital",
+        view_interna: "Interior",
+        view_cinematica: "Cinemática",
+        btn_exploded: "Vista Explotada",
+        btn_xray: "Modo Rayos-X",
+        btn_reset: "⟲ Reiniciar",
+        telemetry: "Telemetría de Impacto (≤ 60 Días)",
+        stat_income: "Ingreso Familiar",
+        stat_intermediaries: "Intermediarios",
+        stat_rotation: "Rotación Semanal",
+        stat_diversification: "Diversificación",
+        simulator_title: "Simulador de Precios e Ingresos",
+        product_label: "Rubro: Frijol Rojo Nacional",
+        volume_label: "Volumen semanal:",
+        calc_trad: "Tradicional:",
+        calc_sncip: "Con SNCIP:",
+        calc_gain: "Ganancia Extra (+40%):",
+        step1_btn: "1. Entrega Productor",
+        step2_btn: "2. Recepción & Stock",
+        step3_btn: "3. Precio Óptimo",
+        step4_btn: "4. Compra Directa",
+        step5_btn: "5. Registro & OMNIA",
+        step1_title: "Paso 1: Productor Entrega Producto",
+        step2_title: "Paso 2: Micro-Centro Recibe y Almacena",
+        step3_title: "Paso 3: Fijación de Precio Óptimo",
+        step4_title: "Paso 4: Comunidad Compra Directo",
+        step5_title: "Paso 5: Registro y Auditoría OMNIA-5000",
+        step1_desc: "Registro físico en cartilla comunitaria con código único de trazabilidad. Verificación de calidad e higiene.",
+        step2_desc: "Control de inventario físico, separación higiénica por lote y almacenamiento en pulpería, escuela o vivienda.",
+        step3_desc: "El subsistema calcula el precio justo eliminando la especulación: Ingreso = Precio Óptimo × Volumen Vendido.",
+        step4_desc: "Consumidores locales acceden a productos frescos a menor precio sin márgenes excesivos de intermediarios.",
+        step5_desc: "Cierre de ciclo con validación por comité comunitario, consolidación de reportes y transparencia total.",
+        btn_prev: "Anterior", btn_play: "Reproducir", btn_next: "Siguiente", btn_pause: "Pausar",
+        sim_flow: "▶ Flujo",
+        tab_proyecto: "Proyecto",
+        tab_arquitectura: "Arquitectura",
+        tab_implementacion: "Implementación",
+        tab_costos: "Costos",
+        tab_riesgos: "Riesgos",
+        tab_validacion: "Validación",
+        tab_anexos: "Anexos",
+        exec_summary: "RESUMEN EJECUTIVO",
+        income: "Ingresos",
+        impact_time: "Impacto ≤",
+        micro_center: "Micro‑centro",
+        opt_price: "Precios óptimos",
+        phase_diag: "Diagnóstico",
+        phase_org: "Organización",
+        phase_act: "Activación",
+        phase_opt: "Optimización",
+        rapid_impact: "RÁPIDO IMPACTO ≤ 60 DÍAS",
+        economic_ind: "Económicos",
+        income_inc: "Ingresos",
+        intermediary_red: "Intermed.",
+        price_stability: "Estab. precios",
+        social_ind: "Sociales",
+        community_part: "Participación",
+        food_sec: "Seguridad alim.",
+        trust_level: "Confianza",
+        prod_ind: "Productivos",
+        inventory_rot: "Rotación",
+        diversification: "Diversificación",
+        micro_centers: "Micro-centros",
+        municipal: "Municipal",
+        departmental: "Departamental",
+        national: "Nacional",
+        ar_title: "Modo Realidad Aumentada",
+        ar_desc: "Simulación AR interactiva del sistema SNCIP.",
+        ar_close: "Cerrar",
+        mode_rest: "Reposo",
+        mode_analysis: "Análisis",
+        mode_diagnostic: "Diagnóstico",
+        mode_simulation: "Simulación",
+        mode_operation: "Operación",
+        mode_maintenance: "Mantenimiento",
+        mode_emergency: "Emergencia",
+        mode_energy: "Energético",
+        mode_ai: "IA",
+        mode_hybrid: "Híbrido",
+        mode_synergy: "Sinergia",
+        modal_proyecto: `
+          <h3>📌 ¿Qué es el SNCIP?</h3>
+          <p>El <strong>Sistema Nacional de Comercialización Inteligente Popular</strong> es un modelo de optimización de mercados rurales y urbanos que <span class="highlight">aumenta los ingresos familiares sin necesidad de incrementar la producción</span>, reduciendo la intermediación y estabilizando precios mediante inteligencia territorial.</p>
+          <h3>🎯 Objetivo General</h3>
+          <p>Diseñar e implementar un sistema nacional que optimice la comercialización de productos locales para aumentar ingresos familiares sin incrementar la producción.</p>
+          <h3>🔑 Objetivos Específicos</h3>
+          <ul><li><span class="highlight">Reducir intermediación ≥ 30%</span> mediante canales directos.</li><li><span class="highlight">Incrementar ingresos familiares ≥ 40%</span> con precios inteligentes.</li><li>Crear redes locales de comercialización comunitaria.</li><li>Estabilizar precios a nivel comunitario.</li></ul>
+          <h3>💡 Problema que resuelve</h3>
+          <p>Los mercados rurales presentan fallas estructurales: asimetría de información, dependencia de intermediarios y falta de acceso a mercados. El SNCIP elimina estas barreras.</p>
+        `,
+        modal_arquitectura: `
+          <h3>🏗️ Arquitectura del Sistema (4 subsistemas)</h3>
+          <div class="grid-2">
+            <div class="card"><span class="icon">🔗</span><strong>Conexión Productiva</strong><br>Registro manual de productores, identificación de productos y mapeo territorial.</div>
+            <div class="card"><span class="icon">🏪</span><strong>Distribución Comunitaria</strong><br>Micro-centros en pulperías, escuelas y viviendas para venta directa.</div>
+            <div class="card"><span class="icon">📊</span><strong>Precios Inteligentes</strong><br>Recolección de precios locales, comparación y fijación de precio óptimo.</div>
+            <div class="card"><span class="icon">📋</span><strong>Operativo Físico</strong><br>Cartillas, listas de precios y guías de venta sin dependencia digital.</div>
+          </div>
+          <p style="margin-top:8px;">Todos los subsistemas operan bajo el <span class="highlight">protocolo OMNIA-5000</span> que garantiza transparencia, unicidad y aplicabilidad territorial.</p>
+        `,
+        modal_implementacion: `
+          <h3>⏳ Metodología de Implementación (60 días)</h3>
+          <table><tr><th>Fase</th><th>Días</th><th>Actividades</th></tr><tr><td>Diagnóstico</td><td>1–7</td><td>Identificar productores, productos y demanda local.</td></tr><tr><td>Organización</td><td>8–15</td><td>Crear redes locales, seleccionar micro-centros y capacitar.</td></tr><tr><td>Activación</td><td>16–30</td><td>Iniciar ventas directas con precios optimizados y monitoreo diario.</td></tr><tr><td>Optimización</td><td>30–60</td><td>Ajustar precios, mejorar rutas y aumentar volumen de ventas.</td></tr></table>
+          <p><span class="highlight">Resultado esperado:</span> Incremento de ingresos ≥ 40% en el primer mes.</p>
+        `,
+        modal_costos: `
+          <h3>💰 Modelo de Costos</h3>
+          <table><tr><th>Nivel</th><th>Costo estimado</th><th>Descripción</th></tr><tr><td>Municipal</td><td>$2,000 – $8,000</td><td>Implementación en una comunidad pequeña.</td></tr><tr><td>Departamental</td><td>$15,000 – $40,000</td><td>Expansión a varias comunidades.</td></tr><tr><td>Nacional</td><td>$60,000 – $120,000</td><td>Implementación a nivel país.</td></tr></table>
+          <p><strong>Componentes:</strong> Capacitación, Material físico (cartillas, listas, guías) y Coordinación comunitaria.</p>
+        `,
+        modal_riesgos: `
+          <h3>⚠️ Riesgos y Mitigación</h3>
+          <div class="grid-2"><div class="card"><span class="icon">🛑</span><strong>Resistencia de Intermediarios</strong><br>Integración progresiva, transparencia y capacitación inclusiva.</div><div class="card"><span class="icon">🔄</span><strong>Desorganización Comunitaria</strong><br>Liderazgo local, comités de coordinación y protocolos claros.</div><div class="card"><span class="icon">📈</span><strong>Precios Inestables</strong><br>Monitoreo constante, listas comunitarias y ajustes dinámicos.</div></div>
+        `,
+        modal_validacion: `
+          <h3>🧪 Validación Experimental (Enfoque Científico)</h3>
+          <p><strong>Diseño:</strong> Cuasi‑experimental con Grupo A (con SNCIP) y Grupo B (sin SNCIP).</p>
+          <table><tr><th>Indicador</th><th>Grupo A (SNCIP)</th><th>Grupo B (Tradicional)</th><th>Diferencia</th></tr><tr><td>Ingreso promedio</td><td>C$ 2,800</td><td>C$ 2,000</td><td><span class="highlight">+40%</span></td></tr><tr><td>Volumen vendido</td><td>120 lbs/sem</td><td>100 lbs/sem</td><td><span class="highlight">+20%</span></td></tr><tr><td>Tiempo de venta</td><td>2 días</td><td>5 días</td><td><span class="highlight">-60%</span></td></tr></table>
+          <p><span class="highlight">Hipótesis validada:</span> Δ Ingreso ≥ 40%.</p>
+        `,
+        modal_anexos: `
+          <h3>📎 Anexos Prácticos</h3>
+          <div class="grid-2"><div class="card"><span class="icon">📝</span><strong>Formato de Identificación</strong><br>Nombre, código, producto, volumen, ubicación y firmas.</div><div class="card"><span class="icon">🏠</span><strong>Micro-centros</strong><br>Pulpería, escuela y vivienda comunitaria.</div><div class="card"><span class="icon">📘</span><strong>Guía de Capacitación</strong><br>Uso de cartillas, listas de precios y venta directa.</div><div class="card"><span class="icon">📊</span><strong>Indicadores de Seguimiento</strong><br>Ingreso, volumen, tiempo, participación, rotación y diversificación.</div></div>
+        `
+      },
+      en: {
+        gobierno: "Government of Reconciliation and National Unity — The People, President!",
+        lema: "2026 • 47/19 LONG LIVE SANDINO! Always + Beyond!",
+        subtitle: "National Popular Intelligent Commercialization System",
+        info_btn: "📘 Info",
+        micro_type: "Micro-Center Type",
+        hub_pulperia: "1. Community Grocery",
+        hub_escuela: "2. Community School",
+        hub_vivienda: "3. Community Housing",
+        view_title: "Camera Views",
+        view_orbital: "Orbit 360°",
+        view_frontal: "Frontal",
+        view_lateral: "Dock",
+        view_cenital: "Zenith",
+        view_interna: "Interior",
+        view_cinematica: "Cinematic",
+        btn_exploded: "Exploded View",
+        btn_xray: "X-Ray Mode",
+        btn_reset: "⟲ Reset",
+        telemetry: "Impact Telemetry (≤ 60 Days)",
+        stat_income: "Family Income",
+        stat_intermediaries: "Intermediaries",
+        stat_rotation: "Weekly Rotation",
+        stat_diversification: "Diversification",
+        simulator_title: "Price & Income Simulator",
+        product_label: "Item: National Red Beans",
+        volume_label: "Weekly volume:",
+        calc_trad: "Traditional:",
+        calc_sncip: "With SNCIP:",
+        calc_gain: "Extra Gain (+40%):",
+        step1_btn: "1. Producer Delivery",
+        step2_btn: "2. Reception & Stock",
+        step3_btn: "3. Optimal Price",
+        step4_btn: "4. Direct Purchase",
+        step5_btn: "5. Record & OMNIA",
+        step1_title: "Step 1: Producer Delivers Product",
+        step2_title: "Step 2: Micro-Center Receives and Stores",
+        step3_title: "Step 3: Setting Optimal Price",
+        step4_title: "Step 4: Community Buys Directly",
+        step5_title: "Step 5: Registration and OMNIA-5000 Audit",
+        step1_desc: "Physical registration in community booklet with unique traceability code. Quality and hygiene verification.",
+        step2_desc: "Physical inventory control, hygienic batch separation and storage in grocery, school or housing.",
+        step3_desc: "The subsystem calculates the fair price eliminating speculation: Income = Optimal Price × Volume Sold.",
+        step4_desc: "Local consumers access fresh products at lower prices without excessive intermediary margins.",
+        step5_desc: "Cycle closure with validation by community committee, consolidation of reports and total transparency.",
+        btn_prev: "Previous", btn_play: "Play", btn_next: "Next", btn_pause: "Pause",
+        sim_flow: "▶ Flow",
+        tab_proyecto: "Project",
+        tab_arquitectura: "Architecture",
+        tab_implementacion: "Implementation",
+        tab_costos: "Costs",
+        tab_riesgos: "Risks",
+        tab_validacion: "Validation",
+        tab_anexos: "Annexes",
+        exec_summary: "EXECUTIVE SUMMARY",
+        income: "Income",
+        impact_time: "Impact ≤",
+        micro_center: "Micro‑center",
+        opt_price: "Optimal prices",
+        phase_diag: "Diagnosis",
+        phase_org: "Organization",
+        phase_act: "Activation",
+        phase_opt: "Optimization",
+        rapid_impact: "RAPID IMPACT ≤ 60 DAYS",
+        economic_ind: "Economic",
+        income_inc: "Income",
+        intermediary_red: "Intermed.",
+        price_stability: "Price stab.",
+        social_ind: "Social",
+        community_part: "Participation",
+        food_sec: "Food security",
+        trust_level: "Trust",
+        prod_ind: "Productive",
+        inventory_rot: "Rotation",
+        diversification: "Diversification",
+        micro_centers: "Micro-centers",
+        municipal: "Municipal",
+        departmental: "Departmental",
+        national: "National",
+        ar_title: "Augmented Reality Mode",
+        ar_desc: "Interactive AR simulation of the SNCIP system.",
+        ar_close: "Close",
+        mode_rest: "Rest",
+        mode_analysis: "Analysis",
+        mode_diagnostic: "Diagnostic",
+        mode_simulation: "Simulation",
+        mode_operation: "Operation",
+        mode_maintenance: "Maintenance",
+        mode_emergency: "Emergency",
+        mode_energy: "Energy",
+        mode_ai: "AI",
+        mode_hybrid: "Hybrid",
+        mode_synergy: "Synergy",
+        modal_proyecto: `<h3>📌 What is SNCIP?</h3><p>The <strong>National Popular Intelligent Commercialization System</strong> is a market optimization model for rural and urban areas that <span class="highlight">increases family income without increasing production</span>, reducing intermediation and stabilizing prices through territorial intelligence.</p><h3>🎯 General Objective</h3><p>Design and implement a national system that optimizes the commercialization of local products to increase family income without increasing production.</p><h3>🔑 Specific Objectives</h3><ul><li><span class="highlight">Reduce intermediation ≥ 30%</span> through direct channels.</li><li><span class="highlight">Increase family income ≥ 40%</span> with intelligent pricing.</li><li>Create local community commercialization networks.</li><li>Stabilize prices at community level.</li></ul><h3>💡 Problem it solves</h3><p>Rural markets have structural failures: information asymmetry, dependency on intermediaries, and lack of market access. SNCIP eliminates these barriers.</p>`,
+        modal_arquitectura: `<h3>🏗️ System Architecture (4 subsystems)</h3><div class="grid-2"><div class="card"><span class="icon">🔗</span><strong>Productive Connection</strong><br>Manual registration of producers, product identification, and territorial mapping.</div><div class="card"><span class="icon">🏪</span><strong>Community Distribution</strong><br>Micro-centers in grocery stores, schools, and homes for direct sales.</div><div class="card"><span class="icon">📊</span><strong>Intelligent Pricing</strong><br>Local price collection, comparison, and optimal price setting.</div><div class="card"><span class="icon">📋</span><strong>Physical Operation</strong><br>Booklets, price lists, and sales guides with no digital dependency.</div></div><p style="margin-top:8px;">All subsystems operate under the <span class="highlight">OMNIA-5000 protocol</span> ensuring transparency, uniqueness, and territorial applicability.</p>`,
+        modal_implementacion: `<h3>⏳ Implementation Methodology (60 days)</h3><table><tr><th>Phase</th><th>Days</th><th>Activities</th></tr><tr><td>Diagnosis</td><td>1–7</td><td>Identify producers, products, and local demand.</td></tr><tr><td>Organization</td><td>8–15</td><td>Create local networks, select micro-centers, and train.</td></tr><tr><td>Activation</td><td>16–30</td><td>Start direct sales with optimized prices and daily monitoring.</td></tr><tr><td>Optimization</td><td>30–60</td><td>Adjust prices, improve routes, and increase sales volume.</td></tr></table><p><span class="highlight">Expected result:</span> Income increase ≥ 40% in the first month.</p>`,
+        modal_costos: `<h3>💰 Cost Model</h3><table><tr><th>Level</th><th>Estimated Cost</th><th>Description</th></tr><tr><td>Municipal</td><td>$2,000 – $8,000</td><td>Implementation in a small community.</td></tr><tr><td>Departmental</td><td>$15,000 – $40,000</td><td>Expansion to several communities.</td></tr><tr><td>National</td><td>$60,000 – $120,000</td><td>Country-wide implementation.</td></tr></table><p><strong>Components:</strong> Training, Physical materials (booklets, lists, guides), and Community coordination.</p>`,
+        modal_riesgos: `<h3>⚠️ Risks and Mitigation</h3><div class="grid-2"><div class="card"><span class="icon">🛑</span><strong>Intermediary Resistance</strong><br>Progressive integration, transparency, and inclusive training.</div><div class="card"><span class="icon">🔄</span><strong>Community Disorganization</strong><br>Local leadership, coordination committees, and clear protocols.</div><div class="card"><span class="icon">📈</span><strong>Unstable Prices</strong><br>Constant monitoring, community price lists, and dynamic adjustments.</div></div>`,
+        modal_validacion: `<h3>🧪 Experimental Validation (Scientific Approach)</h3><p><strong>Design:</strong> Quasi‑experimental with Group A (with SNCIP) and Group B (without SNCIP).</p><table><tr><th>Indicator</th><th>Group A (SNCIP)</th><th>Group B (Traditional)</th><th>Difference</th></tr><tr><td>Average income</td><td>C$ 2,800</td><td>C$ 2,000</td><td><span class="highlight">+40%</span></td></tr><tr><td>Volume sold</td><td>120 lbs/week</td><td>100 lbs/week</td><td><span class="highlight">+20%</span></td></tr><tr><td>Sales time</td><td>2 days</td><td>5 days</td><td><span class="highlight">-60%</span></td></tr></table><p><span class="highlight">Validated hypothesis:</span> Δ Income ≥ 40%.</p>`,
+        modal_anexos: `<h3>📎 Practical Annexes</h3><div class="grid-2"><div class="card"><span class="icon">📝</span><strong>Identification Form</strong><br>Name, code, product, volume, location, and signatures.</div><div class="card"><span class="icon">🏠</span><strong>Micro-centers</strong><br>Grocery, school, and community housing.</div><div class="card"><span class="icon">📘</span><strong>Training Guide</strong><br>Use of booklets, price lists, and direct sales.</div><div class="card"><span class="icon">📊</span><strong>Monitoring Indicators</strong><br>Income, volume, time, participation, rotation, and diversification.</div></div>`
+      },
+      zh: {
+        gobierno: "和解与民族团结政府 — 人民，总统！",
+        lema: "2026 • 47/19 桑迪诺万岁！永远更远！",
+        subtitle: "国家人民智能商业化系统",
+        info_btn: "📘 信息",
+        micro_type: "微型中心类型",
+        hub_pulperia: "1. 社区杂货店",
+        hub_escuela: "2. 社区学校",
+        hub_vivienda: "3. 社区住宅",
+        view_title: "相机视图",
+        view_orbital: "轨道360°",
+        view_frontal: "正面",
+        view_lateral: "码头",
+        view_cenital: "天顶",
+        view_interna: "内部",
+        view_cinematica: "电影",
+        btn_exploded: "分解视图",
+        btn_xray: "X射线模式",
+        btn_reset: "⟲ 重置",
+        telemetry: "影响遥测（≤60天）",
+        stat_income: "家庭收入",
+        stat_intermediaries: "中间商",
+        stat_rotation: "每周周转",
+        stat_diversification: "多样化",
+        simulator_title: "价格与收入模拟器",
+        product_label: "项目：国产红豆",
+        volume_label: "每周数量：",
+        calc_trad: "传统：",
+        calc_sncip: "使用SNCIP：",
+        calc_gain: "额外收益（+40%）：",
+        step1_btn: "1. 生产者交货",
+        step2_btn: "2. 收货与库存",
+        step3_btn: "3. 最优价格",
+        step4_btn: "4. 直接购买",
+        step5_btn: "5. 记录与OMNIA",
+        step1_title: "步骤1：生产者交付产品",
+        step2_title: "步骤2：微型中心接收和存储",
+        step3_title: "步骤3：设定最优价格",
+        step4_title: "步骤4：社区直接购买",
+        step5_title: "步骤5：注册和OMNIA-5000审计",
+        step1_desc: "在社区手册中进行物理登记，具有唯一可追溯性代码。质量和卫生验证。",
+        step2_desc: "物理库存控制，卫生批次分离和存储在杂货店、学校或住宅中。",
+        step3_desc: "子系统计算公平价格，消除投机：收入 = 最优价格 × 销售量。",
+        step4_desc: "当地消费者以更低价格获得新鲜产品，没有过度的中间商利润。",
+        step5_desc: "通过社区委员会验证、报告汇总和完全透明度来结束周期。",
+        btn_prev: "上一页", btn_play: "播放", btn_next: "下一页", btn_pause: "暂停",
+        sim_flow: "▶ 流程",
+        tab_proyecto: "项目",
+        tab_arquitectura: "架构",
+        tab_implementacion: "实施",
+        tab_costos: "成本",
+        tab_riesgos: "风险",
+        tab_validacion: "验证",
+        tab_anexos: "附件",
+        exec_summary: "执行摘要",
+        income: "收入",
+        impact_time: "影响 ≤",
+        micro_center: "微型中心",
+        opt_price: "最优价格",
+        phase_diag: "诊断",
+        phase_org: "组织",
+        phase_act: "激活",
+        phase_opt: "优化",
+        rapid_impact: "快速影响 ≤ 60 天",
+        economic_ind: "经济",
+        income_inc: "收入",
+        intermediary_red: "中间商",
+        price_stability: "价格稳定",
+        social_ind: "社会",
+        community_part: "参与",
+        food_sec: "食品安全",
+        trust_level: "信任",
+        prod_ind: "生产",
+        inventory_rot: "周转",
+        diversification: "多样化",
+        micro_centers: "微型中心",
+        municipal: "市级",
+        departmental: "省级",
+        national: "国家级",
+        ar_title: "增强现实模式",
+        ar_desc: "SNCIP系统的互动AR模拟。",
+        ar_close: "关闭",
+        mode_rest: "休息",
+        mode_analysis: "分析",
+        mode_diagnostic: "诊断",
+        mode_simulation: "模拟",
+        mode_operation: "操作",
+        mode_maintenance: "维护",
+        mode_emergency: "紧急",
+        mode_energy: "能量",
+        mode_ai: "AI",
+        mode_hybrid: "混合",
+        mode_synergy: "协同",
+        modal_proyecto: `<h3>📌 什么是SNCIP？</h3><p><strong>国家人民智能商业化系统</strong> 是一个农村和城市市场优化模型，<span class="highlight">在不增加产量的情况下增加家庭收入</span>，通过区域智能减少中间环节并稳定价格。</p><h3>🎯 总体目标</h3><p>设计并实施一个国家系统，优化本地产品的商业化，在不增加产量的情况下增加家庭收入。</p><h3>🔑 具体目标</h3><ul><li><span class="highlight">减少中间环节 ≥ 30%</span> 通过直接渠道。</li><li><span class="highlight">增加家庭收入 ≥ 40%</span> 通过智能定价。</li><li>建立本地社区商业化网络。</li><li>稳定社区价格。</li></ul><h3>💡 解决的问题</h3><p>农村市场存在结构性缺陷：信息不对称、依赖中间商和缺乏市场准入。SNCIP 消除了这些障碍。</p>`,
+        modal_arquitectura: `<h3>🏗️ 系统架构（4个子系统）</h3><div class="grid-2"><div class="card"><span class="icon">🔗</span><strong>生产连接</strong><br>生产者的手动登记、产品识别和区域地图。</div><div class="card"><span class="icon">🏪</span><strong>社区分销</strong><br>在杂货店、学校和住宅设立微型中心进行直销。</div><div class="card"><span class="icon">📊</span><strong>智能定价</strong><br>收集本地价格、比较并设定最优价格。</div><div class="card"><span class="icon">📋</span><strong>物理操作</strong><br>手册、价格表和销售指南，无需数字依赖。</div></div><p style="margin-top:8px;">所有子系统均在 <span class="highlight">OMNIA-5000 协议</span> 下运行，确保透明度、唯一性和区域适用性。</p>`,
+        modal_implementacion: `<h3>⏳ 实施方法（60天）</h3><table><tr><th>阶段</th><th>天数</th><th>活动</th></tr><tr><td>诊断</td><td>1–7</td><td>识别生产者、产品和本地需求。</td></tr><tr><td>组织</td><td>8–15</td><td>建立本地网络、选择微型中心并培训。</td></tr><tr><td>激活</td><td>16–30</td><td>以优化价格开始直销并每日监控。</td></tr><tr><td>优化</td><td>30–60</td><td>调整价格、改善路线并增加销售量。</td></tr></table><p><span class="highlight">预期结果：</span> 第一个月收入增加 ≥ 40%。</p>`,
+        modal_costos: `<h3>💰 成本模型</h3><table><tr><th>级别</th><th>估计成本</th><th>描述</th></tr><tr><td>市级</td><td>$2,000 – $8,000</td><td>在一个小社区实施。</td></tr><tr><td>省级</td><td>$15,000 – $40,000</td><td>扩展到多个社区。</td></tr><tr><td>国家级</td><td>$60,000 – $120,000</td><td>全国范围实施。</td></tr></table><p><strong>组成部分：</strong> 培训、物理材料（手册、列表、指南）和社区协调。</p>`,
+        modal_riesgos: `<h3>⚠️ 风险与缓解</h3><div class="grid-2"><div class="card"><span class="icon">🛑</span><strong>中间商抵制</strong><br>渐进整合、透明度和包容性培训。</div><div class="card"><span class="icon">🔄</span><strong>社区混乱</strong><br>本地领导、协调委员会和明确协议。</div><div class="card"><span class="icon">📈</span><strong>价格不稳定</strong><br>持续监控、社区价格表和动态调整。</div></div>`,
+        modal_validacion: `<h3>🧪 实验验证（科学方法）</h3><p><strong>设计：</strong> 准实验，A组（有SNCIP）和B组（无SNCIP）。</p><table><tr><th>指标</th><th>A组（SNCIP）</th><th>B组（传统）</th><th>差异</th></tr><tr><td>平均收入</td><td>C$ 2,800</td><td>C$ 2,000</td><td><span class="highlight">+40%</span></td></tr><tr><td>销售量</td><td>120 磅/周</td><td>100 磅/周</td><td><span class="highlight">+20%</span></td></tr><tr><td>销售时间</td><td>2 天</td><td>5 天</td><td><span class="highlight">-60%</span></td></tr></table><p><span class="highlight">已验证假设：</span> Δ 收入 ≥ 40%。</p>`,
+        modal_anexos: `<h3>📎 实用附件</h3><div class="grid-2"><div class="card"><span class="icon">📝</span><strong>身份识别表</strong><br>姓名、代码、产品、数量、位置和签名。</div><div class="card"><span class="icon">🏠</span><strong>微型中心</strong><br>杂货店、学校和社区住宅。</div><div class="card"><span class="icon">📘</span><strong>培训指南</strong><br>手册、价格表和直销的使用。</div><div class="card"><span class="icon">📊</span><strong>监测指标</strong><br>收入、数量、时间、参与度、周转率和多样化。</div></div>`
+      }
+    };
 
-/* ========== WEBGL (sin cambios estructurales) ========== */
-const canvas=document.getElementById('glCanvas');
-const gl=canvas.getContext('webgl',{antialias:true,alpha:false});
-if(!gl){document.body.innerHTML='<h1 style="color:#fff;text-align:center;margin-top:40vh">WebGL no soportado</h1>';}
-function resizeCanvas(){const d=Math.min(window.devicePixelRatio||1,2);canvas.width=window.innerWidth*d;canvas.height=window.innerHeight*d;canvas.style.width=window.innerWidth+'px';canvas.style.height=window.innerHeight+'px';gl.viewport(0,0,canvas.width,canvas.height);}
-window.addEventListener('resize',resizeCanvas);resizeCanvas();
+    // ============================================================
+    // LÓGICA DE IDIOMAS
+    // ============================================================
+    let currentLang = 'es';
+    let currentStep = 1;
+    let isSimPlaying = false;
+    let currentState = 'rest';
 
-function compileSh(src,tp){const s=gl.createShader(tp);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){console.error(gl.getShaderInfoLog(s));return null;}return s;}
-function createProg(vs,fs){const p=gl.createProgram();gl.attachShader(p,compileSh(vs,gl.VERTEX_SHADER));gl.attachShader(p,compileSh(fs,gl.FRAGMENT_SHADER));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS)){console.error(gl.getProgramInfoLog(p));return null;}return p;}
+    function updateLanguage(lang) {
+      currentLang = lang;
+      const t = translations[lang];
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (t[key] !== undefined) {
+          if (el.tagName === 'BUTTON' && el.getAttribute('data-i18n') === 'btn_play') {
+            // handled separately
+          } else {
+            el.textContent = t[key];
+          }
+        }
+      });
+      const playBtn = document.getElementById('sim-play-btn');
+      if (playBtn) playBtn.textContent = isSimPlaying ? t.btn_pause : t.btn_play;
+      updateStepTexts(currentStep);
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.id === 'btn-'+lang));
+      if (document.getElementById('modalOverlay').classList.contains('open')) renderModalContent();
+    }
 
-/* Shader principal (colores ajustados) */
-const mainVS=`attribute vec3 aPos;attribute vec3 aNorm;uniform mat4 uModel,uView,uProj;uniform mat3 uNormalMat;varying vec3 vPos,vNorm;void main(){vec4 wp=uModel*vec4(aPos,1.0);vPos=wp.xyz;vNorm=normalize(uNormalMat*aNorm);gl_Position=uProj*uView*wp;}`;
-const mainFS=`precision highp float;varying vec3 vPos,vNorm;uniform vec3 uColor,uCamPos,uLightDir,uLightColor,uEmissiveColor;uniform float uMetallic,uRoughness,uEmissive,uAlpha,uTime,uFresnelPower,uXRay;void main(){vec3 N=normalize(vNorm),V=normalize(uCamPos-vPos),L=normalize(uLightDir),H=normalize(L+V);float NdotL=max(dot(N,L),0.0),NdotH=max(dot(N,H),0.0),NdotV=max(dot(N,V),0.0);float fresnel=pow(1.0-NdotV,uFresnelPower);vec3 diff=uColor*(1.0-uMetallic)*NdotL*uLightColor;float sp=pow(NdotH,mix(256.0,4.0,uRoughness))*(1.0-uRoughness*0.8);vec3 spec=mix(vec3(0.04),uColor,uMetallic)*sp*uLightColor;vec3 amb=uColor*0.08;vec3 em=uEmissiveColor*uEmissive;float rim=pow(1.0-NdotV,3.0)*0.35;vec3 rimC=vec3(0.0,0.8,1.0)*rim;vec3 col=amb+diff+spec+em+rimC;if(uXRay>0.5){float xr=pow(1.0-NdotV,2.5);col=vec3(0.0,0.8,1.0)*xr*1.5;gl_FragColor=vec4(col,xr*0.6+0.05);return;}col=col/(col+vec3(1.0));gl_FragColor=vec4(col,uAlpha);}`;
-const mainProg=createProg(mainVS,mainFS);
-const mU={};['uModel','uView','uProj','uNormalMat','uColor','uCamPos','uMetallic','uRoughness','uEmissive','uEmissiveColor','uAlpha','uTime','uLightDir','uLightColor','uFresnelPower','uXRay'].forEach(n=>mU[n]=gl.getUniformLocation(mainProg,n));
-const mA={aPos:gl.getAttribLocation(mainProg,'aPos'),aNorm:gl.getAttribLocation(mainProg,'aNorm')};
+    function updateStepTexts(step) {
+      const t = translations[currentLang];
+      const titles = [t.step1_title, t.step2_title, t.step3_title, t.step4_title, t.step5_title];
+      const descs = [t.step1_desc, t.step2_desc, t.step3_desc, t.step4_desc, t.step5_desc];
+      document.getElementById('step-title').textContent = titles[step-1];
+      document.getElementById('step-desc').textContent = descs[step-1];
+    }
 
-/* Shader partículas */
-const partVS=`attribute vec3 aPos;attribute float aSize;attribute vec3 aParticleColor;attribute float aAlpha;uniform mat4 uView,uProj;varying vec3 vCol;varying float vA;void main(){vCol=aParticleColor;vA=aAlpha;vec4 vp=uView*vec4(aPos,1.0);gl_Position=uProj*vp;gl_PointSize=aSize*(300.0/max(-vp.z,0.1));}`;
-const partFS=`precision mediump float;varying vec3 vCol;varying float vA;void main(){float d=length(gl_PointCoord-vec2(0.5));if(d>0.5)discard;float a=vA*smoothstep(0.5,0.1,d);gl_FragColor=vec4(vCol,a);}`;
-const partProg=createProg(partVS,partFS);
-const pU={uView:gl.getUniformLocation(partProg,'uView'),uProj:gl.getUniformLocation(partProg,'uProj')};
-const pA={aPos:gl.getAttribLocation(partProg,'aPos'),aSize:gl.getAttribLocation(partProg,'aSize'),aParticleColor:gl.getAttribLocation(partProg,'aParticleColor'),aAlpha:gl.getAttribLocation(partProg,'aAlpha')};
+    function setLang(lang) { updateLanguage(lang); }
 
-/* Shader líneas */
-const lineVS=`attribute vec3 aPos;attribute vec4 aLineColor;uniform mat4 uView,uProj;varying vec4 vCol;void main(){vCol=aLineColor;gl_Position=uProj*uView*vec4(aPos,1.0);}`;
-const lineFS=`precision mediump float;varying vec4 vCol;void main(){gl_FragColor=vCol;}`;
-const lineProg=createProg(lineVS,lineFS);
-const lU={uView:gl.getUniformLocation(lineProg,'uView'),uProj:gl.getUniformLocation(lineProg,'uProj')};
-const lA={aPos:gl.getAttribLocation(lineProg,'aPos'),aLineColor:gl.getAttribLocation(lineProg,'aLineColor')};
+    // ============================================================
+    // MODAL
+    // ============================================================
+    function openModal() {
+      document.getElementById('modalOverlay').classList.add('open');
+      renderModalContent();
+    }
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.remove('open');
+    }
+    document.getElementById('modalOverlay').addEventListener('click', function(e) {
+      if (e.target === this) closeModal();
+    });
 
-/* ========== MESHES (sin cambios) ========== */
-function createMesh(g){const pb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,pb);gl.bufferData(gl.ARRAY_BUFFER,g.positions,gl.STATIC_DRAW);const nb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,nb);gl.bufferData(gl.ARRAY_BUFFER,g.normals,gl.STATIC_DRAW);const ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,g.indices,gl.STATIC_DRAW);return{pb,nb,ib,cnt:g.indices.length};}
-function createLineMesh(g){const pb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,pb);gl.bufferData(gl.ARRAY_BUFFER,g.positions,gl.STATIC_DRAW);if(g.colors){const cb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,cb);gl.bufferData(gl.ARRAY_BUFFER,g.colors,gl.STATIC_DRAW);return{pb,cb,cnt:g.count};}return{pb,cnt:g.count};}
+    function renderModalContent() {
+      const t = translations[currentLang];
+      const container = document.getElementById('tabContentContainer');
+      const tabs = document.querySelectorAll('.modal-tabs button');
+      let activeTab = document.querySelector('.modal-tabs button.active-tab');
+      if (!activeTab) activeTab = tabs[0];
+      const activeId = activeTab ? activeTab.dataset.tab : 'tab-proyecto';
 
-/* Crear geometrías */
-const meshCore=createMesh(createIcosahedron(0.8,1));
-const meshSub0=createMesh(createIcosahedron(0.45,0));
-const meshSub1=createMesh(createBox(0.8,0.8,0.8));
-const meshSub2=createMesh(createHexPrism(0.45,0.7,6));
-const meshSub3=createMesh(createCylinder(0.35,0.35,0.9,12));
-const meshSub4=createMesh(createCylinder(0.0,0.5,0.8,4)); 
-const meshSub5=createMesh(createBox(0.5,0.5,0.5));        
-const meshRing1=createMesh(createTorus(1.8,0.02,48,8));
-const meshRing2=createMesh(createTorus(2.3,0.015,48,8));
-const meshRing3=createMesh(createTorus(3.2,0.01,64,8));
-const gridGeom=createGrid(20,20);
-const gridMesh=createLineMesh(gridGeom);
+      const tabContents = {
+        'tab-proyecto': t.modal_proyecto,
+        'tab-arquitectura': t.modal_arquitectura,
+        'tab-implementacion': t.modal_implementacion,
+        'tab-costos': t.modal_costos,
+        'tab-riesgos': t.modal_riesgos,
+        'tab-validacion': t.modal_validacion,
+        'tab-anexos': t.modal_anexos
+      };
+      let html = '';
+      tabs.forEach(btn => {
+        const id = btn.dataset.tab;
+        const isActive = (id === activeId);
+        html += `<div class="tab-content ${isActive ? 'active' : ''}" id="${id}">${tabContents[id] || ''}</div>`;
+      });
+      container.innerHTML = html;
+      tabs.forEach(btn => {
+        btn.onclick = function() {
+          document.querySelectorAll('.modal-tabs button').forEach(b => b.classList.remove('active-tab'));
+          this.classList.add('active-tab');
+          const id = this.dataset.tab;
+          document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+          document.getElementById(id).classList.add('active');
+        };
+        const key = btn.dataset.i18n;
+        if (t[key]) btn.textContent = t[key];
+      });
+    }
 
-const linePosBuf=gl.createBuffer();
-const lineColBuf=gl.createBuffer();
+    // ============================================================
+    // SIMULACIÓN DE FLUJO
+    // ============================================================
+    let flowRunning = false;
+    function runFlowSimulation() {
+      if (flowRunning) return;
+      flowRunning = true;
+      showLegend("Iniciando Simulación", "Estableciendo parámetros iniciales...", 1500);
+      let step = 0;
+      const flowTitles = ["Simulación: Entrega", "Simulación: Recepción", "Simulación: Cálculo IA", "Simulación: Distribución", "Cierre de Ciclo"];
+      const flowDescs = ["El productor ingresa datos al sistema y genera token de origen.", "Micro-centro escanea lote y valida métricas.", "Optimización predictiva fija precio ideal.", "Venta directa sin intermediarios.", "Transacción registrada inmutablemente."];
+      function nextFlowStep() {
+        if (step < flowTitles.length) {
+          showLegend(flowTitles[step], flowDescs[step], 1800);
+          if (window.spawnParticle) {
+            for (let i = 0; i < 8; i++) window.spawnParticle('flow');
+          }
+          step++;
+          setTimeout(nextFlowStep, 1800);
+        } else {
+          showLegend("Simulación Finalizada", "Todos los sistemas operando al máximo rendimiento", 3000);
+          flowRunning = false;
+        }
+      }
+      setTimeout(nextFlowStep, 1200);
+    }
 
-/* ========== PARTÍCULAS (colores ajustados) ========== */
-const MAX_P=600; 
-const pPos=new Float32Array(MAX_P*3);
-const pSz=new Float32Array(MAX_P);
-const pCol=new Float32Array(MAX_P*3);
-const pAlp=new Float32Array(MAX_P);
-const pVel=[];const pLife=[];const pMaxLife=[];
-const pBufPos=gl.createBuffer();const pBufSz=gl.createBuffer();const pBufCol=gl.createBuffer();const pBufAlp=gl.createBuffer();
-let pCount=0, aiLayerOn=false;
+    // ============================================================
+    // LEYENDA
+    // ============================================================
+    function showLegend(title, desc, duration = 3000) {
+      const box = document.getElementById('simLegend');
+      document.getElementById('legendTitle').textContent = title;
+      document.getElementById('legendDesc').textContent = desc;
+      box.classList.add('active');
+      if (window.legendTimer) clearTimeout(window.legendTimer);
+      window.legendTimer = setTimeout(() => box.classList.remove('active'), duration);
+    }
 
-function spawnParticle(type, customOrigin = null){if(pCount>=MAX_P)return;const i=pCount;let px,py,pz,vx,vy,vz,r,g,b,sz,life;
-if(type==='flow'){const si=Math.floor(Math.random()*4);const targets=[[-2.5,0,0],[0,0,-2.5],[2.5,0,0],[0,0,2.5]][si];const t=Math.random();px=targets[0]*t;py=(Math.random()-.5)*.3;pz=targets[2]*t;vx=(Math.random()-.5)*.02;vy=(Math.random()-.5)*.01;vz=(Math.random()-.5)*.02;const cols=[[0,0.8,1],[1,0.4,0.2],[0.8,0.6,0],[0.6,0.2,1]];r=cols[si][0];g=cols[si][1];b=cols[si][2];sz=3+Math.random()*3;life=2+Math.random()*2;}
-else if(type==='ambient'){const a=Math.random()*Math.PI*2,rad=1+Math.random()*3;px=Math.cos(a)*rad;py=(Math.random()-.5)*2;pz=Math.sin(a)*rad;vx=(Math.random()-.5)*.005;vy=(Math.random()-.5)*.005;vz=(Math.random()-.5)*.005;r=0.2+Math.random()*0.4;g=0.6+Math.random()*0.4;b=0.8+Math.random()*0.2;sz=1.5+Math.random()*2;life=3+Math.random()*4;}
-else if(type==='ai'){const a=Math.random()*Math.PI*2,rad=.5+Math.random()*2.5;px=Math.cos(a)*rad;py=(Math.random()-.5)*1.5;pz=Math.sin(a)*rad;vx=(Math.random()-.5)*.03;vy=(Math.random()-.5)*.02;vz=(Math.random()-.5)*.03;r=0.6+Math.random()*0.4;g=0.2+Math.random()*0.3;b=0.8+Math.random()*0.2;sz=2+Math.random()*3;life=1.5+Math.random()*2;}
-else if(type==='burst'){px=customOrigin?customOrigin.x:0;py=customOrigin?customOrigin.y:0;pz=customOrigin?customOrigin.z:0;vx=(Math.random()-.5)*.15;vy=(Math.random()-.5)*.15;vz=(Math.random()-.5)*.15;r=0.0+Math.random()*0.3;g=0.7+Math.random()*0.3;b=1.0;sz=4+Math.random()*4;life=0.5+Math.random()*1;}
-else{px=py=pz=0;vx=vy=vz=0;r=g=b=1;sz=2;life=1;}
-pPos[i*3]=px;pPos[i*3+1]=py;pPos[i*3+2]=pz;
-pSz[i]=sz;pCol[i*3]=r;pCol[i*3+1]=g;pCol[i*3+2]=b;pAlp[i]=1;
-pVel[i]={x:vx,y:vy,z:vz};pLife[i]=0;pMaxLife[i]=life;pCount++;
-}
-function updateParticles(dt){for(let i=pCount-1;i>=0;i--){pLife[i]+=dt;if(pLife[i]>=pMaxLife[i]){pCount--;if(i<pCount){pPos.copyWithin(i*3,(i+1)*3);pSz.copyWithin(i,i+1);pCol.copyWithin(i*3,(i+1)*3);pAlp.copyWithin(i,i+1);pVel[i]=pVel[i+1];pLife[i]=pLife[i+1];pMaxLife[i]=pMaxLife[i+1];}continue;}
-pPos[i*3]+=pVel[i].x;pPos[i*3+1]+=pVel[i].y;pPos[i*3+2]+=pVel[i].z;
-const t=pLife[i]/pMaxLife[i];pAlp[i]=t<.1?t/.1:t>.7?(1-t)/.3:1;}
-}
+    // ============================================================
+    // AR MODE
+    // ============================================================
+    let arVisible = false, arFrame = 0;
+    function toggleAR() {
+      arVisible = !arVisible;
+      document.getElementById('arModal').classList.toggle('visible', arVisible);
+      if (arVisible) drawAR();
+    }
+    function drawAR() {
+      if (!arVisible) return;
+      arFrame++;
+      const c = document.getElementById('arCanvas');
+      const ctx = c.getContext('2d');
+      const w = c.width, h = c.height;
+      ctx.fillStyle = 'rgba(10,14,30,0.3)';
+      ctx.fillRect(0, 0, w, h);
+      const t = arFrame * 0.02;
+      ctx.strokeStyle = 'rgba(79,195,247,0.6)';
+      ctx.lineWidth = 2;
+      for (let i=0; i<8; i++) {
+        const a = t + i * Math.PI/4, r = 80 + i*25;
+        ctx.beginPath();
+        ctx.ellipse(w/2, h/2, r, r*0.6, a, 0, Math.PI*2);
+        ctx.stroke();
+      }
+      for (let i=0; i<12; i++) {
+        const a = t*0.7 + i*Math.PI/6;
+        ctx.beginPath();
+        ctx.moveTo(w/2, h/2);
+        ctx.lineTo(w/2 + Math.cos(a)*200, h/2 + Math.sin(a)*200);
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(79,195,247,0.9)';
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText('AR SIMULATION - SNCIP', 20, 30);
+      ctx.fillText('NODES: 24 | CONN: 67 | STATUS: ACTIVE', 20, 55);
+      for (let i=0; i<4; i++) {
+        const x = 150 + i*120, y = 200 + Math.sin(t+i)*30;
+        ctx.strokeStyle = `rgba(${79 + i*30}, ${195 - i*30}, ${247 - i*20}, 0.8)`;
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(x-20, y-20, 40, 40);
+        ctx.fillStyle = '#fff';
+        ctx.fillText('SUB'+i, x-10, y+5);
+      }
+      requestAnimationFrame(drawAR);
+    }
 
-/* ========== ESCENA ========== */
-const subPositions=[V3.create(-2.5,0,0),V3.create(0,0,-2.5),V3.create(2.5,0,0),V3.create(0,0,2.5), V3.create(-1.8,1.8,-1.8), V3.create(1.8,-1.8,1.8)];
-const subMeshes=[meshSub0,meshSub1,meshSub2,meshSub3,meshSub4,meshSub5];
-const subColors=[[0,0.8,1],[1,0.42,0.2],[0.8,0.7,0],[0.6,0.2,1],[0.3,1,0.5],[0.7,0.4,0.2]];
-const subEmColors=[[0,0.4,0.6],[0.5,0.2,0.1],[0.4,0.35,0],[0.3,0.1,0.6],[0.15,0.6,0.3],[0.4,0.2,0.1]];
-let selectedSub=0;
-let currentState='rest';
-let explodedFactor=0;
-let xrayMode=false;
-let autoRotate=false;
-let time=0;
+    // ============================================================
+    // THREE.JS - ESCENA 3D (completa)
+    // ============================================================
+    let scene, camera, renderer, clock;
+    let hubGroup, truckGroup, flagsGroup, nicFlagMesh, fslnFlagMesh;
+    let isExploded = false, isXRay = false;
+    let explodedParts = [];
+    let isDragging = false, prevMouse = { x: 0, y: 0 };
+    let spherical = { radius: 18, theta: Math.PI/4, phi: Math.PI/3.2 };
+    let target = new THREE.Vector3(0, 2, 0);
+    let cameraTarget = { radius: 18, theta: Math.PI/4, phi: Math.PI/3.2 };
+    let camPreset = 'orbital';
+    let roofMesh, counterMesh;
 
-/* Estado: parámetros visuales (colores ajustados) */
-const stateParams={
-  rest:{emissive:.15,speed:.3,particleRate:.3,coreColor:[0,0.8,1],coreEmColor:[0,0.4,0.6]},
-  analysis:{emissive:.25,speed:.5,particleRate:.5,coreColor:[0,0.8,1],coreEmColor:[0,0.3,0.6]},
-  diagnostic:{emissive:.35,speed:.7,particleRate:.6,coreColor:[0.8,0.7,0],coreEmColor:[0.4,0.35,0]},
-  simulation:{emissive:.4,speed:1,particleRate:1.5,coreColor:[0,0.8,1],coreEmColor:[0,0.4,0.7]},
-  operation:{emissive:.5,speed:.8,particleRate:1.2,coreColor:[0,0.8,1],coreEmColor:[0,0.5,0.8]},
-  maintenance:{emissive:.3,speed:.2,particleRate:.2,coreColor:[0.8,0.7,0],coreEmColor:[0.4,0.35,0]},
-  emergency:{emissive:.8,speed:2,particleRate:2,coreColor:[1,0.2,0.3],coreEmColor:[0.8,0.1,0.15]},
-  energy:{emissive:.45,speed:.6,particleRate:1,coreColor:[0,0.9,0.4],coreEmColor:[0,0.6,0.25]},
-  ai:{emissive:.5,speed:1.2,particleRate:1.8,coreColor:[0.6,0.2,1],coreEmColor:[0.4,0.1,0.7]},
-  hybrid:{emissive:.4,speed:.9,particleRate:1,coreColor:[0,0.8,1],coreEmColor:[0.3,0.2,0.6]},
-  synergy:{emissive:.9,speed:2.5,particleRate:4.0,coreColor:[0.8,0.2,1],coreEmColor:[0.5,0.1,0.8]} 
-};
+    // Elementos para simulaciones por paso
+    let stepSprites = [];
+    let extraCrates = [];
+    let consumerSpheres = [];
+    let omniaGlow = null;
 
-/* ========== CÁMARA (sin cambios) ========== */
-let camTheta=.5,camPhi=.65,camRadius=8,camTarget=V3.create(0,0,0);
-let tgtTheta=tgtPhi=camTheta,tgtPhiV=camPhi,tgtRadius=camRadius,tgtTarget=V3.create(0,0,0);
-let camTrans=false,curCamView='orbit';
-let isDrag=false,lastMX=0,lastMY=0;
+    // Elementos para estados
+    let stateSprites = [];
+    let stateParticleInterval = null;
+    let synergyWave = null;
+    let emergencyFlash = false;
 
-canvas.addEventListener('mousedown',e=>{isDrag=true;lastMX=e.clientX;lastMY=e.clientY;});
-canvas.addEventListener('mousemove',e=>{if(!isDrag)return;camTheta-=(e.clientX-lastMX)*.005;camPhi=Math.max(.1,Math.min(Math.PI-.1,camPhi+(e.clientY-lastMY)*.005));lastMX=e.clientX;lastMY=e.clientY;curCamView='orbit';updateCamBtns();});
-canvas.addEventListener('mouseup',()=>isDrag=false);
-canvas.addEventListener('mouseleave',()=>isDrag=false);
-canvas.addEventListener('wheel',e=>{e.preventDefault();camRadius=Math.max(3,Math.min(18,camRadius+e.deltaY*.01));},{passive:false});
+    // ============================================================
+    // FUNCIONES 3D
+    // ============================================================
+    function createTextSprite(text, color = '#ffffff', bgColor = 'rgba(26,31,42,0.8)') {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = bgColor;
+      ctx.roundRect(0,0,512,128,20);
+      ctx.fill();
+      ctx.fillStyle = color;
+      ctx.font = 'bold 48px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, 256, 64);
+      const texture = new THREE.CanvasTexture(canvas);
+      const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.set(3, 0.75, 1);
+      return sprite;
+    }
 
-canvas.addEventListener('dblclick',e=>{
-  triggerInteractiveBurst();
-  tgtRadius = 5; camTrans = true; 
-});
+    function clearStepEffects() {
+      stepSprites.forEach(s => scene.remove(s));
+      stepSprites = [];
+      extraCrates.forEach(c => scene.remove(c));
+      extraCrates = [];
+      consumerSpheres.forEach(s => scene.remove(s));
+      consumerSpheres = [];
+      if (omniaGlow) { scene.remove(omniaGlow); omniaGlow = null; }
+      if (roofMesh) roofMesh.material.color.setHex(0x2a3340);
+      if (truckGroup) truckGroup.position.x = 6.5;
+    }
 
-function triggerInteractiveBurst() {
-  for(let i=0; i<40; i++) spawnParticle('burst');
-  autoRotate = !autoRotate;
-  updateCamBtns();
-  showSimLegend("Proyección de Escala Activa", "Calculando nodos de expansión y renderizando nuevas rutas de distribución logística...", 3500);
-}
+    function spawnParticle(type, color) {
+      // Tipo 'state' para partículas de estado
+      if (type === 'state') {
+        const hex = '#' + color.toString(16).padStart(6, '0');
+        const sprite = createTextSprite('•', hex, 'rgba(0,0,0,0)');
+        const pos = new THREE.Vector3(
+          (Math.random() - 0.5) * 6,
+          Math.random() * 4,
+          (Math.random() - 0.5) * 6
+        );
+        sprite.position.copy(pos);
+        sprite.scale.set(0.2 + Math.random() * 0.2, 0.2 + Math.random() * 0.2, 1);
+        scene.add(sprite);
+        stateSprites.push(sprite);
+        setTimeout(() => {
+          scene.remove(sprite);
+          const idx = stateSprites.indexOf(sprite);
+          if (idx >= 0) stateSprites.splice(idx, 1);
+        }, 2000);
+        return;
+      }
+      // Tipo 'flow' para partículas de flujo
+      if (type === 'flow') {
+        const colors = [0x4fc3f7, 0x66bb6a, 0xffa726, 0xef5350];
+        const col = colors[Math.floor(Math.random() * colors.length)];
+        const sprite = createTextSprite('•', '#4fc3f7', 'rgba(0,0,0,0)');
+        const pos = new THREE.Vector3(
+          (Math.random() - 0.5) * 4,
+          Math.random() * 3,
+          (Math.random() - 0.5) * 4
+        );
+        sprite.position.copy(pos);
+        sprite.scale.set(0.3, 0.3, 1);
+        scene.add(sprite);
+        stepSprites.push(sprite);
+        setTimeout(() => {
+          scene.remove(sprite);
+          const idx = stepSprites.indexOf(sprite);
+          if (idx >= 0) stepSprites.splice(idx, 1);
+        }, 2000);
+        return;
+      }
+    }
 
-function updateCamBtns(){document.querySelectorAll('.cam-btn').forEach((b,i)=>{const views=['orbit','top','front','exploded','xray','auto','focus','ar'];b.classList.toggle('active',views[i]===curCamView);});}
+    // ============================================================
+    // CONSTRUCCIÓN DE LA ESCENA
+    // ============================================================
+    function buildHub() {
+      hubGroup = new THREE.Group();
+      scene.add(hubGroup);
 
-function setCamView(v){curCamView=v;camTrans=true;
-if(v==='orbit'){tgtTheta=.5;tgtPhiV=.65;tgtRadius=8;tgtTarget=V3.create(0,0,0);xrayMode=false;}
-else if(v==='top'){tgtTheta=0;tgtPhiV=.05;tgtRadius=10;tgtTarget=V3.create(0,0,0);xrayMode=false;}
-else if(v==='front'){tgtTheta=0;tgtPhiV=Math.PI/2;tgtRadius=10;tgtTarget=V3.create(0,0,0);xrayMode=false;}
-else if(v==='exploded'){tgtTheta=.5;tgtPhiV=.65;tgtRadius=10;tgtTarget=V3.create(0,0,0);xrayMode=false;}
-else if(v==='xray'){tgtTheta=.5;tgtPhiV=.65;tgtRadius=8;tgtTarget=V3.create(0,0,0);xrayMode=true;}
-else if(v==='auto'){autoRotate=true;tgtRadius=9;tgtTarget=V3.create(0,0,0);xrayMode=false;}
-else if(v==='focus'){const sp=subPositions[selectedSub];tgtTarget=V3.create(sp.x,sp.y,sp.z);tgtRadius=4;tgtPhiV=.65;xrayMode=false;}
-updateCamBtns();showAlert(v==='xray'?'Vista X-Ray activada':v==='exploded'?'Vista explosionada activada':'Vista: '+v,'info');
-}
+      const deckGeo = new THREE.BoxGeometry(7,0.25,5);
+      const deckMat = new THREE.MeshStandardMaterial({ color: 0x2a3340, metalness: 0.6 });
+      const deck = new THREE.Mesh(deckGeo, deckMat);
+      deck.position.set(0,0.125,0);
+      hubGroup.add(deck);
 
-/* ========== ESTADOS ========== */
-function setState(s){currentState=s;document.querySelectorAll('.state-btn').forEach(b=>b.classList.remove('active'));event.target.classList.add('active');const mb=document.getElementById('modeBadge');const sk='mode_'+s;if(LANG[currentLang][sk])mb.textContent=LANG[currentLang][sk];
-if(s==='emergency')mb.style.color='var(--danger)';else if(s==='maintenance')mb.style.color='var(--warning)';else if(s==='synergy')mb.style.color='var(--accent3)';else mb.style.color='var(--accent)';
-showAlert(t('alert_state',{name:s.toUpperCase()}),s==='emergency'?'danger':s==='maintenance'?'warning':'info');
-showSimLegend("TRANSICIÓN DE ESTADO", "Calibrando matriz cognitiva a modo: " + s.toUpperCase(), 2000);
-if(s === 'synergy') triggerInteractiveBurst();
-}
+      const colGeo = new THREE.CylinderGeometry(0.12,0.12,3.2,16);
+      const colMat = new THREE.MeshStandardMaterial({ color: 0xb0bec5, metalness: 0.9 });
+      [[-3.2,1.6,-2.2],[3.2,1.6,-2.2],[-3.2,1.6,2.2],[3.2,1.6,2.2]].forEach(pos => {
+        const col = new THREE.Mesh(colGeo, colMat);
+        col.position.set(...pos);
+        hubGroup.add(col);
+      });
 
-/* ========== FOCO SUBSISTEMA ========== */
-function focusSubsystem(i){selectedSub=i;document.querySelectorAll('.subsystem-item').forEach((el,j)=>el.classList.toggle('active',j===i));}
-document.querySelectorAll('.subsystem-item').forEach(el=>{el.addEventListener('mouseenter',()=>{const i=parseInt(el.dataset.sub);const tt=document.getElementById('tooltip');tt.querySelector('.tt-title').textContent=LANG[currentLang]['sub'+i+'_name']||'';tt.querySelector('.tt-desc').textContent=['Conecta productores con micro-centros','Gestiona distribución comunitaria','Optimiza precios con IA','Operaciones físicas y logística', 'Monitoreo de trazabilidad blockchain', 'Logística de expansión nacional'][i];tt.classList.add('visible');});el.addEventListener('mousemove',e=>{const tt=document.getElementById('tooltip');tt.style.left=(e.clientX+20)+'px';tt.style.top=(e.clientY+15)+'px';});el.addEventListener('mouseleave',()=>{document.getElementById('tooltip').classList.remove('visible');});});
+      const roofGeo = new THREE.BoxGeometry(7.6,0.2,5.6);
+      const roofMat = new THREE.MeshStandardMaterial({ color: 0x2a3340, metalness: 0.8 });
+      roofMesh = new THREE.Mesh(roofGeo, roofMat);
+      roofMesh.position.set(0,3.3,0);
+      hubGroup.add(roofMesh);
+      explodedParts.push({ mesh: roofMesh, orig: roofMesh.position.clone(), exp: new THREE.Vector3(0,6.5,0) });
 
-/* ========== FLUJO SIMULACIÓN ========== */
-let flowRunning=false;
-function runFlowSimulation(){if(flowRunning)return;flowRunning=true;showAlert(t('alert_flow_start'),'info');
-for(let i=0;i<5;i++){const el=document.getElementById('flow'+i);el.classList.remove('active','completed');}
-let step=0;
-const flowTitles = ["Simulación: Entrega", "Simulación: Recepción", "Simulación: Cálculo IA", "Simulación: Distribución", "Cierre de Ciclo Blockchain"];
-const flowDescs = ["El productor ingresa datos al sistema y genera token de origen.", "Micro-centro escanea lote y valida métricas físicas en tiempo real.", "Optimización predictiva fija precio ideal de distribución comunitaria.", "Venta a comunidad sin intermediarios. Actualización de inventario.", "Transacción completada y registrada inmutablemente."];
-function nextStep(){
-  if(step>0){
-    document.getElementById('flow'+(step-1)).classList.remove('active');
-    document.getElementById('flow'+(step-1)).classList.add('completed');
-    showAlert(t('alert_flow_step',{n:step}),'success');
-  }
-  if(step<5){
-    document.getElementById('flow'+step).classList.add('active');
-    showSimLegend(flowTitles[step], flowDescs[step], 1400);
-    for(let i=0;i<10;i++) spawnParticle('flow'); 
-    step++;
-    setTimeout(nextStep, 1500);
-  } else {
-    showAlert(t('alert_flow_done'),'success');
-    showSimLegend("Simulación Finalizada", "Todos los sistemas operando al máximo rendimiento algorítmico", 3000);
-    flowRunning=false;
-  }
-}
-showSimLegend("Iniciando Simulación", "Estableciendo parámetros iniciales de carga de datos...", 1200);
-setTimeout(nextStep, 1200);
-}
+      const counterGeo = new THREE.BoxGeometry(4.5,1.05,1.0);
+      const counterMat = new THREE.MeshStandardMaterial({ color: 0x3a4555, metalness: 0.5 });
+      counterMesh = new THREE.Mesh(counterGeo, counterMat);
+      counterMesh.position.set(-0.5,0.65,1.2);
+      hubGroup.add(counterMesh);
+      explodedParts.push({ mesh: counterMesh, orig: counterMesh.position.clone(), exp: new THREE.Vector3(-0.5,0.65,3.5) });
 
-/* ========== IA CAPA ========== */
-function toggleAILayer(){aiLayerOn=!aiLayerOn;showAlert(aiLayerOn?t('alert_ai_on'):t('alert_ai_off'),'info'); if(aiLayerOn) showSimLegend("Red Neuronal Activada", "Procesamiento algorítmico desplegado.");}
+      const scaleGeo = new THREE.BoxGeometry(0.7,0.08,0.6);
+      const scaleMat = new THREE.MeshStandardMaterial({ color: 0xb0bec5, metalness: 0.9 });
+      const scale = new THREE.Mesh(scaleGeo, scaleMat);
+      scale.position.set(-1.8,1.22,1.2);
+      hubGroup.add(scale);
 
-/* ========== AR MODO ========== */
-let arVisible=false,arAnimFrame=0;
-function toggleAR(){arVisible=!arVisible;document.getElementById('arModal').classList.toggle('visible',arVisible);showAlert(arVisible?t('alert_ar_on'):t('alert_ar_off'),'info');if(arVisible)drawAR();}
-function drawAR(){if(!arVisible)return;arAnimFrame++;const c=document.getElementById('arCanvas');const ctx=c.getContext('2d');ctx.fillStyle='rgba(10,14,30,0.3)';ctx.fillRect(0,0,640,480);const t=arAnimFrame*.02;
-ctx.strokeStyle='rgba(0,212,255,0.5)';ctx.lineWidth=1.5;
-for(let i=0;i<8;i++){const a=t+i*Math.PI/4,r=80+i*25;ctx.beginPath();ctx.ellipse(320,240,r,r*.6,a,0,Math.PI*2);ctx.stroke();}
-for(let i=0;i<12;i++){const a=t*.7+i*Math.PI/6;ctx.beginPath();ctx.moveTo(320,240);ctx.lineTo(320+Math.cos(a)*200,240+Math.sin(a)*200);ctx.stroke();}
-ctx.fillStyle='rgba(0,212,255,0.9)';ctx.font='bold 14px monospace';ctx.fillText('AR SIMULATION - SNCIP',20,30);ctx.fillText('NODES: 24 | CONN: 67 | STATUS: ACTIVE',20,50);
-for(let i=0;i<4;i++){const x=150+i*120,y=200+Math.sin(t+i)*30;ctx.strokeStyle='rgba('+[0,212,255,168,85,247,255,107,53][i]+','+[255,107,53,0,212,255,168,85,247][i]+','+[168,85,247,255,107,53,0,212,255][i]+',0.7)';ctx.lineWidth=2.5;ctx.strokeRect(x-20,y-20,40,40);ctx.strokeRect(x-15,y-15,30,30);ctx.fillStyle='rgba(255,255,255,0.9)';ctx.fillText('SUB'+i,x-15,y+5);}
-requestAnimationFrame(drawAR);}
+      for (let i=0; i<4; i++) {
+        const cGeo = new THREE.BoxGeometry(0.8,0.45,0.6);
+        const cMat = new THREE.MeshStandardMaterial({ color: 0x6d5c4a });
+        const c = new THREE.Mesh(cGeo, cMat);
+        c.position.set(0.6 + (i%2)*0.9, 0.65 + Math.floor(i/2)*0.7, -1.6);
+        hubGroup.add(c);
+      }
+    }
 
-/* ========== FASES ========== */
-let currentPhase=2;
-function setPhase(p){currentPhase=p;for(let i=0;i<4;i++){const seg=document.getElementById('phase'+i);const lbl=document.getElementById('phaseL'+i);seg.classList.remove('completed','active');lbl.classList.remove('completed','active');if(i<p){seg.classList.add('completed');lbl.classList.add('completed');}else if(i===p){seg.classList.add('active');seg.style.setProperty('--progress','30%');lbl.classList.add('active');}}showAlert(t('alert_phase',{name:document.getElementById('phaseL'+p).textContent}),'info');}
+    function buildTruck() {
+      truckGroup = new THREE.Group();
+      truckGroup.position.set(6.5,0,0);
+      scene.add(truckGroup);
 
-/* ========== GRÁFICOS MINI ========== */
-const chartData={econ:[30,35,32,38,42,40,45,43,48,50,47,52],social:[55,58,60,62,61,65,63,67,68,70,69,72],prod:[20,25,28,30,35,33,38,40,42,45,48,50]};
-function drawMiniChart(canvasId,data,color){const c=document.getElementById(canvasId);if(!c)return;const ctx=c.getContext('2d');const w=c.width=c.offsetWidth*2;const h=c.height=c.offsetHeight*2;ctx.clearRect(0,0,w,h);const mn=Math.min(...data),mx=Math.max(...data);const range=mx-mn||1;ctx.beginPath();ctx.moveTo(0,h);data.forEach((v,i)=>{const x=i/(data.length-1)*w;const y=h-((v-mn)/range)*(h*.8)-h*.1;ctx.lineTo(x,y);});ctx.lineTo(w,h);ctx.closePath();const grd=ctx.createLinearGradient(0,0,0,h);grd.addColorStop(0,color.replace('1)','0.35)'));grd.addColorStop(1,color.replace('1)','0.02)'));ctx.fillStyle=grd;ctx.fill();ctx.beginPath();data.forEach((v,i)=>{const x=i/(data.length-1)*w;const y=h-((v-mn)/range)*(h*.8)-h*.1;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.stroke();}
+      const chGeo = new THREE.BoxGeometry(1.8,0.4,3.4);
+      const chMat = new THREE.MeshStandardMaterial({ color: 0x2a3340, metalness: 0.8 });
+      const ch = new THREE.Mesh(chGeo, chMat);
+      ch.position.y = 0.5;
+      truckGroup.add(ch);
 
-/* ========== SIMULAR DATOS ========== */
-function simData(){const jitter=(base,range)=>(base+(Math.random()-.5)*range).toFixed(1);document.getElementById('indIncome').textContent='+'+jitter(40,5)+'%';document.getElementById('indInterm').textContent='-'+jitter(66,4)+'%';document.getElementById('indPrice').textContent=jitter(94.5,3)+'%';document.getElementById('indPart').textContent=jitter(70,5)+'%';document.getElementById('indFood').textContent=jitter(80,4)+'%';document.getElementById('indTrust').textContent=jitter(87.3,3)+'%';document.getElementById('indRot').textContent=jitter(1.5,.3)+'x';document.getElementById('indDiv').textContent=jitter(60,5)+'%';document.getElementById('aiNodes').textContent=Math.floor(20+Math.random()*10);document.getElementById('aiConns').textContent=Math.floor(55+Math.random()*25);document.getElementById('aiProc').textContent=jitter(98,.2)+'%';chartData.econ.shift();chartData.econ.push(40+Math.random()*15);chartData.social.shift();chartData.social.push(65+Math.random()*10);chartData.prod.shift();chartData.prod.push(40+Math.random()*15);drawMiniChart('chartEcon',chartData.econ,'rgba(0,212,255,1)');drawMiniChart('chartSocial',chartData.social,'rgba(255,107,53,1)');drawMiniChart('chartProd',chartData.prod,'rgba(168,85,247,1)');}
-setInterval(simData,3000);
+      const cabGeo = new THREE.BoxGeometry(1.7,1.1,1.2);
+      const cabMat = new THREE.MeshStandardMaterial({ color: 0x0284c7 });
+      const cab = new THREE.Mesh(cabGeo, cabMat);
+      cab.position.set(0,1.1,1.0);
+      truckGroup.add(cab);
+    }
 
-/* ========== RENDER ========== */
-const lightDir=V3.norm({x:.5,y:.8,z:.6});
-const lightColor=[1,1,0.95];
+    function buildFlags() {
+      flagsGroup = new THREE.Group();
+      flagsGroup.position.set(-4.5,0,2.5);
+      scene.add(flagsGroup);
 
-function drawMeshObj(mesh,model,col,met,rough,em,emCol,alpha,fp,xr){
-  gl.useProgram(mainProg);
-  gl.uniformMatrix4fv(mU.uModel,false,model);gl.uniformMatrix4fv(mU.uView,false,viewMat);gl.uniformMatrix4fv(mU.uProj,false,projMat);
-  gl.uniformMatrix3fv(mU.uNormalMat,false,normalMat3(model));
-  gl.uniform3fv(mU.uColor,col);gl.uniform3fv(mU.uCamPos,[camPos.x,camPos.y,camPos.z]);
-  gl.uniform1f(mU.uMetallic,met);gl.uniform1f(mU.uRoughness,rough);
-  gl.uniform1f(mU.uEmissive,em);gl.uniform3fv(mU.uEmissiveColor,emCol);
-  gl.uniform1f(mU.uAlpha,alpha);gl.uniform1f(mU.uTime,time);
-  gl.uniform3fv(mU.uLightDir,[lightDir.x,lightDir.y,lightDir.z]);gl.uniform3fv(mU.uLightColor,lightColor);
-  gl.uniform1f(mU.uFresnelPower,fp);gl.uniform1f(mU.uXRay,xr?1:0);
-  gl.bindBuffer(gl.ARRAY_BUFFER,mesh.pb);gl.enableVertexAttribArray(mA.aPos);gl.vertexAttribPointer(mA.aPos,3,gl.FLOAT,false,0,0);
-  gl.bindBuffer(gl.ARRAY_BUFFER,mesh.nb);gl.enableVertexAttribArray(mA.aNorm);gl.vertexAttribPointer(mA.aNorm,3,gl.FLOAT,false,0,0);
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,mesh.ib);gl.drawElements(gl.TRIANGLES,mesh.cnt,gl.UNSIGNED_SHORT,0);
-}
+      const pGeo = new THREE.CylinderGeometry(0.04,0.05,5.0,16);
+      const pMat = new THREE.MeshStandardMaterial({ color: 0xdde8f0, metalness: 0.9 });
+      const p1 = new THREE.Mesh(pGeo, pMat); p1.position.set(0,2.5,0); flagsGroup.add(p1);
+      const p2 = new THREE.Mesh(pGeo, pMat); p2.position.set(0,2.5,-1.8); flagsGroup.add(p2);
 
-let viewMat=M4.identity(),projMat=M4.identity(),camPos=V3.create(0,5,8);
-let lastTime=0,spawnAccum=0;
+      const c1 = document.createElement('canvas'); c1.width=512; c1.height=300;
+      const ctx1 = c1.getContext('2d');
+      ctx1.fillStyle='#0055A5'; ctx1.fillRect(0,0,512,100); ctx1.fillRect(0,200,512,100);
+      ctx1.fillStyle='#FFF'; ctx1.fillRect(0,100,512,100);
+      ctx1.fillStyle='#4FC3F7'; ctx1.beginPath(); ctx1.moveTo(256,120); ctx1.lineTo(220,180); ctx1.lineTo(292,180); ctx1.fill();
+      const t1 = new THREE.CanvasTexture(c1);
+      const fGeo1 = new THREE.PlaneGeometry(2.8,1.6,16,8);
+      const fMat1 = new THREE.MeshStandardMaterial({ map:t1, side:THREE.DoubleSide });
+      nicFlagMesh = new THREE.Mesh(fGeo1, fMat1);
+      nicFlagMesh.position.set(0.5,4.3,0);
+      flagsGroup.add(nicFlagMesh);
 
-function render(now){requestAnimationFrame(render);const dt=Math.min((now-lastTime)/1000,.05);lastTime=now;time+=dt;
-const sp=stateParams[currentState]||stateParams.rest;
+      const c2 = document.createElement('canvas'); c2.width=512; c2.height=300;
+      const ctx2 = c2.getContext('2d');
+      ctx2.fillStyle='#D32F2F'; ctx2.fillRect(0,0,512,150);
+      ctx2.fillStyle='#111111'; ctx2.fillRect(0,150,512,150);
+      ctx2.fillStyle='#FFFFFF'; ctx2.font='bold 56px sans-serif'; ctx2.textAlign='center'; ctx2.fillText('F. S. L. N.',256,160);
+      const t2 = new THREE.CanvasTexture(c2);
+      const fMat2 = new THREE.MeshStandardMaterial({ map:t2, side:THREE.DoubleSide });
+      fslnFlagMesh = new THREE.Mesh(fGeo1, fMat2);
+      fslnFlagMesh.position.set(0.5,4.3,-1.8);
+      flagsGroup.add(fslnFlagMesh);
+    }
 
-/* Cámara */
-if(autoRotate)camTheta+=dt*.15;
-if(camTrans){camTheta+=(tgtTheta-camTheta)*.04;camPhi+=(tgtPhiV-camPhi)*.04;camRadius+=(tgtRadius-camRadius)*.04;camTarget=V3.lerp(camTarget,tgtTarget,.04);if(Math.abs(camTheta-tgtTheta)<.002&&Math.abs(camPhi-tgtPhiV)<.002)camTrans=false;}
-camPos=V3.create(camTarget.x+camRadius*Math.sin(camPhi)*Math.cos(camTheta),camTarget.y+camRadius*Math.cos(camPhi),camTarget.z+camRadius*Math.sin(camPhi)*Math.sin(camTheta));
-viewMat=M4.lookAt(camPos,camTarget,V3.create(0,1,0));projMat=M4.perspective(Math.PI/3,canvas.width/canvas.height,.1,100);
+    // ============================================================
+    // FUNCIONES DE SIMULACIÓN POR PASO
+    // ============================================================
+    function simulateStep(step) {
+      clearStepEffects();
+      if (step === 1) {
+        if (truckGroup) truckGroup.position.x = 5.2;
+        const sprite = createTextSprite('📦 Entrega', '#4fc3f7');
+        sprite.position.set(-0.5, 2.5, 1.2);
+        scene.add(sprite);
+        stepSprites.push(sprite);
+      } else if (step === 2) {
+        if (roofMesh) roofMesh.material.color.setHex(0x1a5276);
+        for (let i=0; i<4; i++) {
+          const cGeo = new THREE.BoxGeometry(0.8,0.45,0.6);
+          const cMat = new THREE.MeshStandardMaterial({ color: 0xa67c52 });
+          const c = new THREE.Mesh(cGeo, cMat);
+          c.position.set(-1.5 + (i%2)*1.2, 1.1 + Math.floor(i/2)*0.7, -1.8);
+          scene.add(c);
+          extraCrates.push(c);
+        }
+        const sprite = createTextSprite('📊 Stock', '#66bb6a');
+        sprite.position.set(0, 3.8, 0);
+        scene.add(sprite);
+        stepSprites.push(sprite);
+      } else if (step === 3) {
+        const sprite = createTextSprite('💲 Precio Óptimo: C$ 28.00', '#ffa726');
+        sprite.position.set(0, 4.2, 0);
+        scene.add(sprite);
+        stepSprites.push(sprite);
+      } else if (step === 4) {
+        const colors = [0xe74c3c, 0x3498db, 0x2ecc71, 0xf1c40f, 0x9b59b6];
+        for (let i=0; i<6; i++) {
+          const sphere = new THREE.Mesh(
+            new THREE.SphereGeometry(0.2, 8, 8),
+            new THREE.MeshStandardMaterial({ color: colors[i % colors.length], emissive: colors[i % colors.length], emissiveIntensity: 0.3 })
+          );
+          const angle = (i / 6) * Math.PI * 2;
+          sphere.position.set(1.5 + Math.cos(angle)*1.8, 0.3, Math.sin(angle)*1.8);
+          scene.add(sphere);
+          consumerSpheres.push(sphere);
+        }
+        const sprite = createTextSprite('🛒 Compra Directa', '#2dd4bf');
+        sprite.position.set(0, 3.5, 0);
+        scene.add(sprite);
+        stepSprites.push(sprite);
+      } else if (step === 5) {
+        if (roofMesh) roofMesh.material.color.setHex(0x1abc9c);
+        const glowCanvas = document.createElement('canvas');
+        glowCanvas.width = 200; glowCanvas.height = 200;
+        const gctx = glowCanvas.getContext('2d');
+        const gradient = gctx.createRadialGradient(100,100,0,100,100,100);
+        gradient.addColorStop(0, 'rgba(26,188,156,0.8)');
+        gradient.addColorStop(1, 'rgba(26,188,156,0)');
+        gctx.fillStyle = gradient;
+        gctx.fillRect(0,0,200,200);
+        const glowTexture = new THREE.CanvasTexture(glowCanvas);
+        const glowMat = new THREE.SpriteMaterial({ map: glowTexture, transparent: true, depthTest: false });
+        const glow = new THREE.Sprite(glowMat);
+        glow.position.set(0, 3.8, 0);
+        glow.scale.set(3,3,1);
+        scene.add(glow);
+        omniaGlow = glow;
+        const sprite = createTextSprite('📋 OMNIA-5000', '#4fc3f7');
+        sprite.position.set(0, 4.6, 0);
+        scene.add(sprite);
+        stepSprites.push(sprite);
+      }
+    }
 
-/* Explosionado */
-const tgtExp=curCamView==='exploded'?1.8:0;explodedFactor+=(tgtExp-explodedFactor)*.04;
+    function setStep(s) {
+      currentStep = s;
+      for (let i=1; i<=5; i++) document.getElementById('step-btn-'+i).classList.toggle('active', i===s);
+      updateStepTexts(s);
+      const btn = document.getElementById('step-btn-'+s);
+      btn.style.transform = 'scale(1.1)';
+      setTimeout(() => btn.style.transform = 'scale(1)', 200);
+      simulateStep(s);
+      const titles = ['Entrega Productor', 'Recepción & Stock', 'Precio Óptimo', 'Compra Directa', 'Registro & OMNIA'];
+      showLegend('Paso ' + s + ': ' + titles[s-1], 'Simulación visual en 3D activa', 2500);
+    }
 
-/* Partículas */
-spawnAccum+=dt*sp.particleRate;
-while(spawnAccum>.05){spawnAccum-=.05;spawnParticle('ambient');if(Math.random()<.5)spawnParticle('flow');if(aiLayerOn&&Math.random()<.6)spawnParticle('ai');}
-updateParticles(dt);
+    function nextStep() { if (currentStep < 5) setStep(currentStep+1); }
+    function prevStep() { if (currentStep > 1) setStep(currentStep-1); }
 
-/* Limpiar */
-gl.clearColor(.02,.025,.05,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);
+    function toggleSim() {
+      isSimPlaying = !isSimPlaying;
+      const t = translations[currentLang];
+      document.getElementById('sim-play-btn').textContent = isSimPlaying ? t.btn_pause : t.btn_play;
+      if (isSimPlaying) {
+        window.simInterval = setInterval(() => {
+          if (currentStep < 5) setStep(currentStep+1);
+          else setStep(1);
+        }, 4000);
+      } else {
+        clearInterval(window.simInterval);
+      }
+    }
 
-/* Grid */
-gl.useProgram(lineProg);gl.uniformMatrix4fv(lU.uView,false,viewMat);gl.uniformMatrix4fv(lU.uProj,false,projMat);
-gl.bindBuffer(gl.ARRAY_BUFFER,gridMesh.pb);gl.enableVertexAttribArray(lA.aPos);gl.vertexAttribPointer(lA.aPos,3,gl.FLOAT,false,0,0);
-gl.disableVertexAttribArray(lA.aLineColor);gl.vertexAttrib4f(lA.aLineColor,0,0.3,0.5,0.1);
-gl.drawArrays(gl.LINES,0,gridMesh.cnt);
+    // ============================================================
+    // FUNCIONES DE ESTADO CON SIMULACIÓN DIFERENCIADA
+    // ============================================================
+    function setState(s) {
+      currentState = s;
+      document.querySelectorAll('.state-btn').forEach(b => b.classList.remove('active'));
+      const btns = document.querySelectorAll('.state-btn');
+      const map = ['rest','analysis','diagnostic','simulation','operation','maintenance','emergency','energy','ai','hybrid','synergy'];
+      const idx = map.indexOf(s);
+      if (idx >= 0) btns[idx].classList.add('active');
 
-/* Conexiones dinámicas */
-gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
-const connPos=[];const connCol=[];
-for(let i=0;i<subPositions.length;i++){const sp2=V3.scale(subPositions[i],1+explodedFactor);const pulse=.3+Math.sin(time*2+i)*.2;connPos.push(0,0,0,sp2.x,sp2.y,sp2.z);connCol.push(sp.coreColor[0],sp.coreColor[1],sp.coreColor[2],pulse,subColors[i][0],subColors[i][1],subColors[i][2],pulse);}
-gl.useProgram(lineProg);gl.uniformMatrix4fv(lU.uView,false,viewMat);gl.uniformMatrix4fv(lU.uProj,false,projMat);
-gl.bindBuffer(gl.ARRAY_BUFFER,linePosBuf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(connPos),gl.DYNAMIC_DRAW);gl.enableVertexAttribArray(lA.aPos);gl.vertexAttribPointer(lA.aPos,3,gl.FLOAT,false,0,0);
-gl.bindBuffer(gl.ARRAY_BUFFER,lineColBuf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(connCol),gl.DYNAMIC_DRAW);gl.enableVertexAttribArray(lA.aLineColor);gl.vertexAttribPointer(lA.aLineColor,4,gl.FLOAT,false,0,0);
-gl.lineWidth(2);gl.drawArrays(gl.LINES,0,connPos.length/3);
+      const badge = document.querySelector('.top-ribbon .badge:last-child');
+      if (s === 'emergency') badge.style.background = '#c0392b';
+      else if (s === 'maintenance') badge.style.background = '#f39c12';
+      else badge.style.background = '#0c4a6e';
 
-/* Anillos */
-gl.disable(gl.BLEND);gl.depthMask(true);
-const ringRot1=M4.mul(M4.rotateY(time*.3*sp.speed),M4.rotateX(.4));
-const ringRot2=M4.mul(M4.rotateY(-time*.2*sp.speed),M4.rotateZ(.6));
-const ringRot3=M4.mul(M4.rotateY(time*.15*sp.speed),M4.rotateX(.8));
-drawMeshObj(meshRing1,ringRot1,sp.coreColor,.8,.3,sp.emissive*.6,sp.coreEmColor,.5,3,xrayMode);
-drawMeshObj(meshRing2,ringRot2,sp.coreColor,.8,.3,sp.emissive*.4,sp.coreEmColor,.35,3,xrayMode);
-drawMeshObj(meshRing3,ringRot3,[0.2,0.3,0.5],.5,.5,sp.emissive*.2,sp.coreEmColor,.2,3,xrayMode);
+      showLegend("Estado: " + s.toUpperCase(), "Sistema configurado para modo " + s, 2000);
+      applyStateEffect(s);
+      if (s === 'synergy') triggerInteractiveBurst();
+    }
 
-/* Núcleo */
-const coreRot=M4.mul(M4.rotateY(time*.5*sp.speed),M4.rotateX(time*.3*sp.speed));
-const coreScale=xrayMode?1:1+Math.sin(time*2)*.03;
-const coreModel=M4.mul(coreRot,M4.scale(V3.create(coreScale,coreScale,coreScale)));
-const xr=xrayMode;gl.depthMask(!xr);
-if(xr){gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);}
-drawMeshObj(meshCore,coreModel,sp.coreColor,.6,.25,sp.emissive,sp.coreEmColor,xr?.3:1,3,xr);
+    function clearStateEffects() {
+      if (stateParticleInterval) {
+        clearInterval(stateParticleInterval);
+        stateParticleInterval = null;
+      }
+      stateSprites.forEach(s => scene.remove(s));
+      stateSprites = [];
+      if (synergyWave) {
+        scene.remove(synergyWave);
+        synergyWave = null;
+      }
+      emergencyFlash = false;
+      if (roofMesh) {
+        roofMesh.material.emissiveIntensity = 0;
+        roofMesh.material.emissive.setHex(0x000000);
+      }
+      if (truckGroup) truckGroup.position.x = 6.5;
+    }
 
-/* Subsistemas */
-for(let i=0;i<subPositions.length;i++){const sp3=V3.scale(subPositions[i],1+explodedFactor);const subRot=M4.mul(M4.rotateY(time*(.2+i*.1)*sp.speed),M4.rotateX(time*(.15+i*.05)*sp.speed));
-const sel=i===selectedSub;const sc=sel?1.1+Math.sin(time*3)*.05:1;const model=M4.mul(M4.translate(sp3),M4.mul(subRot,M4.scale(V3.create(sc,sc,sc))));
-const em=sel?sp.emissive*1.2:sp.emissive*.5;drawMeshObj(subMeshes[i],model,subColors[i],.5,.3,em,subEmColors[i],xr?.2:1,3,xr);}
+    function applyStateEffect(state) {
+      clearStateEffects();
+      let roofColor, counterColor, particleColor, particleRate, specialEffect;
 
-gl.depthMask(true);gl.disable(gl.BLEND);
+      switch (state) {
+        case 'rest':
+          roofColor = 0x2a3340; counterColor = 0x3a4555; particleColor = 0x4fc3f7; particleRate = 0.2; specialEffect = null; break;
+        case 'analysis':
+          roofColor = 0x1a5276; counterColor = 0x2e86c1; particleColor = 0x4fc3f7; particleRate = 0.8; specialEffect = 'analysis'; break;
+        case 'diagnostic':
+          roofColor = 0x9e9d24; counterColor = 0xf1c40f; particleColor = 0xf1c40f; particleRate = 1.0; specialEffect = 'diagnostic'; break;
+        case 'simulation':
+          roofColor = 0x8e44ad; counterColor = 0x9b59b6; particleColor = 0x9b59b6; particleRate = 1.5; specialEffect = 'simulation'; break;
+        case 'operation':
+          roofColor = 0x1e8449; counterColor = 0x27ae60; particleColor = 0x2ecc71; particleRate = 1.2; specialEffect = 'operation'; break;
+        case 'maintenance':
+          roofColor = 0x935e38; counterColor = 0xe67e22; particleColor = 0xe67e22; particleRate = 0.6; specialEffect = 'maintenance'; break;
+        case 'emergency':
+          roofColor = 0xc0392b; counterColor = 0xe74c3c; particleColor = 0xe74c3c; particleRate = 2.5; specialEffect = 'emergency'; break;
+        case 'energy':
+          roofColor = 0x0e6655; counterColor = 0x1abc9c; particleColor = 0x1abc9c; particleRate = 1.0; specialEffect = 'energy'; break;
+        case 'ai':
+          roofColor = 0x6c3483; counterColor = 0x8e44ad; particleColor = 0x8e44ad; particleRate = 1.8; specialEffect = 'ai'; break;
+        case 'hybrid':
+          roofColor = 0x2c3e50; counterColor = 0x34495e; particleColor = 0x4fc3f7; particleRate = 1.0; specialEffect = 'hybrid'; break;
+        case 'synergy':
+          roofColor = 0x8e44ad; counterColor = 0xd35400; particleColor = 0xd35400; particleRate = 3.0; specialEffect = 'synergy'; break;
+        default:
+          roofColor = 0x2a3340; counterColor = 0x3a4555; particleColor = 0x4fc3f7; particleRate = 0.2; specialEffect = null;
+      }
 
-/* Partículas */
-gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.depthMask(false);
-gl.useProgram(partProg);gl.uniformMatrix4fv(pU.uView,false,viewMat);gl.uniformMatrix4fv(pU.uProj,false,projMat);
-gl.bindBuffer(gl.ARRAY_BUFFER,pBufPos);gl.bufferData(gl.ARRAY_BUFFER,pPos.subarray(0,pCount*3),gl.DYNAMIC_DRAW);gl.enableVertexAttribArray(pA.aPos);gl.vertexAttribPointer(pA.aPos,3,gl.FLOAT,false,0,0);
-gl.bindBuffer(gl.ARRAY_BUFFER,pBufSz);gl.bufferData(gl.ARRAY_BUFFER,pSz.subarray(0,pCount),gl.DYNAMIC_DRAW);gl.enableVertexAttribArray(pA.aSize);gl.vertexAttribPointer(pA.aSize,1,gl.FLOAT,false,0,0);
-gl.bindBuffer(gl.ARRAY_BUFFER,pBufCol);gl.bufferData(gl.ARRAY_BUFFER,pCol.subarray(0,pCount*3),gl.DYNAMIC_DRAW);gl.enableVertexAttribArray(pA.aParticleColor);gl.vertexAttribPointer(pA.aParticleColor,3,gl.FLOAT,false,0,0);
-gl.bindBuffer(gl.ARRAY_BUFFER,pBufAlp);gl.bufferData(gl.ARRAY_BUFFER,pAlp.subarray(0,pCount),gl.DYNAMIC_DRAW);gl.enableVertexAttribArray(pA.aAlpha);gl.vertexAttribPointer(pA.aAlpha,1,gl.FLOAT,false,0,0);
-gl.drawArrays(gl.POINTS,0,pCount);
+      if (roofMesh) roofMesh.material.color.setHex(roofColor);
+      if (counterMesh) counterMesh.material.color.setHex(counterColor);
 
-gl.depthMask(true);gl.disable(gl.BLEND);
-}
+      if (particleRate > 0) {
+        stateParticleInterval = setInterval(() => {
+          for (let i = 0; i < Math.floor(particleRate); i++) {
+            spawnParticle('state', particleColor);
+          }
+        }, 200);
+      }
 
-/* ========== CARGA INMEDIATA ========== */
-const loaderFill=document.getElementById('loaderFill');
-const loader=document.getElementById('loader');
-loaderFill.style.width='100%';
-setTimeout(()=>{loader.classList.add('hidden');drawMiniChart('chartEcon',chartData.econ,'rgba(0,212,255,1)');drawMiniChart('chartSocial',chartData.social,'rgba(255,107,53,1)');drawMiniChart('chartProd',chartData.prod,'rgba(168,85,247,1)');requestAnimationFrame(render);},300);
+      if (specialEffect === 'emergency') emergencyFlash = true;
+      if (specialEffect === 'ai') {
+        for (let i = 0; i < 8; i++) {
+          const sprite = createTextSprite('◈', '#8e44ad', 'rgba(0,0,0,0)');
+          const angle = (i / 8) * Math.PI * 2;
+          const radius = 2.5 + Math.random() * 1.5;
+          sprite.position.set(Math.cos(angle)*radius, 1.5+Math.random()*2, Math.sin(angle)*radius);
+          sprite.scale.set(0.3, 0.3, 1);
+          scene.add(sprite);
+          stateSprites.push(sprite);
+        }
+      }
+      if (specialEffect === 'synergy') {
+        const waveSprite = createTextSprite('✦', '#d35400', 'rgba(0,0,0,0)');
+        waveSprite.position.set(0, 2, 0);
+        waveSprite.scale.set(0.5, 0.5, 1);
+        scene.add(waveSprite);
+        stateSprites.push(waveSprite);
+        synergyWave = waveSprite;
+      }
+    }
 
-// ========== SIMULACIÓN DEL PANEL RESUMEN EJECUTIVO ==========
-let dayCounter = 0;
-function updateResumenPanel() {
-  const income = 40 + (Math.random() - 0.5) * 6;
-  document.getElementById('resIncome').textContent = (income >= 0 ? '+' : '') + income.toFixed(1) + '%';
-  const impact = Math.floor(55 + Math.random() * 10);
-  document.getElementById('resImpact').textContent = impact + ' DÍAS';
-  const microActive = Math.random() > 0.15;
-  document.getElementById('resMicro').textContent = microActive ? 'ACTIVO' : 'EN ESPERA';
-  document.getElementById('resMicro').style.color = microActive ? 'var(--success)' : 'var(--warning)';
-  const priceOpt = Math.random() > 0.1;
-  document.getElementById('resPrice').textContent = priceOpt ? '✔' : '✘';
-  document.getElementById('resPrice').style.color = priceOpt ? 'var(--success)' : 'var(--danger)';
-  const diag = Math.min(100, Math.random() * 100);
-  const org = Math.min(100, Math.random() * 100);
-  const act = Math.min(100, Math.random() * 100);
-  const opt = Math.min(100, Math.random() * 100);
-  document.getElementById('barDiag').style.width = diag + '%';
-  document.getElementById('barOrg').style.width = org + '%';
-  document.getElementById('barAct').style.width = act + '%';
-  document.getElementById('barOpt').style.width = opt + '%';
-  dayCounter = (dayCounter + 1) % 61;
-  // Actualizar etiqueta de día en el panel
-  const dayLabel = document.querySelector('#panelResumen .indicator-row:last-child .ind-label');
-  if (dayLabel) dayLabel.textContent = 'Día ' + dayCounter;
-}
-setInterval(updateResumenPanel, 2000);
-updateResumenPanel();
+    function triggerInteractiveBurst() {
+      for (let i=0; i<20; i++) spawnParticle('flow');
+      showLegend("Proyección de Escala", "Calculando nodos de expansión...", 3000);
+    }
+    window.triggerInteractiveBurst = triggerInteractiveBurst;
 
-</script>
+    // ============================================================
+    // CÁMARA Y CONTROLES
+    // ============================================================
+    function setCam(mode) {
+      camPreset = mode;
+      let r, theta, phi;
+      if (mode === 'frontal') { r=14; theta=0; phi=Math.PI/2.3; }
+      else if (mode === 'lateral') { r=15; theta=Math.PI/2; phi=Math.PI/2.3; }
+      else if (mode === 'cenital') { r=20; theta=0; phi=0.05; }
+      else if (mode === 'interna') { r=5.5; theta=-Math.PI/6; phi=Math.PI/2.4; }
+      else if (mode === 'orbital') { r=18; theta=Math.PI/4; phi=Math.PI/3.2; }
+      else { r=18; theta=Math.PI/4; phi=Math.PI/3.2; }
+      cameraTarget = { radius:r, theta:theta, phi:phi };
+      if (mode !== 'cinematica') {
+        spherical.radius = r; spherical.theta = theta; spherical.phi = phi;
+      }
+      showLegend('Vista: ' + mode, 'Cámara ajustada', 1500);
+    }
+
+    function toggleExploded() {
+      isExploded = !isExploded;
+      document.getElementById('btn-exploded').classList.toggle('active', isExploded);
+    }
+
+    function toggleXRay() {
+      isXRay = !isXRay;
+      document.getElementById('btn-xray').classList.toggle('active', isXRay);
+      scene.traverse(child => {
+        if (child.isMesh && child.material) child.material.wireframe = isXRay;
+      });
+    }
+
+    function setHubType(type) {
+      currentHubType = type;
+      ['pulperia','escuela','vivienda'].forEach(t => document.getElementById('hub-'+t).classList.toggle('active', t===type));
+      let color;
+      if (type === 'pulperia') color = 0x2a3340;
+      else if (type === 'escuela') color = 0x2e7d32;
+      else color = 0xe65100;
+      if (roofMesh) roofMesh.material.color.setHex(color);
+      if (counterMesh) {
+        counterMesh.material.color.setHex(type === 'vivienda' ? 0xff6f00 : 0x3a4555);
+      }
+      if (roofMesh) {
+        roofMesh.position.y = 3.3 + 0.1;
+        setTimeout(() => { roofMesh.position.y = 3.3; }, 200);
+      }
+      simulateStep(currentStep);
+    }
+
+    let currentHubType = 'pulperia';
+
+    function updateCalculator() {
+      const v = document.getElementById('vol-slider').value;
+      document.getElementById('vol-display').innerText = v + ' Lbs';
+      const trad = v * 20;
+      const sncip = v * 28;
+      const gain = sncip - trad;
+      document.getElementById('calc-trad').innerText = 'C$ ' + trad.toLocaleString();
+      document.getElementById('calc-sncip').innerText = 'C$ ' + sncip.toLocaleString();
+      document.getElementById('calc-gain').innerText = '+C$ ' + gain.toLocaleString();
+    }
+
+    function resetScene() {
+      if (isSimPlaying) {
+        clearInterval(window.simInterval);
+        isSimPlaying = false;
+        const t = translations[currentLang];
+        document.getElementById('sim-play-btn').textContent = t.btn_play;
+      }
+      setCam('orbital');
+      if (isExploded) toggleExploded();
+      if (isXRay) toggleXRay();
+      setStep(1);
+      setHubType(currentHubType);
+      clearStepEffects();
+      clearStateEffects();
+      if (truckGroup) truckGroup.position.x = 6.5;
+      let color;
+      if (currentHubType === 'pulperia') color = 0x2a3340;
+      else if (currentHubType === 'escuela') color = 0x2e7d32;
+      else color = 0xe65100;
+      if (roofMesh) roofMesh.material.color.setHex(color);
+      // Resetear estado a 'rest'
+      setState('rest');
+      showLegend("Sistema Reiniciado", "Todos los parámetros restaurados", 2000);
+    }
+
+    // ============================================================
+    // EVENTOS Y ANIMACIÓN
+    // ============================================================
+    function setupEvents() {
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      const cont = document.getElementById('canvas-container');
+      cont.addEventListener('mousedown', e => { isDragging = true; prevMouse = { x:e.clientX, y:e.clientY }; });
+      window.addEventListener('mousemove', e => {
+        if (!isDragging) return;
+        spherical.theta -= (e.clientX - prevMouse.x)*0.006;
+        spherical.phi = Math.max(0.08, Math.min(Math.PI/2-0.05, spherical.phi - (e.clientY - prevMouse.y)*0.006));
+        prevMouse = { x:e.clientX, y:e.clientY };
+      });
+      window.addEventListener('mouseup', () => { isDragging = false; });
+      cont.addEventListener('wheel', e => {
+        spherical.radius = Math.max(4, Math.min(36, spherical.radius + e.deltaY*0.015));
+      });
+      cont.addEventListener('dblclick', () => triggerInteractiveBurst());
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const t = clock.getElapsedTime();
+
+      // Ondeo de banderas
+      [nicFlagMesh, fslnFlagMesh].forEach(flag => {
+        if (flag && flag.geometry) {
+          const pos = flag.geometry.attributes.position;
+          for (let i=0; i<pos.count; i++) {
+            const x = pos.getX(i);
+            pos.setZ(i, Math.sin(x*3.5 + t*5.0)*0.08*(x+0.8));
+          }
+          pos.needsUpdate = true;
+        }
+      });
+
+      // Movimiento camión según paso
+      if (truckGroup) {
+        let targetX = 6.5;
+        if (currentStep === 1) targetX = 5.2;
+        // Si estado simulación, movimiento extra
+        if (currentState === 'simulation') {
+          targetX = 6.5 + Math.sin(t * 0.5) * 1.5;
+        }
+        truckGroup.position.x += (targetX - truckGroup.position.x) * 0.04;
+      }
+
+      // Cámara suave
+      if (!isDragging) {
+        spherical.theta += (cameraTarget.theta - spherical.theta)*0.05;
+        spherical.phi += (cameraTarget.phi - spherical.phi)*0.05;
+        spherical.radius += (cameraTarget.radius - spherical.radius)*0.05;
+      }
+
+      if (camPreset === 'cinematica') {
+        camera.position.set(Math.sin(t*0.25)*16, 4.5+Math.sin(t*0.5)*1.5, Math.cos(t*0.25)*16);
+        camera.lookAt(target);
+      } else {
+        camera.position.x = target.x + spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta);
+        camera.position.y = target.y + spherical.radius * Math.cos(spherical.phi);
+        camera.position.z = target.z + spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta);
+        camera.lookAt(target);
+      }
+
+      // Explotada
+      explodedParts.forEach(p => {
+        p.mesh.position.lerp(isExploded ? p.exp : p.orig, 0.08);
+      });
+
+      // Efecto OMNIA
+      if (omniaGlow && currentStep === 5) {
+        const scale = 2.5 + Math.sin(t * 4) * 0.5;
+        omniaGlow.scale.set(scale, scale, 1);
+      }
+
+      // Efecto emergencia (parpadeo)
+      if (emergencyFlash && roofMesh) {
+        const intensity = 0.5 + Math.sin(t * 15) * 0.5;
+        roofMesh.material.emissive.setHex(0xe74c3c);
+        roofMesh.material.emissiveIntensity = intensity * 0.5;
+      } else if (roofMesh && !emergencyFlash) {
+        roofMesh.material.emissiveIntensity = 0;
+      }
+
+      // Onda de sinergia
+      if (synergyWave) {
+        const scale = 2 + Math.sin(t * 3) * 0.5;
+        synergyWave.scale.set(scale, scale, 1);
+        synergyWave.material.opacity = 0.5 + Math.sin(t * 2) * 0.3;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    // ============================================================
+    // ACTUALIZACIÓN DE INDICADORES
+    // ============================================================
+    function updateIndicators() {
+      const jitter = (base, range) => (base + (Math.random() - 0.5) * range).toFixed(1);
+      document.getElementById('statIncome').textContent = '+'+jitter(40, 5)+'%';
+      document.getElementById('statInter').textContent = '-'+jitter(66, 4)+'%';
+      document.getElementById('statRot').textContent = jitter(1.5, 0.3)+'x';
+      document.getElementById('statDiv').textContent = '+'+jitter(50, 6)+'%';
+      document.getElementById('indIncome').textContent = '+'+jitter(40, 5)+'%';
+      document.getElementById('indInterm').textContent = '-'+jitter(66, 4)+'%';
+      document.getElementById('indPrice').textContent = jitter(94.5, 3)+'%';
+      document.getElementById('indPart').textContent = jitter(70, 5)+'%';
+      document.getElementById('indFood').textContent = jitter(80, 4)+'%';
+      document.getElementById('indTrust').textContent = jitter(87.3, 3)+'%';
+      document.getElementById('indRot').textContent = jitter(1.5, 0.3)+'x';
+      document.getElementById('indDiv').textContent = jitter(60, 5)+'%';
+      document.getElementById('indMicro').textContent = Math.floor(12 + Math.random() * 4);
+      document.getElementById('indLat').textContent = Math.floor(10 + Math.random() * 8)+'ms';
+      document.getElementById('indCob').textContent = jitter(45, 4)+'%';
+      document.getElementById('resIncome').textContent = '+'+jitter(40, 5)+'%';
+      const impact = Math.floor(55 + Math.random() * 10);
+      document.getElementById('resImpact').textContent = impact + ' DÍAS';
+      const active = Math.random() > 0.15;
+      document.getElementById('resMicro').textContent = active ? 'ACTIVO' : 'EN ESPERA';
+      document.getElementById('resMicro').style.color = active ? '#66bb6a' : '#ffa726';
+      document.getElementById('resPrice').textContent = Math.random() > 0.1 ? '✔' : '✘';
+      document.getElementById('barDiag').style.width = Math.min(100, 60 + Math.random()*30)+'%';
+      document.getElementById('barOrg').style.width = Math.min(100, 40 + Math.random()*40)+'%';
+      document.getElementById('barAct').style.width = Math.min(100, 20 + Math.random()*50)+'%';
+      document.getElementById('barOpt').style.width = Math.min(100, 10 + Math.random()*40)+'%';
+    }
+    setInterval(updateIndicators, 3000);
+    updateIndicators();
+
+    // ============================================================
+    // INICIO
+    // ============================================================
+    function init() {
+      const container = document.getElementById('canvas-container');
+      const w = window.innerWidth, h = window.innerHeight;
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x1a1f2a);
+      scene.fog = new THREE.FogExp2(0x1a1f2a, 0.025);
+
+      camera = new THREE.PerspectiveCamera(45, w/h, 0.1, 1000);
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(w, h);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      container.appendChild(renderer.domElement);
+
+      clock = new THREE.Clock();
+
+      const amb = new THREE.AmbientLight(0xdde8f0, 0.85);
+      scene.add(amb);
+      const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+      sun.position.set(15,25,15);
+      sun.castShadow = true;
+      scene.add(sun);
+      const rim = new THREE.DirectionalLight(0x4fc3f7, 1.2);
+      rim.position.set(-15,10,-15);
+      scene.add(rim);
+
+      const platGeo = new THREE.CylinderGeometry(14,15,0.6,64);
+      const platMat = new THREE.MeshStandardMaterial({ color: 0x252a36, roughness: 0.5, metalness: 0.7 });
+      const platform = new THREE.Mesh(platGeo, platMat);
+      platform.position.y = -0.3;
+      platform.receiveShadow = true;
+      scene.add(platform);
+
+      const grid = new THREE.GridHelper(26, 26, 0x4fc3f7, 0x2a3a4a);
+      grid.position.y = 0.02;
+      scene.add(grid);
+
+      buildHub();
+      buildTruck();
+      buildFlags();
+      setupEvents();
+      updateCalculator();
+      updateLanguage('es');
+      setStep(1);
+      // Inicializar estado
+      setState('rest');
+      animate();
+    }
+
+    window.onload = init;
+  </script>
 </body>
 </html>
