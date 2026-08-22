@@ -1,1035 +1,1854 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TFCN - Interactive 3D Offline Lab (Dr. Julio César Oporta Barrera)</title>
-    <!-- Include Tailwind CSS CDN for high fidelity styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      body {
-        margin: 0;
-        background-color: #04060f;
-        color: #e2e8f0;
-        font-family: system-ui, -apple-system, sans-serif;
-      }
-      /* Custom shadow glows for futuristic realism */
-      .neon-glow-cyan {
-        box-shadow: 0 0 15px rgba(0, 255, 204, 0.25);
-      }
-      .neon-glow-purple {
-        box-shadow: 0 0 15px rgba(168, 85, 247, 0.25);
-      }
-      /* Custom slider stylings */
-      input[type="range"]::-webkit-slider-thumb {
-        background: #00ffcc;
-        border: 2px solid #000;
-        border-radius: 50%;
-        cursor: pointer;
-      }
-    </style>
-  </head>
-  <body class="min-h-screen text-slate-100 overflow-x-hidden selection:bg-cyan-500 selection:text-black">
-    <!-- Camera background feed container for AR mode -->
-    <video id="ar-video" class="fixed inset-0 w-full h-full object-cover opacity-0 pointer-events-none transition-opacity duration-500 z-0" playsinline muted autoplay></video>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TFCN™ - Sala de Control Financiero 3D | Dr. Julio César Oporta Barrera</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #080B10; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: #F1F5F9; }
+    #canvas-container { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+    .hud-layer { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 12px; z-index: 10; }
+    .interactive { pointer-events: auto; }
+    .glass-panel { background: rgba(8, 11, 16, 0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 14px; padding: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.85); }
+    .btn { background: #1E293B; color: #E2E8F0; border: 1px solid #334155; padding: 6px 12px; border-radius: 9px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 5px; font-family: inherit; }
+    .btn:hover { background: #334155; color: #FFF; transform: translateY(-1px); }
+    .btn-primary { background: linear-gradient(135deg, #00E5FF, #10B981); color: #020617; border: none; font-weight: 800; }
+    .btn-primary:hover { opacity: 0.95; transform: scale(1.02); }
+    .btn-danger { background: #EF4444; color: #FFF; border: none; font-weight: 700; }
+    .btn-danger:hover { background: #DC2626; }
+    .btn-tab { padding: 6px 10px; border-radius: 8px; font-size: 11px; font-family: monospace; white-space: nowrap; cursor: pointer; border: 1px solid transparent; background: transparent; color: #94A3B8; transition: all 0.2s; text-align: left; }
+    .btn-tab:hover { background: rgba(30,41,59,0.7); color: #FFF; }
+    .btn-tab.active { background: #00E5FF; color: #080B10; font-weight: bold; border-color: #00E5FF; box-shadow: 0 0 12px rgba(0,229,255,0.4); }
+    .author-badge { background: #FBBF24; color: #000000; font-weight: 900; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-family: monospace; letter-spacing: 0.5px; display: inline-block; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); display: none; align-items: center; justify-content: center; z-index: 100; padding: 14px; }
+    .modal-card { width: 100%; max-width: 900px; max-height: 88vh; background: #0F172A; border: 1px solid #334155; border-radius: 18px; display: flex; flex-direction: column; overflow: hidden; padding: 18px; box-shadow: 0 25px 70px rgba(0,0,0,0.95); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    .kpi-card { background: #020617; border: 1px solid #1E293B; border-radius: 10px; padding: 8px 10px; transition: all 0.2s; }
+    .kpi-card:hover { border-color: rgba(0,229,255,0.5); }
+    .tab-content { display: none; max-height: 380px; overflow-y: auto; padding-right: 4px; }
+    .tab-content.active { display: block; }
+    #toast-notification { position: fixed; top: 16px; right: 16px; z-index: 200; background: rgba(2,6,23,0.95); border: 1px solid #00E5FF; border-radius: 12px; padding: 10px 14px; max-width: 380px; box-shadow: 0 20px 50px rgba(0,0,0,0.9); display: none; animation: fadeIn 0.3s ease; }
+    #part-tooltip { position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%); background: rgba(2,6,23,0.92); border: 1px solid rgba(0,229,255,0.6); color: #00E5FF; padding: 5px 14px; border-radius: 20px; font-size: 11px; font-family: monospace; display: none; pointer-events: none; z-index: 50; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    input[type=range] { accent-color: #00E5FF; }
+    .lang-btn { background: transparent; border: 1px solid #334155; color: #94A3B8; padding: 3px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    .lang-btn:hover { background: #334155; color: #FFF; }
+    .lang-btn.active { background: #00E5FF; color: #080B10; border-color: #00E5FF; }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <div id="part-tooltip">● Componente</div>
 
-    <!-- TOP GLOBAL HEADER WITH PATENT DESIGN COMPLIANCE -->
-    <header class="relative z-10 border-b border-slate-800/80 bg-[#070a14]/90 px-6 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 backdrop-blur-md">
-      <div>
-        <div class="flex items-center gap-2">
-          <span class="w-1.5 h-1.5 rounded-full bg-[#00ffcc] animate-pulse"></span>
-          <span id="designer-header" class="text-[10px] font-mono tracking-widest text-cyan-400 font-bold uppercase">
-            AUTOR: DR. JULIO CÉSAR OPORTA BARRERA | PATENTE REGISTRADA
-          </span>
+  <!-- Toast Notification -->
+  <div id="toast-notification" class="interactive">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+      <span id="toast-title" style="font-size: 11px; font-weight: bold; color: #00E5FF; font-family: monospace;">⚡ SIMULACIÓN EJECUTADA</span>
+      <span style="font-size: 11px; color: #64748B; cursor: pointer; padding-left: 8px;" onclick="hideToast()">✕</span>
+    </div>
+    <p id="toast-desc" style="font-size: 11px; color: #E2E8F0; line-height: 1.4; margin-bottom: 6px;"></p>
+    <div id="toast-delta" style="display: flex; gap: 8px; font-size: 10px; font-family: monospace; background: rgba(0,0,0,0.5); padding: 4px 6px; border-radius: 6px; border: 1px solid #1E293B;"></div>
+  </div>
+
+  <!-- Main HUD -->
+  <div class="hud-layer">
+    <!-- Top Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap;">
+      <div class="glass-panel interactive" style="max-width: 480px;">
+        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap;">
+          <span class="author-badge">Dr. Julio César Oporta Barrera</span>
+          <span style="font-size: 9px; font-family: monospace; background: rgba(0,229,255,0.15); color: #00E5FF; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(0,229,255,0.3); font-weight: bold;" id="system-title">TFCN™ SALA FINANCIERA 3D</span>
         </div>
-        <h1 id="main-title" class="text-lg md:text-xl font-bold tracking-tight text-white uppercase mt-1">
-          TRANSFORMER FINANCIAL CONTROL NETWORK
-        </h1>
-        <p id="system-subtitle" class="text-[11px] text-slate-400 font-sans mt-0.5">
-          TFCN: Red de Control Financiero por Transformador
-        </p>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 10px; color: #94A3B8; font-family: monospace;" id="node-label">NODO:</span>
+          <select id="node-selector" onchange="onSelectNodeId(this.value)" style="background: #020617; color: #00E5FF; border: 1px solid #334155; border-radius: 6px; font-size: 11px; padding: 2px 6px; font-family: monospace; cursor: pointer; outline: none;"></select>
+        </div>
       </div>
 
-      <!-- Header Controls: Language switcher and AR backdrop key -->
-      <div class="flex flex-wrap items-center gap-3">
-        <!-- Local state AR toggle button -->
-        <button onclick="toggleOfflineAR()" id="ar-btn" class="bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/50 text-cyan-400 font-mono text-[11px] px-3.5 py-1.5 rounded-lg shadow-lg cursor-pointer transition-all">
-          AR MODE: OFF
-        </button>
-
-        <!-- Dropdown Language selector -->
-        <select onchange="changeOfflineLang(this.value)" id="lang-select" class="bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-200 font-mono text-xs px-3 py-1.5 rounded-lg outline-none cursor-pointer">
-          <option value="ES">ESPAÑOL</option>
-          <option value="EN">ENGLISH</option>
-          <option value="ZH">中文 (简体)</option>
-        </select>
+      <div class="interactive" style="display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; max-width: 780px;">
+        <div style="background: rgba(15,23,42,0.85); padding: 2px; border-radius: 8px; border: 1px solid #334155; display: flex; gap: 2px;">
+          <button class="lang-btn active" data-lang="es" onclick="setLang('es')">ES</button>
+          <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+          <button class="lang-btn" data-lang="zh" onclick="setLang('zh')">中文</button>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('recharge')" id="btn-micro">⚡ Micro-Pago CFA</button>
+        <button class="btn btn-danger" onclick="triggerAnomaly()" id="btn-anomaly">🚨 Simular Anomalía</button>
+        <button class="btn" style="background: rgba(0,229,255,0.15); border-color: rgba(0,229,255,0.4); color: #00E5FF;" onclick="openModal('controlroom')" id="btn-controlroom">🏛️ Sala de Control</button>
+        <button class="btn" onclick="openModal('doc')" id="btn-doc">📖 Dossier</button>
+        <button id="btn-toggle-hud" class="btn" onclick="toggleHudCards()">👁️ Vista 3D Libre</button>
+        <button id="btn-audio" class="btn" onclick="toggleAudio()">🔊 Audio 60Hz</button>
       </div>
-    </header>
+    </div>
 
-    <!-- MAIN INTERACTIVE LABORATORY BODY -->
-    <main class="relative z-10 max-w-7xl w-full mx-auto p-4 md:p-6 flex flex-col gap-6">
-
-      <!-- DOWNLOADING COMPLETED NOTIFICATION BAR -->
-      <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
-          <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <!-- Middle HUD Cards -->
+    <div id="middle-hud-cards" style="display: flex; justify-content: space-between; align-items: center; width: 100%; pointer-events: none; margin: auto 0;">
+      <div class="glass-panel interactive" style="width: 250px; pointer-events: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1E293B; padding-bottom: 4px; margin-bottom: 6px;">
+          <span style="font-size: 10px; font-weight: bold; color: #00E5FF; font-family: monospace;" id="hud-telemetry">⚡ TELEMETRÍA CLAMP</span>
+          <span style="font-size: 10px; color: #94A3B8; font-family: monospace;">60.0 Hz</span>
+        </div>
+        <div style="background: #020617; border-radius: 6px; padding: 2px; border: 1px solid #1E293B; margin-bottom: 6px;">
+          <canvas id="osc-canvas" width="220" height="40" style="width: 100%; height: 38px; display: block;"></canvas>
+        </div>
+        <div style="font-size: 11px; font-family: monospace; display: flex; flex-direction: column; gap: 3px;">
+          <div style="display: flex; justify-content: space-between;"><span style="color: #94A3B8;" id="hud-current-label">I_RMS:</span><strong id="card-current" style="color: #00E5FF;">142.5 A</strong></div>
+          <div style="display: flex; justify-content: space-between;"><span style="color: #94A3B8;" id="hud-voltage-label">Tensión V_Sec:</span><strong id="card-voltage" style="color: #FFF;">240.2 V</strong></div>
+          <div style="display: flex; justify-content: space-between;"><span style="color: #94A3B8;" id="hud-temp-label">Temp. Núcleo:</span><strong id="card-temp" style="color: #10B981;">62.4 °C</strong></div>
+        </div>
+        <div style="margin-top: 6px; pt: 4px; border-top: 1px solid #1E293B;">
+          <div style="display: flex; justify-content: space-between; font-size: 10px; font-family: monospace; margin-bottom: 2px;">
+            <span style="color: #94A3B8;" id="hud-ipt-label">Índice IPT:</span><strong id="card-ipt-text" style="color: #EF4444;">36.1%</strong>
           </div>
-          <div>
-            <p id="label-download-title" class="text-xs font-semibold text-emerald-200 uppercase tracking-wide font-mono">
-              PROTOTIPO 100% OFFLINE HABILITADO
-            </p>
-            <p id="label-download-desc" class="text-xs text-slate-400 mt-0.5">
-              Este laboratorio virtual corre completamente sin internet, directo en Microsoft Edge o Google Chrome por doble clic.
-            </p>
+          <div style="width: 100%; height: 6px; background: #020617; border-radius: 3px; overflow: hidden;">
+            <div id="card-ipt-bar" style="width: 36.1%; height: 100%; background: #EF4444; transition: width 0.3s;"></div>
           </div>
         </div>
-        <span class="text-[10px] bg-emerald-950 text-[#00ffcc] px-2 py-1 rounded border border-emerald-800/60 font-mono">
-          OFFLINE READY
-        </span>
       </div>
 
-      <!-- WORKSPACE LAB GRID LAYOUT -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <!-- LEFT 3D VIEWPORT CONTAINER (8 columns) -->
-        <div class="lg:col-span-8 flex flex-col gap-4">
-          <div class="flex justify-between items-center bg-[#070b13] p-4 rounded-xl border border-slate-800">
-            <div class="flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-              <h2 id="label-canvas-title" class="font-sans font-semibold text-xs text-white uppercase tracking-wider">
-                3D Hologram Virtual Lab Viewport (VÍA CANVAS OFFLINE)
-              </h2>
-            </div>
-            <div class="text-[10px] font-mono text-slate-500 uppercase">
-              INTERACTIVO: ARRASTRE PARA ROTAR / DRAG TO ROTATE
-            </div>
+      <div class="glass-panel interactive" style="width: 250px; pointer-events: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1E293B; padding-bottom: 4px; margin-bottom: 6px;">
+          <span style="font-size: 10px; font-weight: bold; color: #10B981; font-family: monospace;" id="hud-balance">💰 BALANCE ECONÓMICO</span>
+          <span style="font-size: 9px; color: #00E5FF; font-family: monospace;">CFA SYNC</span>
+        </div>
+        <div style="font-size: 11px; font-family: monospace; display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px;">
+          <div style="display: flex; justify-content: space-between;"><span style="color: #94A3B8;" id="hud-delivered-label">E (Entregada):</span><strong id="card-delivered" style="color: #00E5FF;">15,420 kWh</strong></div>
+          <div style="display: flex; justify-content: space-between;"><span style="color: #94A3B8;" id="hud-billed-label">F (Facturada):</span><span id="card-billed">11,200 kWh</span></div>
+          <div style="display: flex; justify-content: space-between;"><span style="color: #94A3B8;" id="hud-collected-label">C (Cobrada):</span><strong id="card-collected" style="color: #10B981;">9,850 kWh</strong></div>
+          <div style="display: flex; justify-content: space-between; border-top: 1px solid #1E293B; padding-top: 3px; color: #EF4444;"><span style="color: #F87171;" id="hud-loss-label">PE (Pérdida):</span><strong id="card-loss">5,570 kWh</strong></div>
+        </div>
+        <button class="btn btn-primary" style="width: 100%; justify-content: center; margin-bottom: 4px;" onclick="openModal('recharge')" id="btn-micro-hud">⚡ Micro-Recarga Rápida</button>
+      </div>
+    </div>
+
+    <!-- Bottom Controls -->
+    <div style="display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 1080px; margin: 0 auto;">
+      <!-- Mode Bar -->
+      <div class="glass-panel interactive" style="display: flex; gap: 4px; overflow-x: auto; padding: 6px; justify-content: center; flex-wrap: wrap;">
+        <button class="btn-tab active" data-mode="operation" onclick="setMode('operation', this)" id="mode-operation">⚡ 60Hz Nominal</button>
+        <button class="btn-tab" data-mode="ai_cfa" onclick="setMode('ai_cfa', this)" id="mode-ai">🧠 Motor CFA (IA)</button>
+        <button class="btn-tab" data-mode="analysis" onclick="setMode('analysis', this)" id="mode-fft">📈 FFT Espectral</button>
+        <button class="btn-tab" data-mode="diagnostic" onclick="setMode('diagnostic', this)" id="mode-dga">🔬 Ensayos DGA</button>
+        <button class="btn-tab" data-mode="simulation" onclick="setMode('simulation', this)" id="mode-sim">🎯 Simulación</button>
+        <button class="btn-tab" data-mode="emergency" onclick="setMode('emergency', this)" id="mode-emerg">🚨 Emergencia</button>
+      </div>
+
+      <!-- 3D Controls -->
+      <div class="glass-panel interactive" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; font-size: 11px; flex-wrap: wrap; gap: 6px;">
+        <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+          <button class="btn" onclick="set3DView('network')" id="view-network">🌐 Red 3D</button>
+          <button class="btn" onclick="set3DView('orbit')" id="view-orbit">🔄 Digital Twin 360°</button>
+          <button class="btn" onclick="set3DView('exploded')" id="view-exploded">💥 Explotado</button>
+          <button class="btn" onclick="set3DView('xray')" id="view-xray">🔬 Rayos X</button>
+          <button class="btn" onclick="set3DView('sensor')" id="view-sensor">🎯 Sensor Clamp</button>
+          <button class="btn" onclick="set3DView('core')" id="view-core">🧲 Núcleo</button>
+          <button class="btn btn-primary" onclick="resetSimulation()" id="btn-reset">🔄 Reiniciar</button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="color: #94A3B8;" id="explode-label">Despiece:</span>
+            <input type="range" min="0" max="1" step="0.05" value="0" oninput="setExploded(this.value)" style="width: 70px;">
           </div>
+          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+            <input type="checkbox" onchange="setWireframe(this.checked)" id="chk-wireframe"> <span id="wireframe-label">Wireframe CAD</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+            <input type="checkbox" checked onchange="setAutoRotate(this.checked)" id="chk-rotate"> <span id="rotate-label">Giro Auto</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
 
-          <!-- The Custom 3D Projective Canvas Frame -->
-          <div class="relative w-full h-[500px] rounded-2xl overflow-hidden border border-slate-800 bg-[#060810] shadow-2xl select-none">
-            <!-- Simulated background video feed wrapper -->
-            <video id="ar-viewport-video" class="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none transition-all duration-300" playsinline muted autoplay></video>
-
-            <!-- Real HTML5 Canvas for ultra-performance vector 3D -->
-            <canvas id="canvas3d" class="absolute inset-0 w-full h-full z-10 cursor-grab active:cursor-grabbing"></canvas>
-
-            <!-- Target corners -->
-            <div class="absolute inset-0 border-[20px] border-transparent pointer-events-none z-20">
-              <div class="absolute top-0 left-0 w-3 h-3 border-t border-l border-slate-700/50"></div>
-              <div class="absolute top-0 right-0 w-3 h-3 border-t border-r border-slate-700/50"></div>
-              <div class="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-slate-700/50"></div>
-              <div class="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-slate-700/50"></div>
+  <!-- Modal: Sala de Control -->
+  <div id="modal-controlroom" class="modal-overlay">
+    <div class="modal-card interactive">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1E293B; padding-bottom: 8px; margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="author-badge">Dr. Julio César Oporta Barrera</span>
+          <h3 style="font-size: 13px; font-weight: bold; color: #FFF; font-family: monospace;" id="cr-title">SALA DE CONTROL FINANCIERO DE LA RED (TFCN™)</h3>
+        </div>
+        <button class="btn" onclick="closeModal('controlroom')">✕</button>
+      </div>
+      <div style="display: flex; gap: 10px; flex: 1; min-height: 0;">
+        <div style="display: flex; flex-direction: column; gap: 2px; width: 160px; border-right: 1px solid #1E293B; padding-right: 6px; overflow-y: auto; flex-shrink: 0;">
+          <button class="btn-tab active" data-crtab="01_network" onclick="switchCRTab('01_network', this)" id="crtab-01">01. Red 3D</button>
+          <button class="btn-tab" data-crtab="02_digital_twin" onclick="switchCRTab('02_digital_twin', this)" id="crtab-02">02. Digital Twin</button>
+          <button class="btn-tab" data-crtab="03_energy" onclick="switchCRTab('03_energy', this)" id="crtab-03">03. Energético</button>
+          <button class="btn-tab" data-crtab="04_finance" onclick="switchCRTab('04_finance', this)" id="crtab-04">04. Financiera</button>
+          <button class="btn-tab" data-crtab="05_anomaly" onclick="switchCRTab('05_anomaly', this)" id="crtab-05">05. Anomalías</button>
+          <button class="btn-tab" data-crtab="06_risk" onclick="switchCRTab('06_risk', this)" id="crtab-06">06. Heatmap</button>
+          <button class="btn-tab" data-crtab="07_field" onclick="switchCRTab('07_field', this)" id="crtab-07">07. Cuadrillas</button>
+          <button class="btn-tab" data-crtab="08_revenue" onclick="switchCRTab('08_revenue', this)" id="crtab-08">08. Revenue</button>
+          <button class="btn-tab" data-crtab="09_pilot" onclick="switchCRTab('09_pilot', this)" id="crtab-09">09. Piloto</button>
+          <button class="btn-tab" data-crtab="10_command" onclick="switchCRTab('10_command', this)" id="crtab-10">10. Comando</button>
+          <button class="btn-tab" data-crtab="11_laboratory" onclick="switchCRTab('11_laboratory', this)" id="crtab-11">11. Laboratorio</button>
+          <button class="btn-tab" data-crtab="12_logs" onclick="switchCRTab('12_logs', this)" id="crtab-12">12. Logs</button>
+        </div>
+        <div style="flex: 1; overflow-y: auto; padding-left: 4px;">
+          <!-- Tab 01 -->
+          <div id="crtab-01_network" class="tab-content active">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 12px; font-weight: bold; color: #00E5FF;" id="cr-subtitle-01">Topología: Subestación Managua Norte → 10 Nodos Piloto</span>
+              <button class="btn btn-primary" onclick="simulateOptimalFlow()" id="cr-btn-01">⚡ Simular Flujo Óptimo</button>
             </div>
-
-            <!-- Upper Left Calibration Status -->
-            <div class="absolute top-4 left-6 z-30 pointer-events-none opacity-60 flex gap-2 items-center">
-              <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
-              <span class="font-mono text-[9px] text-slate-400 tracking-widest uppercase">
-                VECTORES 3D ACTIVOS - SIN PROTOCOLO INTERNET
-              </span>
-            </div>
-
-            <!-- Lower Layout Telemetry HUD panels -->
-            <div class="absolute inset-x-0 bottom-4 z-20 flex justify-between px-6 pointer-events-none">
-              <div class="flex flex-col bg-slate-950/80 backdrop-blur-md px-4 py-2.5 rounded-lg border border-slate-700/60 font-mono text-[10px] text-sky-400 gap-0.5">
-                <div class="font-semibold text-slate-200">INTEGRATED POWER LAB</div>
-                <div id="telemetry-status">Telemetry Link: SECURE</div>
-                <div class="text-[9px] text-slate-500">IND: COIL-CT-LOAD-SWARM</div>
+            <div class="grid-5" id="cr-nodes-grid"></div>
+          </div>
+          <!-- Tab 02 -->
+          <div id="crtab-02_digital_twin" class="tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span id="dt-node-header" style="font-size: 12px; font-weight: bold; color: #FBBF24;">Digital Twin: TR-01 (100 kVA / 13.8kV)</span>
+              <div style="display: flex; gap: 4px;">
+                <button class="btn" onclick="simulateCoreTest()" id="cr-btn-vacio">Ensayo de Vacío (Fe)</button>
+                <button class="btn" onclick="simulateWindingTest()" id="cr-btn-corto">Ensayo Cortocircuito (Cu)</button>
               </div>
-
-              <div class="flex flex-col bg-slate-950/80 backdrop-blur-md px-4 py-2.5 rounded-lg border border-slate-700/60 font-mono text-[10px] items-end gap-0.5">
-                <div class="text-slate-400">LOSS RATIO (IPT):</div>
-                <div id="hud-ipt-mode" class="font-bold uppercase tracking-wider text-[#00ffcc]">NORMAL OPERATION</div>
-                <div id="hud-ipt-display" class="text-[9px] text-slate-500">VAL: 5% Loss Rate</div>
+            </div>
+            <div class="grid-3">
+              <div class="kpi-card" style="border-color: rgba(0,229,255,0.4);">
+                <div style="color: #00E5FF; font-size: 10px; font-weight: bold;" id="cr-capa1">CAPA 1: ENERGÉTICA</div>
+                <div style="font-size: 11px; margin-top: 4px;" id="cr-capa1-tension">Tensión: 13.8kV / 240V</div>
+                <div style="font-size: 11px;" id="cr-capa1-corriente">Corriente: 142.5 A</div>
+                <div style="font-size: 11px; color: #38BDF8; font-weight: bold;" id="cr-capa1-entregada">Entregada (E): 15,420 kWh</div>
+              </div>
+              <div class="kpi-card" style="border-color: rgba(251,191,36,0.4);">
+                <div style="color: #FBBF24; font-size: 10px; font-weight: bold;" id="cr-capa2">CAPA 2: ACTIVOS & TÉRMICA</div>
+                <div style="font-size: 11px; margin-top: 4px;" id="cr-capa2-sobrecarga">Sobrecarga: 78%</div>
+                <div style="font-size: 11px;" id="cr-capa2-temp">Temperatura: 62.4°C</div>
+                <div style="font-size: 11px; color: #10B981;" id="cr-capa2-aislamiento">Aislamiento: Clase F Óptimo</div>
+              </div>
+              <div class="kpi-card" style="border-color: rgba(16,185,129,0.4);">
+                <div style="color: #10B981; font-size: 10px; font-weight: bold;" id="cr-capa3">CAPA 3: FINANCIERA (CFA)</div>
+                <div style="font-size: 11px; margin-top: 4px;" id="cr-capa3-cobrada">Cobrada (C): 9,850 kWh</div>
+                <div style="font-size: 11px; color: #EF4444; font-weight: bold;" id="cr-capa3-perdida">Pérdida (PE): 5,570 kWh</div>
+                <div style="font-size: 11px; color: #10B981; font-weight: bold;" id="cr-capa3-recuperable">Recuperable: $1,480 USD/m</div>
               </div>
             </div>
           </div>
-        </div>
-
-        <!-- RIGHT SIDE CONTROL AND MAPPING PANEL (4 columns) -->
-        <div class="lg:col-span-4 flex flex-col gap-6">
-          <!-- SIMULATION SLIDERS -->
-          <div class="bg-[#0b1021] border border-slate-800 rounded-2xl p-5 shadow-xl">
-            <h3 id="label-control-title" class="font-sans font-semibold text-sm text-white uppercase tracking-wide mb-4 flex items-center gap-2">
-              <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
-              Controles del Holograma 3D
-            </h3>
-
-            <div class="space-y-5">
-              <!-- Sliding scale IPT -->
-              <div>
-                <div class="flex justify-between items-center mb-1">
-                  <span id="label-ipt" class="text-xs text-slate-300 font-sans">Loss Ratio / Grado de Pérdida (IPT)</span>
-                  <span id="ipt-val-display" class="font-mono text-sm text-cyan-400 font-bold">5%</span>
-                </div>
-                <input type="range" id="ipt-slider" min="1" max="95" value="5" oninput="updateOfflineIpt(this.value)" class="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
-                <div id="state-description" class="text-[10px] text-[#00ffcc] font-mono mt-1.5 font-semibold">
-                  Verde (Normal / IPT < 10%) - Monitoreo Activo
-                </div>
+          <!-- Tab 03 -->
+          <div id="crtab-03_energy" class="tab-content">
+            <div class="grid-3">
+              <div class="kpi-card"><div style="color: #94A3B8; font-size: 9px;" id="cr-energia-macro">Macro Medición (E)</div><div style="font-size: 16px; font-weight: bold; color: #00E5FF;">139.8 MWh</div><div style="color: #64748B; font-size: 9px;" id="cr-energia-nodos">10 Nodos Monitoreados</div></div>
+              <div class="kpi-card"><div style="color: #94A3B8; font-size: 9px;" id="cr-energia-fp">Factor de Potencia Promedio</div><div style="font-size: 16px; font-weight: bold; color: #10B981;">0.94 FP</div><div style="color: #64748B; font-size: 9px;" id="cr-energia-comp">Compensación activa</div></div>
+              <div class="kpi-card"><div style="color: #94A3B8; font-size: 9px;" id="cr-energia-frec">Frecuencia Eléctrica</div><div style="font-size: 16px; font-weight: bold; color: #FFF;">60.02 Hz</div><div style="color: #64748B; font-size: 9px;" id="cr-energia-estab">Estabilidad nominal</div></div>
+            </div>
+          </div>
+          <!-- Tab 04 -->
+          <div id="crtab-04_finance" class="tab-content">
+            <div style="background: #020617; padding: 8px; border-radius: 8px; border: 1px solid rgba(0,229,255,0.3); text-align: center; margin-bottom: 8px; font-family: monospace; font-size: 11px;">
+              <span style="color: #00E5FF; font-weight: bold;" id="cr-fin-ecuacion">Ecuación Maestra:</span> PE = E (Entregada) - C (Cobrada CFA)
+            </div>
+            <div class="grid-3">
+              <div class="kpi-card"><div style="color: #94A3B8; font-size: 9px;" id="cr-fin-recaudo">Recaudo Rescatado</div><div style="font-size: 16px; font-weight: bold; color: #10B981;">$11,350 USD/m</div></div>
+              <div class="kpi-card"><div style="color: #94A3B8; font-size: 9px;" id="cr-fin-amort">Micro-Amortización Mora</div><div style="font-size: 16px; font-weight: bold; color: #A855F7;">28.5%</div></div>
+              <div class="kpi-card"><div style="color: #94A3B8; font-size: 9px;" id="cr-fin-puntos">Puntos de Recarga</div><div style="font-size: 16px; font-weight: bold; color: #FBBF24;">34 Pulperías</div></div>
+            </div>
+          </div>
+          <!-- Tab 05 -->
+          <div id="crtab-05_anomaly" class="tab-content">
+            <div id="cr-anomaly-banner" style="background: rgba(239,68,68,0.2); border: 1px solid #EF4444; padding: 8px; border-radius: 8px; margin-bottom: 8px; font-size: 11px; color: #FCA5A5;">
+              🚨 <strong id="cr-anomaly-text">ANOMALÍA EN NODO TR-01:</strong> <span id="cr-anomaly-desc">Discrepancia de 5,570 kWh detectada. Cuadrilla C-01 despachada.</span>
+            </div>
+            <div class="grid-2" id="cr-crews-list"></div>
+          </div>
+          <!-- Tab 06 -->
+          <div id="crtab-06_risk" class="tab-content">
+            <div class="grid-2">
+              <div class="kpi-card" style="border-color: rgba(239,68,68,0.5);"><div style="color: #EF4444; font-weight: bold; font-size: 11px;" id="cr-risk-critico">CRÍTICO (>25% IPT): 4 Nodos</div><div style="font-size: 11px; color: #94A3B8; margin-top: 4px;" id="cr-risk-critico-nodos">TR-01, TR-04, TR-07, TR-09</div></div>
+              <div class="kpi-card" style="border-color: rgba(16,185,129,0.5);"><div style="color: #10B981; font-weight: bold; font-size: 11px;" id="cr-risk-controlado">CONTROLADO (<10% IPT): 3 Nodos</div><div style="font-size: 11px; color: #94A3B8; margin-top: 4px;" id="cr-risk-controlado-nodos">TR-03, TR-06, TR-10</div></div>
+            </div>
+          </div>
+          <!-- Tab 07 -->
+          <div id="crtab-07_field" class="tab-content">
+            <div class="grid-2">
+              <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); padding: 8px; border-radius: 8px; font-size: 11px;">
+                <strong style="color: #EF4444;" id="cr-field-antes">ANTES (SIN TFCN)</strong>
+                <p style="color: #CBD5E1; margin-top: 4px;" id="cr-field-antes-text">• Detección tardía a fin de mes.<br>• Pérdidas no focalizadas.<br>• Cortes coercitivos que causan conflicto.</p>
               </div>
-
-              <!-- Sliding scale Overload -->
-              <div>
-                <div class="flex justify-between items-center mb-1">
-                  <span id="label-stress" class="text-xs text-slate-300 font-sans">Overload Stress / Sobrecarga Térmica</span>
-                  <span id="stress-val-display" class="font-mono text-sm text-amber-500 font-bold">20%</span>
-                </div>
-                <input type="range" id="stress-slider" min="5" max="100" value="20" oninput="updateOfflineStress(this.value)" class="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500">
-                <div class="flex justify-between text-[9px] text-slate-500 font-mono mt-1">
-                  <span>OPTIMIZED LEVEL</span>
-                  <span>CRITICAL COIL DAMAGE</span>
-                </div>
-              </div>
-
-              <!-- Swarm AI Checkbox -->
-              <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-900/50 border border-slate-800">
-                <div>
-                  <h4 id="label-swarm" class="text-xs font-semibold text-white">IA de Enjambre (Swarm AI Network)</h4>
-                  <p id="label-swarm-desc" class="text-[10px] text-slate-400">Sincronización LoRa de nodos alternos</p>
-                </div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" id="swarm-checkbox" onchange="toggleOfflineSwarm(this.checked)" class="sr-only peer">
-                  <div class="w-10 h-5 bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500"></div>
-                </label>
+              <div style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); padding: 8px; border-radius: 8px; font-size: 11px;">
+                <strong style="color: #10B981;" id="cr-field-despues">DESPUÉS (CON TFCN)</strong>
+                <p style="color: #CBD5E1; margin-top: 4px;" id="cr-field-despues-text">• Balance continuo por transformador.<br>• Despacho por valor monetario en riesgo.<br>• Micro-pagos voluntarios en pulperías.</p>
               </div>
             </div>
           </div>
-
-          <!-- L3 RECHARGES BLOCK -->
-          <div class="bg-[#0b1021] border border-slate-800 rounded-2xl p-5 shadow-xl">
-            <div class="flex justify-between items-center mb-1">
-              <h3 id="label-recharge-title" class="font-sans font-semibold text-sm text-white uppercase tracking-wide">
-                Capa 3: Simulador de Recargas
-              </h3>
-              <span class="text-[9px] bg-cyan-950 text-cyan-400 px-1.5 py-0.5 rounded border border-cyan-800 font-mono uppercase">
-                CFA PREPAY
-              </span>
+          <!-- Tab 08 -->
+          <div id="crtab-08_revenue" class="tab-content">
+            <div class="grid-3">
+              <div class="kpi-card"><div style="color: #94A3B8; font-size: 9px;" id="cr-rev-potencial">Potencial Anual (10 Nodos)</div><div style="font-size: 16px; font-weight: bold; color: #10B981;">$75,000 USD/año</div></div>
+              <div class="kpi-card"><div style="color: #94A3B8; font-size: 9px;" id="cr-rev-comision">Comisión Éxito</div><div style="font-size: 16px; font-weight: bold; color: #00E5FF;">18%</div></div>
+              <div class="kpi-card"><div style="color: #94A3B8; font-size: 9px;" id="cr-rev-familias">Familias Beneficiadas</div><div style="font-size: 16px; font-weight: bold; color: #A855F7;">850 Hogares</div></div>
             </div>
-            <p id="label-recharge-desc" class="text-xs text-slate-400 leading-relaxed mb-4">
-              Envíe un micro-pago voluntario para disminuir mora y cubrir consumo activo e histórico.
-            </p>
-
-            <div class="grid grid-cols-3 gap-2 mb-4">
-              <button onclick="triggerCashOnline(1)" class="py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 font-mono text-xs text-[#00ffcc] font-bold cursor-pointer font-sans active:scale-95 transition-all">+$1 USD</button>
-              <button onclick="triggerCashOnline(5)" class="py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 font-mono text-xs text-[#00ffcc] font-bold cursor-pointer font-sans active:scale-95 transition-all">+$5 USD</button>
-              <button onclick="triggerCashOnline(10)" class="py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 font-mono text-xs text-[#00ffcc] font-bold cursor-pointer font-sans active:scale-95 transition-all">+$10 USD</button>
+          </div>
+          <!-- Tab 09 -->
+          <div id="crtab-09_pilot" class="tab-content">
+            <div class="grid-3">
+              <div class="kpi-card"><div style="color: #94A3B8; font-size: 9px;" id="cr-pilot-capex">Inversión Capex</div><div style="font-size: 16px; font-weight: bold; color: #FFF;">$5,500 - $10,500</div></div>
+              <div class="kpi-card"><div style="color: #94A3B8; font-size: 9px;" id="cr-pilot-reduccion">Reducción Pérdidas</div><div style="font-size: 16px; font-weight: bold; color: #10B981;">20% - 45% IPT</div></div>
+              <div class="kpi-card"><div style="color: #94A3B8; font-size: 9px;" id="cr-pilot-plazo">Plazo Ejecución</div><div style="font-size: 16px; font-weight: bold; color: #00E5FF;">90 Días</div></div>
             </div>
-
-            <div class="flex justify-between items-center text-xs font-mono border-t border-slate-800/80 pt-3">
-              <span class="text-slate-400">LIQUIDITY CAPTURED:</span>
-              <span id="collected-usd" class="font-bold text-white bg-cyan-950/50 border border-cyan-900/60 px-2.5 py-1 rounded">
-                $1,450.00 USD
-              </span>
+          </div>
+          <!-- Tab 10 -->
+          <div id="crtab-10_command" class="tab-content">
+            <div class="grid-5">
+              <div class="kpi-card"><div style="font-size: 9px; color: #94A3B8;" id="cr-cmd-energia">ENERGÍA</div><div style="font-weight: bold; color: #00E5FF;">139.8 MWh</div></div>
+              <div class="kpi-card"><div style="font-size: 9px; color: #94A3B8;" id="cr-cmd-nodos">NODOS</div><div style="font-weight: bold; color: #FFF;">10 Piloto</div></div>
+              <div class="kpi-card"><div style="font-size: 9px; color: #94A3B8;" id="cr-cmd-anomalias">ANOMALÍAS</div><div style="font-weight: bold; color: #EF4444;">4 Críticas</div></div>
+              <div class="kpi-card"><div style="font-size: 9px; color: #94A3B8;" id="cr-cmd-riesgo">RIESGO MEDIO</div><div style="font-weight: bold; color: #FBBF24;">22.7% IPT</div></div>
+              <div class="kpi-card"><div style="font-size: 9px; color: #94A3B8;" id="cr-cmd-rescate">RESCATE/MES</div><div style="font-weight: bold; color: #10B981;">$11,350 USD</div></div>
+            </div>
+          </div>
+          <!-- Tab 11 -->
+          <div id="crtab-11_laboratory" class="tab-content">
+            <div class="grid-3">
+              <div class="kpi-card"><div style="color: #818CF8; font-size: 10px; font-weight: bold;" id="cr-lab-aceite">ASTM D877 Aceite</div><div style="font-size: 14px; font-weight: bold; color: #FFF; margin-top: 2px;">48.2 kV / 2.5mm</div><div style="color: #10B981; font-size: 9px;" id="cr-lab-aceite-desc">Rigidez dieléctrica óptima</div></div>
+              <div class="kpi-card"><div style="color: #00E5FF; font-size: 10px; font-weight: bold;" id="cr-lab-armonicos">IEEE 519 Armónicos</div><div style="font-size: 14px; font-weight: bold; color: #FFF; margin-top: 2px;">THD_V: 1.2%</div><div style="color: #38BDF8; font-size: 9px;" id="cr-lab-armonicos-desc">THD_I: 3.6% (Filtrado)</div></div>
+              <div class="kpi-card"><div style="color: #FBBF24; font-size: 10px; font-weight: bold;" id="cr-lab-termico">IEEE C57.91 Térmico</div><div style="font-size: 14px; font-weight: bold; color: #FFF; margin-top: 2px;">θ_HS: 69.2 °C</div><div style="color: #10B981; font-size: 9px;" id="cr-lab-termico-desc">Vida útil > 35 años</div></div>
+            </div>
+          </div>
+          <!-- Tab 12 -->
+          <div id="crtab-12_logs" class="tab-content">
+            <div style="font-size: 11px; font-family: monospace; background: #020617; border: 1px solid #1E293B; border-radius: 8px; padding: 8px; max-height: 180px; overflow-y: auto;" id="cr-logs-container">
+              <div style="color: #10B981; margin-bottom: 4px;">• [10:42:15] CFA Micro-Pago $5.00 USD recibido nodo TR-01 (Pulpería Mary)</div>
+              <div style="color: #00E5FF; margin-bottom: 4px;">• [10:42:12] LoRaWAN Telemetría OK: V=240.2V, I=142.5A, Temp=62.4°C</div>
+              <div style="color: #EF4444; margin-bottom: 4px;">• [10:41:50] Alerta Discrepancia No Técnica TR-04 (6,200 kWh)</div>
+              <div style="color: #FBBF24;">• [10:39:18] Sensor Rogowski Calibración OK (0.998 escala)</div>
             </div>
           </div>
         </div>
       </div>
+    </div>
+  </div>
 
-      <!-- NEW MODULE: INTERACTIVE PATENT FLOWCHART BLUEPRINT -->
-      <div class="bg-[#070b13] border border-slate-800 rounded-2xl p-5 md:p-6 shadow-xl">
-        <h3 id="flow-title" class="font-sans font-bold text-slate-100 uppercase tracking-wide border-b border-slate-800 pb-3 mb-4 flex items-center gap-2">
-          <svg class="w-5 h-5 text-amber-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-          MÓDULO DE FLUJOGRAMA E IMAGEN DE PATENTE
-        </h3>
-        <p id="flow-desc" class="text-xs text-slate-400 mb-5">
-          Haga clic sobre cualquiera de los bloques regulados del flujo de la patente para inyectar estados y simular transiciones de telemetría automática en el holograma 3D.
-        </p>
-
-        <!-- FLOW BLOCKS -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          <button onclick="triggerCashOnline(2)" class="p-4 rounded-xl border border-slate-800 bg-[#0c111e]/70 hover:bg-[#12192b]/80 transition-all text-left group cursor-pointer">
-            <h4 id="flow-prop" class="text-xs font-bold text-[#ffcc00] uppercase tracking-wide mb-1">Propósito Estratégico</h4>
-            <p id="flow-prop-sub" class="text-[11px] text-slate-400 leading-relaxed">Transformar cada transformador rural y urbano en un nodo activo con amortización instantánea.</p>
-          </button>
-
-          <button onclick="updateOfflineIpt(4)" class="p-4 rounded-xl border border-cyan-800/40 bg-[#0c111e]/70 hover:bg-[#12192b]/80 transition-all text-left group cursor-pointer">
-            <h4 id="flow-l1" class="text-xs font-bold text-slate-100 uppercase tracking-wide mb-1">Capa 1: Perno Clamp IoT</h4>
-            <p id="flow-l1-sub" class="text-[11px] text-slate-400 leading-relaxed">Sensor magnético de colocación manual sin cortes de suministro eléctrico principal.</p>
-          </button>
-
-          <button onclick="updateOfflineIpt(60)" class="p-4 rounded-xl border border-rose-800/40 bg-[#0c111e]/70 hover:bg-[#12192b]/80 transition-all text-left group cursor-pointer">
-            <h4 id="flow-l2" class="text-xs font-bold text-[#ff3344] uppercase tracking-wide mb-1">Capa 2: Auditoría IPT</h4>
-            <p id="flow-l2-sub" class="text-[11px] text-slate-400 leading-relaxed font-sans">Localizador automático de pérdidas sospechosas por balance de diferencia energética.</p>
-          </button>
-
-          <button onclick="triggerCashOnline(5)" class="p-4 rounded-xl border border-slate-800 bg-[#0c111e]/70 hover:bg-[#12192b]/80 transition-all text-left group cursor-pointer">
-            <h4 id="flow-l3" class="text-xs font-bold text-cyan-400 uppercase tracking-wide mb-1">Capa 3: Capture CFA</h4>
-            <p id="flow-l3-sub" class="text-[11px] text-slate-400 leading-relaxed">Dispositivo USSD móvil local para amortizar la deuda histórica sin trámites bancarios.</p>
-          </button>
-
-          <button onclick="toggleOfflineSwarm(true)" class="p-4 rounded-xl border border-dashed border-slate-700 bg-[#0c111e]/70 hover:bg-[#12192b]/80 transition-all text-left group cursor-pointer">
-            <h4 id="flow-l4" class="text-xs font-bold text-pink-400 uppercase tracking-wide mb-1 flex justify-between">
-              <span>Capa 4: Enjambre IA</span>
-              <span class="text-[9px] bg-pink-950 font-mono text-pink-300 px-1 py-0.5 rounded border border-pink-800">LoRa</span>
-            </h4>
-            <p id="flow-l4-sub" class="text-[11px] text-slate-400 leading-relaxed">Distribución LoRaWAN inteligente de sobrecarga hacia transformadores vecinos.</p>
-          </button>
-
-          <button onclick="updateOfflineStress(15)" class="p-4 rounded-xl border border-slate-800 bg-[#0c111e]/70 hover:bg-[#12192b]/80 transition-all text-left group cursor-pointer">
-            <h4 id="flow-l5" class="text-xs font-bold text-purple-400 uppercase tracking-wide mb-1">Capa 5: Alivio Térmico</h4>
-            <p id="flow-l5-sub" class="text-[11px] text-slate-400 leading-relaxed">Limita cargas excesivas en horas pico de consumo para precaver cortocircuitos.</p>
-          </button>
-        </div>
-
-        <!-- NEW EXTRA DYNAMIC STATE LAYER (Filtro Antifraude) -->
-        <div class="p-4 rounded-xl border border-purple-900/40 bg-purple-950/15">
-          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-2">
-            <div class="flex items-center gap-2">
-              <span class="w-1.5 h-1.5 bg-purple-400 rounded-full animate-ping"></span>
-              <h4 id="extra-state-title" class="text-xs font-bold font-mono text-purple-300 uppercase tracking-wide">ESTADO DINÁMICO EXTRA (FILTRO ARMÓNICO DE RED)</h4>
-            </div>
-            <div class="flex gap-2">
-              <button onclick="toggleWaveFilter('OFF')" id="filter-btn-off" class="text-[9px] font-mono px-2 py-0.5 rounded border border-purple-800 bg-purple-900 text-white cursor-pointer hover:bg-purple-800">DESACTIVAR</button>
-              <button onclick="toggleWaveFilter('ON')" id="filter-btn-on" class="text-[9px] font-mono px-2 py-0.5 rounded border border-slate-700 bg-slate-900 text-slate-400 cursor-pointer hover:bg-slate-800">ACTIVAR FILTRADO</button>
-            </div>
-          </div>
-          <p id="extra-state-desc" class="text-[11px] text-[#dac3f6] leading-relaxed">
-            La capa analiza en tiempo real la impedancia del devanado de cobre para interceptar sintonizadores de fraude o cortes ilegítimos.
-          </p>
-        </div>
+  <!-- Modal: Micro-Recharge -->
+  <div id="modal-recharge" class="modal-overlay">
+    <div class="modal-card interactive" style="max-width: 440px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h3 style="color: #10B981; font-size: 14px; font-weight: bold;" id="recharge-title">⚡ Captura de Flujo Adaptativo (CFA)</h3>
+        <button class="btn" onclick="closeModal('recharge')">✕</button>
       </div>
-
-      <!-- TACTICAL MONITOR: LEDGER LOGS HUD -->
-      <div class="bg-slate-950/50 border border-slate-800 rounded-2xl p-5 font-mono text-xs">
-        <h4 id="log-monitor-title" class="text-xs tracking-wider text-slate-400 uppercase mb-3 font-sans font-semibold">Táctico LEDGER Log monitor:</h4>
-        <div id="logs-container" class="max-h-[140px] overflow-y-auto space-y-1.5 text-[11px] text-slate-400 leading-relaxed bg-black/40 p-4 rounded-xl border border-slate-900 shadow-inner">
-          <div>[10:14:02] Sistema Inicializado por Dr. Julio César Oporta Barrera (Cargando de redundancia de doble disco).</div>
-          <div>[10:14:05] Solución de 3D Offline Canvas Render: ACTIVO 100% Sin requisición Internet.</div>
-          <div>[10:14:15] Clamp Sensorial IoT calibrado con tolerancia nominal de ±1% éxito.</div>
-        </div>
+      <p style="font-size: 11px; color: #94A3B8; margin-bottom: 10px;" id="recharge-desc">Micro-recarga comunitaria en pulpería o móvil sin corte de servicio.</p>
+      <div style="background: #020617; border: 1px solid #1E293B; border-radius: 8px; padding: 10px; font-family: monospace; font-size: 11px; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span id="recharge-monto">Monto Recarga:</span><strong style="color: #FBBF24;">$5.00 USD</strong></div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span id="recharge-consumo">Consumo Inmediato (70%):</span><strong style="color: #10B981;">$3.50 USD</strong></div>
+        <div style="display: flex; justify-content: space-between;"><span id="recharge-amort">Micro-Amortización (30%):</span><strong style="color: #A855F7;">$1.50 USD</strong></div>
       </div>
-    </main>
+      <button class="btn btn-primary" style="padding: 9px; font-size: 12px; width: 100%; justify-content: center;" onclick="executeRecharge()" id="recharge-btn">Confirmar Micro-Recarga</button>
+    </div>
+  </div>
 
-    <!-- FOOTER WITH STRATEGIC SPECIFICATION DETAILS -->
-    <footer class="mt-8 border-t border-slate-850 bg-[#070a14] py-6 px-6 text-center text-slate-500 text-[10px] font-mono">
-      <div>TFCN: TRANSFORMER FINANCIAL CONTROL NETWORK - COMPATIBLE CON LATINOAMERICA & NICARAGUA EMERGENCIAS</div>
-      <div id="author-footer" class="text-slate-600 mt-1 uppercase">DISEÑADO POR DR. JULIO CÉSAR OPORTA BARRERA | TODOS LOS DERECHOS REGISTRADOS DE PATENTE 2026</div>
-    </footer>
+  <!-- Modal: Doc -->
+  <div id="modal-doc" class="modal-overlay">
+    <div class="modal-card interactive" style="max-width: 600px; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h3 style="color: #00E5FF; font-size: 14px; font-weight: bold;" id="doc-title">📖 Expediente Técnico TFCN™</h3>
+        <button class="btn" onclick="closeModal('doc')">✕</button>
+      </div>
+      <div style="font-size: 12px; color: #CBD5E1; line-height: 1.6;" id="doc-content">
+        <p><strong id="doc-autor">Autor Principal:</strong> Dr. Julio César Oporta Barrera (juliooporta@yahoo.com / juliooporta16@gmail.com)</p>
+        <p style="margin-top: 6px;"><strong id="doc-premisa">Premisa:</strong> Traslada la unidad de gestión y control financiero hacia el transformador de distribución como nodo económico, cerrando la brecha de pérdidas no técnicas mediante balance macro-medido y micro-finanzas adaptativas.</p>
+      </div>
+    </div>
+  </div>
 
+  <script>
+    // ==============================
+    // 1. DATA & STATE
+    // ==============================
+    const NODES = [
+      { id: 'TR-01', code: 'TR-01-MGA', name: 'Barrio Hugo Chávez', capacityKVA: 100, delivered: 15420, billed: 11200, collected: 9850, ipt: 0.361, status: 'red', temp: 62.4, current: 142.5, voltage: 240.2, x: 8, z: 6 },
+      { id: 'TR-02', code: 'TR-02-MGA', name: 'Reparto Schick', capacityKVA: 75, delivered: 12800, billed: 9800, collected: 9165, ipt: 0.284, status: 'red', temp: 58.1, current: 118.0, voltage: 239.8, x: -9, z: 7 },
+      { id: 'TR-03', code: 'TR-03-MGA', name: 'Villa Libertad', capacityKVA: 100, delivered: 16100, billed: 15200, collected: 14780, ipt: 0.082, status: 'green', temp: 48.6, current: 150.2, voltage: 241.0, x: 10, z: -8 },
+      { id: 'TR-04', code: 'TR-04-MGA', name: 'San Judas Sector 3', capacityKVA: 50, delivered: 8900, billed: 6100, collected: 5233, ipt: 0.412, status: 'red', temp: 64.9, current: 82.5, voltage: 238.4, x: -11, z: -9 },
+      { id: 'TR-05', code: 'TR-05-MGA', name: 'Ciudad Sandino Z-4', capacityKVA: 75, delivered: 13400, billed: 11400, collected: 10787, ipt: 0.195, status: 'yellow', temp: 53.2, current: 124.0, voltage: 240.5, x: 12, z: 2 },
+      { id: 'TR-06', code: 'TR-06-MGA', name: 'Bello Horizonte', capacityKVA: 100, delivered: 17200, billed: 16400, collected: 16099, ipt: 0.064, status: 'green', temp: 46.8, current: 159.0, voltage: 241.5, x: -4, z: 11 },
+      { id: 'TR-07', code: 'TR-07-MGA', name: 'La Primavera', capacityKVA: 50, delivered: 9200, billed: 6800, collected: 6090, ipt: 0.338, status: 'red', temp: 60.3, current: 85.0, voltage: 239.0, x: 5, z: -12 },
+      { id: 'TR-08', code: 'TR-08-MGA', name: 'Jorge Dimitrov', capacityKVA: 75, delivered: 12100, billed: 9900, collected: 9426, ipt: 0.221, status: 'yellow', temp: 54.7, current: 112.0, voltage: 240.0, x: -7, z: -5 },
+      { id: 'TR-09', code: 'TR-09-MGA', name: 'Tipitapa Periurbano', capacityKVA: 100, delivered: 14800, billed: 9500, collected: 8199, ipt: 0.446, status: 'red', temp: 66.2, current: 137.0, voltage: 237.8, x: 13, z: -4 },
+      { id: 'TR-10', code: 'TR-10-MGA', name: 'Carretera a Masaya', capacityKVA: 150, delivered: 19800, billed: 19100, collected: 18790, ipt: 0.051, status: 'green', temp: 44.5, current: 183.0, voltage: 242.0, x: -12, z: 4 }
+    ];
 
-    <!-- ==================== LOCAL 3D VECTOR CANVAS GRAPH ENGINE ==================== -->
-    <script>
-      // Localization Database
-      const localDict = {
-        ES: {
-          header: "AUTOR: DR. JULIO CÉSAR OPORTA BARRERA | PATENTE REGISTRADA",
-          title: "TRANSFORMER FINANCIAL CONTROL NETWORK",
-          sub: "TFCN: Red de Control Financiero por Transformador",
-          downTitle: "PROTOTIPO 100% OFFLINE HABILITADO",
-          downDesc: "Este laboratorio virtual corre completamente sin internet, directo en Microsoft Edge o Google Chrome por doble clic.",
-          canvasTitle: "3D Hologram Virtual Lab Viewport (VÍA CANVAS OFFLINE)",
-          ctrlTitle: "Controles del Holograma 3D",
-          ipt: "Grado de Pérdida Eléctrica (IPT %)",
-          stress: "Sobrecarga Térmica de Núcleo",
-          swarm: "IA de Enjambre (Swarm AI Network)",
-          swarmDesc: "Sincronización LoRa de nodos alternos",
-          normState: "Verde (Normal / IPT < 10%) - Monitoreo Activo",
-          warnState: "Riesgo (IPT 10-25%) - Intervención Leve",
-          critState: "Crítico (IPT > 25%) - Pérdida Activa / Fraude",
-          recTitle: "Capa 3: Simulador de Recargas",
-          recDesc: "Envíe un micro-pago voluntario para disminuir mora y cubrir consumo activo e histórico.",
-          arOn: "AR MODE: ACTIVE",
-          arOff: "AR MODE: OFF",
-          flowTitle: "MÓDULO DE FLUJOGRAMA E IMAGEN DE PATENTE",
-          flowDesc: "Haga clic sobre cualquiera de los bloques regulados del flujo de la patente para inyectar estados y simular transiciones de telemetría automática en el holograma 3D.",
-          flowProp: "Propósito Estratégico",
-          flowPropSub: "Transformar cada transformador rural y urbano en un nodo activo con amortización instantánea.",
-          flowL1: "Capa 1: Perno Clamp IoT",
-          flowL1Sub: "Sensor magnético de colocación manual sin cortes de suministro eléctrico principal.",
-          flowL2: "Capa 2: Auditoría IPT",
-          flowL2Sub: "Localizador automático de pérdidas sospechosas por balance de diferencia energética.",
-          flowL3: "Capa 3: Capture CFA",
-          flowL3Sub: "Dispositivo USSD móvil local para amortizar la deuda histórica sin trámites bancarios.",
-          flowL4: "Capa 4: Enjambre IA",
-          flowL4Sub: "Distribución LoRaWAN inteligente de sobrecarga hacia transformadores vecinos.",
-          flowL5: "Capa 5: Alivio Térmico",
-          flowL5Sub: "Limita cargas excesivas en horas pico de consumo para precaver cortocircuitos.",
-          exStateTitle: "ESTADO DINÁMICO EXTRA (FILTRO ARMÓNICO DE RED)",
-          exStateDesc: "La capa analiza en tiempo real la impedancia del devanado de cobre para interceptar sintonizadores de fraude o cortes ilegítimos.",
-          logTitle: "Táctico LEDGER Log monitor:",
-          authorFooter: "DISEÑADO POR DR. JULIO CÉSAR OPORTA BARRERA | TODOS LOS DERECHOS REGISTRADOS DE PATENTE 2026"
-        },
-        EN: {
-          header: "AUTHOR: DR. JULIO CÉSAR OPORTA BARRERA | REGISTERED PATENT",
-          title: "TRANSFORMER FINANCIAL CONTROL NETWORK",
-          sub: "TFCN: Transformer Financial Control Network Node Solution",
-          downTitle: "100% OFFLINE PROTOTYPE ENABLED",
-          downDesc: "This virtual lab runs completely internet-free, direct in Microsoft Edge or Google Chrome after double-clicking.",
-          canvasTitle: "3D Hologram Virtual Lab Viewport (VIA OFFLINE CANVAS)",
-          ctrlTitle: "3D Holographic Regulators",
-          ipt: "Electric Loss Ratio (IPT %)",
-          stress: "Core Thermal Overload Stress",
-          swarm: "Swarm AI Core Linkage",
-          swarmDesc: "LoRa P2P node coordination mesh network",
-          normState: "Green (Normal / IPT < 10%) - Active Monitor",
-          warnState: "Warning (IPT 10-25%) - Minor Balancing Act",
-          critState: "Critical (IPT > 25%) - Loss / Fault Detect active",
-          recTitle: "Layer 3: Pre-recharges Simulator",
-          recDesc: "Select and submit voluntary micro-transactions locally to amortize node historic debt.",
-          arOn: "AR MODE: ACTIVE",
-          arOff: "AR MODE: OFF",
-          flowTitle: "PATENT BLUEPRINT AND FLOWCHART COMPONENT",
-          flowDesc: "Click any registered patent layer block to automatically inject preset states and modify 3D telemetry.",
-          flowProp: "Strategic Purpose",
-          flowPropSub: "Translating static hardware grids into self-sufficient active cash capturing nodes.",
-          flowL1: "Layer 1: Biometric Clamp",
-          flowL1Sub: "Non-intrusive induction CT clamp. Hot-swap instant deployment.",
-          flowL2: "Layer 2: Energy Audit (IPT)",
-          flowL2Sub: "Delta analysis computing general billing deficits on nodes in real time.",
-          flowL3: "Layer 3: Cash Capture CFA",
-          flowL3Sub: "Fractional prepaidUSSD network bypassing traditional banking structures.",
-          flowL4: "Layer 4: Swarm AI Cores",
-          flowL4Sub: "Smart automated LoRa load-leveling across secondary grids.",
-          flowL5: "Layer 5: Safe Thermal Cap",
-          flowL5Sub: "Preventive load curtailing to safeguard core copper coils from burn out.",
-          exStateTitle: "EXTRA DYNAMIC STATE (WAVE HARMONICS FILTER)",
-          exStateDesc: "Checks copper winding impedance changes to instantly pinpoint illicit hookups.",
-          logTitle: "Tactical LEDGER Log Monitor:",
-          authorFooter: "DESIGNED BY DR. JULIO CÉSAR OPORTA BARRERA | ALL RIGHTS REGISTERED PATENT 2026"
-        },
-        ZH: {
-          header: "著者: 胡里奥·塞萨尔·奥波塔·巴雷拉 博士 | 专利权登记",
-          title: "变压器金融控制网络",
-          sub: "TFCN: 变压器金融收支一体化控制总网",
-          downTitle: "100% 离线独立原型包已启用",
-          downDesc: "全仿真实验室支持无网双击在 Edge 或 Google Chrome 浏览器一键运行，流畅交互。",
-          canvasTitle: "3D全息虚拟视图 (离线绘图引擎)",
-          ctrlTitle: "3D全息控制阀",
-          ipt: "线损与漏损系数 (IPT %)",
-          stress: "绕组瞬时热过载压力",
-          swarm: "AI集群自组网协作 (Swarm AI)",
-          swarmDesc: "基于 LoRa 短波的点对点台区网格阻抗均衡器",
-          normState: "绿色安全 (IPT < 10%) - 全网状态良好",
-          warnState: "黄色预警 (IPT 10-25%) - 局部线路异常阻抗",
-          critState: "橙红色高危 (IPT > 25%) - 疑似突发性线损或窃电故障",
-          recTitle: "第三层：小额微充支付联动",
-          recDesc: "自由提交小额充值进行仿真。到账额将自动归入节点用能结算与历史债务微摊销。",
-          arOn: "AR 物理背景: 开启",
-          arOff: "AR 物理背景: 未激活",
-          flowTitle: "专利拓扑图谱及全场景控制器",
-          flowDesc: "直接点击下方专利拓扑块，向三维虚拟网格注入试验工况，观察参数级联响应。",
-          flowProp: "战略宗旨",
-          flowPropSub: "将物理网格变电站升级为金融交易全链自理智能化主动节点。",
-          flowL1: "第一层：仿生悬挂互感线夹",
-          flowL1Sub: "悬挂式感应线圈。高隔离不停电不停机无故障快速安装。",
-          flowL2: "第二层：电量代数核查 (IPT)",
-          flowL2Sub: "基于总出线电量与预付费到账结算差值的瞬时监控引擎。",
-          flowL3: "第三层：CFA预付费机制",
-          flowL3Sub: "借助移动USSD和网点终端，实现随充随用、零结算延迟与坏账消化。",
-          flowL4: "第四层：集群 AI 台区协作",
-          flowL4Sub: "检测到特定节点过载时，请求同区域兄弟变压器阻抗级联重构平差。",
-          flowL5: "第五层：变压器热损降压",
-          flowL5Sub: "在小时级高峰限度防范过温与绝缘油熔断物理故障安全门阀。",
-          exStateTitle: "附加多维动态保护 (高微谐波滤波模块)",
-          exStateDesc: "智能检索二级母线中的不正常交流电波动，实时排查非法接入点。",
-          logTitle: "运行日志 LEDGER 监视器:",
-          authorFooter: "胡里奥·塞萨尔·奥波塔·巴雷拉 博士专利设计 | 2026年版权所有"
-        }
-      };
+    const CREWS = [
+      { id: 'C-01', name: 'Cuadrilla C-01', leader: 'Ing. Carlos Mendoza', target: 'TR-01', status: 'en_ruta' },
+      { id: 'C-02', name: 'Cuadrilla C-02', leader: 'Téc. Roberto Gómez', target: 'TR-04', status: 'en_sitio' }
+    ];
 
-      // State engine for offline file
-      let activeLang = "ES";
-      let iptValue = 5;
-      let stressValue = 20;
-      let swarmConnected = false;
-      let arEnabled = false;
-      let collectedUSD = 1450.0;
-      let waveFilterState = "OFF";
+    let selectedNode = NODES[0];
+    let isHudCollapsed = false;
+    let isWireframe = false;
+    let isAutoRotate = true;
+    let explodedFactor = 0;
+    let currentView = 'orbit';
+    let currentLang = 'es';
 
-      // Rotation & Zoom engine for Canvas 3D
-      let rotationX = -0.35;
-      let rotationY = 0.55;
-      let scaleZoom = 1.0;
-      let isDragging = false;
-      let prevMouseX = 0, prevMouseY = 0;
-
-      // DOM Cache
-      const designerHeader = document.getElementById("designer-header");
-      const mainTitle = document.getElementById("main-title");
-      const subTitle = document.getElementById("system-subtitle");
-      const lDlTitle = document.getElementById("label-download-title");
-      const lDlDesc = document.getElementById("label-download-desc");
-      const lCanvasTitle = document.getElementById("label-canvas-title");
-      const lCtrlTitle = document.getElementById("label-control-title");
-      const lIpt = document.getElementById("label-ipt");
-      const lStress = document.getElementById("label-stress");
-      const lSwarm = document.getElementById("label-swarm");
-      const lSwarmDesc = document.getElementById("label-swarm-desc");
-      const stateDesc = document.getElementById("state-description");
-      const lRecTitle = document.getElementById("label-recharge-title");
-      const lRecDesc = document.getElementById("label-recharge-desc");
-      const lFlowTitle = document.getElementById("flow-title");
-      const lFlowDesc = document.getElementById("flow-desc");
-      const lFlowProp = document.getElementById("flow-prop");
-      const lFlowPropSub = document.getElementById("flow-prop-sub");
-      const lFlowL1 = document.getElementById("flow-l1");
-      const lFlowL1Sub = document.getElementById("flow-l1-sub");
-      const lFlowL2 = document.getElementById("flow-l2");
-      const lFlowL2Sub = document.getElementById("flow-l2-sub");
-      const lFlowL3 = document.getElementById("flow-l3");
-      const lFlowL3Sub = document.getElementById("flow-l3-sub");
-      const lFlowL4 = document.getElementById("flow-l4");
-      const lFlowL4Sub = document.getElementById("flow-l4-sub");
-      const lFlowL5 = document.getElementById("flow-l5");
-      const lFlowL5Sub = document.getElementById("flow-l5-sub");
-      const lExStateTitle = document.getElementById("extra-state-title");
-      const lExStateDesc = document.getElementById("extra-state-desc");
-      const lLogTitle = document.getElementById("log-monitor-title");
-      const lAuthFooter = document.getElementById("author-footer");
-
-      const arBtn = document.getElementById("ar-btn");
-      const collectedText = document.getElementById("collected-usd");
-      const iptDisplay = document.getElementById("ipt-val-display");
-      const stressDisplay = document.getElementById("stress-val-display");
-      const hudIptValue = document.getElementById("hud-ipt-display");
-      const hudIptMode = document.getElementById("hud-ipt-mode");
-      const logsContainer = document.getElementById("logs-container");
-
-      // Appends telemetry logs dynamically to visual box
-      function addLog(text) {
-        const timeNow = new Date().toLocaleTimeString();
-        const element = document.createElement("div");
-        element.innerHTML = '<span>[' + timeNow + ']</span> ' + text;
-        logsContainer.appendChild(element);
-        logsContainer.scrollTop = logsContainer.scrollHeight;
+    // ==============================
+    // 2. TRANSLATIONS (completas)
+    // ==============================
+    const LANG = {
+      es: {
+        system_title: 'TFCN™ SALA FINANCIERA 3D',
+        node_label: 'NODO:',
+        hud_telemetry: '⚡ TELEMETRÍA CLAMP',
+        hud_current: 'I_RMS:',
+        hud_voltage: 'Tensión V_Sec:',
+        hud_temp: 'Temp. Núcleo:',
+        hud_ipt: 'Índice IPT:',
+        hud_balance: '💰 BALANCE ECONÓMICO',
+        hud_delivered: 'E (Entregada):',
+        hud_billed: 'F (Facturada):',
+        hud_collected: 'C (Cobrada):',
+        hud_loss: 'PE (Pérdida):',
+        btn_micro: '⚡ Micro-Pago CFA',
+        btn_anomaly: '🚨 Simular Anomalía',
+        btn_controlroom: '🏛️ Sala de Control',
+        btn_doc: '📖 Dossier',
+        btn_hud: '👁️ Vista 3D Libre',
+        btn_audio: '🔊 Audio 60Hz',
+        btn_reset: '🔄 Reiniciar',
+        btn_micro_hud: '⚡ Micro-Recarga Rápida',
+        mode_operation: '⚡ 60Hz Nominal',
+        mode_ai: '🧠 Motor CFA (IA)',
+        mode_fft: '📈 FFT Espectral',
+        mode_dga: '🔬 Ensayos DGA',
+        mode_sim: '🎯 Simulación',
+        mode_emerg: '🚨 Emergencia',
+        view_network: '🌐 Red 3D',
+        view_orbit: '🔄 Digital Twin 360°',
+        view_exploded: '💥 Explotado',
+        view_xray: '🔬 Rayos X',
+        view_sensor: '🎯 Sensor Clamp',
+        view_core: '🧲 Núcleo',
+        explode_label: 'Despiece:',
+        wireframe_label: 'Wireframe CAD',
+        rotate_label: 'Giro Auto',
+        cr_tab_01: '01. Red 3D',
+        cr_tab_02: '02. Digital Twin',
+        cr_tab_03: '03. Energético',
+        cr_tab_04: '04. Financiera',
+        cr_tab_05: '05. Anomalías',
+        cr_tab_06: '06. Heatmap',
+        cr_tab_07: '07. Cuadrillas',
+        cr_tab_08: '08. Revenue',
+        cr_tab_09: '09. Piloto',
+        cr_tab_10: '10. Comando',
+        cr_tab_11: '11. Laboratorio',
+        cr_tab_12: '12. Logs',
+        cr_title: 'SALA DE CONTROL FINANCIERO DE LA RED (TFCN™)',
+        cr_subtitle_01: 'Topología: Subestación Managua Norte → 10 Nodos Piloto',
+        cr_btn_01: '⚡ Simular Flujo Óptimo',
+        cr_btn_vacio: 'Ensayo de Vacío (Fe)',
+        cr_btn_corto: 'Ensayo Cortocircuito (Cu)',
+        cr_capa1: 'CAPA 1: ENERGÉTICA',
+        cr_capa1_tension: 'Tensión: 13.8kV / 240V',
+        cr_capa1_corriente: 'Corriente: 142.5 A',
+        cr_capa1_entregada: 'Entregada (E): 15,420 kWh',
+        cr_capa2: 'CAPA 2: ACTIVOS & TÉRMICA',
+        cr_capa2_sobrecarga: 'Sobrecarga: 78%',
+        cr_capa2_temp: 'Temperatura: 62.4°C',
+        cr_capa2_aislamiento: 'Aislamiento: Clase F Óptimo',
+        cr_capa3: 'CAPA 3: FINANCIERA (CFA)',
+        cr_capa3_cobrada: 'Cobrada (C): 9,850 kWh',
+        cr_capa3_perdida: 'Pérdida (PE): 5,570 kWh',
+        cr_capa3_recuperable: 'Recuperable: $1,480 USD/m',
+        cr_energia_macro: 'Macro Medición (E)',
+        cr_energia_nodos: '10 Nodos Monitoreados',
+        cr_energia_fp: 'Factor de Potencia Promedio',
+        cr_energia_comp: 'Compensación activa',
+        cr_energia_frec: 'Frecuencia Eléctrica',
+        cr_energia_estab: 'Estabilidad nominal',
+        cr_fin_ecuacion: 'Ecuación Maestra:',
+        cr_fin_recaudo: 'Recaudo Rescatado',
+        cr_fin_amort: 'Micro-Amortización Mora',
+        cr_fin_puntos: 'Puntos de Recarga',
+        cr_anomaly_text: 'ANOMALÍA EN NODO TR-01:',
+        cr_anomaly_desc: 'Discrepancia de 5,570 kWh detectada. Cuadrilla C-01 despachada.',
+        cr_risk_critico: 'CRÍTICO (>25% IPT): 4 Nodos',
+        cr_risk_critico_nodos: 'TR-01, TR-04, TR-07, TR-09',
+        cr_risk_controlado: 'CONTROLADO (<10% IPT): 3 Nodos',
+        cr_risk_controlado_nodos: 'TR-03, TR-06, TR-10',
+        cr_field_antes: 'ANTES (SIN TFCN)',
+        cr_field_antes_text: '• Detección tardía a fin de mes.\n• Pérdidas no focalizadas.\n• Cortes coercitivos que causan conflicto.',
+        cr_field_despues: 'DESPUÉS (CON TFCN)',
+        cr_field_despues_text: '• Balance continuo por transformador.\n• Despacho por valor monetario en riesgo.\n• Micro-pagos voluntarios en pulperías.',
+        cr_rev_potencial: 'Potencial Anual (10 Nodos)',
+        cr_rev_comision: 'Comisión Éxito',
+        cr_rev_familias: 'Familias Beneficiadas',
+        cr_pilot_capex: 'Inversión Capex',
+        cr_pilot_reduccion: 'Reducción Pérdidas',
+        cr_pilot_plazo: 'Plazo Ejecución',
+        cr_cmd_energia: 'ENERGÍA',
+        cr_cmd_nodos: 'NODOS',
+        cr_cmd_anomalias: 'ANOMALÍAS',
+        cr_cmd_riesgo: 'RIESGO MEDIO',
+        cr_cmd_rescate: 'RESCATE/MES',
+        cr_lab_aceite: 'ASTM D877 Aceite',
+        cr_lab_aceite_desc: 'Rigidez dieléctrica óptima',
+        cr_lab_armonicos: 'IEEE 519 Armónicos',
+        cr_lab_armonicos_desc: 'THD_I: 3.6% (Filtrado)',
+        cr_lab_termico: 'IEEE C57.91 Térmico',
+        cr_lab_termico_desc: 'Vida útil > 35 años',
+        recharge_title: '⚡ Captura de Flujo Adaptativo (CFA)',
+        recharge_desc: 'Micro-recarga comunitaria en pulpería o móvil sin corte de servicio.',
+        recharge_monto: 'Monto Recarga:',
+        recharge_consumo: 'Consumo Inmediato (70%):',
+        recharge_amort: 'Micro-Amortización (30%):',
+        recharge_btn: 'Confirmar Micro-Recarga',
+        doc_title: '📖 Expediente Técnico TFCN™',
+        doc_autor: 'Autor Principal:',
+        doc_premisa: 'Premisa:',
+        toast_operation: '⚡ Modo 60Hz Nominal',
+        toast_operation_desc: 'Sistema estabilizado. Frecuencia: 60.02 Hz, tensión nominal.',
+        toast_ai: '🧠 Motor CFA (IA) activado',
+        toast_ai_desc: 'Algoritmo de Captura de Flujo Adaptativo ejecutado. Mora reducida en 28%.',
+        toast_fft: '📈 Análisis FFT Espectral',
+        toast_fft_desc: 'Armónicos detectados: THD_V=1.2%, THD_I=3.6%. Filtrado activo.',
+        toast_dga: '🔬 Ensayos DGA completados',
+        toast_dga_desc: 'Aceite dieléctrico: Rigidez 48.2 kV, gases disueltos en rango normal.',
+        toast_sim: '🎯 Simulación de flujo de carga',
+        toast_sim_desc: 'Flujo óptimo calculado. Pérdidas reducidas en 42%.',
+        toast_emerg: '🚨 EMERGENCIA ACTIVADA',
+        toast_emerg_desc: 'Nodos críticos: TR-01, TR-04, TR-07, TR-09. Cuadrillas despachadas.',
+        toast_reset: '🔄 Simulación reiniciada',
+        toast_reset_desc: 'Todos los parámetros restaurados a su estado inicial.',
+        toast_anomaly: '🚨 Anomalía inyectada',
+        toast_anomaly_desc: 'Discrepancia detectada en TR-01. Cuadrilla C-01 en ruta.',
+        toast_recharge: '💰 Micro-Pago CFA Procesado',
+        toast_recharge_desc: '$5.00 USD abonados: consumo + amortización de mora.',
+        toast_lang: '🌐 Idioma cambiado a ',
+        toast_network: '🌐 Vista Red 3D',
+        toast_network_desc: 'Topología global de los 10 nodos y subestación visualizada.',
+        toast_orbit: '🔄 Digital Twin 360°',
+        toast_orbit_desc: 'Transformador industrial con telemetría en tiempo real.',
+        toast_exploded: '💥 Desensamble 3D',
+        toast_exploded_desc: 'Separación volumétrica de todas las partes.',
+        toast_xray: '🔬 Modo Rayos X',
+        toast_xray_desc: 'Inspección interna de núcleo magnético y devanados.',
+        toast_sensor_view: '🎯 Sensor Clamp IoT',
+        toast_sensor_view_desc: 'Enfoque en sensor no invasivo de medición macro.',
+        toast_core: '🧲 Núcleo Magnético',
+        toast_core_desc: 'Columna trifásica de acero al silicio de grano orientado.',
+        toast_hud_off: '👁️ Vista 3D Limpia Activada',
+        toast_hud_off_desc: 'Paneles laterales ocultados para observación completa.',
+        toast_hud_on: '📊 HUD Completo Restaurado',
+        toast_hud_on_desc: 'Paneles de telemetría y balance económico visibles.',
+        toast_audio_on: '🔊 Zumbido 60Hz Activo',
+        toast_audio_on_desc: 'Audio sintetizado en tiempo real con Web Audio API.',
+        toast_audio_off: '🔇 Audio Silenciado',
+        toast_audio_off_desc: 'Zumbido desactivado.',
+        toast_cr_sim: '📋 Simulación en pestaña: ',
+        node_prefix: 'Nodo enfocado: ',
+        node_suffix: ' | IPT: '
+      },
+      en: {
+        system_title: 'TFCN™ 3D FINANCIAL CONTROL ROOM',
+        node_label: 'NODE:',
+        hud_telemetry: '⚡ CLAMP TELEMETRY',
+        hud_current: 'I_RMS:',
+        hud_voltage: 'Voltage V_Sec:',
+        hud_temp: 'Core Temp:',
+        hud_ipt: 'IPT Index:',
+        hud_balance: '💰 ECONOMIC BALANCE',
+        hud_delivered: 'E (Delivered):',
+        hud_billed: 'B (Billed):',
+        hud_collected: 'C (Collected):',
+        hud_loss: 'L (Loss):',
+        btn_micro: '⚡ Micro-Payment CFA',
+        btn_anomaly: '🚨 Simulate Anomaly',
+        btn_controlroom: '🏛️ Control Room',
+        btn_doc: '📖 Dossier',
+        btn_hud: '👁️ Free 3D View',
+        btn_audio: '🔊 Audio 60Hz',
+        btn_reset: '🔄 Reset',
+        btn_micro_hud: '⚡ Quick Micro-Recharge',
+        mode_operation: '⚡ 60Hz Nominal',
+        mode_ai: '🧠 CFA Engine (AI)',
+        mode_fft: '📈 FFT Spectral',
+        mode_dga: '🔬 DGA Tests',
+        mode_sim: '🎯 Simulation',
+        mode_emerg: '🚨 Emergency',
+        view_network: '🌐 3D Network',
+        view_orbit: '🔄 Digital Twin 360°',
+        view_exploded: '💥 Exploded',
+        view_xray: '🔬 X-Ray',
+        view_sensor: '🎯 Clamp Sensor',
+        view_core: '🧲 Core',
+        explode_label: 'Explode:',
+        wireframe_label: 'Wireframe CAD',
+        rotate_label: 'Auto Rotate',
+        cr_tab_01: '01. 3D Network',
+        cr_tab_02: '02. Digital Twin',
+        cr_tab_03: '03. Energy',
+        cr_tab_04: '04. Finance',
+        cr_tab_05: '05. Anomalies',
+        cr_tab_06: '06. Heatmap',
+        cr_tab_07: '07. Crews',
+        cr_tab_08: '08. Revenue',
+        cr_tab_09: '09. Pilot',
+        cr_tab_10: '10. Command',
+        cr_tab_11: '11. Laboratory',
+        cr_tab_12: '12. Logs',
+        cr_title: 'NETWORK FINANCIAL CONTROL ROOM (TFCN™)',
+        cr_subtitle_01: 'Topology: Managua Norte Substation → 10 Pilot Nodes',
+        cr_btn_01: '⚡ Simulate Optimal Flow',
+        cr_btn_vacio: 'Open Circuit Test (Fe)',
+        cr_btn_corto: 'Short Circuit Test (Cu)',
+        cr_capa1: 'LAYER 1: ENERGY',
+        cr_capa1_tension: 'Voltage: 13.8kV / 240V',
+        cr_capa1_corriente: 'Current: 142.5 A',
+        cr_capa1_entregada: 'Delivered (E): 15,420 kWh',
+        cr_capa2: 'LAYER 2: ASSETS & THERMAL',
+        cr_capa2_sobrecarga: 'Overload: 78%',
+        cr_capa2_temp: 'Temperature: 62.4°C',
+        cr_capa2_aislamiento: 'Insulation: Class F Optimal',
+        cr_capa3: 'LAYER 3: FINANCE (CFA)',
+        cr_capa3_cobrada: 'Collected (C): 9,850 kWh',
+        cr_capa3_perdida: 'Loss (L): 5,570 kWh',
+        cr_capa3_recuperable: 'Recoverable: $1,480 USD/m',
+        cr_energia_macro: 'Macro Measurement (E)',
+        cr_energia_nodos: '10 Monitored Nodes',
+        cr_energia_fp: 'Avg Power Factor',
+        cr_energia_comp: 'Active compensation',
+        cr_energia_frec: 'Electric Frequency',
+        cr_energia_estab: 'Nominal stability',
+        cr_fin_ecuacion: 'Master Equation:',
+        cr_fin_recaudo: 'Recovered Revenue',
+        cr_fin_amort: 'Micro-Amortization',
+        cr_fin_puntos: 'Recharge Points',
+        cr_anomaly_text: 'ANOMALY AT NODE TR-01:',
+        cr_anomaly_desc: 'Discrepancy of 5,570 kWh detected. Crew C-01 dispatched.',
+        cr_risk_critico: 'CRITICAL (>25% IPT): 4 Nodes',
+        cr_risk_critico_nodos: 'TR-01, TR-04, TR-07, TR-09',
+        cr_risk_controlado: 'CONTROLLED (<10% IPT): 3 Nodes',
+        cr_risk_controlado_nodos: 'TR-03, TR-06, TR-10',
+        cr_field_antes: 'BEFORE (WITHOUT TFCN)',
+        cr_field_antes_text: '• Late detection at month-end.\n• Unfocused losses.\n• Coercive disconnections cause conflict.',
+        cr_field_despues: 'AFTER (WITH TFCN)',
+        cr_field_despues_text: '• Continuous balance per transformer.\n• Dispatch by monetary risk.\n• Voluntary micro-payments at stores.',
+        cr_rev_potencial: 'Annual Potential (10 Nodes)',
+        cr_rev_comision: 'Success Fee',
+        cr_rev_familias: 'Benefited Families',
+        cr_pilot_capex: 'Capex Investment',
+        cr_pilot_reduccion: 'Loss Reduction',
+        cr_pilot_plazo: 'Execution Time',
+        cr_cmd_energia: 'ENERGY',
+        cr_cmd_nodos: 'NODES',
+        cr_cmd_anomalias: 'ANOMALIES',
+        cr_cmd_riesgo: 'AVG RISK',
+        cr_cmd_rescate: 'RECOVERY/MONTH',
+        cr_lab_aceite: 'ASTM D877 Oil',
+        cr_lab_aceite_desc: 'Optimal dielectric strength',
+        cr_lab_armonicos: 'IEEE 519 Harmonics',
+        cr_lab_armonicos_desc: 'THD_I: 3.6% (Filtered)',
+        cr_lab_termico: 'IEEE C57.91 Thermal',
+        cr_lab_termico_desc: 'Useful life > 35 years',
+        recharge_title: '⚡ Adaptive Flow Capture (CFA)',
+        recharge_desc: 'Community micro-recharge at store or mobile without service disconnection.',
+        recharge_monto: 'Recharge Amount:',
+        recharge_consumo: 'Immediate Consumption (70%):',
+        recharge_amort: 'Micro-Amortization (30%):',
+        recharge_btn: 'Confirm Micro-Recharge',
+        doc_title: '📖 TFCN™ Technical Dossier',
+        doc_autor: 'Main Author:',
+        doc_premisa: 'Premise:',
+        toast_operation: '⚡ 60Hz Nominal Mode',
+        toast_operation_desc: 'System stabilized. Frequency: 60.02 Hz, nominal voltage.',
+        toast_ai: '🧠 CFA Engine (AI) activated',
+        toast_ai_desc: 'Adaptive Flow Capture algorithm executed. Arrears reduced by 28%.',
+        toast_fft: '📈 FFT Spectral Analysis',
+        toast_fft_desc: 'Harmonics detected: THD_V=1.2%, THD_I=3.6%. Active filtering.',
+        toast_dga: '🔬 DGA Tests completed',
+        toast_dga_desc: 'Dielectric oil: 48.2 kV rigidity, dissolved gases in normal range.',
+        toast_sim: '🎯 Load flow simulation',
+        toast_sim_desc: 'Optimal flow calculated. Losses reduced by 42%.',
+        toast_emerg: '🚨 EMERGENCY ACTIVATED',
+        toast_emerg_desc: 'Critical nodes: TR-01, TR-04, TR-07, TR-09. Crews dispatched.',
+        toast_reset: '🔄 Simulation reset',
+        toast_reset_desc: 'All parameters restored to initial state.',
+        toast_anomaly: '🚨 Anomaly injected',
+        toast_anomaly_desc: 'Discrepancy detected at TR-01. Crew C-01 en route.',
+        toast_recharge: '💰 CFA Micro-Payment Processed',
+        toast_recharge_desc: '$5.00 USD credited: consumption + arrears amortization.',
+        toast_lang: '🌐 Language changed to ',
+        toast_network: '🌐 3D Network View',
+        toast_network_desc: 'Global topology of 10 nodes and substation visualized.',
+        toast_orbit: '🔄 Digital Twin 360°',
+        toast_orbit_desc: 'Industrial transformer with real-time telemetry.',
+        toast_exploded: '💥 3D Exploded View',
+        toast_exploded_desc: 'Volumetric separation of all parts.',
+        toast_xray: '🔬 X-Ray Mode',
+        toast_xray_desc: 'Internal inspection of magnetic core and windings.',
+        toast_sensor_view: '🎯 IoT Clamp Sensor',
+        toast_sensor_view_desc: 'Focus on non-invasive macro-measurement sensor.',
+        toast_core: '🧲 Magnetic Core',
+        toast_core_desc: 'Three-phase column of grain-oriented silicon steel.',
+        toast_hud_off: '👁️ Clean 3D View Activated',
+        toast_hud_off_desc: 'Side panels hidden for full observation.',
+        toast_hud_on: '📊 Full HUD Restored',
+        toast_hud_on_desc: 'Telemetry and economic balance panels visible.',
+        toast_audio_on: '🔊 60Hz Hum Active',
+        toast_audio_on_desc: 'Real-time synthesized audio with Web Audio API.',
+        toast_audio_off: '🔇 Audio Muted',
+        toast_audio_off_desc: 'Hum deactivated.',
+        toast_cr_sim: '📋 Simulation in tab: ',
+        node_prefix: 'Node focused: ',
+        node_suffix: ' | IPT: '
+      },
+      zh: {
+        system_title: 'TFCN™ 3D 金融控制室',
+        node_label: '节点:',
+        hud_telemetry: '⚡ 钳形遥测',
+        hud_current: 'I_RMS:',
+        hud_voltage: '电压 V_Sec:',
+        hud_temp: '铁芯温度:',
+        hud_ipt: 'IPT指数:',
+        hud_balance: '💰 经济平衡',
+        hud_delivered: 'E (交付):',
+        hud_billed: 'B (计费):',
+        hud_collected: 'C (收款):',
+        hud_loss: 'L (损失):',
+        btn_micro: '⚡ 微支付 CFA',
+        btn_anomaly: '🚨 模拟异常',
+        btn_controlroom: '🏛️ 控制室',
+        btn_doc: '📖 档案',
+        btn_hud: '👁️ 自由3D视图',
+        btn_audio: '🔊 60Hz音频',
+        btn_reset: '🔄 重置',
+        btn_micro_hud: '⚡ 快速微充值',
+        mode_operation: '⚡ 60Hz 标称',
+        mode_ai: '🧠 CFA引擎 (AI)',
+        mode_fft: '📈 FFT频谱',
+        mode_dga: '🔬 DGA测试',
+        mode_sim: '🎯 仿真',
+        mode_emerg: '🚨 紧急',
+        view_network: '🌐 3D网络',
+        view_orbit: '🔄 数字孪生360°',
+        view_exploded: '💥 爆炸视图',
+        view_xray: '🔬 X射线',
+        view_sensor: '🎯 钳形传感器',
+        view_core: '🧲 铁芯',
+        explode_label: '分解:',
+        wireframe_label: '线框CAD',
+        rotate_label: '自动旋转',
+        cr_tab_01: '01. 3D网络',
+        cr_tab_02: '02. 数字孪生',
+        cr_tab_03: '03. 能源',
+        cr_tab_04: '04. 财务',
+        cr_tab_05: '05. 异常',
+        cr_tab_06: '06. 热图',
+        cr_tab_07: '07. 班组',
+        cr_tab_08: '08. 收入',
+        cr_tab_09: '09. 试点',
+        cr_tab_10: '10. 指挥',
+        cr_tab_11: '11. 实验室',
+        cr_tab_12: '12. 日志',
+        cr_title: '网络金融控制室 (TFCN™)',
+        cr_subtitle_01: '拓扑: Managua Norte 变电站 → 10个试点节点',
+        cr_btn_01: '⚡ 模拟最优潮流',
+        cr_btn_vacio: '空载试验 (Fe)',
+        cr_btn_corto: '短路试验 (Cu)',
+        cr_capa1: '第1层: 能源',
+        cr_capa1_tension: '电压: 13.8kV / 240V',
+        cr_capa1_corriente: '电流: 142.5 A',
+        cr_capa1_entregada: '交付 (E): 15,420 kWh',
+        cr_capa2: '第2层: 资产与热力',
+        cr_capa2_sobrecarga: '过载: 78%',
+        cr_capa2_temp: '温度: 62.4°C',
+        cr_capa2_aislamiento: '绝缘: F级 最优',
+        cr_capa3: '第3层: 财务 (CFA)',
+        cr_capa3_cobrada: '收款 (C): 9,850 kWh',
+        cr_capa3_perdida: '损失 (L): 5,570 kWh',
+        cr_capa3_recuperable: '可回收: $1,480 USD/月',
+        cr_energia_macro: '宏观测量 (E)',
+        cr_energia_nodos: '10个监控节点',
+        cr_energia_fp: '平均功率因数',
+        cr_energia_comp: '有功补偿',
+        cr_energia_frec: '电网频率',
+        cr_energia_estab: '标称稳定性',
+        cr_fin_ecuacion: '主方程:',
+        cr_fin_recaudo: '回收收入',
+        cr_fin_amort: '微摊销',
+        cr_fin_puntos: '充值点',
+        cr_anomaly_text: '节点 TR-01 异常:',
+        cr_anomaly_desc: '检测到 5,570 kWh 差异。班组 C-01 已派遣。',
+        cr_risk_critico: '严重 (>25% IPT): 4个节点',
+        cr_risk_critico_nodos: 'TR-01, TR-04, TR-07, TR-09',
+        cr_risk_controlado: '受控 (<10% IPT): 3个节点',
+        cr_risk_controlado_nodos: 'TR-03, TR-06, TR-10',
+        cr_field_antes: '之前 (无TFCN)',
+        cr_field_antes_text: '• 月底检测滞后。\n• 损失无聚焦。\n• 强制断电引发冲突。',
+        cr_field_despues: '之后 (有TFCN)',
+        cr_field_despues_text: '• 每台变压器持续平衡。\n• 按货币风险调度。\n• 商店自愿微支付。',
+        cr_rev_potencial: '年潜力 (10个节点)',
+        cr_rev_comision: '成功佣金',
+        cr_rev_familias: '受益家庭',
+        cr_pilot_capex: '资本支出投资',
+        cr_pilot_reduccion: '损失减少',
+        cr_pilot_plazo: '执行周期',
+        cr_cmd_energia: '能源',
+        cr_cmd_nodos: '节点',
+        cr_cmd_anomalias: '异常',
+        cr_cmd_riesgo: '平均风险',
+        cr_cmd_rescate: '月度回收',
+        cr_lab_aceite: 'ASTM D877 油',
+        cr_lab_aceite_desc: '最优介电强度',
+        cr_lab_armonicos: 'IEEE 519 谐波',
+        cr_lab_armonicos_desc: 'THD_I: 3.6% (已滤波)',
+        cr_lab_termico: 'IEEE C57.91 热',
+        cr_lab_termico_desc: '使用寿命 > 35年',
+        recharge_title: '⚡ 自适应流量捕获 (CFA)',
+        recharge_desc: '社区微充值，无需断电。',
+        recharge_monto: '充值金额:',
+        recharge_consumo: '即时消费 (70%):',
+        recharge_amort: '微摊销 (30%):',
+        recharge_btn: '确认微充值',
+        doc_title: '📖 TFCN™ 技术档案',
+        doc_autor: '主要作者:',
+        doc_premisa: '前提:',
+        toast_operation: '⚡ 60Hz 标称模式',
+        toast_operation_desc: '系统稳定。频率: 60.02 Hz, 标称电压。',
+        toast_ai: '🧠 CFA引擎 (AI) 已激活',
+        toast_ai_desc: '自适应流量捕获算法执行。欠款减少28%。',
+        toast_fft: '📈 FFT频谱分析',
+        toast_fft_desc: '检测到谐波: THD_V=1.2%, THD_I=3.6%。主动滤波。',
+        toast_dga: '🔬 DGA测试完成',
+        toast_dga_desc: '介电油: 48.2 kV 刚性, 溶解气体正常。',
+        toast_sim: '🎯 潮流仿真',
+        toast_sim_desc: '计算最优潮流。损失减少42%。',
+        toast_emerg: '🚨 紧急已激活',
+        toast_emerg_desc: '关键节点: TR-01, TR-04, TR-07, TR-09。已派遣班组。',
+        toast_reset: '🔄 仿真重置',
+        toast_reset_desc: '所有参数已恢复初始状态。',
+        toast_anomaly: '🚨 异常注入',
+        toast_anomaly_desc: '在 TR-01 检测到差异。班组 C-01 已上路。',
+        toast_recharge: '💰 CFA微支付已处理',
+        toast_recharge_desc: '$5.00 USD 已入账: 消费 + 欠款摊销。',
+        toast_lang: '🌐 语言切换至 ',
+        toast_network: '🌐 3D网络视图',
+        toast_network_desc: '全局拓扑: 10个节点和变电站可视化。',
+        toast_orbit: '🔄 数字孪生360°',
+        toast_orbit_desc: '工业变压器实时遥测。',
+        toast_exploded: '💥 3D爆炸视图',
+        toast_exploded_desc: '所有部件体积分离。',
+        toast_xray: '🔬 X射线模式',
+        toast_xray_desc: '内部检查磁芯和绕组。',
+        toast_sensor_view: '🎯 IoT钳形传感器',
+        toast_sensor_view_desc: '聚焦非侵入式宏观测量传感器。',
+        toast_core: '🧲 磁芯',
+        toast_core_desc: '三相取向硅钢柱。',
+        toast_hud_off: '👁️ 清洁3D视图已激活',
+        toast_hud_off_desc: '侧面板已隐藏以全面观察。',
+        toast_hud_on: '📊 完整HUD已恢复',
+        toast_hud_on_desc: '遥测和经济平衡面板可见。',
+        toast_audio_on: '🔊 60Hz 嗡嗡声已激活',
+        toast_audio_on_desc: '使用Web Audio API实时合成音频。',
+        toast_audio_off: '🔇 音频已静音',
+        toast_audio_off_desc: '嗡嗡声已停用。',
+        toast_cr_sim: '📋 选项卡中的仿真: ',
+        node_prefix: '节点聚焦: ',
+        node_suffix: ' | IPT: '
       }
+    };
 
-      function updateLanguageStrings() {
-        const tr = localDict[activeLang];
-        designerHeader.innerText = tr.header;
-        mainTitle.innerText = tr.title;
-        subTitle.innerText = tr.sub;
-        lDlTitle.innerText = tr.downTitle;
-        lDlDesc.innerText = tr.downDesc;
-        lCanvasTitle.innerText = tr.canvasTitle;
-        lCtrlTitle.innerText = tr.ctrlTitle;
-        lIpt.innerText = tr.ipt;
-        lStress.innerText = tr.stress;
-        lSwarm.innerText = tr.swarm;
-        lSwarmDesc.innerText = tr.swarmDesc;
-        lRecTitle.innerText = tr.recTitle;
-        lRecDesc.innerText = tr.recDesc;
-        lFlowTitle.innerText = tr.flowTitle;
-        lFlowDesc.innerText = tr.flowDesc;
-        lFlowProp.innerText = tr.flowProp;
-        lFlowPropSub.innerText = tr.flowPropSub;
-        lFlowL1.innerText = tr.flowL1;
-        lFlowL1Sub.innerText = tr.flowL1Sub;
-        lFlowL2.innerText = tr.flowL2;
-        lFlowL2Sub.innerText = tr.flowL2Sub;
-        lFlowL3.innerText = tr.flowL3;
-        lFlowL3Sub.innerText = tr.flowL3Sub;
-        lFlowL4.innerText = tr.flowL4;
-        lFlowL4Sub.innerText = tr.flowL4Sub;
-        lFlowL5.innerText = tr.flowL5;
-        lFlowL5Sub.innerText = tr.flowL5Sub;
-        lExStateTitle.innerText = tr.exStateTitle;
-        lExStateDesc.innerText = tr.exStateDesc;
-        lLogTitle.innerText = tr.logTitle;
-        lAuthFooter.innerText = tr.authorFooter;
+    // ==============================
+    // 3. UI TRANSLATION FUNCTION
+    // ==============================
+    function translateUI(lang) {
+      const t = LANG[lang];
+      if (!t) return;
+      // System
+      document.getElementById('system-title').textContent = t.system_title;
+      document.getElementById('node-label').textContent = t.node_label;
+      // HUD
+      document.getElementById('hud-telemetry').textContent = t.hud_telemetry;
+      document.getElementById('hud-current-label').textContent = t.hud_current;
+      document.getElementById('hud-voltage-label').textContent = t.hud_voltage;
+      document.getElementById('hud-temp-label').textContent = t.hud_temp;
+      document.getElementById('hud-ipt-label').textContent = t.hud_ipt;
+      document.getElementById('hud-balance').textContent = t.hud_balance;
+      document.getElementById('hud-delivered-label').textContent = t.hud_delivered;
+      document.getElementById('hud-billed-label').textContent = t.hud_billed;
+      document.getElementById('hud-collected-label').textContent = t.hud_collected;
+      document.getElementById('hud-loss-label').textContent = t.hud_loss;
+      // Buttons
+      document.getElementById('btn-micro').textContent = t.btn_micro;
+      document.getElementById('btn-anomaly').textContent = t.btn_anomaly;
+      document.getElementById('btn-controlroom').textContent = t.btn_controlroom;
+      document.getElementById('btn-doc').textContent = t.btn_doc;
+      document.getElementById('btn-toggle-hud').textContent = t.btn_hud;
+      document.getElementById('btn-audio').textContent = t.btn_audio;
+      document.getElementById('btn-reset').textContent = t.btn_reset;
+      document.getElementById('btn-micro-hud').textContent = t.btn_micro_hud;
+      // Modes
+      document.getElementById('mode-operation').textContent = t.mode_operation;
+      document.getElementById('mode-ai').textContent = t.mode_ai;
+      document.getElementById('mode-fft').textContent = t.mode_fft;
+      document.getElementById('mode-dga').textContent = t.mode_dga;
+      document.getElementById('mode-sim').textContent = t.mode_sim;
+      document.getElementById('mode-emerg').textContent = t.mode_emerg;
+      // Views
+      document.getElementById('view-network').textContent = t.view_network;
+      document.getElementById('view-orbit').textContent = t.view_orbit;
+      document.getElementById('view-exploded').textContent = t.view_exploded;
+      document.getElementById('view-xray').textContent = t.view_xray;
+      document.getElementById('view-sensor').textContent = t.view_sensor;
+      document.getElementById('view-core').textContent = t.view_core;
+      document.getElementById('explode-label').textContent = t.explode_label;
+      document.getElementById('wireframe-label').textContent = t.wireframe_label;
+      document.getElementById('rotate-label').textContent = t.rotate_label;
+      // Control Room tabs
+      document.getElementById('crtab-01').textContent = t.cr_tab_01;
+      document.getElementById('crtab-02').textContent = t.cr_tab_02;
+      document.getElementById('crtab-03').textContent = t.cr_tab_03;
+      document.getElementById('crtab-04').textContent = t.cr_tab_04;
+      document.getElementById('crtab-05').textContent = t.cr_tab_05;
+      document.getElementById('crtab-06').textContent = t.cr_tab_06;
+      document.getElementById('crtab-07').textContent = t.cr_tab_07;
+      document.getElementById('crtab-08').textContent = t.cr_tab_08;
+      document.getElementById('crtab-09').textContent = t.cr_tab_09;
+      document.getElementById('crtab-10').textContent = t.cr_tab_10;
+      document.getElementById('crtab-11').textContent = t.cr_tab_11;
+      document.getElementById('crtab-12').textContent = t.cr_tab_12;
+      document.getElementById('cr-title').textContent = t.cr_title;
+      document.getElementById('cr-subtitle-01').textContent = t.cr_subtitle_01;
+      document.getElementById('cr-btn-01').textContent = t.cr_btn_01;
+      document.getElementById('cr-btn-vacio').textContent = t.cr_btn_vacio;
+      document.getElementById('cr-btn-corto').textContent = t.cr_btn_corto;
+      document.getElementById('cr-capa1').textContent = t.cr_capa1;
+      document.getElementById('cr-capa1-tension').textContent = t.cr_capa1_tension;
+      document.getElementById('cr-capa1-corriente').textContent = t.cr_capa1_corriente;
+      document.getElementById('cr-capa1-entregada').textContent = t.cr_capa1_entregada;
+      document.getElementById('cr-capa2').textContent = t.cr_capa2;
+      document.getElementById('cr-capa2-sobrecarga').textContent = t.cr_capa2_sobrecarga;
+      document.getElementById('cr-capa2-temp').textContent = t.cr_capa2_temp;
+      document.getElementById('cr-capa2-aislamiento').textContent = t.cr_capa2_aislamiento;
+      document.getElementById('cr-capa3').textContent = t.cr_capa3;
+      document.getElementById('cr-capa3-cobrada').textContent = t.cr_capa3_cobrada;
+      document.getElementById('cr-capa3-perdida').textContent = t.cr_capa3_perdida;
+      document.getElementById('cr-capa3-recuperable').textContent = t.cr_capa3_recuperable;
+      document.getElementById('cr-energia-macro').textContent = t.cr_energia_macro;
+      document.getElementById('cr-energia-nodos').textContent = t.cr_energia_nodos;
+      document.getElementById('cr-energia-fp').textContent = t.cr_energia_fp;
+      document.getElementById('cr-energia-comp').textContent = t.cr_energia_comp;
+      document.getElementById('cr-energia-frec').textContent = t.cr_energia_frec;
+      document.getElementById('cr-energia-estab').textContent = t.cr_energia_estab;
+      document.getElementById('cr-fin-ecuacion').textContent = t.cr_fin_ecuacion;
+      document.getElementById('cr-fin-recaudo').textContent = t.cr_fin_recaudo;
+      document.getElementById('cr-fin-amort').textContent = t.cr_fin_amort;
+      document.getElementById('cr-fin-puntos').textContent = t.cr_fin_puntos;
+      document.getElementById('cr-anomaly-text').textContent = t.cr_anomaly_text;
+      document.getElementById('cr-anomaly-desc').textContent = t.cr_anomaly_desc;
+      document.getElementById('cr-risk-critico').textContent = t.cr_risk_critico;
+      document.getElementById('cr-risk-critico-nodos').textContent = t.cr_risk_critico_nodos;
+      document.getElementById('cr-risk-controlado').textContent = t.cr_risk_controlado;
+      document.getElementById('cr-risk-controlado-nodos').textContent = t.cr_risk_controlado_nodos;
+      document.getElementById('cr-field-antes').textContent = t.cr_field_antes;
+      document.getElementById('cr-field-antes-text').innerHTML = t.cr_field_antes_text.replace(/\n/g, '<br>');
+      document.getElementById('cr-field-despues').textContent = t.cr_field_despues;
+      document.getElementById('cr-field-despues-text').innerHTML = t.cr_field_despues_text.replace(/\n/g, '<br>');
+      document.getElementById('cr-rev-potencial').textContent = t.cr_rev_potencial;
+      document.getElementById('cr-rev-comision').textContent = t.cr_rev_comision;
+      document.getElementById('cr-rev-familias').textContent = t.cr_rev_familias;
+      document.getElementById('cr-pilot-capex').textContent = t.cr_pilot_capex;
+      document.getElementById('cr-pilot-reduccion').textContent = t.cr_pilot_reduccion;
+      document.getElementById('cr-pilot-plazo').textContent = t.cr_pilot_plazo;
+      document.getElementById('cr-cmd-energia').textContent = t.cr_cmd_energia;
+      document.getElementById('cr-cmd-nodos').textContent = t.cr_cmd_nodos;
+      document.getElementById('cr-cmd-anomalias').textContent = t.cr_cmd_anomalias;
+      document.getElementById('cr-cmd-riesgo').textContent = t.cr_cmd_riesgo;
+      document.getElementById('cr-cmd-rescate').textContent = t.cr_cmd_rescate;
+      document.getElementById('cr-lab-aceite').textContent = t.cr_lab_aceite;
+      document.getElementById('cr-lab-aceite-desc').textContent = t.cr_lab_aceite_desc;
+      document.getElementById('cr-lab-armonicos').textContent = t.cr_lab_armonicos;
+      document.getElementById('cr-lab-armonicos-desc').textContent = t.cr_lab_armonicos_desc;
+      document.getElementById('cr-lab-termico').textContent = t.cr_lab_termico;
+      document.getElementById('cr-lab-termico-desc').textContent = t.cr_lab_termico_desc;
+      // Recharge modal
+      document.getElementById('recharge-title').textContent = t.recharge_title;
+      document.getElementById('recharge-desc').textContent = t.recharge_desc;
+      document.getElementById('recharge-monto').textContent = t.recharge_monto;
+      document.getElementById('recharge-consumo').textContent = t.recharge_consumo;
+      document.getElementById('recharge-amort').textContent = t.recharge_amort;
+      document.getElementById('recharge-btn').textContent = t.recharge_btn;
+      // Doc modal
+      document.getElementById('doc-title').textContent = t.doc_title;
+      document.getElementById('doc-autor').textContent = t.doc_autor;
+      document.getElementById('doc-premisa').textContent = t.doc_premisa;
+    }
 
-        // Dynamic State feedback update
-        if (iptValue < 10) {
-          stateDesc.innerText = tr.normState;
-          stateDesc.style.color = "#00ffcc";
-          hudIptMode.innerText = "NORMAL OPERATION";
-          hudIptMode.className = "font-bold uppercase tracking-wider text-[#00ffcc]";
-        } else if (iptValue <= 25) {
-          stateDesc.innerText = tr.warnState;
-          stateDesc.style.color = "#ffcc00";
-          hudIptMode.innerText = "MARGINAL STRESS";
-          hudIptMode.className = "font-bold uppercase tracking-wider text-[#ffcc00]";
-        } else {
-          stateDesc.innerText = tr.critState;
-          stateDesc.style.color = "#ff3344";
-          hudIptMode.innerText = "CRITICAL COIL ABUSE";
-          hudIptMode.className = "font-bold uppercase tracking-wider text-[#ff3344]";
-        }
-
-        hudIptValue.innerText = "IPT VAL: " + iptValue + "% Loss Rate";
-        arBtn.innerText = arEnabled ? tr.arOn : tr.arOff;
+    // ==============================
+    // 4. TOAST & UTILITIES
+    // ==============================
+    function showToast(title, desc, deltas) {
+      const t = document.getElementById('toast-notification');
+      document.getElementById('toast-title').innerText = title;
+      document.getElementById('toast-desc').innerText = desc;
+      const dCont = document.getElementById('toast-delta');
+      if (deltas && deltas.length) {
+        dCont.style.display = 'flex';
+        dCont.innerHTML = deltas.map(d => '<span>' + d.label + ': <strong style="color: #10B981;">' + d.val + '</strong></span>').join(' | ');
+      } else {
+        dCont.style.display = 'none';
       }
+      t.style.display = 'block';
+      playChirp();
+      setTimeout(() => { t.style.display = 'none'; }, 4500);
+    }
+    function hideToast() { document.getElementById('toast-notification').style.display = 'none'; }
 
-      function changeOfflineLang(val) {
-        activeLang = val || "ES";
-        updateLanguageStrings();
-        addLog("Idioma del Prototipo modificado a: " + activeLang);
+    function playChirp() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1400, audioCtx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.08);
+      } catch (e) {}
+    }
+
+    let audioCtx = null;
+    let isAudioOn = false;
+
+    // ==============================
+    // 5. LANGUAGE SWITCH
+    // ==============================
+    function setLang(lang) {
+      currentLang = lang;
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector(`.lang-btn[data-lang="${lang}"]`).classList.add('active');
+      translateUI(lang);
+      const t = LANG[lang];
+      showToast('🌐 ' + t.toast_lang + lang.toUpperCase(), '');
+    }
+
+    // ==============================
+    // 6. MODE SIMULATIONS (diferenciadas)
+    // ==============================
+    function setMode(mode, el) {
+      document.querySelectorAll('.glass-panel .btn-tab').forEach(b => b.classList.remove('active'));
+      if (el) el.classList.add('active');
+      const t = LANG[currentLang];
+      let title, desc, deltas = [];
+      switch(mode) {
+        case 'operation':
+          title = t.toast_operation;
+          desc = t.toast_operation_desc;
+          deltas = [{ label: 'Frecuencia', val: '60.02 Hz' }];
+          break;
+        case 'ai_cfa':
+          title = t.toast_ai;
+          desc = t.toast_ai_desc;
+          deltas = [{ label: 'Mora reducida', val: '28%' }];
+          let n = selectedNode;
+          n.collected = Math.round(n.collected * 1.12);
+          n.ipt = n.ipt * 0.72;
+          updateNodeUI(n);
+          break;
+        case 'analysis':
+          title = t.toast_fft;
+          desc = t.toast_fft_desc;
+          deltas = [{ label: 'THD_V', val: '1.2%' }, { label: 'THD_I', val: '3.6%' }];
+          document.getElementById('osc-canvas').style.border = '2px solid #A855F7';
+          break;
+        case 'diagnostic':
+          title = t.toast_dga;
+          desc = t.toast_dga_desc;
+          deltas = [{ label: 'Rigidez', val: '48.2 kV' }];
+          break;
+        case 'simulation':
+          title = t.toast_sim;
+          desc = t.toast_sim_desc;
+          deltas = [{ label: 'Pérdidas reducidas', val: '42%' }];
+          break;
+        case 'emergency':
+          title = t.toast_emerg;
+          desc = t.toast_emerg_desc;
+          deltas = [{ label: 'Nodos críticos', val: '4' }];
+          NODES.forEach(n => { if (n.ipt > 0.25) n.status = 'red'; });
+          populateDropdownAndCards();
+          break;
+        default: return;
       }
+      showToast(title, desc, deltas);
+    }
 
-      // Initialize selected language dropdown in HTML file
-      document.getElementById("lang-select").value = activeLang;
+    // ==============================
+    // 7. CONTROL ROOM TAB SIMULATIONS (diferenciadas)
+    // ==============================
+    function switchCRTab(tabId, el) {
+      document.querySelectorAll('#modal-controlroom .tab-content').forEach(d => d.classList.remove('active'));
+      document.querySelectorAll('#modal-controlroom .btn-tab').forEach(b => b.classList.remove('active'));
+      const target = document.getElementById('crtab-' + tabId);
+      if (target) target.classList.add('active');
+      if (el) el.classList.add('active');
 
-      // Update parameters
-      function updateOfflineIpt(v) {
-        iptValue = parseInt(v);
-        document.getElementById("ipt-slider").value = iptValue;
-        iptDisplay.innerText = iptValue + "%";
-        updateLanguageStrings();
-        addLog("Consumo alterado (IPT): " + iptValue + "%");
+      const t = LANG[currentLang];
+      let title = t.toast_cr_sim + el.textContent;
+      let desc = '';
+      let deltas = [];
+
+      switch(tabId) {
+        case '01_network':
+          simulateOptimalFlow();
+          return;
+        case '02_digital_twin':
+          desc = 'Digital Twin actualizado con datos en tiempo real.';
+          deltas = [{ label: 'Estado', val: 'Sincronizado' }];
+          break;
+        case '03_energy':
+          desc = 'Macro medición energética: 139.8 MWh totales.';
+          deltas = [{ label: 'E total', val: '139.8 MWh' }];
+          break;
+        case '04_finance':
+          desc = 'Recaudo mensual: $11,350 USD. Mora reducida en 28.5%.';
+          deltas = [{ label: 'Recuperado', val: '$11,350' }];
+          break;
+        case '05_anomaly':
+          triggerAnomaly();
+          return;
+        case '06_risk':
+          desc = 'Mapa de calor: 4 nodos críticos, 3 controlados.';
+          deltas = [{ label: 'Críticos', val: '4' }, { label: 'Controlados', val: '3' }];
+          break;
+        case '07_field':
+          desc = 'Cuadrilla C-01 despachada a TR-01, C-02 en sitio.';
+          deltas = [{ label: 'Cuadrillas', val: '2 activas' }];
+          break;
+        case '08_revenue':
+          desc = 'Proyección anual: $75,000 USD con comisión del 18%.';
+          deltas = [{ label: 'Potencial', val: '$75,000/año' }];
+          break;
+        case '09_pilot':
+          desc = 'Piloto: 10 nodos, inversión $5,500-$10,500, reducción 20-45%.';
+          deltas = [{ label: 'Plazo', val: '90 días' }];
+          break;
+        case '10_command':
+          desc = 'Resumen ejecutivo: 139.8 MWh, 4 anomalías, riesgo medio 22.7%.';
+          deltas = [{ label: 'Rescate/mes', val: '$11,350' }];
+          break;
+        case '11_laboratory':
+          desc = 'Ensayos: aceite 48.2 kV, armónicos THD_V 1.2%, térmico 69.2°C.';
+          deltas = [{ label: 'Rigidez', val: '48.2 kV' }];
+          break;
+        case '12_logs':
+          desc = 'Nuevo evento de log registrado: [11:23:45] Balance CFA ejecutado.';
+          const logContainer = document.getElementById('cr-logs-container');
+          const newLog = document.createElement('div');
+          newLog.style.color = '#10B981';
+          newLog.style.marginBottom = '4px';
+          newLog.textContent = '• [11:23:45] Balance CFA ejecutado. IPT promedio: 22.7%';
+          logContainer.prepend(newLog);
+          deltas = [{ label: 'Último log', val: '11:23:45' }];
+          break;
+        default: return;
       }
+      showToast(title, desc, deltas);
+    }
 
-      function updateOfflineStress(v) {
-        stressValue = parseInt(v);
-        document.getElementById("stress-slider").value = stressValue;
-        stressDisplay.innerText = stressValue + "%";
-        addLog("Sobrecalentamiento del enrollamiento: " + stressValue + "%");
-      }
+    // ==============================
+    // 8. EXISTING FUNCTIONS
+    // ==============================
+    function triggerAnomaly() {
+      const banner = document.getElementById('cr-anomaly-banner');
+      if (banner) banner.style.display = 'block';
+      const t = LANG[currentLang];
+      showToast(t.toast_anomaly, t.toast_anomaly_desc, [{ label: 'Nodo', val: 'TR-01' }]);
+    }
 
-      function toggleOfflineSwarm(checked) {
-        swarmConnected = checked;
-        document.getElementById("swarm-checkbox").checked = swarmConnected;
-        addLog("Enjambre IA " + (swarmConnected ? "SINC LOGRADO vía LoRa" : "LOG APAGADO"));
-      }
+    function simulateOptimalFlow() {
+      const t = LANG[currentLang];
+      showToast('⚡ ' + t.cr_btn_01, 'Flujo óptimo calculado. Pérdidas reducidas en 42%.', [{ label: 'IPT promedio', val: '22.7% → 12.1%' }]);
+    }
 
-      function triggerCashOnline(amount) {
-        collectedUSD += amount;
-        collectedText.innerText = "$" + collectedUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " USD";
-        addLog("Recarga instantánea L3 procesada: +$" + amount + " USD");
+    function simulateCoreTest() {
+      const t = LANG[currentLang];
+      showToast('🔬 ' + t.cr_btn_vacio, 'Pérdidas en el hierro = 185 Watts. Núcleo magnético M4 en estado óptimo.', [{ label: 'Fe', val: '185 W' }]);
+    }
 
-        // Flash green
-        collectedText.classList.add("text-yellow-400", "scale-105");
-        setTimeout(() => {
-          collectedText.classList.remove("text-yellow-400", "scale-105");
-        }, 200);
-      }
+    function simulateWindingTest() {
+      const t = LANG[currentLang];
+      showToast('🔬 ' + t.cr_btn_corto, 'Pérdidas en cobre = 1,420 Watts. Impedancia Z% = 4.2% nominal.', [{ label: 'Cu', val: '1,420 W' }]);
+    }
 
-      function toggleWaveFilter(val) {
-        waveFilterState = val;
-        addLog("Filtro Wave Antifraude modificado a: " + waveFilterState);
-        const filterBtnOn = document.getElementById("filter-btn-on");
-        const filterBtnOff = document.getElementById("filter-btn-off");
+    function executeRecharge() {
+      const t = LANG[currentLang];
+      showToast(t.toast_recharge, t.toast_recharge_desc, [{ label: 'Abonado', val: '$5.00 USD' }]);
+      closeModal('recharge');
+    }
 
-        if (waveFilterState === "OFF") {
-          filterBtnOff.className = "text-[9px] font-mono px-2 py-0.5 rounded border border-purple-800 bg-purple-900 text-white cursor-pointer";
-          filterBtnOn.className = "text-[9px] font-mono px-2 py-0.5 rounded border border-slate-700 bg-slate-900 text-slate-400 cursor-pointer";
-        } else {
-          filterBtnOff.className = "text-[9px] font-mono px-2 py-0.5 rounded border border-slate-700 bg-slate-900 text-slate-400 cursor-pointer";
-          filterBtnOn.className = "text-[9px] font-mono px-2 py-0.5 rounded border border-purple-800 bg-purple-900 text-white cursor-pointer";
-        }
-      }
-
-      // Camera background toggle for AR mode
-      let cameraStream = null;
-      function toggleOfflineAR() {
-        arEnabled = !arEnabled;
-        const videoBack = document.getElementById("ar-video");
-        const videoPort = document.getElementById("ar-viewport-video");
-
-        if (arEnabled) {
-          navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-            .then(stream => {
-              cameraStream = stream;
-              videoBack.srcObject = stream;
-              videoBack.style.opacity = "0.45";
-              videoPort.srcObject = stream;
-              videoPort.style.opacity = "0.45";
-              addLog("AR Realidad Aumentada: CAMARA ACTIVA");
-            })
-            .catch(err => {
-              console.warn("Back camera blocked.", err);
-              addLog("AR Realidad Aumentada: Cámara bloqueada / Permiso requerido.");
-              arEnabled = false;
-            });
-        } else {
-          if (cameraStream) {
-            cameraStream.getTracks().forEach(track => track.stop());
-          }
-          videoBack.style.opacity = "0";
-          videoPort.style.opacity = "0";
-          addLog("AR Realidad Aumentada: APAGADA.");
-        }
-        updateLanguageStrings();
-      }
-
-      // ==================== NATIVE 3D PROJECTIVE ENGINE FOR LOCAL WEB EMBED ====================
-      const canvas = document.getElementById("canvas3d");
-      const ctx = canvas.getContext("2d");
-
-      function resizeLocalCanvas() {
-        // Adapt width dynamically with bulletproof fallback for sandboxed offline Edge context
-        const w = (canvas.parentElement && canvas.parentElement.clientWidth) ? canvas.parentElement.clientWidth : 0;
-        const h = (canvas.parentElement && canvas.parentElement.clientHeight) ? canvas.parentElement.clientHeight : 0;
-        canvas.width = w > 50 ? w : 780;
-        canvas.height = h > 50 ? h : 480;
-      }
-      resizeLocalCanvas();
-      window.addEventListener("resize", resizeLocalCanvas);
-      // Extra retry in case layout takes a fractional second to bind
-      setTimeout(resizeLocalCanvas, 200);
-
-      let localTime = 0;
-
-      // 3D Cabinet base vertices (Transformer geometry)
-      const cabVertices = [
-        { x: -0.5, y: -0.4, z: -0.4 }, // 0
-        { x: 0.5, y: -0.4, z: -0.4 },  // 1
-        { x: 0.5, y: 0.8, z: -0.4 },   // 2
-        { x: -0.5, y: 0.8, z: -0.4 },  // 3
-        { x: -0.5, y: -0.4, z: 0.4 },  // 4
-        { x: 0.5, y: -0.4, z: 0.4 },   // 5
-        { x: 0.5, y: 0.8, z: 0.4 },    // 6
-        { x: -0.5, y: 0.8, z: 0.4 },   // 7
+    // ==============================
+    // 9. RESET SIMULATION
+    // ==============================
+    function resetSimulation() {
+      // Restaurar datos originales de nodos
+      const originalData = [
+        { delivered: 15420, billed: 11200, collected: 9850, ipt: 0.361, status: 'red', temp: 62.4, current: 142.5, voltage: 240.2 },
+        { delivered: 12800, billed: 9800, collected: 9165, ipt: 0.284, status: 'red', temp: 58.1, current: 118.0, voltage: 239.8 },
+        { delivered: 16100, billed: 15200, collected: 14780, ipt: 0.082, status: 'green', temp: 48.6, current: 150.2, voltage: 241.0 },
+        { delivered: 8900, billed: 6100, collected: 5233, ipt: 0.412, status: 'red', temp: 64.9, current: 82.5, voltage: 238.4 },
+        { delivered: 13400, billed: 11400, collected: 10787, ipt: 0.195, status: 'yellow', temp: 53.2, current: 124.0, voltage: 240.5 },
+        { delivered: 17200, billed: 16400, collected: 16099, ipt: 0.064, status: 'green', temp: 46.8, current: 159.0, voltage: 241.5 },
+        { delivered: 9200, billed: 6800, collected: 6090, ipt: 0.338, status: 'red', temp: 60.3, current: 85.0, voltage: 239.0 },
+        { delivered: 12100, billed: 9900, collected: 9426, ipt: 0.221, status: 'yellow', temp: 54.7, current: 112.0, voltage: 240.0 },
+        { delivered: 14800, billed: 9500, collected: 8199, ipt: 0.446, status: 'red', temp: 66.2, current: 137.0, voltage: 237.8 },
+        { delivered: 19800, billed: 19100, collected: 18790, ipt: 0.051, status: 'green', temp: 44.5, current: 183.0, voltage: 242.0 }
       ];
+      NODES.forEach((n, idx) => {
+        n.delivered = originalData[idx].delivered;
+        n.billed = originalData[idx].billed;
+        n.collected = originalData[idx].collected;
+        n.ipt = originalData[idx].ipt;
+        n.status = originalData[idx].status;
+        n.temp = originalData[idx].temp;
+        n.current = originalData[idx].current;
+        n.voltage = originalData[idx].voltage;
+      });
+      selectedNode = NODES[0];
+      document.getElementById('node-selector').value = selectedNode.id;
+      updateNodeUI(selectedNode);
+      populateDropdownAndCards();
+      // Reset view
+      set3DView('orbit');
+      setExploded(0);
+      document.querySelector('input[type="range"]').value = 0;
+      document.getElementById('chk-wireframe').checked = false;
+      document.getElementById('chk-rotate').checked = true;
+      isWireframe = false;
+      isAutoRotate = true;
+      // Reset modo
+      document.querySelectorAll('.glass-panel .btn-tab').forEach(b => b.classList.remove('active'));
+      document.querySelector('[data-mode="operation"]').classList.add('active');
+      // Reset osciloscopio
+      document.getElementById('osc-canvas').style.border = 'none';
+      // Reset logs
+      const logContainer = document.getElementById('cr-logs-container');
+      logContainer.innerHTML = `
+        <div style="color: #10B981; margin-bottom: 4px;">• [10:42:15] CFA Micro-Pago $5.00 USD recibido nodo TR-01 (Pulpería Mary)</div>
+        <div style="color: #00E5FF; margin-bottom: 4px;">• [10:42:12] LoRaWAN Telemetría OK: V=240.2V, I=142.5A, Temp=62.4°C</div>
+        <div style="color: #EF4444; margin-bottom: 4px;">• [10:41:50] Alerta Discrepancia No Técnica TR-04 (6,200 kWh)</div>
+        <div style="color: #FBBF24;">• [10:39:18] Sensor Rogowski Calibración OK (0.998 escala)</div>
+      `;
+      const t = LANG[currentLang];
+      showToast(t.toast_reset, t.toast_reset_desc);
+    }
 
-      // Hybrid Solar Top plate
-      const solarVertices = [
-        { x: -0.4, y: 0.82, z: -0.3 },
-        { x: 0.4, y: 0.82, z: -0.3 },
-        { x: 0.4, y: 0.85, z: 0.1 },
-        { x: -0.4, y: 0.85, z: 0.1 },
-      ];
+    // ==============================
+    // 10. 3D ENGINE (Three.js)
+    // ==============================
+    let scene, camera, renderer, rootGroup, networkGroup, detailGroup, tankBody, tankLid, clampSensor, telemetryBox, coolingFins, coreAssembly, solarPanel, hvBushings, lvBushings;
+    let energyParticles, financeParticles, pulseRings = [], vehicleMeshes = new Map();
+    let isDragging = false, prevMouse = { x: 0, y: 0 };
+    let cameraTarget = new THREE.Vector3(0, 0.5, 0), currentCameraTarget = new THREE.Vector3(0, 0.5, 0);
+    let spherical = { radius: 7.2, theta: Math.PI / 4, phi: Math.PI / 3 }, currentSpherical = { radius: 7.2, theta: Math.PI / 4, phi: Math.PI / 3 };
+    let clock = new THREE.Clock();
 
-      // Swarm neighbor nodes in 3D
-      const swarmP2PNodes = [
-        { x: -1.7, y: -0.3, z: -0.9 },
-        { x: 1.5, y: -0.5, z: -0.7 },
-        { x: 0.8, y: -0.8, z: -1.5 },
-        { x: -1.3, y: -0.1, z: -1.8 },
-      ];
+    function init3D() {
+      const container = document.getElementById('canvas-container');
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x080B10);
+      scene.fog = new THREE.FogExp2(0x080B10, 0.022);
 
-      // Conductor line points array (Smooth curve)
-      const cablePoints = [];
-      for (let u = 0; u <= 20; u++) {
-        const frac = u / 20;
-        const yCoord = 0.8 - frac * 1.9;
-        const zCoord = 0.4 + 0.18 * Math.sin(frac * Math.PI);
-        const xCoord = 0.2 * Math.sin(frac * Math.PI * 0.8);
-        cablePoints.push({ x: xCoord, y: yCoord, z: zCoord });
+      camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 150);
+      camera.position.set(6, 6, 8);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      container.appendChild(renderer.domElement);
+
+      const amb = new THREE.AmbientLight(0x1F2937, 2.2);
+      const keyLight = new THREE.DirectionalLight(0xE0F7FA, 2.8);
+      keyLight.position.set(12, 22, 14);
+      scene.add(amb, keyLight);
+
+      const statusLight = new THREE.PointLight(0x00E5FF, 3.0, 14);
+      statusLight.position.set(0, 2.2, 1.8);
+      scene.add(statusLight);
+
+      const grid = new THREE.GridHelper(40, 60, 0x00E5FF, 0x1E293B);
+      grid.position.y = -3.2;
+      grid.material.transparent = true;
+      grid.material.opacity = 0.35;
+      scene.add(grid);
+
+      rootGroup = new THREE.Group();
+      scene.add(rootGroup);
+
+      // Network Group
+      networkGroup = new THREE.Group();
+      rootGroup.add(networkGroup);
+
+      // Substation
+      const subGroup = new THREE.Group();
+      subGroup.position.set(0, -3.2, 0);
+      const subBase = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.4, 3.5), new THREE.MeshStandardMaterial({ color: 0x1E293B }));
+      subBase.position.y = 0.2;
+      subGroup.add(subBase);
+      const gantryMat = new THREE.MeshStandardMaterial({ color: 0x94A3B8, metalness: 0.9, roughness: 0.2 });
+      [-1.2, 1.2].forEach(g => {
+        const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.2, 16), gantryMat);
+        p1.position.set(g, 1.8, -1.2);
+        const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.2, 16), gantryMat);
+        p2.position.set(g, 1.8, 1.2);
+        const beam = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 2.6), gantryMat);
+        beam.position.set(g, 3.2, 0);
+        subGroup.add(p1, p2, beam);
+      });
+      const subTr = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.8, 1.2), new THREE.MeshStandardMaterial({ color: 0x334155 }));
+      subTr.position.set(0, 1.1, 0);
+      const subBeacon = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), new THREE.MeshBasicMaterial({ color: 0x00E5FF }));
+      subBeacon.position.set(0, 3.6, 0);
+      subGroup.add(subTr, subBeacon);
+      networkGroup.add(subGroup);
+
+      // 10 Transformer Poles
+      NODES.forEach(n => {
+        const np = new THREE.Group();
+        np.position.set(n.x, -3.2, n.z);
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 3.8, 16), new THREE.MeshStandardMaterial({ color: 0x475569 }));
+        pole.position.y = 1.9;
+        np.add(pole);
+        const miniT = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.7, 16), new THREE.MeshStandardMaterial({ color: 0x334155 }));
+        miniT.position.set(0.3, 2.2, 0);
+        np.add(miniT);
+        const col = n.status === 'red' ? 0xEF4444 : n.status === 'yellow' ? 0xFBBF24 : 0x10B981;
+        const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 16), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.8 }));
+        beacon.position.set(0.3, 2.8, 0);
+        np.add(beacon);
+        const halo = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.75, 32), new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide, transparent: true, opacity: 0.6 }));
+        halo.rotation.x = Math.PI / 2;
+        halo.position.y = 0.05;
+        np.add(halo);
+        for (let h = 0; h < 3; h++) {
+          const ang = (h / 3) * Math.PI * 2;
+          const house = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.35), new THREE.MeshStandardMaterial({ color: 0x334155 }));
+          house.position.set(Math.cos(ang) * 0.9, 0.125, Math.sin(ang) * 0.9);
+          np.add(house);
+        }
+        const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 3.2, 0), new THREE.Vector3(n.x * 0.4, 3.6, n.z * 0.4), new THREE.Vector3(n.x, 0.4, n.z)]);
+        const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 20, 0.02, 6, false), new THREE.MeshBasicMaterial({ color: 0x0284C7 }));
+        networkGroup.add(tube);
+        np.userData = { id: n.id, nodeData: n, name: n.id + ' - ' + n.name, desc: 'IPT: ' + (n.ipt * 100).toFixed(1) + '%' };
+        networkGroup.add(np);
+      });
+
+      // Vehicles
+      CREWS.forEach(c => {
+        const v = new THREE.Group();
+        v.position.set(0, -3.1, 0);
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.35, 1.1), new THREE.MeshStandardMaterial({ color: 0x0284C7 }));
+        b.position.y = 0.25;
+        const cab = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.3, 0.45), new THREE.MeshStandardMaterial({ color: 0x0F172A }));
+        cab.position.set(0, 0.45, 0.2);
+        const l = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 12), new THREE.MeshBasicMaterial({ color: 0xFBBF24 }));
+        l.position.set(0, 0.65, 0.1);
+        v.add(b, cab, l);
+        networkGroup.add(v);
+        vehicleMeshes.set(c.id, v);
+      });
+
+      // Detail Group (Digital Twin)
+      detailGroup = new THREE.Group();
+      rootGroup.add(detailGroup);
+
+      const detailPole = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.4, 12, 32), new THREE.MeshStandardMaterial({ color: 0x374151 }));
+      detailPole.position.set(0, 0, -1.8);
+      const crossarm = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.2, 0.2), new THREE.MeshStandardMaterial({ color: 0x4B5563 }));
+      crossarm.position.set(0, 4.2, -1.8);
+      detailGroup.add(detailPole, crossarm);
+
+      const tankMat = new THREE.MeshStandardMaterial({ color: 0x2A2D34, roughness: 0.35, metalness: 0.85 });
+      tankBody = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 2.6, 48), tankMat);
+      tankBody.position.set(0, 0.4, 0);
+      tankBody.userData = { id: 'tank_body', name: 'Tanque Principal IP67 Acero/Titanio', desc: 'Aceite dieléctrico vegetal de alta rigidez' };
+      detailGroup.add(tankBody);
+
+      coolingFins = new THREE.Group();
+      for (let i = 0; i < 14; i++) {
+        const ang = (i / 14) * Math.PI * 1.3 + Math.PI * 0.85;
+        const fin = new THREE.Mesh(new THREE.BoxGeometry(0.04, 2.0, 0.45), new THREE.MeshStandardMaterial({ color: 0x323846 }));
+        fin.position.set(Math.cos(ang) * 1.35, 0.4, Math.sin(ang) * 1.35);
+        fin.rotation.y = -ang;
+        coolingFins.add(fin);
+      }
+      detailGroup.add(coolingFins);
+
+      tankLid = new THREE.Group();
+      tankLid.position.set(0, 1.7, 0);
+      const lidMesh = new THREE.Mesh(new THREE.CylinderGeometry(1.26, 1.26, 0.16, 48), tankMat);
+      tankLid.add(lidMesh);
+      detailGroup.add(tankLid);
+
+      hvBushings = new THREE.Group();
+      tankLid.add(hvBushings);
+      [-0.55, 0, 0.55].forEach((x, idx) => {
+        const b = new THREE.Group();
+        b.position.set(x, 0.1, -0.4);
+        for (let r = 0; r < 5; r++) {
+          const rib = new THREE.Mesh(new THREE.CylinderGeometry(0.14 - r * 0.015, 0.08, 0.14, 24), new THREE.MeshStandardMaterial({ color: 0x4A3728 }));
+          rib.position.y = 0.1 + r * 0.16;
+          b.add(rib);
+        }
+        const stud = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.3, 16), new THREE.MeshStandardMaterial({ color: 0xD4AF37 }));
+        stud.position.y = 0.95;
+        b.add(stud);
+        b.userData = { id: 'hv_' + idx, name: 'Borne Primario H' + (idx+1) + ' (13.8kV)', desc: 'Aislador de porcelana corrugada de alta rigidez' };
+        hvBushings.add(b);
+      });
+
+      lvBushings = new THREE.Group();
+      tankLid.add(lvBushings);
+      [-0.6, -0.2, 0.2, 0.6].forEach((x, idx) => {
+        const b = new THREE.Group();
+        b.position.set(x, 0.1, 0.5);
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.07, 0.45, 24), new THREE.MeshStandardMaterial({ color: 0xE2E8F0 }));
+        body.position.y = 0.22;
+        const stud = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.25, 16), new THREE.MeshStandardMaterial({ color: 0xD4AF37 }));
+        stud.position.y = 0.55;
+        b.add(body, stud);
+        b.userData = { id: 'lv_' + idx, name: 'Borne Secundario BT X' + idx + ' (240V)', desc: 'Salida de baja tensión a usuarios' };
+        lvBushings.add(b);
+      });
+
+      coreAssembly = new THREE.Group();
+      coreAssembly.position.set(0, 0.4, 0);
+      const coreMat = new THREE.MeshStandardMaterial({ color: 0x3F4E65, metalness: 0.75 });
+      [-0.55, 0, 0.55].forEach((x, idx) => {
+        const col = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1.8, 0.3), coreMat);
+        col.position.x = x;
+        const coil = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.3, 32), new THREE.MeshStandardMaterial({ color: 0xC87D55 }));
+        coil.position.set(x, 0, 0);
+        coil.userData = { id: 'coil_' + idx, name: 'Devanado de Cobre Fase ' + String.fromCharCode(65 + idx), desc: 'Bobinados primario/secundario en baño de aceite' };
+        coreAssembly.add(col, coil);
+      });
+      detailGroup.add(coreAssembly);
+
+      clampSensor = new THREE.Group();
+      clampSensor.position.set(0.9, 0.9, 0.9);
+      const ring1 = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.05, 16, 32), new THREE.MeshStandardMaterial({ color: 0x00E5FF, emissive: 0x00E5FF }));
+      ring1.rotation.y = Math.PI / 2;
+      const sBody = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.25, 0.2), new THREE.MeshStandardMaterial({ color: 0x1E293B }));
+      sBody.position.set(0.12, -0.25, 0);
+      clampSensor.add(ring1, sBody);
+      clampSensor.userData = { id: 'clamp_sensor', name: 'Sensor Clamp IoT Rogowski (Capa 1)', desc: 'Macro-medición V, A, kWh cada 15 min sin corte' };
+      detailGroup.add(clampSensor);
+
+      telemetryBox = new THREE.Group();
+      telemetryBox.position.set(-1.6, 0.3, 0.4);
+      const tMesh = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.9, 0.35), new THREE.MeshStandardMaterial({ color: 0x1E222A }));
+      telemetryBox.add(tMesh);
+      telemetryBox.userData = { id: 'telemetry_box', name: 'Módulo GSM/LoRa & Motor CFA', desc: 'Encriptación de telemetría y balance algebraico' };
+      detailGroup.add(telemetryBox);
+
+      solarPanel = new THREE.Group();
+      solarPanel.position.set(0, 3.2, -1.0);
+      solarPanel.rotation.x = -0.5;
+      const sFrame = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.1, 0.06), new THREE.MeshStandardMaterial({ color: 0x27272A }));
+      const sCell = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.0), new THREE.MeshStandardMaterial({ color: 0x0F2537, metalness: 0.9 }));
+      sCell.position.z = 0.035;
+      solarPanel.add(sFrame, sCell);
+      detailGroup.add(solarPanel);
+
+      const eGeo = new THREE.BufferGeometry();
+      const ePos = new Float32Array(150 * 3);
+      for (let i = 0; i < 150; i++) {
+        const t = i / 150;
+        const a = t * Math.PI * 6;
+        ePos[i * 3] = Math.cos(a) * 0.8;
+        ePos[i * 3 + 1] = 2.0 - t * 3.5;
+        ePos[i * 3 + 2] = Math.sin(a) * 0.8;
+      }
+      eGeo.setAttribute('position', new THREE.BufferAttribute(ePos, 3));
+      energyParticles = new THREE.Points(eGeo, new THREE.PointsMaterial({ color: 0x00E5FF, size: 0.08, transparent: true, opacity: 0.85 }));
+      detailGroup.add(energyParticles);
+
+      const fGeo = new THREE.BufferGeometry();
+      const fPos = new Float32Array(80 * 3);
+      for (let i = 0; i < 80; i++) {
+        fPos[i * 3] = (Math.random() - 0.5) * 4;
+        fPos[i * 3 + 1] = (Math.random() - 0.5) * 3;
+        fPos[i * 3 + 2] = (Math.random() - 0.5) * 4;
+      }
+      fGeo.setAttribute('position', new THREE.BufferAttribute(fPos, 3));
+      financeParticles = new THREE.Points(fGeo, new THREE.PointsMaterial({ color: 0xFFD700, size: 0.12, transparent: true, opacity: 0.9 }));
+      detailGroup.add(financeParticles);
+
+      for (let i = 0; i < 3; i++) {
+        const ring = new THREE.Mesh(new THREE.RingGeometry(1.3, 1.36, 32), new THREE.MeshBasicMaterial({ color: 0x4FC3F7, side: THREE.DoubleSide, transparent: true, opacity: 0.6 - i * 0.15 }));
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = 0.4 + i * 0.4;
+        pulseRings.push(ring);
+        detailGroup.add(ring);
       }
 
-      // Base clamp
-      const clampRing = [];
-      const cRad = 0.15;
-      for (let th = 0; th <= Math.PI * 1.6; th += Math.PI / 8) {
-        clampRing.push({
-          x: cRad * Math.cos(th),
-          y: -0.4 + 0.05 * Math.sin(th),
-          z: 0.45 + cRad * Math.sin(th)
-        });
-      }
+      setupEvents(container);
+      populateDropdownAndCards();
+      set3DView('orbit');
+      animate();
+    }
 
-      // Projection formula solver
-      function projectPt(pt, yaw, pitch, cW, cH) {
-        // Rotation Y (Yaw)
-        const cosY = Math.cos(yaw);
-        const sinY = Math.sin(yaw);
-        let x1 = pt.x * cosY - pt.z * sinY;
-        let z1 = pt.x * sinY + pt.z * cosY;
-
-        // Rotation X (Pitch)
-        const cosX = Math.cos(pitch);
-        const sinX = Math.sin(pitch);
-        let y2 = pt.y * cosX - z1 * sinX;
-        let z2 = pt.y * sinX + z1 * cosX;
-
-        const cameraDist = 4.3;
-        const fLength = 480 * scaleZoom;
-        const depth = z2 + cameraDist;
-
-        if (depth <= 0.1) {
-          return { x: cW, y: cH, visible: false, zDepth: depth };
-        }
-
-        const xPx = (x1 * fLength) / depth + cW;
-        const yPx = (y2 * -fLength) / depth + cH;
-
-        return { x: xPx, y: yPx, visible: true, zDepth: depth };
-      }
-
-      // Core Animation Loop
-      function drawFrame() {
-        localTime += 0.024;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        const cx = canvas.width / 2;
-        const cy = canvas.height / 2 - 20;
-
-        // Determine theme colors dynamically in string
-        let themeCol = "#00ffcc";
-        let rVal = 0, gVal = 255, bVal = 204;
-        if (iptValue >= 10 && iptValue <= 25) {
-          themeCol = "#ffcc00";
-          rVal = 255; gVal = 204; bVal = 0;
-        } else if (iptValue > 25) {
-          themeCol = "#ff3344";
-          rVal = 255; gVal = 51; bVal = 68;
-        }
-
-        // Camera Yaw yaw offset
-        const totalYaw = rotationY + Math.sin(localTime * 0.08) * 0.04;
-        const totalPitch = rotationX;
-
-        // Draw coordinate grid floor in 3D
-        ctx.lineWidth = 1;
-        const span = 6;
-        const step = 0.5;
-        for (let j = -span; j <= span; j++) {
-          const l1S = projectPt({ x: -span * step, y: -1.1, z: j * step }, totalYaw, totalPitch, cx, cy);
-          const l1E = projectPt({ x: span * step, y: -1.1, z: j * step }, totalYaw, totalPitch, cx, cy);
-
-          if (l1S.visible && l1E.visible) {
-            ctx.strokeStyle = "rgba(31, 40, 51, 0.2)";
-            ctx.beginPath();
-            ctx.moveTo(l1S.x, l1S.y);
-            ctx.lineTo(l1E.x, l1E.y);
-            ctx.stroke();
-          }
-
-          const l2S = projectPt({ x: j * step, y: -1.1, z: -span * step }, totalYaw, totalPitch, cx, cy);
-          const l2E = projectPt({ x: j * step, y: -1.1, z: span * step }, totalYaw, totalPitch, cx, cy);
-
-          if (l2S.visible && l2E.visible) {
-            ctx.strokeStyle = "rgba(31, 40, 51, 0.2)";
-            ctx.beginPath();
-            ctx.moveTo(l2S.x, l2S.y);
-            ctx.lineTo(l2E.x, l2E.y);
-            ctx.stroke();
-          }
-        }
-
-        // Concentric Holographic grid target circle
-        ctx.beginPath();
-        const ptsResolution = 40;
-        for (let i = 0; i <= ptsResolution; i++) {
-          const theta = (i / ptsResolution) * Math.PI * 2;
-          const pt = {
-            x: 1.35 * Math.cos(theta + localTime * 0.1),
-            y: -1.1,
-            z: 1.35 * Math.sin(theta + localTime * 0.1)
-          };
-          const p = projectPt(pt, totalYaw, totalPitch, cx, cy);
-          if (i === 0) ctx.moveTo(p.x, p.y);
-          else ctx.lineTo(p.x, p.y);
-        }
-        ctx.strokeStyle = "rgba(" + rVal + "," + gVal + "," + bVal + ", 0.35)";
-        ctx.stroke();
-
-        // Conductor copper cable
-        ctx.beginPath();
-        cablePoints.forEach((p, idx) => {
-          const proj = projectPt(p, totalYaw, totalPitch, cx, cy);
-          if (idx === 0) ctx.moveTo(proj.x, proj.y);
-          else ctx.lineTo(proj.x, proj.y);
-        });
-        ctx.strokeStyle = "rgba(100, 116, 139, 0.7)";
-        ctx.lineWidth = 3.5;
-        ctx.stroke();
-
-        // Hover physical coordinates
-        const hoverY = 0.2 + 0.05 * Math.sin(localTime * 1.6);
-        const cabinetShifted = cabVertices.map(v => ({ x: v.x, y: v.y + hoverY, z: v.z }));
-        const pCabinet = cabinetShifted.map(v => projectPt(v, totalYaw, totalPitch, cx, cy));
-
-        const faces = [
-          { ind: [0, 1, 2, 3] },
-          { ind: [4, 5, 6, 7] },
-          { ind: [0, 4, 7, 3] },
-          { ind: [1, 5, 6, 2] },
-          { ind: [3, 7, 6, 2] },
-          { ind: [0, 5, 4, 1] }
-        ];
-
-        faces.forEach(f => {
-          ctx.beginPath();
-          f.ind.forEach((vIdx, i) => {
-            const pt = pCabinet[vIdx];
-            if (i === 0) ctx.moveTo(pt.x, pt.y);
-            else ctx.lineTo(pt.x, pt.y);
-          });
-          ctx.closePath();
-          ctx.fillStyle = "rgba(16, 22, 42, 0.72)";
-          ctx.fill();
-
-          ctx.strokeStyle = "rgba(74, 85, 104, 0.5)";
-          ctx.lineWidth = 1;
-          ctx.stroke();
-
-          // Thermal Overload stress overlay
-          ctx.fillStyle = "rgba(239, 68, 68, " + ((stressValue / 100) * 0.16) + ")";
-          ctx.fill();
-          ctx.strokeStyle = "rgba(239, 68, 68, " + ((stressValue / 100) * 0.4) + ")";
-          ctx.stroke();
-        });
-
-        // Smart Clamp Ring on conductor
-        const pClamp = clampRing.map(v => projectPt(v, totalYaw, totalPitch, cx, cy));
-        ctx.beginPath();
-        pClamp.forEach((pt, idx) => {
-          if (idx === 0) ctx.moveTo(pt.x, pt.y);
-          else ctx.lineTo(pt.x, pt.y);
-        });
-        ctx.strokeStyle = "#0284c7";
-        ctx.lineWidth = 4;
-        ctx.stroke();
-
-        // Smart CT microchip indicator
-        const pCpu = projectPt({ x: 0.08, y: -0.38, z: 0.45 }, totalYaw, totalPitch, cx, cy);
-        if (pCpu.visible) {
-          ctx.beginPath();
-          ctx.arc(pCpu.x, pCpu.y, 5, 0, Math.PI * 2);
-          ctx.fillStyle = "#0f172a";
-          ctx.fill();
-          ctx.strokeStyle = themeCol;
-          ctx.stroke();
-
-          // Glowing LED state indicator
-          ctx.beginPath();
-          ctx.arc(pCpu.x, pCpu.y, 2.5, 0, Math.PI * 2);
-          ctx.fillStyle = themeCol;
-          ctx.fill();
-        }
-
-        // Floating energy flow particles along wire
-        const flowFactor = 0.02 + (stressValue / 100) * 0.025;
-        const partCount = 10;
-        for (let ptIdx = 0; ptIdx < partCount; ptIdx++) {
-          const progress = (localTime * flowFactor + ptIdx / partCount) % 1.0;
-          const exactIdx = Math.floor(progress * (cablePoints.length - 1));
-          const subProgress = (progress * (cablePoints.length - 1)) % 1.0;
-
-          const pStart = cablePoints[exactIdx];
-          const pEnd = cablePoints[exactIdx + 1] || pStart;
-
-          const particlePt = {
-            x: pStart.x + (pEnd.x - pStart.x) * subProgress,
-            y: pStart.y + (pEnd.y - pStart.y) * subProgress,
-            z: pStart.z + (pEnd.z - pStart.z) * subProgress
-          };
-
-          const pPart = projectPt(particlePt, totalYaw, totalPitch, cx, cy);
-          if (pPart.visible) {
-            ctx.beginPath();
-            ctx.arc(pPart.x, pPart.y, 3, 0, Math.PI * 2);
-            ctx.fillStyle = themeCol;
-            ctx.fill();
-          }
-        }
-
-        // Swarm mesh sister nodes
-        swarmP2PNodes.forEach((node, nodeIdx) => {
-          const hoverYNode = node.y + 0.03 * Math.sin(localTime * 1.5 + nodeIdx);
-          const pNode = projectPt({ x: node.x, y: hoverYNode, z: node.z }, totalYaw, totalPitch, cx, cy);
-
-          if (pNode.visible) {
-            ctx.beginPath();
-            ctx.arc(pNode.x, pNode.y, 4, 0, Math.PI * 2);
-            ctx.fillStyle = swarmConnected ? "#00ffcc" : "rgba(100, 116, 139, 0.4)";
-            ctx.fill();
-            ctx.strokeStyle = swarmConnected ? "#ffcc00" : "rgba(30, 41, 59, 0.5)";
-            ctx.stroke();
-
-            // Sinc link
-            if (swarmConnected) {
-              const pClampAnchor = projectPt({ x: 0.0, y: -0.4, z: 0.45 }, totalYaw, totalPitch, cx, cy);
-              ctx.beginPath();
-              ctx.moveTo(pClampAnchor.x, pClampAnchor.y);
-              ctx.lineTo(pNode.x, pNode.y);
-              ctx.strokeStyle = "rgba(0, 255, 204, 0.5)";
-              ctx.lineWidth = 1;
-              ctx.stroke();
+    function setupEvents(container) {
+      container.addEventListener('mousedown', (e) => { isDragging = true; prevMouse = { x: e.clientX, y: e.clientY }; });
+      window.addEventListener('mouseup', () => { isDragging = false; });
+      window.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+          const dx = e.clientX - prevMouse.x;
+          const dy = e.clientY - prevMouse.y;
+          prevMouse = { x: e.clientX, y: e.clientY };
+          spherical.theta -= dx * 0.007;
+          spherical.phi = Math.max(0.1, Math.min(Math.PI / 2 + 0.2, spherical.phi - dy * 0.007));
+        } else {
+          const rect = container.getBoundingClientRect();
+          const mx = ((e.clientX - rect.left) / container.clientWidth) * 2 - 1;
+          const my = -((e.clientY - rect.top) / container.clientHeight) * 2 + 1;
+          const rc = new THREE.Raycaster();
+          rc.setFromCamera(new THREE.Vector2(mx, my), camera);
+          const hits = rc.intersectObjects(rootGroup.children, true);
+          const tip = document.getElementById('part-tooltip');
+          if (hits.length > 0) {
+            let obj = hits[0].object;
+            while (obj && !obj.userData?.name && obj.parent !== rootGroup && obj.parent) obj = obj.parent;
+            if (obj?.userData?.name) {
+              tip.innerText = '● ' + obj.userData.name;
+              tip.style.display = 'block';
+            } else {
+              tip.style.display = 'none';
             }
+          } else {
+            tip.style.display = 'none';
           }
-        });
-
-        // Volumetric electromagnetic field flux rings
-        const fCount = 3;
-        for (let fl = 0; fl < fCount; fl++) {
-          const sc = ((localTime * 0.45 + fl / fCount) % 1.0);
-          const rad = sc * 0.38;
-          ctx.beginPath();
-          for (let th = 0; th <= 16; th++) {
-            const angle = (th / 16) * Math.PI * 2;
-            const pt = {
-              x: 0.08 + rad * Math.cos(angle),
-              y: -0.38 + 0.05 * Math.sin(angle),
-              z: 0.45 + rad * Math.sin(angle)
-            };
-            const p = projectPt(pt, totalYaw, totalPitch, cx, cy);
-            if (th === 0) ctx.moveTo(p.x, p.y);
-            else ctx.lineTo(p.x, p.y);
+        }
+      });
+      container.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        spherical.radius = Math.max(2.0, Math.min(40.0, spherical.radius + e.deltaY * 0.005));
+      }, { passive: false });
+      container.addEventListener('click', (e) => {
+        const rect = container.getBoundingClientRect();
+        const mx = ((e.clientX - rect.left) / container.clientWidth) * 2 - 1;
+        const my = -((e.clientY - rect.top) / container.clientHeight) * 2 + 1;
+        const rc = new THREE.Raycaster();
+        rc.setFromCamera(new THREE.Vector2(mx, my), camera);
+        const hits = rc.intersectObjects(rootGroup.children, true);
+        if (hits.length > 0) {
+          let obj = hits[0].object;
+          while (obj && !obj.userData?.name && obj.parent !== rootGroup && obj.parent) obj = obj.parent;
+          if (obj?.userData?.nodeData) {
+            onSelectNodeId(obj.userData.nodeData.id);
+            set3DView('orbit');
+          } else if (obj?.userData?.name) {
+            const t = LANG[currentLang];
+            showToast('🔍 Inspección 3D: ' + obj.userData.name, obj.userData.desc || 'Componente verificado nominalmente.');
           }
-          ctx.strokeStyle = "rgba(" + rVal + "," + gVal + "," + bVal + "," + ((1 - sc) * 0.55) + ")";
-          ctx.lineWidth = 1;
-          ctx.stroke();
         }
+      });
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    }
 
-        // EXTRA DULTURE: DRAW LABELS IN 3D WORLD GRID
-        const pTextTag = projectPt({ x: 0, y: 0.95 + hoverY, z: 0 }, totalYaw, totalPitch, cx, cy);
-        if (pTextTag.visible) {
-          ctx.fillStyle = "rgba(0,0,0,0.85)";
-          ctx.strokeStyle = "rgba(0, 255, 204, 0.4)";
-          ctx.lineWidth = 1;
-          ctx.font = "8px monospace";
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const elapsed = clock.getElapsedTime();
 
-          const tag = "TFCN LAB INT-106 - DR. OPB";
-          const tw = ctx.measureText(tag).width;
+      currentCameraTarget.lerp(cameraTarget, delta * 3.5);
+      currentSpherical.radius += (spherical.radius - currentSpherical.radius) * delta * 3.5;
+      currentSpherical.theta += (spherical.theta - currentSpherical.theta) * delta * 3.5;
+      currentSpherical.phi += (spherical.phi - currentSpherical.phi) * delta * 3.5;
 
-          ctx.fillRect(pTextTag.x - tw/2 - 4, pTextTag.y - 11, tw + 8, 14);
-          ctx.strokeRect(pTextTag.x - tw/2 - 4, pTextTag.y - 11, tw + 8, 14);
-
-          ctx.fillStyle = "#fafafa";
-          ctx.textAlign = "center";
-          ctx.fillText(tag, pTextTag.x, pTextTag.y - 1);
-        }
-
-        requestAnimationFrame(drawFrame);
+      if (isAutoRotate && !isDragging) {
+        spherical.theta += delta * 0.25;
       }
 
-      // Drag control inputs
-      canvas.addEventListener("mousedown", (e) => {
-        isDragging = true;
-        prevMouseX = e.clientX;
-        prevMouseY = e.clientY;
-      });
+      const { radius, theta, phi } = currentSpherical;
+      camera.position.x = currentCameraTarget.x + radius * Math.sin(phi) * Math.sin(theta);
+      camera.position.y = currentCameraTarget.y + radius * Math.cos(phi);
+      camera.position.z = currentCameraTarget.z + radius * Math.sin(phi) * Math.cos(theta);
+      camera.lookAt(currentCameraTarget);
 
-      canvas.addEventListener("mousemove", (e) => {
-        if (!isDragging) return;
-        const dx = e.clientX - prevMouseX;
-        const dy = e.clientY - prevMouseY;
+      if (tankLid) tankLid.position.y = 1.7 + explodedFactor * 2.2;
+      if (coolingFins) coolingFins.scale.set(1 + explodedFactor * 0.6, 1, 1 + explodedFactor * 0.6);
+      if (clampSensor) clampSensor.position.set(0.9 + explodedFactor * 1.5, 0.9, 0.9 + explodedFactor * 1.2);
+      if (telemetryBox) telemetryBox.position.set(-1.6 - explodedFactor * 1.6, 0.3, 0.4 + explodedFactor * 0.8);
+      if (coreAssembly) coreAssembly.position.y = 0.4 - explodedFactor * 1.2;
+      if (solarPanel) solarPanel.position.y = 3.2 + explodedFactor * 1.8;
 
-        rotationY += dx * 0.007;
-        rotationX = Math.max(-1.4, Math.min(1.4, rotationX + dy * 0.007));
-
-        prevMouseX = e.clientX;
-        prevMouseY = e.clientY;
-      });
-
-      window.addEventListener("mouseup", () => {
-        isDragging = false;
-      });
-
-      // Mouse scroll wheel zooms
-      canvas.addEventListener("wheel", (e) => {
-        e.preventDefault();
-        scaleZoom = Math.max(0.5, Math.min(2.0, scaleZoom + e.deltaY * -0.001));
-      }, { passive: false });
-
-      // Touch screen support
-      canvas.addEventListener("touchstart", (e) => {
-        if (e.touches.length === 1) {
-          isDragging = true;
-          prevMouseX = e.touches[0].clientX;
-          prevMouseY = e.touches[0].clientY;
+      CREWS.forEach(c => {
+        const vm = vehicleMeshes.get(c.id);
+        if (vm && c.status === 'en_ruta') {
+          const prog = (elapsed * 0.08) % 1.0;
+          const target = NODES.find(n => n.id === c.target);
+          if (target) {
+            vm.position.x = target.x * prog;
+            vm.position.z = target.z * prog;
+          }
         }
       });
-      canvas.addEventListener("touchmove", (e) => {
-        if (!isDragging || e.touches.length !== 1) return;
-        const dx = e.touches[0].clientX - prevMouseX;
-        const dy = e.touches[0].clientY - prevMouseY;
 
-        rotationY += dx * 0.007;
-        rotationX = Math.max(-1.4, Math.min(1.4, rotationX + dy * 0.007));
+      if (energyParticles) {
+        const pos = energyParticles.geometry.attributes.position.array;
+        for (let i = 0; i < 150; i++) {
+          pos[i * 3 + 1] -= delta * 1.5;
+          if (pos[i * 3 + 1] < -1.5) pos[i * 3 + 1] = 2.0;
+        }
+        energyParticles.geometry.attributes.position.needsUpdate = true;
+      }
 
-        prevMouseX = e.touches[0].clientX;
-        prevMouseY = e.touches[0].clientY;
+      pulseRings.forEach((r, idx) => {
+        const sc = 1 + ((elapsed * 0.8 + idx * 0.4) % 1.2) * 0.4;
+        r.scale.set(sc, sc, 1);
+        r.material.opacity = Math.max(0, 0.7 - (sc - 1) * 1.5);
       });
-      canvas.addEventListener("touchend", () => { isDragging = false; });
 
-      // Start looping
-      drawFrame();
+      renderOsc();
+      renderer.render(scene, camera);
+    }
 
-      // Set default strings
-      updateLanguageStrings();
-    </script>
-  </body>
+    let oscPhase = 0;
+    function renderOsc() {
+      const c = document.getElementById('osc-canvas');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, c.width, c.height);
+      ctx.strokeStyle = '#1E293B';
+      ctx.beginPath();
+      ctx.moveTo(0, c.height/2);
+      ctx.lineTo(c.width, c.height/2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.strokeStyle = '#00E5FF';
+      ctx.lineWidth = 1.8;
+      for (let x = 0; x < c.width; x++) {
+        const y = c.height / 2 + Math.sin((x * 0.08) + oscPhase) * 14;
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.strokeStyle = '#FBBF24';
+      ctx.lineWidth = 1.2;
+      for (let x = 0; x < c.width; x++) {
+        const y = c.height / 2 + Math.sin((x * 0.08) + oscPhase + 2.09) * 12;
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.strokeStyle = '#10B981';
+      ctx.lineWidth = 1.2;
+      for (let x = 0; x < c.width; x++) {
+        const y = c.height / 2 + Math.sin((x * 0.08) + oscPhase + 4.18) * 12;
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      oscPhase += 0.12;
+    }
+
+    // ==============================
+    // 11. 3D VIEWS & CONTROLS
+    // ==============================
+    function set3DView(v) {
+      currentView = v;
+      const t = LANG[currentLang];
+      let title, desc;
+      switch(v) {
+        case 'network':
+          networkGroup.visible = true;
+          detailGroup.visible = false;
+          cameraTarget.set(0, 0, 0);
+          spherical.radius = 24.0; spherical.theta = Math.PI / 3; spherical.phi = Math.PI / 4.2;
+          title = t.toast_network; desc = t.toast_network_desc;
+          break;
+        case 'xray':
+          networkGroup.visible = false;
+          detailGroup.visible = true;
+          tankBody.material.transparent = true;
+          tankBody.material.opacity = 0.22;
+          cameraTarget.set(0, 0.5, 0);
+          spherical.radius = 6.8;
+          title = t.toast_xray; desc = t.toast_xray_desc;
+          break;
+        case 'sensor':
+          networkGroup.visible = false;
+          detailGroup.visible = true;
+          tankBody.material.transparent = false;
+          cameraTarget.set(0.9, 0.9, 0.9);
+          spherical.radius = 2.8;
+          title = t.toast_sensor_view; desc = t.toast_sensor_view_desc;
+          break;
+        case 'core':
+          networkGroup.visible = false;
+          detailGroup.visible = true;
+          tankBody.material.transparent = true;
+          tankBody.material.opacity = 0.15;
+          cameraTarget.set(0, 0.4, 0);
+          spherical.radius = 3.2;
+          title = t.toast_core; desc = t.toast_core_desc;
+          break;
+        case 'exploded':
+          networkGroup.visible = false;
+          detailGroup.visible = true;
+          tankBody.material.transparent = false;
+          cameraTarget.set(0, 0.8, 0);
+          spherical.radius = 8.5;
+          setExploded(0.8);
+          document.querySelector('input[type="range"]').value = 0.8;
+          title = t.toast_exploded; desc = t.toast_exploded_desc;
+          break;
+        default: // orbit
+          networkGroup.visible = false;
+          detailGroup.visible = true;
+          tankBody.material.transparent = false;
+          tankBody.material.opacity = 1.0;
+          cameraTarget.set(0, 0.5, 0);
+          spherical.radius = 7.2;
+          setExploded(0);
+          document.querySelector('input[type="range"]').value = 0;
+          title = t.toast_orbit; desc = t.toast_orbit_desc;
+          break;
+      }
+      showToast(title, desc);
+    }
+
+    function setExploded(val) { explodedFactor = parseFloat(val); }
+    function setWireframe(val) { isWireframe = val; tankBody.material.wireframe = val; }
+    function setAutoRotate(val) { isAutoRotate = val; }
+
+    // ==============================
+    // 12. HUD TOGGLE
+    // ==============================
+    function toggleHudCards() {
+      isHudCollapsed = !isHudCollapsed;
+      const m = document.getElementById('middle-hud-cards');
+      const b = document.getElementById('btn-toggle-hud');
+      const t = LANG[currentLang];
+      if (isHudCollapsed) {
+        m.style.display = 'none';
+        b.innerText = t.btn_hud;
+        b.style.background = '#00E5FF';
+        b.style.color = '#020617';
+        showToast(t.toast_hud_off, t.toast_hud_off_desc);
+      } else {
+        m.style.display = 'flex';
+        b.innerText = t.btn_hud;
+        b.style.background = '#1E293B';
+        b.style.color = '#E2E8F0';
+        showToast(t.toast_hud_on, t.toast_hud_on_desc);
+      }
+    }
+
+    // ==============================
+    // 13. AUDIO TOGGLE
+    // ==============================
+    function toggleAudio() {
+      const t = LANG[currentLang];
+      if (!isAudioOn) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.value = 60;
+        gain.gain.value = 0.035;
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        isAudioOn = true;
+        document.getElementById('btn-audio').innerText = '🔊 Audio 60Hz ON';
+        showToast(t.toast_audio_on, t.toast_audio_on_desc);
+      } else {
+        if (audioCtx) audioCtx.close();
+        isAudioOn = false;
+        document.getElementById('btn-audio').innerText = '🔊 Audio 60Hz';
+        showToast(t.toast_audio_off, t.toast_audio_off_desc);
+      }
+    }
+
+    // ==============================
+    // 14. MODALS
+    // ==============================
+    function openModal(id) { document.getElementById('modal-' + id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById('modal-' + id).style.display = 'none'; }
+
+    // ==============================
+    // 15. NODE UI UPDATES
+    // ==============================
+    function populateDropdownAndCards() {
+      const sel = document.getElementById('node-selector');
+      sel.innerHTML = NODES.map(n => '<option value="' + n.id + '">' + n.id + ' - ' + n.name + '</option>').join('');
+      updateNodeUI(selectedNode);
+
+      const crGrid = document.getElementById('cr-nodes-grid');
+      if (crGrid) {
+        crGrid.innerHTML = NODES.map(n => `
+          <div class="kpi-card" style="cursor: pointer;" onclick="onSelectNodeId('${n.id}'); closeModal('controlroom');">
+            <div style="display: flex; justify-content: space-between;">
+              <strong style="color: #FFF; font-size: 11px;">${n.id}</strong>
+              <span style="color: ${n.status === 'red' ? '#EF4444' : n.status === 'yellow' ? '#FBBF24' : '#10B981'}; font-weight: bold;">
+                ${(n.ipt * 100).toFixed(1)}%
+              </span>
+            </div>
+            <div style="font-size: 9px; color: #94A3B8; margin-top: 2px;">${n.name}</div>
+          </div>
+        `).join('');
+      }
+
+      const crCrews = document.getElementById('cr-crews-list');
+      if (crCrews) {
+        crCrews.innerHTML = CREWS.map(c => `
+          <div class="kpi-card">
+            <div style="display: flex; justify-content: space-between;">
+              <strong style="color: #00E5FF;">${c.name}</strong>
+              <span style="font-size: 10px; color: #FBBF24;">${c.status.toUpperCase()}</span>
+            </div>
+            <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">Líder: ${c.leader} | Destino: ${c.target}</div>
+          </div>
+        `).join('');
+      }
+    }
+
+    function onSelectNodeId(id) {
+      selectedNode = NODES.find(n => n.id === id) || NODES[0];
+      document.getElementById('node-selector').value = selectedNode.id;
+      updateNodeUI(selectedNode);
+      const t = LANG[currentLang];
+      showToast('📍 ' + t.node_prefix + selectedNode.id, selectedNode.name + t.node_suffix + (selectedNode.ipt * 100).toFixed(1) + '%', [
+        { label: 'Corriente', val: selectedNode.current + ' A' },
+        { label: 'Pérdida PE', val: (selectedNode.delivered - selectedNode.collected) + ' kWh' }
+      ]);
+    }
+
+    function updateNodeUI(n) {
+      document.getElementById('card-current').innerText = n.current + ' A';
+      document.getElementById('card-voltage').innerText = n.voltage + ' V';
+      document.getElementById('card-temp').innerText = n.temp.toFixed(1) + ' °C';
+      document.getElementById('card-ipt-text').innerText = (n.ipt * 100).toFixed(1) + '%';
+      document.getElementById('card-ipt-bar').style.width = (n.ipt * 100) + '%';
+      document.getElementById('card-ipt-bar').style.background = n.status === 'red' ? '#EF4444' : n.status === 'yellow' ? '#FBBF24' : '#10B981';
+      document.getElementById('card-delivered').innerText = n.delivered.toLocaleString() + ' kWh';
+      document.getElementById('card-billed').innerText = n.billed.toLocaleString() + ' kWh';
+      document.getElementById('card-collected').innerText = n.collected.toLocaleString() + ' kWh';
+      document.getElementById('card-loss').innerText = (n.delivered - n.collected).toLocaleString() + ' kWh';
+      const dtHeader = document.getElementById('dt-node-header');
+      if (dtHeader) dtHeader.innerText = 'Digital Twin: ' + n.id + ' (' + n.capacityKVA + ' kVA / 13.8kV)';
+    }
+
+    // ==============================
+    // 16. INIT
+    // ==============================
+    window.onload = function() {
+      init3D();
+      translateUI('es');
+    };
+  </script>
+</body>
 </html>
