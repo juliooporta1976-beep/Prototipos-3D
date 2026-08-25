@@ -1,0 +1,1872 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Impresión 4D de Órganos Humanos - Dr. Julio César Oporta Barrera</title>
+    <meta name="description" content="Prototipo Tridimensional Interactivo de Bioimpresión 4D de Órganos Humanos (Riñones y Corazones) - Dr. Julio César Oporta Barrera">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js">
+    </script>
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+        body {
+            background-color: #0a0d14;
+            color: #e2e8f0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            cursor: grab;
+        }
+        #canvas-container:active {
+            cursor: grabbing;
+        }
+        .hud-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px;
+        }
+        .interactive {
+            pointer-events: auto;
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            border-radius: 12px;
+        }
+        .glass-card-accent {
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            box-shadow: 0 0 25px rgba(2, 136, 209, 0.2);
+        }
+        .btn-tactical {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            color: #cbd5e1;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            height: 28px;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-tactical:hover {
+            background: rgba(56, 189, 248, 0.2);
+            border-color: #38bdf8;
+            color: #ffffff;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+        }
+        .btn-tactical-active {
+            background: #0288d1 !important;
+            border-color: #38bdf8 !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 15px rgba(2, 136, 209, 0.5) !important;
+        }
+        .btn-tactical-pink {
+            background: rgba(236, 72, 153, 0.15);
+            border: 1px solid rgba(236, 72, 153, 0.35);
+            color: #f472b6;
+        }
+        .btn-tactical-pink:hover,
+        .btn-tactical-pink-active {
+            background: #db2777 !important;
+            border-color: #f472b6 !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 15px rgba(219, 39, 119, 0.5) !important;
+        }
+        .btn-tactical-emerald {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #34d399;
+        }
+        .btn-tactical-emerald:hover {
+            background: #059669 !important;
+            border-color: #34d399 !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 15px rgba(5, 150, 105, 0.5) !important;
+        }
+        .scroll-dark::-webkit-scrollbar {
+            width: 4px;
+        }
+        .scroll-dark::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 4px;
+        }
+        .scroll-dark::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.3);
+            border-radius: 4px;
+        }
+        .scroll-dark::-webkit-scrollbar-thumb:hover {
+            background: rgba(56, 189, 248, 0.6);
+        }
+        .pulse-dot {
+            animation: pulseAnim 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulseAnim {
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.4;
+                transform: scale(0.85);
+            }
+        }
+        .ecg-canvas {
+            width: 100%;
+            height: 36px;
+            background: rgba(10, 15, 26, 0.9);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 6px;
+        }
+        .slider-tactical {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: #1e293b;
+            outline: none;
+        }
+        .slider-tactical::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            box-shadow: 0 0 10px #38bdf8;
+        }
+        .sidebar-panel {
+            width: 220px;
+            max-width: 220px;
+        }
+        @media (max-width: 1024px) {
+            .sidebar-panel {
+                width: 180px;
+                max-width: 180px;
+            }
+        }
+        @media (max-width: 768px) {
+            .sidebar-panel {
+                width: 140px;
+                max-width: 140px;
+            }
+        }
+        .footer-toolbar {
+            padding: 6px 12px;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+        .footer-toolbar .btn-tactical {
+            font-size: 9px;
+            padding: 2px 8px;
+            height: 24px;
+        }
+        .header-toolbar .btn-tactical {
+            font-size: 9px;
+            padding: 2px 8px;
+            height: 24px;
+        }
+        .modal-content {
+            font-size: 11px;
+            line-height: 1.5;
+        }
+        .modal-content ul {
+            padding-left: 1.2rem;
+        }
+        /* Efecto de simulación: pulso en el botón */
+        .sim-flash {
+            animation: simFlash 0.4s ease;
+        }
+        @keyframes simFlash {
+            0% {
+                box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.6);
+            }
+            100% {
+                box-shadow: 0 0 20px 10px rgba(56, 189, 248, 0);
+            }
+        }
+        .sim-flash-pink {
+            animation: simFlashPink 0.4s ease;
+        }
+        @keyframes simFlashPink {
+            0% {
+                box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.6);
+            }
+            100% {
+                box-shadow: 0 0 20px 10px rgba(236, 72, 153, 0);
+            }
+        }
+        .sim-flash-emerald {
+            animation: simFlashEmerald 0.4s ease;
+        }
+        @keyframes simFlashEmerald {
+            0% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+            }
+            100% {
+                box-shadow: 0 0 20px 10px rgba(16, 185, 129, 0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 3D WebGL Canvas Viewport -->
+    <div id="canvas-container"></div>
+
+    <!-- HUD Tactical Overlay -->
+    <div class="hud-layer" id="hud-root">
+
+        <!-- Top Header (más compacto) -->
+        <header class="glass-card interactive px-3 py-2 flex flex-wrap justify-between items-center gap-2 header-toolbar">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-400 font-bold text-sm shadow-[0_0_15px_rgba(56,189,248,0.3)]">
+                    4D
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/20 border border-sky-500/40 text-sky-300 font-bold tracking-wider" id="header-author-label">
+                            DR. JULIO CÉSAR OPORTA BARRERA
+                        </span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                        <span class="text-[9px] text-emerald-400 font-mono tracking-widest hidden sm:inline" id="header-status">
+                            SISTEMA BIO-ACTIVO v4.8
+                        </span>
+                    </div>
+                    <h1 class="text-xs sm:text-sm font-bold text-white tracking-wide" id="header-title">
+                        Impresión 4D de Órganos Humanos • Riñones y Corazones
+                    </h1>
+                </div>
+            </div>
+
+            <!-- Quick Actions Header -->
+            <div class="flex items-center gap-1 flex-wrap">
+                <button class="btn-tactical" style="background:rgba(147,51,234,0.2);border-color:rgba(168,85,247,0.4);color:#d8b4fe;" onclick="handleClick(this, startGuidedTour)" id="btn-tour-modal">
+                    <i data-lucide="compass" class="w-3 h-3 text-purple-400"></i>
+                    <span id="tour-btn-label">Tour 4D</span>
+                </button>
+                <button class="btn-tactical" style="background:rgba(6,182,212,0.2);border-color:rgba(6,182,212,0.4);color:#67e8f9;" onclick="handleClick(this, ()=>openModal('biocycleModal'))" id="btn-biocycle-modal">
+                    <i data-lucide="sparkles" class="w-3 h-3 text-cyan-400"></i>
+                    <span id="biocycle-btn-label">Ciclo Fig. 1</span>
+                </button>
+                <button class="btn-tactical" onclick="handleClick(this, ()=>openModal('weeklyPlanModal'))" id="btn-weekly-modal">
+                    <i data-lucide="calendar" class="w-3 h-3 text-purple-400"></i>
+                    <span id="weekly-btn-label">Plan 52 Semanas</span>
+                </button>
+                <button class="btn-tactical" onclick="handleClick(this, ()=>openModal('regulatoryModal'))" id="btn-regulatory-modal">
+                    <i data-lucide="shield-check" class="w-3 h-3 text-emerald-400"></i>
+                    <span id="regulatory-btn-label">FDA / Calidad</span>
+                </button>
+                <button class="btn-tactical" onclick="handleClick(this, ()=>openModal('bibliographyModal'))" id="btn-biblio-modal">
+                    <i data-lucide="book-open" class="w-3 h-3 text-amber-400"></i>
+                    <span id="biblio-btn-label">Bibliografía (24)</span>
+                </button>
+                <button class="btn-tactical btn-tactical-pink" onclick="handleClick(this, ()=>openModal('genderModal'))" id="btn-gender-modal">
+                    <i data-lucide="users" class="w-3 h-3"></i>
+                    <span id="gender-btn-label">Monitoreo Sexo</span>
+                </button>
+                <button class="btn-tactical btn-tactical-emerald" onclick="handleClick(this, ()=>openModal('budgetModal'))" id="btn-budget-modal">
+                    <i data-lucide="calculator" class="w-3 h-3"></i>
+                    <span id="budget-btn-label">Presupuesto</span>
+                </button>
+                <button class="btn-tactical" onclick="handleClick(this, ()=>openModal('manualModal'))" id="btn-manual-modal">
+                    <i data-lucide="file-text" class="w-3 h-3"></i>
+                    <span id="manual-btn-label">Manual</span>
+                </button>
+                <button class="btn-tactical" onclick="handleClick(this, cycleLanguage)" id="btn-lang">
+                    <i data-lucide="globe" class="w-3 h-3"></i>
+                    <span><strong class="text-sky-400" id="lang-label">ES</strong></span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Workspace Center Area (Sidebars) -->
+        <div class="flex-1 flex justify-between gap-2 my-2 overflow-hidden pointer-events-none">
+
+            <!-- LEFT SIDEBAR: Operational Modes & Clinical Phases -->
+            <aside class="sidebar-panel flex flex-col gap-2 interactive overflow-hidden">
+
+                <!-- Operating Modes Card -->
+                <div class="glass-card p-2 flex flex-col gap-1.5 max-h-[42vh]">
+                    <div class="flex items-center justify-between border-b border-sky-500/20 pb-1">
+                        <span class="text-[10px] font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1" id="lbl-operating-modes">
+                            <i data-lucide="cpu" class="w-3 h-3"></i>
+                            Estados Operativos (8)
+                        </span>
+                        <span class="text-[8px] text-slate-400 font-mono" id="current-mode-code">BIOPRINT_4D</span>
+                    </div>
+                    <div class="flex flex-col gap-1 overflow-y-auto scroll-dark pr-0.5" id="mode-buttons-container">
+                        <!-- Dinámicamente generado -->
+                    </div>
+                </div>
+
+                <!-- Technical Protocols & Phases Card -->
+                <div class="glass-card p-2 flex-1 flex flex-col gap-1.5 overflow-hidden min-h-[28vh]">
+                    <div class="flex items-center justify-between border-b border-sky-500/20 pb-1">
+                        <span class="text-[10px] font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1" id="lbl-technical-phases">
+                            <i data-lucide="layers" class="w-3 h-3"></i>
+                            Fases Clínicas
+                        </span>
+                        <span class="text-[8px] text-emerald-400 font-bold" id="phase-badge">FASE 3/8</span>
+                    </div>
+                    <!-- Phase Tabs (1-8) -->
+                    <div class="grid grid-cols-8 gap-0.5" id="phase-tabs-container">
+                        <button class="text-[9px] py-0.5 rounded bg-slate-800 text-slate-300 font-bold hover:bg-sky-600 transition phase-tab" data-idx="0" onclick="handleClick(this, ()=>selectPhase(0))">1</button>
+                        <button class="text-[9px] py-0.5 rounded bg-slate-800 text-slate-300 font-bold hover:bg-sky-600 transition phase-tab" data-idx="1" onclick="handleClick(this, ()=>selectPhase(1))">2</button>
+                        <button class="text-[9px] py-0.5 rounded bg-sky-600 text-white font-bold transition phase-tab" data-idx="2" onclick="handleClick(this, ()=>selectPhase(2))">3</button>
+                        <button class="text-[9px] py-0.5 rounded bg-slate-800 text-slate-300 font-bold hover:bg-sky-600 transition phase-tab" data-idx="3" onclick="handleClick(this, ()=>selectPhase(3))">4</button>
+                        <button class="text-[9px] py-0.5 rounded bg-slate-800 text-slate-300 font-bold hover:bg-sky-600 transition phase-tab" data-idx="4" onclick="handleClick(this, ()=>selectPhase(4))">5</button>
+                        <button class="text-[9px] py-0.5 rounded bg-slate-800 text-slate-300 font-bold hover:bg-sky-600 transition phase-tab" data-idx="5" onclick="handleClick(this, ()=>selectPhase(5))">6</button>
+                        <button class="text-[9px] py-0.5 rounded bg-slate-800 text-slate-300 font-bold hover:bg-sky-600 transition phase-tab" data-idx="6" onclick="handleClick(this, ()=>selectPhase(6))">7</button>
+                        <button class="text-[9px] py-0.5 rounded bg-slate-800 text-slate-300 font-bold hover:bg-sky-600 transition phase-tab" data-idx="7" onclick="handleClick(this, ()=>selectPhase(7))">8</button>
+                    </div>
+                    <!-- Phase Content Box -->
+                    <div class="overflow-y-auto scroll-dark pr-0.5 flex-1 flex flex-col gap-1 bg-slate-900/60 p-1.5 rounded-lg border border-slate-800" id="phase-content-box">
+                        <div class="font-bold text-[10px] text-sky-300" id="phase-title">Fase 3: Impresión 4D Multimaterial</div>
+                        <p class="text-[9px] text-slate-300 leading-relaxed" id="phase-desc">
+                            Extrusión continua de bio-tinta con células madre iPSCs/MSCs en microcanales vasculares (200-500 μm), foto-reticulación UV a 365 nm e integración de polímeros PNIPAM termosensibles para cambio conformacional y maduración 4D.
+                        </p>
+                        <div class="grid grid-cols-2 gap-0.5 mt-0.5 pt-0.5 border-t border-slate-800 text-[8px]">
+                            <div class="text-slate-400">Resolución: <strong class="text-white">±10 μm</strong></div>
+                            <div class="text-slate-400">Estímulo: <strong class="text-amber-400">Térmico / UV</strong></div>
+                        </div>
+                    </div>
+                </div>
+
+            </aside>
+
+            <!-- RIGHT SIDEBAR: Live Biomedical Telemetry & AI Diagnostic Dashboard -->
+            <aside class="sidebar-panel flex flex-col gap-2 interactive overflow-hidden">
+
+                <div class="glass-card p-2 flex flex-col gap-2 h-full overflow-y-auto scroll-dark">
+
+                    <!-- Telemetry Header -->
+                    <div class="flex items-center justify-between border-b border-sky-500/20 pb-1">
+                        <span class="text-[10px] font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1" id="lbl-live-telemetry">
+                            <i data-lucide="activity" class="w-3 h-3"></i>
+                            Telemetría
+                        </span>
+                        <span class="text-[8px] text-emerald-400 font-mono flex items-center gap-1">
+                            <span class="w-1 h-1 rounded-full bg-emerald-400 pulse-dot"></span>
+                            TIEMPO REAL
+                        </span>
+                    </div>
+
+                    <!-- Real-Time ECG Heart Monitor -->
+                    <div class="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 flex flex-col gap-1">
+                        <div class="flex justify-between items-center text-[8px]">
+                            <span class="text-slate-400 flex items-center gap-1">
+                                <i data-lucide="heart" class="w-2.5 h-2.5 text-rose-500"></i>
+                                <span id="lbl-heart-rate">Ritmo Cardíaco</span>
+                            </span>
+                            <span class="text-rose-400 font-bold font-mono text-[10px]"><span id="val-heart-rate">75</span> BPM</span>
+                        </div>
+                        <canvas id="ecgCanvas" class="ecg-canvas"></canvas>
+                        <div class="flex justify-between text-[7px] text-slate-500">
+                            <span>QRS Sincronizado</span>
+                            <span>Perfusión: 120/80 mmHg</span>
+                        </div>
+                    </div>
+
+                    <!-- Cell Viability Bar -->
+                    <div class="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 flex flex-col gap-1">
+                        <div class="flex justify-between items-center text-[8px]">
+                            <span class="text-slate-400" id="lbl-cell-viability">Viabilidad Celular</span>
+                            <span class="text-emerald-400 font-bold font-mono"><span id="val-viability">98.6</span>%</span>
+                        </div>
+                        <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div id="bar-viability" class="h-full bg-emerald-500 rounded-full shadow-[0_0_8px_#10b981]" style="width:98.6%;"></div>
+                        </div>
+                        <div class="flex justify-between text-[7px] text-slate-500">
+                            <span>Umbral seguro: &gt;90%</span>
+                            <span class="text-emerald-400 font-semibold">ÓPTIMO</span>
+                        </div>
+                    </div>
+
+                    <!-- 4D Print Progress Bar -->
+                    <div class="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 flex flex-col gap-1">
+                        <div class="flex justify-between items-center text-[8px]">
+                            <span class="text-slate-400" id="lbl-print-progress">Progreso Bioimpresión</span>
+                            <span class="text-sky-400 font-bold font-mono"><span id="val-progress">64.2</span>%</span>
+                        </div>
+                        <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div id="bar-progress" class="h-full bg-sky-500 rounded-full shadow-[0_0_8px_#38bdf8]" style="width:64.2%;"></div>
+                        </div>
+                        <div class="flex justify-between text-[7px] text-slate-500">
+                            <span>Capa 822 / 1280</span>
+                            <span>Vel: 15 mm/s</span>
+                        </div>
+                    </div>
+
+                    <!-- Dual Telemetry Stats Grid -->
+                    <div class="grid grid-cols-2 gap-1 text-[8px]">
+                        <div class="bg-slate-900/70 p-1.5 rounded-lg border border-slate-800">
+                            <div class="text-slate-400" id="lbl-viscosity">Viscosidad</div>
+                            <div class="text-sky-400 font-bold font-mono text-[9px] mt-0.5"><span id="val-viscosity">3,200</span> cP</div>
+                            <div class="text-[7px] text-slate-500">PNIPAM 12% + Fibrina</div>
+                        </div>
+                        <div class="bg-slate-900/70 p-1.5 rounded-lg border border-slate-800">
+                            <div class="text-slate-400" id="lbl-uv-cure">Fotopolimerización</div>
+                            <div class="text-purple-400 font-bold font-mono text-[9px] mt-0.5">365 nm (45 mW)</div>
+                            <div class="text-[7px] text-slate-500">Cross-linking</div>
+                        </div>
+                        <div class="bg-slate-900/70 p-1.5 rounded-lg border border-slate-800">
+                            <div class="text-slate-400" id="lbl-renal-filter">Gradiente Bowman</div>
+                            <div class="text-amber-400 font-bold font-mono text-[9px] mt-0.5"><span id="val-renal-p">15</span> mmHg</div>
+                            <div class="text-[7px] text-slate-500">Urea: <span id="val-urea">86.4</span>%</div>
+                        </div>
+                        <div class="bg-slate-900/70 p-1.5 rounded-lg border border-slate-800">
+                            <div class="text-slate-400" id="lbl-ai-defect">IA Defecto</div>
+                            <div class="text-emerald-400 font-bold font-mono text-[9px] mt-0.5"><span id="val-ai-defect">0.18</span>%</div>
+                            <div class="text-[7px] text-slate-500">Score: 99.4%</div>
+                        </div>
+                        <div class="bg-slate-900/70 p-1.5 rounded-lg border border-slate-800">
+                            <div class="text-slate-400" id="lbl-angiogenesis">Angiogénesis</div>
+                            <div class="text-rose-400 font-bold font-mono text-[9px] mt-0.5">1.85 Factor</div>
+                            <div class="text-[7px] text-slate-500">Capilarización &gt;94%</div>
+                        </div>
+                        <div class="bg-slate-900/70 p-1.5 rounded-lg border border-slate-800">
+                            <div class="text-slate-400" id="lbl-day-maturation">Día Maduración</div>
+                            <div class="text-cyan-400 font-bold font-mono text-[9px] mt-0.5">Día 14 / 28</div>
+                            <div class="text-[7px] text-slate-500">Biorreactor</div>
+                        </div>
+                    </div>
+
+                    <!-- Active Organ Selector -->
+                    <div class="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 flex flex-col gap-1">
+                        <span class="text-[8px] text-slate-400 uppercase font-bold tracking-wider" id="lbl-organ-focus">Enfoque Órganos</span>
+                        <div class="grid grid-cols-3 gap-1">
+                            <button class="btn-tactical text-center justify-center text-[8px] py-0.5 h-6" id="organ-heart" onclick="handleClick(this, ()=>setOrgan('HEART'))">Corazón</button>
+                            <button class="btn-tactical text-center justify-center text-[8px] py-0.5 h-6" id="organ-kidney" onclick="handleClick(this, ()=>setOrgan('KIDNEY'))">Riñón</button>
+                            <button class="btn-tactical btn-tactical-active text-center justify-center text-[8px] py-0.5 h-6" id="organ-both" onclick="handleClick(this, ()=>setOrgan('BOTH'))">Ambos</button>
+                        </div>
+                    </div>
+
+                </div>
+
+            </aside>
+
+        </div>
+
+        <!-- Bottom Dock: View Modes, 4D Slider, Toggles -->
+        <footer class="glass-card interactive footer-toolbar flex flex-wrap justify-between items-center gap-1">
+
+            <!-- Camera Presets -->
+            <div class="flex items-center gap-0.5 flex-wrap">
+                <span class="text-[8px] text-sky-400 font-bold uppercase tracking-wider hidden lg:inline mr-0.5" id="lbl-cameras">Cámaras:</span>
+                <button class="btn-tactical btn-tactical-active" id="cam-orbit" onclick="handleClick(this, ()=>setCamera('ORBIT'))">
+                    <i data-lucide="rotate-3d" class="w-2.5 h-2.5"></i><span id="cam-orbit-label">Órbita</span>
+                </button>
+                <button class="btn-tactical" id="cam-printer" onclick="handleClick(this, ()=>setCamera('PRINTER'))">
+                    <i data-lucide="printer" class="w-2.5 h-2.5"></i><span id="cam-printer-label">Impresora</span>
+                </button>
+                <button class="btn-tactical" id="cam-bioreactor" onclick="handleClick(this, ()=>setCamera('BIOREACTOR'))">
+                    <i data-lucide="beaker" class="w-2.5 h-2.5"></i><span id="cam-bioreactor-label">Biorreactor</span>
+                </button>
+                <button class="btn-tactical" id="cam-heart" onclick="handleClick(this, ()=>setCamera('HEART'))">
+                    <i data-lucide="heart" class="w-2.5 h-2.5"></i><span id="cam-heart-label">Corazón</span>
+                </button>
+                <button class="btn-tactical" id="cam-kidney" onclick="handleClick(this, ()=>setCamera('KIDNEY'))">
+                    <i data-lucide="activity" class="w-2.5 h-2.5"></i><span id="cam-kidney-label">Riñón</span>
+                </button>
+                <button class="btn-tactical" id="cam-ai" onclick="handleClick(this, ()=>setCamera('AI_CORE'))">
+                    <i data-lucide="cpu" class="w-2.5 h-2.5"></i><span id="cam-ai-label">Núcleo IA</span>
+                </button>
+                <button class="btn-tactical" id="cam-logistics" onclick="handleClick(this, ()=>setCamera('LOGISTICS'))">
+                    <i data-lucide="truck" class="w-2.5 h-2.5"></i><span id="cam-logistics-label">AGVs</span>
+                </button>
+            </div>
+
+            <!-- 4D Time & Stimulus Transformation Slider -->
+            <div class="flex items-center gap-1 bg-slate-900/80 px-2 py-0.5 rounded-lg border border-slate-800 min-w-[160px]">
+                <div class="flex items-center gap-0.5 text-[9px] text-sky-400 font-bold whitespace-nowrap">
+                    <i data-lucide="sparkles" class="w-3 h-3 text-amber-400"></i>
+                    <span id="lbl-4d-slider">Estímulo 4D:</span>
+                </div>
+                <input type="range" min="0" max="1" step="0.01" value="0.5" class="slider-tactical" id="fourDSlider" oninput="on4DSliderChange(this.value)">
+                <span class="text-[9px] font-mono font-bold text-white min-w-[28px]" id="fourDVal">50%</span>
+            </div>
+
+            <!-- Interactive Toggles & Simulation Speed -->
+            <div class="flex items-center gap-0.5 flex-wrap">
+                <button class="btn-tactical" id="btn-explode" onclick="handleClick(this, toggleExploded)">
+                    <i data-lucide="minimize-2" class="w-2.5 h-2.5"></i><span id="lbl-explode">Explotada</span>
+                </button>
+                <button class="btn-tactical" id="btn-xray" onclick="handleClick(this, toggleXray)">
+                    <i data-lucide="scan" class="w-2.5 h-2.5"></i><span id="lbl-xray">Rayos X</span>
+                </button>
+                <button class="btn-tactical" id="btn-section" onclick="handleClick(this, toggleSection)">
+                    <i data-lucide="scissors" class="w-2.5 h-2.5"></i><span id="lbl-section">Sección</span>
+                </button>
+                <button class="btn-tactical btn-tactical-active" id="btn-rotate" onclick="handleClick(this, toggleAutoRotate)">
+                    <i data-lucide="compass" class="w-2.5 h-2.5"></i><span id="lbl-autorotate">Girar</span>
+                </button>
+                <button class="btn-tactical" id="btn-ar" onclick="handleClick(this, toggleAR)">
+                    <i data-lucide="box" class="w-2.5 h-2.5"></i><span id="lbl-ar">Modo AR</span>
+                </button>
+                <button class="btn-tactical" id="btn-pause" onclick="handleClick(this, togglePause)">
+                    <i data-lucide="pause" class="w-2.5 h-2.5" id="icon-pause"></i><span id="lbl-pause">Pausa</span>
+                </button>
+                <!-- Nuevo botón Reset -->
+                <button class="btn-tactical" id="btn-reset" onclick="handleClick(this, resetScene)">
+                    <i data-lucide="rotate-ccw" class="w-2.5 h-2.5"></i><span id="lbl-reset">Reset</span>
+                </button>
+            </div>
+
+        </footer>
+
+    </div>
+
+    <!-- MODALES (estructura igual, contenido traducible) -->
+    <div id="genderModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-card-accent max-w-3xl w-full max-h-[85vh] flex flex-col rounded-xl overflow-hidden border border-pink-500/40">
+            <div class="p-3 border-b border-slate-700 flex justify-between items-center bg-slate-900/80">
+                <div class="flex items-center gap-2 text-pink-400 font-bold text-sm" id="gender-modal-title"><i data-lucide="users" class="w-4 h-4"></i><span>Protocolo de Monitoreo Clínico Diferenciado por Sexo</span></div>
+                <button class="text-slate-400 hover:text-white p-1" onclick="closeModal('genderModal')"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="p-4 overflow-y-auto scroll-dark modal-content text-slate-300" id="gender-modal-content"></div>
+            <div class="p-2 border-t border-slate-800 flex justify-end bg-slate-900/90">
+                <button class="btn-tactical" onclick="closeModal('genderModal')" id="gender-close-btn">Cerrar</button>
+            </div>
+        </div>
+    </div>
+    <div id="budgetModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-card-accent max-w-3xl w-full max-h-[85vh] flex flex-col rounded-xl overflow-hidden border border-emerald-500/40">
+            <div class="p-3 border-b border-slate-700 flex justify-between items-center bg-slate-900/80">
+                <div class="flex items-center gap-2 text-emerald-400 font-bold text-sm" id="budget-modal-title"><i data-lucide="calculator" class="w-4 h-4"></i><span>Matriz Presupuestaria, Costo por Paciente y ROI Clínico</span></div>
+                <button class="text-slate-400 hover:text-white p-1" onclick="closeModal('budgetModal')"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="p-4 overflow-y-auto scroll-dark modal-content text-slate-300" id="budget-modal-content"></div>
+            <div class="p-2 border-t border-slate-800 flex justify-end bg-slate-900/90">
+                <button class="btn-tactical" onclick="closeModal('budgetModal')" id="budget-close-btn">Cerrar</button>
+            </div>
+        </div>
+    </div>
+    <div id="manualModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-card-accent max-w-3xl w-full max-h-[85vh] flex flex-col rounded-xl overflow-hidden border border-sky-500/40">
+            <div class="p-3 border-b border-slate-700 flex justify-between items-center bg-slate-900/80">
+                <div class="flex items-center gap-2 text-sky-400 font-bold text-sm" id="manual-modal-title"><i data-lucide="book-open" class="w-4 h-4"></i><span>Manual Técnico de Biofabricación 4D</span></div>
+                <button class="text-slate-400 hover:text-white p-1" onclick="closeModal('manualModal')"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="p-4 overflow-y-auto scroll-dark modal-content text-slate-300" id="manual-modal-content"></div>
+            <div class="p-2 border-t border-slate-800 flex justify-end bg-slate-900/90">
+                <button class="btn-tactical btn-tactical-active" onclick="closeModal('manualModal')" id="manual-close-btn">Cerrar</button>
+            </div>
+        </div>
+    </div>
+    <div id="biocycleModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-card-accent max-w-4xl w-full max-h-[85vh] flex flex-col rounded-xl overflow-hidden border border-cyan-500/40">
+            <div class="p-3 border-b border-slate-700 flex justify-between items-center bg-slate-900/80">
+                <div class="flex items-center gap-2 text-cyan-400 font-bold text-sm" id="biocycle-modal-title"><i data-lucide="sparkles" class="w-4 h-4"></i><span>Ciclo de Biofabricación 4D Integral (Figura 1)</span></div>
+                <button class="text-slate-400 hover:text-white p-1" onclick="closeModal('biocycleModal')"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="p-4 overflow-y-auto scroll-dark modal-content text-slate-300" id="biocycle-modal-content"></div>
+            <div class="p-2 border-t border-slate-800 flex justify-end bg-slate-900/90">
+                <button class="btn-tactical" onclick="closeModal('biocycleModal')" id="biocycle-close-btn">Cerrar</button>
+            </div>
+        </div>
+    </div>
+    <div id="weeklyPlanModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-card-accent max-w-4xl w-full max-h-[85vh] flex flex-col rounded-xl overflow-hidden border border-purple-500/40">
+            <div class="p-3 border-b border-slate-700 flex justify-between items-center bg-slate-900/80">
+                <div class="flex items-center gap-2 text-purple-400 font-bold text-sm" id="weekly-modal-title"><i data-lucide="calendar" class="w-4 h-4"></i><span>Cronograma de Implementación Clínica • 52 Semanas</span></div>
+                <button class="text-slate-400 hover:text-white p-1" onclick="closeModal('weeklyPlanModal')"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="p-4 overflow-y-auto scroll-dark modal-content text-slate-300" id="weekly-modal-content"></div>
+            <div class="p-2 border-t border-slate-800 flex justify-end bg-slate-900/90">
+                <button class="btn-tactical" onclick="closeModal('weeklyPlanModal')" id="weekly-close-btn">Cerrar</button>
+            </div>
+        </div>
+    </div>
+    <div id="regulatoryModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-card-accent max-w-4xl w-full max-h-[85vh] flex flex-col rounded-xl overflow-hidden border border-emerald-500/40">
+            <div class="p-3 border-b border-slate-700 flex justify-between items-center bg-slate-900/80">
+                <div class="flex items-center gap-2 text-emerald-400 font-bold text-sm" id="regulatory-modal-title"><i data-lucide="shield-check" class="w-4 h-4"></i><span>Marco Técnico, Regulatorio y Control de Calidad</span></div>
+                <button class="text-slate-400 hover:text-white p-1" onclick="closeModal('regulatoryModal')"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="p-4 overflow-y-auto scroll-dark modal-content text-slate-300" id="regulatory-modal-content"></div>
+            <div class="p-2 border-t border-slate-800 flex justify-end bg-slate-900/90">
+                <button class="btn-tactical" onclick="closeModal('regulatoryModal')" id="regulatory-close-btn">Cerrar</button>
+            </div>
+        </div>
+    </div>
+    <div id="bibliographyModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-card-accent max-w-4xl w-full max-h-[85vh] flex flex-col rounded-xl overflow-hidden border border-amber-500/40">
+            <div class="p-3 border-b border-slate-700 flex justify-between items-center bg-slate-900/80">
+                <div class="flex items-center gap-2 text-amber-400 font-bold text-sm" id="bibliography-modal-title"><i data-lucide="book-open" class="w-4 h-4"></i><span>Bibliografía Científica (24 Publicaciones)</span></div>
+                <button class="text-slate-400 hover:text-white p-1" onclick="closeModal('bibliographyModal')"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="p-4 overflow-y-auto scroll-dark modal-content text-slate-300" id="bibliography-modal-content"></div>
+            <div class="p-2 border-t border-slate-800 flex justify-end bg-slate-900/90">
+                <button class="btn-tactical" onclick="closeModal('bibliographyModal')" id="bibliography-close-btn">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. MULTI-LANGUAGE DICTIONARY COMPLETO (es, en, zh) ---
+        const i18n = {
+            es: {
+                author: "Dr. Julio César Oporta Barrera",
+                title: "Impresión 4D de Órganos Humanos • Riñones y Corazones",
+                status: "SISTEMA BIO-ACTIVO v4.8",
+                tourBtn: "Tour 4D",
+                biocycleBtn: "Ciclo Fig. 1",
+                weeklyBtn: "Plan 52 Semanas",
+                regulatoryBtn: "FDA / Calidad",
+                biblioBtn: "Bibliografía (24)",
+                genderBtn: "Monitoreo Sexo",
+                budgetBtn: "Presupuesto",
+                manualBtn: "Manual Técnico",
+                resetBtn: "Reset",
+                operatingModes: "Estados Operativos (8)",
+                phases: "Fases Clínicas",
+                telemetry: "Telemetría Biomédica",
+                heartRate: "Ritmo Cardíaco",
+                cellViability: "Viabilidad Celular",
+                printProgress: "Progreso Bioimpresión",
+                viscosity: "Viscosidad",
+                uvCure: "Fotopolimerización",
+                renalFilter: "Gradiente Bowman",
+                aiDefect: "IA Defecto",
+                angiogenesis: "Angiogénesis",
+                maturation: "Día Maduración",
+                organFocus: "Enfoque Órganos",
+                cameras: "Cámaras:",
+                stimulus4D: "Estímulo 4D:",
+                explode: "Explotada",
+                xray: "Rayos X",
+                section: "Sección",
+                rotate: "Girar",
+                ar: "Modo AR",
+                pause: "Pausa",
+                resume: "Reanudar",
+                camOrbit: "Órbita",
+                camPrinter: "Impresora",
+                camBioreactor: "Biorreactor",
+                camHeart: "Corazón",
+                camKidney: "Riñón",
+                camAI: "Núcleo IA",
+                camLogistics: "AGVs",
+                close: "Cerrar",
+                modes: [
+                    { id: "STANDBY", name: "Modo Reposo (4°C)", desc: "Mantenimiento estéril a 4°C y conservación celular." },
+                    { id: "ANALYSIS", name: "Análisis TC / RMN", desc: "Reconstrucción volumétrica 3D y diseño de microcanales." },
+                    { id: "BIO_INK", name: "Formulación Bio-tinta", desc: "Aislamiento de iPSCs/MSCs y polímeros 4D PNIPAM." },
+                    { id: "BIOPRINT_4D", name: "Impresión 4D Activa", desc: "Extrusión coaxial multicanal con reticulación UV 365nm." },
+                    { id: "BIOREACTOR_INCUBATION", name: "Biorreactor Dinámico", desc: "Perfusión pulsátil (120/80 mmHg) y maduración celular." },
+                    { id: "IN_VIVO_IMPLANT", name: "Implante Quirúrgico", desc: "Anastomosis microvascular y perfusión sanguínea in vivo." },
+                    { id: "GENDER_DIFFERENTIATED", name: "Monitoreo por Sexo", desc: "Protocolo adaptativo (CYP3A4, TFG, hormonal y oncológico)." },
+                    { id: "AI_OPTIMIZATION", name: "Optimización por IA", desc: "Corrección G-Code en tiempo real y detección de defectos." }
+                ],
+                phasesList: [
+                    { title: "Fase 1: Evaluación Preoperatoria & TC/RMN",
+                    desc: "Segmentación multimodal de alta resolución (0.5 mm), diseño CAD de microcanales vasculares (200-500 μm) y cálculo de índices anatómicos específicos por sexo." },
+                    { title: "Fase 2: Bio-tinta Inteligente & Células Madre",
+                    desc: "Formulación de matriz biocompatible (PNIPAM, GelMA, Fibrina) con células madre autólogas (10^7 cels/mL) y factores de crecimiento angiogénicos (VEGF, BMP-7)." },
+                    { title: "Fase 3: Impresión 4D Multimaterial",
+                    desc: "Extrusión coaxial de precisión con cabezal de doble jeringa, foto-reticulación UV a 365 nm e inducción térmica para cambio conformacional y autoensamblado." },
+                    { title: "Fase 4: Maduración en Biorreactor de Perfusión",
+                    desc: "Incubación dinámica de 14 a 28 días con estímulo hemodinámico pulsátil (1-2 Hz, 120/80 mmHg para corazón) y gradientes de presión para filtración renal." },
+                    { title: "Fase 5: Implante Quirúrgico & Anastomosis",
+                    desc: "Técnica de microcirugía vascular con suturas 8-0 a 10-0, heparinizacion local y confirmación de perfusión inmediata sin fugas endoteliales." },
+                    { title: "Fase 6: Mitigación de Riesgos & Protocolos",
+                    desc: "Planes de contingencia para oclusión microvascular, delaminación de bio-tinta y arritmias con parches electroconductores de grafeno." },
+                    { title: "Fase 7: Monitoreo Diferenciado por Sexo",
+                    desc: "Monitoreo individualizado de farmacocinética de tacrolimus (+20% en mujeres), cribado ginecológico/prostático y protección ósea/cardiovascular." },
+                    { title: "Fase 8: Presupuesto Financiero & Normas",
+                    desc: "Inversión total de $19.4M USD bajo normas FDA 21 CFR 820/1271, CE MDR 2017/745 e ISO 13485 para comercialización y uso clínico." }
+                ],
+                genderModalTitle: "Protocolo de Monitoreo Clínico Diferenciado por Sexo",
+                genderModalContent: `<div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="bg-slate-900/80 p-3.5 rounded-lg border border-sky-500/30 flex flex-col gap-2.5"><div class="flex items-center gap-2 text-sky-400 font-bold text-sm border-b border-slate-800 pb-1.5"><i data-lucide="user" class="w-4 h-4"></i><span>Protocolo Masculino (Hombre)</span></div><ul class="space-y-2 text-[11px] leading-relaxed"><li>• <strong class="text-sky-300">Farmacocinética:</strong> Mayor volemia y masa muscular. Dosis estándar de Tacrolimus (0.10-0.15 mg/kg/día) para niveles diana 6-10 ng/mL.</li><li>• <strong class="text-sky-300">Función Renal:</strong> Ecuación CKD-EPI calibrada para creatinina basal superior por mayor masa magra.</li><li>• <strong class="text-sky-300">Riesgo Cardiovascular:</strong> Mayor prevalencia de cardiopatía isquémica post-trasplante. Monitorización de perfil lipídico y ecocardiograma Doppler cada 3 meses.</li><li>• <strong class="text-sky-300">Salud Sexual & Hormonal:</strong> Evaluación trimestral de testosterona libre y escala IIEF-5 para prevenir disfunción eréctil inducida por fármacos.</li><li>• <strong class="text-sky-300">Cribado Oncológico:</strong> PSA anual a partir de los 45 años por riesgo incrementado de neoplasia prostática bajo inmunosupresión.</li></ul></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-pink-500/30 flex flex-col gap-2.5"><div class="flex items-center gap-2 text-pink-400 font-bold text-sm border-b border-slate-800 pb-1.5"><i data-lucide="user-check" class="w-4 h-4"></i><span>Protocolo Femenino (Mujer)</span></div><ul class="space-y-2 text-[11px] leading-relaxed"><li>• <strong class="text-pink-300">Aclaramiento Metabólico:</strong> Actividad de CYP3A4 un 20-30% más rápida por influencia estrogénica. Requiere monitoreo estrecho de valles de Tacrolimus.</li><li>• <strong class="text-pink-300">Salud Reproductiva:</strong> Contraindicación absoluta de micofenolato mofetilo durante embarazo (teratogénesis). Planificación con Azatioprina si se planifica gestación.</li><li>• <strong class="text-pink-300">Autoinmunidad & Rechazo:</strong> Mayor respuesta inmune celular. Vigilancia de anticuerpos donor-específicos (DSA) y marcadores de LES.</li><li>• <strong class="text-pink-300">Salud Ósea:</strong> Densitometría ósea (DEXA) anual por riesgo acelerado de osteoporosis post-corticoesteroides y menopausia.</li><li>• <strong class="text-pink-300">Cribado Ginecológico:</strong> Citología cervical (Papanicolaou) semestral y mamografía anual por riesgo HPV e inmunosupresión.</li></ul></div></div><div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800 text-[11px] mt-4"><strong class="text-emerald-400">Conclusión de Bio-compatibilidad:</strong> La bio-impresión 4D autóloga con células madre iPSCs del propio paciente reduce a cero el rechazo hiperagudo, permitiendo esquemas de inmunosupresión mínimos y personalizados según el perfil hormonal y genético de cada sexo.</div>`,
+                budgetModalTitle: "Matriz Presupuestaria, Costo por Paciente y ROI Clínico",
+                budgetModalContent: `<div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="border-b border-slate-700 text-slate-400 text-[11px]"><th class="py-2">Fase del Proyecto</th><th class="py-2">Duración</th><th class="py-2">Inversión (USD)</th><th class="py-2">Entregable Principal</th></tr></thead><tbody class="divide-y divide-slate-800 font-mono text-[11px]"><tr><td class="py-1.5 text-white">1. Evaluación & Diseño TC/RMN</td><td class="text-slate-400">Mes 1-3</td><td class="text-emerald-400 font-bold">$1,250,000</td><td class="text-slate-300">Modelos STL/G-Code</td></tr><tr><td class="py-1.5 text-white">2. Bio-tinta & Células Madre</td><td class="text-slate-400">Mes 3-8</td><td class="text-emerald-400 font-bold">$3,800,000</td><td class="text-slate-300">Bancos iPSCs/MSCs</td></tr><tr><td class="py-1.5 text-white">3. Bioimpresora 4D Robótica</td><td class="text-slate-400">Mes 6-14</td><td class="text-emerald-400 font-bold">$4,500,000</td><td class="text-slate-300">Cabezal 10μm + UV 365nm</td></tr><tr><td class="py-1.5 text-white">4. Biorreactores de Perfusión</td><td class="text-slate-400">Mes 12-20</td><td class="text-emerald-400 font-bold">$2,900,000</td><td class="text-slate-300">Maduración Hemodinámica</td></tr><tr><td class="py-1.5 text-white">5. Ensayos In Vivo & Quirúrgicos</td><td class="text-slate-400">Mes 18-30</td><td class="text-emerald-400 font-bold">$4,200,000</td><td class="text-slate-300">Anastomosis e Implantes</td></tr><tr><td class="py-1.5 text-white">6. Ensayos Clínicos & Regulatorios</td><td class="text-slate-400">Mes 28-48</td><td class="text-emerald-400 font-bold">$2,750,000</td><td class="text-slate-300">Aprobación FDA / CE Mark</td></tr><tr class="bg-slate-900/90 font-bold"><td class="py-2 text-sky-300">TOTAL CAPEX I+D</td><td>48 Meses</td><td class="text-emerald-400 text-sm">$19,400,000</td><td class="text-emerald-300">Plataforma Certificada</td></tr></tbody></table></div><div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3"><div class="bg-slate-900/80 p-3 rounded-lg border border-sky-500/30"><div class="text-sky-400 font-bold text-xs">Costo Unitario por Paciente (Hombre)</div><div class="text-xl font-bold text-white font-mono mt-1">$395,000 <span class="text-xs text-slate-400 font-normal">USD</span></div><div class="text-[10px] text-slate-400 mt-1">Incluye reprogramación iPSC, 4D print, 28 días biorreactor, cirugía y seguimiento 1 año.</div></div><div class="bg-slate-900/80 p-3 rounded-lg border border-pink-500/30"><div class="text-pink-400 font-bold text-xs">Costo Unitario por Paciente (Mujer)</div><div class="text-xl font-bold text-white font-mono mt-1">$417,500 <span class="text-xs text-slate-400 font-normal">USD</span></div><div class="text-[10px] text-slate-400 mt-1">Incluye paneles farmacogenómicos CYP3A4, cribados oncológicos y preservación ovárica.</div></div></div><div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800 text-[11px] mt-4"><strong class="text-emerald-400">Marco Regulatorio & Calidad:</strong> Certificación bajo normas ISO 13485 (Dispositivos Médicos), ISO 14971 (Gestión de Riesgos), FDA 21 CFR 820 / 1271 (Células y Tejidos Humanos) y CE MDR 2017/745 de la Unión Europea.</div>`,
+                manualModalTitle: "Manual Técnico de Biofabricación 4D • Dr. Julio César Oporta Barrera",
+                manualModalContent: `<div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800"><h3 class="text-sm font-bold text-sky-400 mb-1">1. Fundamento de la Impresión 4D en Órganos</h3><p class="text-[11px] leading-relaxed text-slate-300">A diferencia de la bioimpresión 3D tradicional (estática), la tecnología 4D añade la dimensión del tiempo mediante materiales inteligentes con memoria de forma y respuesta a estímulos físicos (temperatura a 37°C, pH 7.4 y gradientes de perfusión osmótica). El andamio se transforma dinámicamente promoviendo la angiogénesis, el plegamiento tubular nefronal y la orientación de miofibrillas cardíacas.</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800 mt-3"><h3 class="text-sm font-bold text-sky-400 mb-1">2. Bio-tinta Inteligente & Células Madre</h3><p class="text-[11px] leading-relaxed text-slate-300">Composición basada en polímeros biocompatibles termosensibles (Poli(N-isopropilacrilamida) / PNIPAM), gelatina metacrilada (GelMA), ácido hialurónico y fibrina. Celularidad autóloga derivada de células madre pluripotentes inducidas (iPSCs) diferenciadas a cardiomiocitos (>95% troponina T positiva) y células endoteliales CD31+, junto con células mesenquimales (MSCs) a una densidad de 10^7 células/mL.</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800 mt-3"><h3 class="text-sm font-bold text-sky-400 mb-1">3. Biorreactor Dinámico de Doble Perfusión</h3><p class="text-[11px] leading-relaxed text-slate-300">El corazón requiere estimulación eléctrica continua (1 Hz, 2-5 V) acoplada a perfusión pulsátil (120/80 mmHg). El riñón requiere gradiente hidrostático constante (10-15 mmHg en cápsula de Bowman) con flujo continuo de medio enriquecido con glucosa, aminoácidos y eritropoyetina para inducir transporte tubular activo.</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800 mt-3"><h3 class="text-sm font-bold text-sky-400 mb-1">4. Monitoreo por Red Neuronal e Inteligencia Artificial</h3><p class="text-[11px] leading-relaxed text-slate-300">Cámaras de visión estereoscópica de alta velocidad y sensores de flujo Doppler alimentan un modelo de Deep Learning en tiempo real que ajusta las presiones de inyección microfluídica, compensa el encogimiento del hidrogel y anticipa microfisuras antes del implante.</p></div>`,
+                biocycleModalTitle: "Ciclo de Biofabricación 4D Integral (Figura 1 del Manual)",
+                biocycleModalContent: `<div class="grid grid-cols-1 md:grid-cols-5 gap-3"><div class="bg-slate-900/80 p-3 rounded-lg border border-cyan-500/30"><div class="text-cyan-400 font-bold text-xs mb-1">1. Extracción & Reprogramación</div><p class="text-[11px] text-slate-400">Aislamiento de células madre autólogas (MSCs/iPSCs). Pureza ≥95%, viabilidad &gt;90%.</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-cyan-500/30"><div class="text-cyan-400 font-bold text-xs mb-1">2. Bio-tinta Inteligente</div><p class="text-[11px] text-slate-400">Fibrina + GelMA + PNIPAM 12% a 37°C. Viscosidad 1,000-5,000 cP sin cizallamiento.</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-cyan-500/30"><div class="text-cyan-400 font-bold text-xs mb-1">3. Bioimpresión 4D Robótica</div><p class="text-[11px] text-slate-400">Extrusión coaxial multicanal (≤50 μm), fotopolimerización UV 365nm ≤30s.</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-cyan-500/30"><div class="text-cyan-400 font-bold text-xs mb-1">4. Biorreactor Dinámico</div><p class="text-[11px] text-slate-400">Perfusión pulsátil 120/80 mmHg y gradiente Bowman 10-20 mmHg durante 14-28 días.</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-cyan-500/30"><div class="text-cyan-400 font-bold text-xs mb-1">5. Implante & Maduración 4D</div><p class="text-[11px] text-slate-400">Anastomosis microvascular y adaptación fisiológica in vivo con 0% rechazo hiperagudo.</p></div></div>`,
+                weeklyModalTitle: "Cronograma de Implementación Clínica • 52 Semanas",
+                weeklyModalContent: `<div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800"><div class="text-purple-300 font-bold text-xs mb-1">Fase I: Semanas 1 a 12</div><p class="text-[11px] text-slate-400">Optimización de bio-tinta termosensible PNIPAM, caracterización reológica (1000-5000 cP) y calibración de extrusión coaxial multicanal.</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800"><div class="text-purple-300 font-bold text-xs mb-1">Fase II: Semanas 13 a 24</div><p class="text-[11px] text-slate-400">Construcción y validación de biorreactores pulsátiles con gradientes fisiológicos (120/80 mmHg cardíaco y 10-20 mmHg renal).</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800"><div class="text-purple-300 font-bold text-xs mb-1">Fase III: Semanas 25 a 38</div><p class="text-[11px] text-slate-400">Bioimpresión de prototipos a escala real y maduración dinámica in vitro con viabilidad celular comprobada &gt;95%.</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800"><div class="text-purple-300 font-bold text-xs mb-1">Fase IV: Semanas 39 a 52</div><p class="text-[11px] text-slate-400">Ensayos preclínicos in vivo en modelos porcinos bajo GLP y compilación del dossier regulatorio FDA/CE Mark.</p></div></div>`,
+                regulatoryModalTitle: "Marco Técnico, Regulatorio y Control de Calidad (Secciones II & III)",
+                regulatoryModalContent: `<div class="grid grid-cols-1 md:grid-cols-3 gap-3"><div class="bg-slate-900/80 p-3 rounded-lg border border-emerald-500/30"><div class="text-emerald-300 font-bold text-xs mb-1">FDA 21 CFR 820 / 1271</div><p class="text-[11px] text-slate-400">Dispositivo Médico Combinado (PMA/510k). Vía RMAT para Terapias Avanzadas de Medicina Regenerativa.</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-emerald-500/30"><div class="text-emerald-300 font-bold text-xs mb-1">CE MDR 2017/745 Clase III</div><p class="text-[11px] text-slate-400">Dispositivo Médico Implantable de Máximo Riesgo. Auditoría continua por Organismo Notificado bajo GMP.</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-emerald-500/30"><div class="text-emerald-300 font-bold text-xs mb-1">Salas Limpias ISO 5</div><p class="text-[11px] text-slate-400">Biomanufactura en salas limpias Clase ISO 5 (&lt;3,520 partículas/m³ ≥0.5 μm) con presión positiva continua.</p></div></div>`,
+                bibliographyModalTitle: "Bibliografía Científica y Evidencia Clínica (24 Publicaciones de Alto Impacto)",
+                bibliographyModalContent: `<div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800"><div class="font-bold text-white">Atala, A., & Lanza, R. (2020) • Principles of Regenerative Medicine and Tissue Engineering</div><div class="text-[11px] text-slate-400 mt-1">Sustenta los fundamentos teóricos de la biomanufactura y regeneración funcional de órganos humanos.</div></div><div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 mt-2"><div class="font-bold text-white">Dominici, M., Le Blanc, K., Mueller, I., et al. (2006) • Cytotherapy</div><div class="text-[11px] text-slate-400 mt-1">Sustenta estándares de pureza (&gt;95%) y viabilidad (&gt;90%) para MSCs mediante citometría de flujo.</div></div><div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 mt-2"><div class="font-bold text-white">Takahashi, K., & Yamanaka, S. (2006) • Cell, 126(4)</div><div class="text-[11px] text-slate-400 mt-1">Sustenta la base científica de reprogramación celular autóloga a estado iPSC.</div></div><div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 mt-2"><div class="font-bold text-white">Akalin, C., & Murphy, B. (2021) • Clinical and Experimental Transplantation</div><div class="text-[11px] text-slate-400 mt-1">Sustenta el mayor riesgo de reactividad inmune en mujeres y necesidad de monitoreo diferenciado.</div></div>`
+            },
+            en: {
+                author: "Dr. Julio César Oporta Barrera",
+                title: "4D Human Organ Bioprinting • Kidneys and Hearts",
+                status: "BIO-ACTIVE SYSTEM v4.8",
+                tourBtn: "4D Tour",
+                biocycleBtn: "Fig. 1 Cycle",
+                weeklyBtn: "52-Week Plan",
+                regulatoryBtn: "FDA / Quality",
+                biblioBtn: "Bibliography (24)",
+                genderBtn: "Gender Monitoring",
+                budgetBtn: "Budget",
+                manualBtn: "Technical Manual",
+                resetBtn: "Reset",
+                operatingModes: "Operating Modes (8)",
+                phases: "Clinical Phases",
+                telemetry: "Biomedical Telemetry",
+                heartRate: "Heart Rate",
+                cellViability: "Cell Viability",
+                printProgress: "Bioprint Progress",
+                viscosity: "Viscosity",
+                uvCure: "UV Photopolym.",
+                renalFilter: "Bowman Gradient",
+                aiDefect: "AI Defect",
+                angiogenesis: "Angiogenesis",
+                maturation: "Maturation Day",
+                organFocus: "Organ Focus",
+                cameras: "Cameras:",
+                stimulus4D: "4D Stimulus:",
+                explode: "Exploded",
+                xray: "X-Ray",
+                section: "Section",
+                rotate: "Rotate",
+                ar: "AR Mode",
+                pause: "Pause",
+                resume: "Resume",
+                camOrbit: "Orbit",
+                camPrinter: "Printer",
+                camBioreactor: "Bioreactor",
+                camHeart: "Heart",
+                camKidney: "Kidney",
+                camAI: "AI Core",
+                camLogistics: "AGVs",
+                close: "Close",
+                modes: [
+                    { id: "STANDBY", name: "Standby (4°C)", desc: "Sterile preservation at 4°C and cell maintenance." },
+                    { id: "ANALYSIS", name: "CT / MRI Analysis", desc: "3D volumetric reconstruction and microchannel design." },
+                    { id: "BIO_INK", name: "Bio-ink Formulation", desc: "Autologous iPSCs/MSCs isolation and 4D PNIPAM hydrogels." },
+                    { id: "BIOPRINT_4D", name: "Active 4D Printing", desc: "Multichannel coaxial extrusion with 365nm UV crosslinking." },
+                    { id: "BIOREACTOR_INCUBATION", name: "Dynamic Bioreactor", desc: "Pulsatile perfusion (120/80 mmHg) and tissue maturation." },
+                    { id: "IN_VIVO_IMPLANT", name: "Surgical Implant", desc: "Microvascular anastomosis and immediate blood perfusion." },
+                    { id: "GENDER_DIFFERENTIATED", name: "Gender Monitoring", desc: "Adaptive protocol (CYP3A4 clearance, GFR, hormonal profiling)." },
+                    { id: "AI_OPTIMIZATION", name: "AI Optimization", desc: "Real-time G-Code trajectory tuning and defect prevention." }
+                ],
+                phasesList: [
+                    { title: "Phase 1: Pre-op Assessment & CT/MRI",
+                    desc: "High-resolution multimodal segmentation (0.5mm), CAD vascular microchannel modeling (200-500 μm), and gender-specific anatomical index calculation." },
+                    { title: "Phase 2: Smart Bio-ink & Stem Cells",
+                    desc: "Formulation of responsive matrices (PNIPAM, GelMA, Fibrin) with autologous stem cells (10^7 cells/mL) and angiogenic growth factors (VEGF, BMP-7)." },
+                    { title: "Phase 3: Multimaterial 4D Bioprinting",
+                    desc: "Precision coaxial extrusion with dual-syringe printhead, 365nm UV curing, and thermal activation for programmed shape transformation." },
+                    { title: "Phase 4: Perfusion Bioreactor Maturation",
+                    desc: "Dynamic 14-28 day conditioning with pulsatile hemodynamics (1-2 Hz, 120/80 mmHg) and hydrostatic filtration gradients for nephrons." },
+                    { title: "Phase 5: Surgical Implantation & Anastomosis",
+                    desc: "Microvascular microsurgery with 8-0 to 10-0 sutures, localized heparinization, and verified patent endothelial perfusion." },
+                    { title: "Phase 6: Risk Mitigation & Fallback Protocols",
+                    desc: "Contingency procedures for vascular thrombosis, hydrogel delamination, and arrhythmia stabilization via graphene conductive patches." },
+                    { title: "Phase 7: Gender-Differentiated Monitoring",
+                    desc: "Personalized pharmacokinetic tracking for tacrolimus (+20% clearance in females), oncological screening, and cardiovascular preservation." },
+                    { title: "Phase 8: Financial Budget & Regulatory",
+                    desc: "Total CAPEX investment of $19.4M USD compliant with FDA 21 CFR 820/1271, CE MDR 2017/745, and ISO 13485 medical standards." }
+                ],
+                genderModalTitle: "Gender-Differentiated Clinical Monitoring Protocol",
+                genderModalContent: `<div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="bg-slate-900/80 p-3.5 rounded-lg border border-sky-500/30 flex flex-col gap-2.5"><div class="flex items-center gap-2 text-sky-400 font-bold text-sm border-b border-slate-800 pb-1.5"><i data-lucide="user" class="w-4 h-4"></i><span>Male Protocol</span></div><ul class="space-y-2 text-[11px] leading-relaxed"><li>• <strong class="text-sky-300">Pharmacokinetics:</strong> Higher blood volume and muscle mass. Standard Tacrolimus dose (0.10-0.15 mg/kg/day) targeting 6-10 ng/mL.</li><li>• <strong class="text-sky-300">Renal Function:</strong> CKD-EPI equation calibrated for higher baseline creatinine due to greater lean mass.</li><li>• <strong class="text-sky-300">Cardiovascular Risk:</strong> Higher prevalence of post-transplant ischemic heart disease. Lipid profile and Doppler echocardiogram every 3 months.</li><li>• <strong class="text-sky-300">Sexual & Hormonal Health:</strong> Quarterly free testosterone and IIEF-5 scale to prevent drug-induced erectile dysfunction.</li><li>• <strong class="text-sky-300">Oncological Screening:</strong> Annual PSA from age 45 due to increased risk of prostate neoplasia under immunosuppression.</li></ul></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-pink-500/30 flex flex-col gap-2.5"><div class="flex items-center gap-2 text-pink-400 font-bold text-sm border-b border-slate-800 pb-1.5"><i data-lucide="user-check" class="w-4 h-4"></i><span>Female Protocol</span></div><ul class="space-y-2 text-[11px] leading-relaxed"><li>• <strong class="text-pink-300">Metabolic Clearance:</strong> CYP3A4 activity 20-30% faster due to estrogen influence. Requires close monitoring of Tacrolimus trough levels.</li><li>• <strong class="text-pink-300">Reproductive Health:</strong> Absolute contraindication of mycophenolate mofetil during pregnancy (teratogenesis). Plan with Azathioprine if pregnancy is planned.</li><li>• <strong class="text-pink-300">Autoimmunity & Rejection:</strong> Higher cellular immune response. Surveillance of donor-specific antibodies (DSA) and lupus markers.</li><li>• <strong class="text-pink-300">Bone Health:</strong> Annual DEXA scan due to accelerated osteoporosis risk post-corticosteroids and menopause.</li><li>• <strong class="text-pink-300">Gynecological Screening:</strong> Semiannual cervical cytology (Pap) and annual mammography due to HPV risk and immunosuppression.</li></ul></div></div><div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800 text-[11px] mt-4"><strong class="text-emerald-400">Bio-compatibility Conclusion:</strong> Autologous 4D bio-printing with the patient's own iPSCs reduces hyperacute rejection to zero, allowing minimal and personalized immunosuppression based on each sex's hormonal and genetic profile.</div>`,
+                budgetModalTitle: "Budget Matrix, Cost per Patient, and Clinical ROI",
+                budgetModalContent: `<div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="border-b border-slate-700 text-slate-400 text-[11px]"><th class="py-2">Project Phase</th><th class="py-2">Duration</th><th class="py-2">Investment (USD)</th><th class="py-2">Main Deliverable</th></tr></thead><tbody class="divide-y divide-slate-800 font-mono text-[11px]"><tr><td class="py-1.5 text-white">1. Assessment & CT/MRI Design</td><td class="text-slate-400">Month 1-3</td><td class="text-emerald-400 font-bold">$1,250,000</td><td class="text-slate-300">STL/G-Code Models</td></tr><tr><td class="py-1.5 text-white">2. Bio-ink & Stem Cells</td><td class="text-slate-400">Month 3-8</td><td class="text-emerald-400 font-bold">$3,800,000</td><td class="text-slate-300">iPSCs/MSCs Banks</td></tr><tr><td class="py-1.5 text-white">3. 4D Robotic Bioprinter</td><td class="text-slate-400">Month 6-14</td><td class="text-emerald-400 font-bold">$4,500,000</td><td class="text-slate-300">10μm Printhead + UV 365nm</td></tr><tr><td class="py-1.5 text-white">4. Perfusion Bioreactors</td><td class="text-slate-400">Month 12-20</td><td class="text-emerald-400 font-bold">$2,900,000</td><td class="text-slate-300">Hemodynamic Maturation</td></tr><tr><td class="py-1.5 text-white">5. In Vivo & Surgical Trials</td><td class="text-slate-400">Month 18-30</td><td class="text-emerald-400 font-bold">$4,200,000</td><td class="text-slate-300">Anastomosis & Implants</td></tr><tr><td class="py-1.5 text-white">6. Clinical & Regulatory Trials</td><td class="text-slate-400">Month 28-48</td><td class="text-emerald-400 font-bold">$2,750,000</td><td class="text-slate-300">FDA / CE Mark Approval</td></tr><tr class="bg-slate-900/90 font-bold"><td class="py-2 text-sky-300">TOTAL CAPEX R&D</td><td>48 Months</td><td class="text-emerald-400 text-sm">$19,400,000</td><td class="text-emerald-300">Certified Platform</td></tr></tbody></table></div><div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3"><div class="bg-slate-900/80 p-3 rounded-lg border border-sky-500/30"><div class="text-sky-400 font-bold text-xs">Unit Cost per Patient (Male)</div><div class="text-xl font-bold text-white font-mono mt-1">$395,000 <span class="text-xs text-slate-400 font-normal">USD</span></div><div class="text-[10px] text-slate-400 mt-1">Includes iPSC reprogramming, 4D print, 28-day bioreactor, surgery, and 1-year follow-up.</div></div><div class="bg-slate-900/80 p-3 rounded-lg border border-pink-500/30"><div class="text-pink-400 font-bold text-xs">Unit Cost per Patient (Female)</div><div class="text-xl font-bold text-white font-mono mt-1">$417,500 <span class="text-xs text-slate-400 font-normal">USD</span></div><div class="text-[10px] text-slate-400 mt-1">Includes CYP3A4 pharmacogenomic panels, oncological screening, and ovarian preservation.</div></div></div><div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800 text-[11px] mt-4"><strong class="text-emerald-400">Regulatory & Quality Framework:</strong> Certified under ISO 13485 (Medical Devices), ISO 14971 (Risk Management), FDA 21 CFR 820 / 1271 (Human Cells and Tissues), and EU CE MDR 2017/745.</div>`,
+                manualModalTitle: "4D Biofabrication Technical Manual • Dr. Julio César Oporta Barrera",
+                manualModalContent: `<div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800"><h3 class="text-sm font-bold text-sky-400 mb-1">1. Foundation of 4D Organ Printing</h3><p class="text-[11px] leading-relaxed text-slate-300">Unlike traditional (static) 3D bioprinting, 4D technology adds the time dimension using smart materials with shape memory and response to physical stimuli (temperature at 37°C, pH 7.4, and osmotic perfusion gradients). The scaffold dynamically transforms, promoting angiogenesis, nephron tubular folding, and cardiac myofibril orientation.</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800 mt-3"><h3 class="text-sm font-bold text-sky-400 mb-1">2. Smart Bio-ink & Stem Cells</h3><p class="text-[11px] leading-relaxed text-slate-300">Composition based on thermosensitive biocompatible polymers (Poly(N-isopropylacrylamide) / PNIPAM), methacrylated gelatin (GelMA), hyaluronic acid, and fibrin. Autologous cellularity derived from induced pluripotent stem cells (iPSCs) differentiated into cardiomyocytes (>95% troponin T positive) and CD31+ endothelial cells, together with mesenchymal stem cells (MSCs) at a density of 10^7 cells/mL.</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800 mt-3"><h3 class="text-sm font-bold text-sky-400 mb-1">3. Dual-Perfusion Dynamic Bioreactor</h3><p class="text-[11px] leading-relaxed text-slate-300">The heart requires continuous electrical stimulation (1 Hz, 2-5 V) coupled with pulsatile perfusion (120/80 mmHg). The kidney requires a constant hydrostatic gradient (10-15 mmHg in Bowman's capsule) with continuous flow of medium enriched with glucose, amino acids, and erythropoietin to induce active tubular transport.</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800 mt-3"><h3 class="text-sm font-bold text-sky-400 mb-1">4. Neural Network & AI Monitoring</h3><p class="text-[11px] leading-relaxed text-slate-300">High-speed stereoscopic vision cameras and Doppler flow sensors feed a real-time Deep Learning model that adjusts microfluidic injection pressures, compensates for hydrogel shrinkage, and anticipates microfractures before implantation.</p></div>`,
+                biocycleModalTitle: "Integrated 4D Biofabrication Cycle (Figure 1 from Manual)",
+                biocycleModalContent: `<div class="grid grid-cols-1 md:grid-cols-5 gap-3"><div class="bg-slate-900/80 p-3 rounded-lg border border-cyan-500/30"><div class="text-cyan-400 font-bold text-xs mb-1">1. Extraction & Reprogramming</div><p class="text-[11px] text-slate-400">Isolation of autologous stem cells (MSCs/iPSCs). Purity ≥95%, viability &gt;90%.</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-cyan-500/30"><div class="text-cyan-400 font-bold text-xs mb-1">2. Smart Bio-ink</div><p class="text-[11px] text-slate-400">Fibrin + GelMA + PNIPAM 12% at 37°C. Viscosity 1,000-5,000 cP without shear.</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-cyan-500/30"><div class="text-cyan-400 font-bold text-xs mb-1">3. Robotic 4D Bioprinting</div><p class="text-[11px] text-slate-400">Multichannel coaxial extrusion (≤50 μm), UV photopolymerization 365nm ≤30s.</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-cyan-500/30"><div class="text-cyan-400 font-bold text-xs mb-1">4. Dynamic Bioreactor</div><p class="text-[11px] text-slate-400">Pulsatile perfusion 120/80 mmHg and Bowman gradient 10-20 mmHg for 14-28 days.</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-cyan-500/30"><div class="text-cyan-400 font-bold text-xs mb-1">5. Implant & 4D Maturation</div><p class="text-[11px] text-slate-400">Microvascular anastomosis and physiological adaptation in vivo with 0% hyperacute rejection.</p></div></div>`,
+                weeklyModalTitle: "Clinical Implementation Schedule • 52 Weeks",
+                weeklyModalContent: `<div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800"><div class="text-purple-300 font-bold text-xs mb-1">Phase I: Weeks 1-12</div><p class="text-[11px] text-slate-400">Optimization of thermosensitive PNIPAM bio-ink, rheological characterization (1000-5000 cP), and calibration of multichannel coaxial extrusion.</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800"><div class="text-purple-300 font-bold text-xs mb-1">Phase II: Weeks 13-24</div><p class="text-[11px] text-slate-400">Construction and validation of pulsatile bioreactors with physiological gradients (120/80 mmHg cardiac and 10-20 mmHg renal).</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800"><div class="text-purple-300 font-bold text-xs mb-1">Phase III: Weeks 25-38</div><p class="text-[11px] text-slate-400">Full-scale prototype bioprinting and dynamic in vitro maturation with confirmed cell viability &gt;95%.</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800"><div class="text-purple-300 font-bold text-xs mb-1">Phase IV: Weeks 39-52</div><p class="text-[11px] text-slate-400">In vivo preclinical trials in porcine models under GLP and compilation of FDA/CE Mark regulatory dossier.</p></div></div>`,
+                regulatoryModalTitle: "Technical, Regulatory, and Quality Control Framework (Sections II & III)",
+                regulatoryModalContent: `<div class="grid grid-cols-1 md:grid-cols-3 gap-3"><div class="bg-slate-900/80 p-3 rounded-lg border border-emerald-500/30"><div class="text-emerald-300 font-bold text-xs mb-1">FDA 21 CFR 820 / 1271</div><p class="text-[11px] text-slate-400">Combination Medical Device (PMA/510k). RMAT pathway for Advanced Regenerative Medicine Therapies.</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-emerald-500/30"><div class="text-emerald-300 font-bold text-xs mb-1">CE MDR 2017/745 Class III</div><p class="text-[11px] text-slate-400">Implantable Medical Device of Highest Risk. Continuous audit by Notified Body under GMP.</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-emerald-500/30"><div class="text-emerald-300 font-bold text-xs mb-1">ISO 5 Clean Rooms</div><p class="text-[11px] text-slate-400">Biomanufacturing in ISO Class 5 clean rooms (&lt;3,520 particles/m³ ≥0.5 μm) with continuous positive pressure.</p></div></div>`,
+                bibliographyModalTitle: "Scientific Bibliography and Clinical Evidence (24 High-Impact Publications)",
+                bibliographyModalContent: `<div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800"><div class="font-bold text-white">Atala, A., & Lanza, R. (2020) • Principles of Regenerative Medicine and Tissue Engineering</div><div class="text-[11px] text-slate-400 mt-1">Supports the theoretical foundations of biomanufacturing and functional regeneration of human organs.</div></div><div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 mt-2"><div class="font-bold text-white">Dominici, M., Le Blanc, K., Mueller, I., et al. (2006) • Cytotherapy</div><div class="text-[11px] text-slate-400 mt-1">Supports purity (&gt;95%) and viability (&gt;90%) standards for MSCs by flow cytometry.</div></div><div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 mt-2"><div class="font-bold text-white">Takahashi, K., & Yamanaka, S. (2006) • Cell, 126(4)</div><div class="text-[11px] text-slate-400 mt-1">Supports the scientific basis of autologous cellular reprogramming to iPSC state.</div></div><div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 mt-2"><div class="font-bold text-white">Akalin, C., & Murphy, B. (2021) • Clinical and Experimental Transplantation</div><div class="text-[11px] text-slate-400 mt-1">Supports the higher risk of immune reactivity in women and the need for differentiated monitoring.</div></div>`
+            },
+            zh: {
+                author: "Julio César Oporta Barrera 博士",
+                title: "4D人体器官生物打印 • 肾脏与心脏",
+                status: "生物活性系统 v4.8",
+                tourBtn: "4D导览",
+                biocycleBtn: "图1 循环",
+                weeklyBtn: "52周计划",
+                regulatoryBtn: "FDA / 质量",
+                biblioBtn: "参考文献 (24)",
+                genderBtn: "性别监测",
+                budgetBtn: "预算",
+                manualBtn: "技术手册",
+                resetBtn: "重置",
+                operatingModes: "操作模式 (8)",
+                phases: "临床阶段",
+                telemetry: "生物遥测",
+                heartRate: "心率",
+                cellViability: "细胞存活率",
+                printProgress: "生物打印进度",
+                viscosity: "粘度",
+                uvCure: "UV光固化",
+                renalFilter: "鲍曼囊滤过",
+                aiDefect: "AI缺陷概率",
+                angiogenesis: "血管生成",
+                maturation: "成熟天数",
+                organFocus: "器官聚焦",
+                cameras: "视角:",
+                stimulus4D: "4D刺激:",
+                explode: "爆炸图",
+                xray: "X射线",
+                section: "剖面",
+                rotate: "旋转",
+                ar: "AR模式",
+                pause: "暂停",
+                resume: "继续",
+                camOrbit: "轨道",
+                camPrinter: "打印机",
+                camBioreactor: "生物反应器",
+                camHeart: "心脏",
+                camKidney: "肾脏",
+                camAI: "AI核心",
+                camLogistics: "AGV",
+                close: "关闭",
+                modes: [
+                    { id: "STANDBY", name: "待机 (4°C)", desc: "4°C无菌保存与细胞维护。" },
+                    { id: "ANALYSIS", name: "CT / MRI 分析", desc: "3D容积重建与微血管通道设计。" },
+                    { id: "BIO_INK", name: "生物墨水配方", desc: "自体干细胞分离与4D温敏PNIPAM水凝胶。" },
+                    { id: "BIOPRINT_4D", name: "4D打印进行中", desc: "多通道同轴挤出与365nm紫外光交联。" },
+                    { id: "BIOREACTOR_INCUBATION", name: "动态生物反应器", desc: "脉动灌注 (120/80 mmHg) 与组织功能成熟。" },
+                    { id: "IN_VIVO_IMPLANT", name: "外科体内植入", desc: "微血管吻合与体内血流即时灌注。" },
+                    { id: "GENDER_DIFFERENTIATED", name: "性别差异监测", desc: "自适应临床方案 (CYP3A4代谢率、GFR与激素评估)。" },
+                    { id: "AI_OPTIMIZATION", name: "AI算法优化", desc: "实时G-Code轨迹调整与微缺陷预测。" }
+                ],
+                phasesList: [
+                    { title: "阶段 1: 术前评估与CT/MRI",
+                    desc: "高精度多模态分割 (0.5mm)、CAD微血管通道设计 (200-500 μm) 与性别特异性解剖计算。" },
+                    { title: "阶段 2: 智能生物墨水与干细胞",
+                    desc: "配置PNIPAM/GelMA水凝胶，注入自体iPSCs/MSCs (10^7细胞/mL) 及VEGF促血管因子。" },
+                    { title: "阶段 3: 多材料4D生物打印",
+                    desc: "双注射头高精度挤出，365nm UV交联，热刺激触发形状记忆与自折叠成熟。" },
+                    { title: "阶段 4: 动态灌注生物反应器",
+                    desc: "14-28天动态培养，心肌脉动刺激 (1-2 Hz, 120/80 mmHg) 及肾脏鲍曼囊滤过流。" },
+                    { title: "阶段 5: 外科植入与微血管吻合",
+                    desc: "8-0至10-0缝线微血管手术，局部肝素化，确认内皮灌注通畅无渗漏。" },
+                    { title: "阶段 6: 风险控制与应急方案",
+                    desc: "血管栓塞、水凝胶分层及心律失常应急方案（石墨烯导电贴片）。" },
+                    { title: "阶段 7: 性别差异化临床监测",
+                    desc: "个体化他克莫司药代动力学监测（女性代谢快20%）、妇科/前列腺筛查及心血管保护。" },
+                    { title: "阶段 8: 财务预算与监管合规",
+                    desc: "总研发投入1940万美元，符合FDA 21 CFR 820/1271、CE MDR及ISO 13485标准。" }
+                ],
+                genderModalTitle: "性别差异化临床监测协议",
+                genderModalContent: `<div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="bg-slate-900/80 p-3.5 rounded-lg border border-sky-500/30 flex flex-col gap-2.5"><div class="flex items-center gap-2 text-sky-400 font-bold text-sm border-b border-slate-800 pb-1.5"><i data-lucide="user" class="w-4 h-4"></i><span>男性方案</span></div><ul class="space-y-2 text-[11px] leading-relaxed"><li>• <strong class="text-sky-300">药代动力学:</strong> 血容量和肌肉量较大。他克莫司标准剂量 (0.10-0.15 mg/kg/天) 目标血药浓度 6-10 ng/mL。</li><li>• <strong class="text-sky-300">肾功能:</strong> CKD-EPI方程校准，因肌肉量高导致基础肌酐较高。</li><li>• <strong class="text-sky-300">心血管风险:</strong> 移植后缺血性心脏病患病率较高。每3个月监测血脂谱和多普勒超声心动图。</li><li>• <strong class="text-sky-300">性与激素健康:</strong> 每季度评估游离睾酮和IIEF-5量表，预防药物引起的勃起功能障碍。</li><li>• <strong class="text-sky-300">肿瘤筛查:</strong> 45岁起每年PSA检测，因免疫抑制下前列腺肿瘤风险增加。</li></ul></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-pink-500/30 flex flex-col gap-2.5"><div class="flex items-center gap-2 text-pink-400 font-bold text-sm border-b border-slate-800 pb-1.5"><i data-lucide="user-check" class="w-4 h-4"></i><span>女性方案</span></div><ul class="space-y-2 text-[11px] leading-relaxed"><li>• <strong class="text-pink-300">代谢清除率:</strong> 雌激素影响下CYP3A4活性加快20-30%。需密切监测他克莫司谷浓度。</li><li>• <strong class="text-pink-300">生殖健康:</strong> 妊娠期绝对禁用霉酚酸酯（致畸性）。若计划妊娠，需换用硫唑嘌呤。</li><li>• <strong class="text-pink-300">自身免疫与排斥:</strong> 细胞免疫应答较强。监测供体特异性抗体（DSA）和狼疮标志物。</li><li>• <strong class="text-pink-300">骨骼健康:</strong> 因皮质类固醇后和绝经期骨质疏松风险加速，每年DEXA扫描。</li><li>• <strong class="text-pink-300">妇科筛查:</strong> 每半年宫颈细胞学检查（巴氏涂片），每年乳腺X线检查，因HPV风险和免疫抑制。</li></ul></div></div><div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800 text-[11px] mt-4"><strong class="text-emerald-400">生物相容性结论:</strong> 使用患者自身iPSC的自体4D生物打印可将超急性排斥反应降至零，允许根据每个性别的激素和遗传特征进行最小化和个性化免疫抑制。</div>`,
+                budgetModalTitle: "预算矩阵、单患者成本与临床ROI",
+                budgetModalContent: `<div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="border-b border-slate-700 text-slate-400 text-[11px]"><th class="py-2">项目阶段</th><th class="py-2">持续时间</th><th class="py-2">投资 (USD)</th><th class="py-2">主要交付物</th></tr></thead><tbody class="divide-y divide-slate-800 font-mono text-[11px]"><tr><td class="py-1.5 text-white">1. 评估与CT/MRI设计</td><td class="text-slate-400">第1-3月</td><td class="text-emerald-400 font-bold">$1,250,000</td><td class="text-slate-300">STL/G代码模型</td></tr><tr><td class="py-1.5 text-white">2. 生物墨水与干细胞</td><td class="text-slate-400">第3-8月</td><td class="text-emerald-400 font-bold">$3,800,000</td><td class="text-slate-300">iPSCs/MSCs库</td></tr><tr><td class="py-1.5 text-white">3. 4D机器人生物打印机</td><td class="text-slate-400">第6-14月</td><td class="text-emerald-400 font-bold">$4,500,000</td><td class="text-slate-300">10μm打印头+UV 365nm</td></tr><tr><td class="py-1.5 text-white">4. 灌注生物反应器</td><td class="text-slate-400">第12-20月</td><td class="text-emerald-400 font-bold">$2,900,000</td><td class="text-slate-300">血流动力学成熟</td></tr><tr><td class="py-1.5 text-white">5. 体内与手术试验</td><td class="text-slate-400">第18-30月</td><td class="text-emerald-400 font-bold">$4,200,000</td><td class="text-slate-300">吻合术与植入</td></tr><tr><td class="py-1.5 text-white">6. 临床与监管试验</td><td class="text-slate-400">第28-48月</td><td class="text-emerald-400 font-bold">$2,750,000</td><td class="text-slate-300">FDA/CE标志批准</td></tr><tr class="bg-slate-900/90 font-bold"><td class="py-2 text-sky-300">总研发CAPEX</td><td>48个月</td><td class="text-emerald-400 text-sm">$19,400,000</td><td class="text-emerald-300">认证平台</td></tr></tbody></table></div><div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3"><div class="bg-slate-900/80 p-3 rounded-lg border border-sky-500/30"><div class="text-sky-400 font-bold text-xs">单患者成本 (男性)</div><div class="text-xl font-bold text-white font-mono mt-1">$395,000 <span class="text-xs text-slate-400 font-normal">USD</span></div><div class="text-[10px] text-slate-400 mt-1">包括iPSC重编程、4D打印、28天生物反应器、手术和1年随访。</div></div><div class="bg-slate-900/80 p-3 rounded-lg border border-pink-500/30"><div class="text-pink-400 font-bold text-xs">单患者成本 (女性)</div><div class="text-xl font-bold text-white font-mono mt-1">$417,500 <span class="text-xs text-slate-400 font-normal">USD</span></div><div class="text-[10px] text-slate-400 mt-1">包括CYP3A4药物基因组学检测、肿瘤筛查和卵巢保存。</div></div></div><div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800 text-[11px] mt-4"><strong class="text-emerald-400">监管与质量框架:</strong> 符合ISO 13485（医疗器械）、ISO 14971（风险管理）、FDA 21 CFR 820/1271（人体细胞和组织）及欧盟CE MDR 2017/745认证。</div>`,
+                manualModalTitle: "4D生物制造技术手册 • Julio César Oporta Barrera 博士",
+                manualModalContent: `<div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800"><h3 class="text-sm font-bold text-sky-400 mb-1">1. 4D器官打印基础</h3><p class="text-[11px] leading-relaxed text-slate-300">与传统的（静态）3D生物打印不同，4D技术通过智能材料增加时间维度，这些材料具有形状记忆并对物理刺激（温度37°C、pH 7.4和渗透灌注梯度）作出响应。支架动态转化，促进血管生成、肾小管折叠和心肌纤维定向。</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800 mt-3"><h3 class="text-sm font-bold text-sky-400 mb-1">2. 智能生物墨水与干细胞</h3><p class="text-[11px] leading-relaxed text-slate-300">基于热敏生物相容性聚合物（聚N-异丙基丙烯酰胺/PNIPAM）、甲基丙烯酰化明胶（GelMA）、透明质酸和纤维蛋白。自体细胞来源于诱导多能干细胞（iPSCs）分化为心肌细胞（>95%肌钙蛋白T阳性）和CD31+内皮细胞，以及间充质干细胞（MSCs），密度为10^7细胞/mL。</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800 mt-3"><h3 class="text-sm font-bold text-sky-400 mb-1">3. 双灌注动态生物反应器</h3><p class="text-[11px] leading-relaxed text-slate-300">心脏需要持续电刺激（1 Hz，2-5 V）配合脉动灌注（120/80 mmHg）。肾脏需要恒定静水压梯度（鲍曼囊内10-15 mmHg），并连续灌注富含葡萄糖、氨基酸和促红细胞生成素的培养基，以诱导活跃的肾小管转运。</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800 mt-3"><h3 class="text-sm font-bold text-sky-400 mb-1">4. 神经网络与AI监测</h3><p class="text-[11px] leading-relaxed text-slate-300">高速立体视觉相机和多普勒流量传感器为实时深度学习模型提供数据，该模型调整微流体注射压力，补偿水凝胶收缩，并在植入前预测微裂纹。</p></div>`,
+                biocycleModalTitle: "综合4D生物制造循环（手册图1）",
+                biocycleModalContent: `<div class="grid grid-cols-1 md:grid-cols-5 gap-3"><div class="bg-slate-900/80 p-3 rounded-lg border border-cyan-500/30"><div class="text-cyan-400 font-bold text-xs mb-1">1. 提取与重编程</div><p class="text-[11px] text-slate-400">分离自体干细胞（MSCs/iPSCs）。纯度≥95%，存活率&gt;90%。</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-cyan-500/30"><div class="text-cyan-400 font-bold text-xs mb-1">2. 智能生物墨水</div><p class="text-[11px] text-slate-400">纤维蛋白 + GelMA + PNIPAM 12% 在37°C。粘度 1,000-5,000 cP 无剪切。</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-cyan-500/30"><div class="text-cyan-400 font-bold text-xs mb-1">3. 机器人4D生物打印</div><p class="text-[11px] text-slate-400">多通道同轴挤出（≤50 μm），UV光固化365nm ≤30秒。</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-cyan-500/30"><div class="text-cyan-400 font-bold text-xs mb-1">4. 动态生物反应器</div><p class="text-[11px] text-slate-400">脉动灌注120/80 mmHg，鲍曼囊梯度10-20 mmHg，持续14-28天。</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-cyan-500/30"><div class="text-cyan-400 font-bold text-xs mb-1">5. 植入与4D成熟</div><p class="text-[11px] text-slate-400">微血管吻合和体内生理适应，超急性排斥反应为0%。</p></div></div>`,
+                weeklyModalTitle: "临床实施时间表 • 52周",
+                weeklyModalContent: `<div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800"><div class="text-purple-300 font-bold text-xs mb-1">阶段 I: 第1-12周</div><p class="text-[11px] text-slate-400">优化热敏PNIPAM生物墨水，流变学表征（1000-5000 cP），多通道同轴挤出校准。</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800"><div class="text-purple-300 font-bold text-xs mb-1">阶段 II: 第13-24周</div><p class="text-[11px] text-slate-400">构建并验证脉动生物反应器，具有生理梯度（心脏120/80 mmHg，肾脏10-20 mmHg）。</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800"><div class="text-purple-300 font-bold text-xs mb-1">阶段 III: 第25-38周</div><p class="text-[11px] text-slate-400">全尺寸原型生物打印和动态体外成熟，确认细胞存活率&gt;95%。</p></div><div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-800"><div class="text-purple-300 font-bold text-xs mb-1">阶段 IV: 第39-52周</div><p class="text-[11px] text-slate-400">在GLP下进行猪模型体内临床前试验，并编制FDA/CE标志监管档案。</p></div></div>`,
+                regulatoryModalTitle: "技术、监管和质量控制框架（第II和III节）",
+                regulatoryModalContent: `<div class="grid grid-cols-1 md:grid-cols-3 gap-3"><div class="bg-slate-900/80 p-3 rounded-lg border border-emerald-500/30"><div class="text-emerald-300 font-bold text-xs mb-1">FDA 21 CFR 820 / 1271</div><p class="text-[11px] text-slate-400">组合医疗器械（PMA/510k）。适用于再生医学先进疗法的RMAT途径。</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-emerald-500/30"><div class="text-emerald-300 font-bold text-xs mb-1">CE MDR 2017/745 III级</div><p class="text-[11px] text-slate-400">最高风险植入式医疗器械。在GMP下由公告机构持续审核。</p></div><div class="bg-slate-900/80 p-3 rounded-lg border border-emerald-500/30"><div class="text-emerald-300 font-bold text-xs mb-1">ISO 5级洁净室</div><p class="text-[11px] text-slate-400">在ISO 5级洁净室（&lt;3,520颗粒/m³ ≥0.5 μm）中生物制造，持续正压。</p></div></div>`,
+                bibliographyModalTitle: "科学文献与临床证据（24篇高影响力出版物）",
+                bibliographyModalContent: `<div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800"><div class="font-bold text-white">Atala, A., & Lanza, R. (2020) • 再生医学与组织工程原理</div><div class="text-[11px] text-slate-400 mt-1">支持生物制造和人体器官功能再生的理论基础。</div></div><div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 mt-2"><div class="font-bold text-white">Dominici, M., Le Blanc, K., Mueller, I., et al. (2006) • Cytotherapy</div><div class="text-[11px] text-slate-400 mt-1">通过流式细胞术支持MSCs纯度（&gt;95%）和存活率（&gt;90%）标准。</div></div><div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 mt-2"><div class="font-bold text-white">Takahashi, K., & Yamanaka, S. (2006) • Cell, 126(4)</div><div class="text-[11px] text-slate-400 mt-1">支持自体细胞重编程为iPSC状态的科学基础。</div></div><div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 mt-2"><div class="font-bold text-white">Akalin, C., & Murphy, B. (2021) • 临床与实验移植</div><div class="text-[11px] text-slate-400 mt-1">支持女性免疫反应风险较高，需差异化监测。</div></div>`
+            }
+        };
+
+        // --- VARIABLES GLOBALES ---
+        let currentLang = 'es';
+        let currentMode = 'BIOPRINT_4D';
+        let currentOrgan = 'BOTH';
+        let currentCamera = 'ORBIT';
+        let isExploded = false;
+        let isXray = false;
+        let isSection = false;
+        let isAutoRotate = true;
+        let isPaused = false;
+        let fourDValue = 0.5;
+        let isAR = false;
+        let selectedPhaseIndex = 2;
+
+        // Valores iniciales de telemetría (para reset)
+        const initialTelemetry = {
+            viability: 98.6,
+            progress: 64.2,
+            heartRate: 75,
+            viscosity: 3200,
+            renalP: 15,
+            urea: 86.4,
+            aiDefect: 0.18
+        };
+
+        let telemetry = { ...initialTelemetry };
+
+        // --- FUNCIÓN DE SIMULACIÓN GENÉRICA (se activa en cada clic) ---
+        function triggerSimulation() {
+            // Efecto visual en el núcleo de IA (3D)
+            if (aiCore) {
+                aiCore.material.color.setHex(Math.random() * 0xffffff);
+                aiCore.scale.setScalar(1.0 + Math.random() * 0.3);
+                setTimeout(() => {
+                    aiCore.material.color.setHex(0x1de9b6);
+                    aiCore.scale.setScalar(1.0);
+                }, 400);
+            }
+            // Actualizar telemetría con variación aleatoria
+            telemetry.viability = Math.min(99.8, Math.max(97.0, telemetry.viability + (Math.random() - 0.5) * 0.8));
+            telemetry.progress = Math.min(100, Math.max(5, telemetry.progress + (Math.random() - 0.5) * 1.2));
+            telemetry.heartRate = Math.min(120, Math.max(50, telemetry.heartRate + Math.round((Math.random() - 0.5) * 6)));
+            telemetry.aiDefect = Math.min(0.45, Math.max(0.05, telemetry.aiDefect + (Math.random() - 0.5) * 0.04));
+            telemetry.viscosity = Math.min(5000, Math.max(800, telemetry.viscosity + Math.round((Math.random() - 0.5) *
+            200)));
+            telemetry.renalP = Math.min(25, Math.max(5, telemetry.renalP + (Math.random() - 0.5) * 2));
+            telemetry.urea = Math.min(98, Math.max(70, telemetry.urea + (Math.random() - 0.5) * 3));
+            updateTelemetryUI();
+            // Pulso en el ECG
+            ecgX = 0;
+            ecgPoints = [];
+        }
+
+        // --- SIMULACIONES DIFERENCIADAS POR MODO ---
+        function simulateMode(modeId) {
+            // Efecto visual en núcleo IA (color según modo)
+            let color = 0x1de9b6; // default
+            let sim = {
+                viability: 98.6,
+                progress: 64.2,
+                heartRate: 75,
+                aiDefect: 0.18,
+                viscosity: 3200,
+                renalP: 15,
+                urea: 86.4
+            };
+
+            switch (modeId) {
+                case 'STANDBY':
+                    color = 0x4fc3f7;
+                    sim.viability = 95.0;
+                    sim.progress = 10.0;
+                    sim.heartRate = 50;
+                    sim.aiDefect = 0.05;
+                    sim.viscosity = 2800;
+                    break;
+                case 'ANALYSIS':
+                    color = 0xffb74d;
+                    sim.viability = 97.0;
+                    sim.progress = 30.0;
+                    sim.heartRate = 70;
+                    sim.aiDefect = 0.12;
+                    sim.viscosity = 3000;
+                    break;
+                case 'BIO_INK':
+                    color = 0x81c784;
+                    sim.viability = 98.0;
+                    sim.progress = 50.0;
+                    sim.heartRate = 72;
+                    sim.aiDefect = 0.10;
+                    sim.viscosity = 3500;
+                    break;
+                case 'BIOPRINT_4D':
+                    color = 0xff8a65;
+                    sim.viability = 98.5;
+                    sim.progress = 80.0;
+                    sim.heartRate = 75;
+                    sim.aiDefect = 0.08;
+                    sim.viscosity = 3200;
+                    break;
+                case 'BIOREACTOR_INCUBATION':
+                    color = 0x4dd0e1;
+                    sim.viability = 99.0;
+                    sim.progress = 90.0;
+                    sim.heartRate = 78;
+                    sim.aiDefect = 0.06;
+                    sim.viscosity = 3100;
+                    break;
+                case 'IN_VIVO_IMPLANT':
+                    color = 0xff5252;
+                    sim.viability = 99.5;
+                    sim.progress = 100.0;
+                    sim.heartRate = 80;
+                    sim.aiDefect = 0.04;
+                    sim.viscosity = 3000;
+                    break;
+                case 'GENDER_DIFFERENTIATED':
+                    color = 0xec407a;
+                    sim.viability = 99.2;
+                    sim.progress = 95.0;
+                    sim.heartRate = 76;
+                    sim.aiDefect = 0.07;
+                    sim.viscosity = 3150;
+                    break;
+                case 'AI_OPTIMIZATION':
+                    color = 0x69f0ae;
+                    sim.viability = 99.8;
+                    sim.progress = 97.0;
+                    sim.heartRate = 70;
+                    sim.aiDefect = 0.02;
+                    sim.viscosity = 3300;
+                    break;
+                default:
+                    break;
+            }
+
+            // Aplicar simulación
+            if (aiCore) {
+                aiCore.material.color.setHex(color);
+                aiCore.scale.setScalar(1.0 + Math.random() * 0.2);
+                setTimeout(() => {
+                    aiCore.material.color.setHex(0x1de9b6);
+                    aiCore.scale.setScalar(1.0);
+                }, 500);
+            }
+
+            // Actualizar telemetría con los valores simulados
+            telemetry.viability = Math.min(99.8, Math.max(97.0, sim.viability + (Math.random() - 0.5) * 0.5));
+            telemetry.progress = Math.min(100, Math.max(5, sim.progress + (Math.random() - 0.5) * 1.0));
+            telemetry.heartRate = Math.min(120, Math.max(50, sim.heartRate + Math.round((Math.random() - 0.5) * 4)));
+            telemetry.aiDefect = Math.min(0.45, Math.max(0.05, sim.aiDefect + (Math.random() - 0.5) * 0.03));
+            telemetry.viscosity = Math.min(5000, Math.max(800, sim.viscosity + Math.round((Math.random() - 0.5) * 150)));
+            telemetry.renalP = Math.min(25, Math.max(5, sim.renalP + (Math.random() - 0.5) * 1.5));
+            telemetry.urea = Math.min(98, Math.max(70, sim.urea + (Math.random() - 0.5) * 2));
+
+            updateTelemetryUI();
+            ecgX = 0;
+            ecgPoints = [];
+        }
+
+        // --- MANEJADOR DE CLIC CON SIMULACIÓN ---
+        function handleClick(el, fn) {
+            // Efecto flash en el botón
+            el.classList.remove('sim-flash', 'sim-flash-pink', 'sim-flash-emerald');
+            void el.offsetWidth;
+            if (el.classList.contains('btn-tactical-pink')) {
+                el.classList.add('sim-flash-pink');
+            } else if (el.classList.contains('btn-tactical-emerald')) {
+                el.classList.add('sim-flash-emerald');
+            } else {
+                el.classList.add('sim-flash');
+            }
+            // Ejecutar la función asociada
+            if (typeof fn === 'function') fn();
+            // Actualizar iconos
+            lucide.createIcons();
+        }
+
+        // --- RESET DE LA ESCENA ---
+        function resetScene() {
+            // Resetear cámara
+            setCamera('ORBIT');
+            // Resetear selector de órganos
+            setOrgan('BOTH');
+            // Resetear toggles
+            if (isExploded) toggleExploded();
+            if (isXray) toggleXray();
+            if (isSection) toggleSection();
+            if (isAR) toggleAR();
+            if (!isAutoRotate) toggleAutoRotate();
+            if (isPaused) togglePause();
+            // Resetear slider 4D
+            fourDValue = 0.5;
+            document.getElementById('fourDSlider').value = 0.5;
+            document.getElementById('fourDVal').innerText = '50%';
+            // Resetear telemetría
+            telemetry = { ...initialTelemetry };
+            updateTelemetryUI();
+            // Resetear modo a BIOPRINT_4D
+            setOperatingMode('BIOPRINT_4D');
+            // Resetear posición de grupos (explode ya se desactivó)
+            // Asegurar que los grupos vuelvan a su posición original
+            printerGroup.position.x = -4.2;
+            bioreactorGroup.position.x = 4.2;
+            aiGroup.position.z = -3.5;
+            stemCellGroup.position.z = 3.8;
+            // Resetear color y escala del núcleo IA
+            if (aiCore) {
+                aiCore.material.color.setHex(0x1de9b6);
+                aiCore.scale.setScalar(1.0);
+            }
+            // Actualizar la interfaz
+            lucide.createIcons();
+        }
+
+        // --- THREE.JS 3D SCENE SETUP ---
+        const container = document.getElementById('canvas-container');
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0d14);
+        scene.fog = new THREE.FogExp2(0x0a0d14, 0.025);
+
+        const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+        camera.position.set(0, 5, 14);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.localClippingEnabled = true;
+        container.appendChild(renderer.domElement);
+
+        const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 100);
+
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xd5e5f5, 0.6);
+        scene.add(ambientLight);
+
+        const mainSpot = new THREE.SpotLight(0xffffff, 2.5);
+        mainSpot.position.set(5, 12, 8);
+        mainSpot.angle = Math.PI / 4;
+        mainSpot.penumbra = 0.5;
+        mainSpot.castShadow = true;
+        scene.add(mainSpot);
+
+        const cyanRim = new THREE.DirectionalLight(0x4fc3f7, 1.8);
+        cyanRim.position.set(-8, 6, -6);
+        scene.add(cyanRim);
+
+        const magentaPoint = new THREE.PointLight(0xe91e63, 1.2, 12);
+        magentaPoint.position.set(4, 3, -2);
+        scene.add(magentaPoint);
+
+        const blueFloorPoint = new THREE.PointLight(0x0288d1, 2.0, 15);
+        blueFloorPoint.position.set(0, -1, 0);
+        scene.add(blueFloorPoint);
+
+        const allMaterials = [];
+
+        function registerMat(mat) { allMaterials.push(mat); return mat; }
+
+        // Floor Base & Cyber Grid
+        const floorGeo = new THREE.CylinderGeometry(11, 11.5, 0.4, 64);
+        const floorMat = registerMat(new THREE.MeshStandardMaterial({ color: 0x121722, roughness: 0.35, metalness: 0.85 }));
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.position.y = -0.2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        const grid = new THREE.GridHelper(22, 44, 0x4fc3f7, 0x1f293d);
+        grid.position.y = 0.01;
+        scene.add(grid);
+
+        const ringGeo = new THREE.RingGeometry(10.8, 11, 64);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0x4fc3f7, side: THREE.DoubleSide });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.y = 0.02;
+        scene.add(ring);
+
+        // --- 1. 4D BIOPRINTER UNIT ---
+        const printerGroup = new THREE.Group();
+        printerGroup.position.set(-4.2, 0, 0);
+        scene.add(printerGroup);
+
+        const pBaseGeo = new THREE.BoxGeometry(3.6, 0.4, 3.2);
+        const pBaseMat = registerMat(new THREE.MeshStandardMaterial({ color: 0x222a36, metalness: 0.9, roughness: 0.2 }));
+        const pBase = new THREE.Mesh(pBaseGeo, pBaseMat);
+        pBase.position.y = 0.2;
+        printerGroup.add(pBase);
+
+        const colGeo = new THREE.BoxGeometry(0.25, 4.2, 0.25);
+        const colMat = registerMat(new THREE.MeshStandardMaterial({ color: 0x37474f, metalness: 0.8, roughness: 0.3 }));
+        const colL = new THREE.Mesh(colGeo, colMat);
+        colL.position.set(-1.6, 2.3, 0);
+        const colR = new THREE.Mesh(colGeo, colMat);
+        colR.position.set(1.6, 2.3, 0);
+        printerGroup.add(colL, colR);
+
+        const archGeo = new THREE.BoxGeometry(3.45, 0.3, 0.4);
+        const archMat = registerMat(new THREE.MeshStandardMaterial({ color: 0x263238, metalness: 0.85, roughness: 0.25 }));
+        const arch = new THREE.Mesh(archGeo, archMat);
+        arch.position.set(0, 4.3, 0);
+        printerGroup.add(arch);
+
+        const bedGeo = new THREE.CylinderGeometry(1.1, 1.15, 0.15, 32);
+        const bedMat = registerMat(new THREE.MeshStandardMaterial({ color: 0x1e2836, metalness: 0.9, roughness: 0.1,
+            emissive: 0x0288d1, emissiveIntensity: 0.2 }));
+        const printBed = new THREE.Mesh(bedGeo, bedMat);
+        printBed.position.set(0, 0.48, 0);
+        printerGroup.add(printBed);
+
+        const printHead = new THREE.Group();
+        printHead.position.set(0, 2.0, 0);
+        printerGroup.add(printHead);
+
+        const syringeGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.8, 16);
+        const syringeMatRed = registerMat(new THREE.MeshStandardMaterial({ color: 0xe53935, metalness: 0.3, roughness: 0.2,
+            emissive: 0xd32f2f, emissiveIntensity: 0.4, transparent: true, opacity: 0.9 }));
+        const syringeMatBlue = registerMat(new THREE.MeshStandardMaterial({ color: 0x03a9f4, metalness: 0.3, roughness: 0.2,
+            emissive: 0x0288d1, emissiveIntensity: 0.5, transparent: true, opacity: 0.9 }));
+        const s1 = new THREE.Mesh(syringeGeo, syringeMatRed);
+        s1.position.set(-0.25, 0.4, 0);
+        const s2 = new THREE.Mesh(syringeGeo, syringeMatBlue);
+        s2.position.set(0.25, 0.4, 0);
+        printHead.add(s1, s2);
+
+        const uvRingGeo = new THREE.TorusGeometry(0.5, 0.04, 16, 32);
+        const uvRingMat = registerMat(new THREE.MeshStandardMaterial({ color: 0x8a2be2, emissive: 0xba55d3,
+            emissiveIntensity: 1.5 }));
+        const uvRing = new THREE.Mesh(uvRingGeo, uvRingMat);
+        uvRing.rotation.x = Math.PI / 2;
+        uvRing.position.set(0, -0.05, 0);
+        printHead.add(uvRing);
+
+        const uvConeGeo = new THREE.ConeGeometry(0.65, 1.2, 32, 1, true);
+        const uvConeMat = new THREE.MeshBasicMaterial({ color: 0xba55d3, transparent: true, opacity: 0.25,
+            side: THREE.DoubleSide });
+        const uvBeam = new THREE.Mesh(uvConeGeo, uvConeMat);
+        uvBeam.position.set(0, -0.65, 0);
+        printHead.add(uvBeam);
+
+        const printLatticeGeo = new THREE.TorusKnotGeometry(0.35, 0.09, 64, 16);
+        const printLatticeMat = registerMat(new THREE.MeshStandardMaterial({ color: 0xff4081, emissive: 0xf50057,
+            emissiveIntensity: 0.6, roughness: 0.3 }));
+        const printLattice = new THREE.Mesh(printLatticeGeo, printLatticeMat);
+        printLattice.position.set(0, 0.85, 0);
+        printLattice.scale.set(0.8, 0.8, 0.8);
+        printerGroup.add(printLattice);
+
+        // --- 2. DUAL BIOREACTORS UNIT ---
+        const bioreactorGroup = new THREE.Group();
+        bioreactorGroup.position.set(4.2, 0, 0);
+        scene.add(bioreactorGroup);
+
+        const bioBaseGeo = new THREE.BoxGeometry(3.6, 0.4, 2.6);
+        const bioBaseMat = registerMat(new THREE.MeshStandardMaterial({ color: 0x222a36, metalness: 0.85, roughness: 0.2 }));
+        const bioBase = new THREE.Mesh(bioBaseGeo, bioBaseMat);
+        bioBase.position.y = 0.2;
+        bioreactorGroup.add(bioBase);
+
+        const glassGeo = new THREE.CylinderGeometry(0.75, 0.75, 2.6, 32);
+        const glassMat = registerMat(new THREE.MeshPhysicalMaterial({ color: 0x81d4fa, transmission: 0.85, opacity: 1,
+            transparent: true, roughness: 0.05, ior: 1.5 }));
+        const chamberL = new THREE.Mesh(glassGeo, glassMat);
+        chamberL.position.set(-1.0, 1.7, 0);
+        const chamberR = new THREE.Mesh(glassGeo, glassMat);
+        chamberR.position.set(1.0, 1.7, 0);
+        bioreactorGroup.add(chamberL, chamberR);
+
+        const fluidGeo = new THREE.CylinderGeometry(0.7, 0.7, 2.3, 32);
+        const fluidMat = registerMat(new THREE.MeshStandardMaterial({ color: 0x0288d1, transparent: true, opacity: 0.35,
+            roughness: 0.1 }));
+        const fluidL = new THREE.Mesh(fluidGeo, fluidMat);
+        fluidL.position.set(-1.0, 1.6, 0);
+        const fluidR = new THREE.Mesh(fluidGeo, fluidMat);
+        fluidR.position.set(1.0, 1.6, 0);
+        bioreactorGroup.add(fluidL, fluidR);
+
+        const bubbleCount = 70;
+        const bubbleGeo = new THREE.BufferGeometry();
+        const bubblePos = new Float32Array(bubbleCount * 3);
+        for (let i = 0; i < bubbleCount; i++) {
+            const side = i % 2 === 0 ? -1.0 : 1.0;
+            bubblePos[i * 3] = side + (Math.random() - 0.5) * 0.8;
+            bubblePos[i * 3 + 1] = 0.6 + Math.random() * 2.0;
+            bubblePos[i * 3 + 2] = (Math.random() - 0.5) * 0.8;
+        }
+        bubbleGeo.setAttribute('position', new THREE.BufferAttribute(bubblePos, 3));
+        const bubbleMat = new THREE.PointsMaterial({ color: 0x4fc3f7, size: 0.05, transparent: true, opacity: 0.7 });
+        const bubbles = new THREE.Points(bubbleGeo, bubbleMat);
+        bioreactorGroup.add(bubbles);
+
+        // --- 3. 3D ORGANS: HEART & KIDNEY ---
+        const heartGroup = new THREE.Group();
+        heartGroup.position.set(-1.0, 1.7, 0);
+        bioreactorGroup.add(heartGroup);
+
+        const heartGeo = new THREE.SphereGeometry(0.42, 32, 32);
+        heartGeo.scale(1.0, 1.3, 0.85);
+        const heartMat = registerMat(new THREE.MeshStandardMaterial({ color: 0xd32f2f, roughness: 0.3, metalness: 0.2,
+            emissive: 0xb71c1c, emissiveIntensity: 0.3 }));
+        const heartMesh = new THREE.Mesh(heartGeo, heartMat);
+        heartGroup.add(heartMesh);
+
+        const aortaGeo = new THREE.TorusGeometry(0.18, 0.06, 16, 32, Math.PI);
+        const aortaMat = registerMat(new THREE.MeshStandardMaterial({ color: 0xf44336, roughness: 0.3 }));
+        const aorta = new THREE.Mesh(aortaGeo, aortaMat);
+        aorta.position.set(0, 0.45, 0);
+        aorta.rotation.z = Math.PI / 6;
+        heartGroup.add(aorta);
+
+        const kidneyGroup = new THREE.Group();
+        kidneyGroup.position.set(1.0, 1.7, 0);
+        bioreactorGroup.add(kidneyGroup);
+
+        const kidneyGeo = new THREE.SphereGeometry(0.4, 32, 32);
+        kidneyGeo.scale(0.7, 1.25, 0.75);
+        const kidneyMat = registerMat(new THREE.MeshStandardMaterial({ color: 0x8d6e63, roughness: 0.35, metalness: 0.1,
+            emissive: 0x5d4037, emissiveIntensity: 0.2 }));
+        const kidneyMesh = new THREE.Mesh(kidneyGeo, kidneyMat);
+        kidneyGroup.add(kidneyMesh);
+
+        const rVesselGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.35, 16);
+        const rVesselMatRed = registerMat(new THREE.MeshStandardMaterial({ color: 0xe53935 }));
+        const rVesselMatBlue = registerMat(new THREE.MeshStandardMaterial({ color: 0x1e88e5 }));
+        const rArt = new THREE.Mesh(rVesselGeo, rVesselMatRed);
+        rArt.position.set(-0.25, 0.05, 0);
+        rArt.rotation.z = Math.PI / 2;
+        const rVen = new THREE.Mesh(rVesselGeo, rVesselMatBlue);
+        rVen.position.set(-0.25, -0.08, 0);
+        rVen.rotation.z = Math.PI / 2;
+        kidneyGroup.add(rArt, rVen);
+
+        // --- 4. AI CORE & NEURAL LATTICE ---
+        const aiGroup = new THREE.Group();
+        aiGroup.position.set(0, 4.2, -3.5);
+        scene.add(aiGroup);
+
+        const aiIcosaGeo = new THREE.IcosahedronGeometry(0.85, 1);
+        const aiIcosaMat = registerMat(new THREE.MeshStandardMaterial({ color: 0x00e676, wireframe: true, emissive: 0x00e676,
+            emissiveIntensity: 0.8 }));
+        const aiIcosa = new THREE.Mesh(aiIcosaGeo, aiIcosaMat);
+        aiGroup.add(aiIcosa);
+
+        const aiCoreGeo = new THREE.SphereGeometry(0.4, 32, 32);
+        const aiCoreMat = registerMat(new THREE.MeshStandardMaterial({ color: 0x1de9b6, emissive: 0x00bfa5,
+            emissiveIntensity: 1.0 }));
+        const aiCore = new THREE.Mesh(aiCoreGeo, aiCoreMat);
+        aiGroup.add(aiCore);
+
+        const rayGeo = new THREE.BufferGeometry();
+        const rayPos = new Float32Array(18 * 3);
+        for (let i = 0; i < 18; i++) {
+            rayPos[i * 3] = (Math.random() - 0.5) * 2.2;
+            rayPos[i * 3 + 1] = (Math.random() - 0.5) * 2.2;
+            rayPos[i * 3 + 2] = (Math.random() - 0.5) * 2.2;
+        }
+        rayGeo.setAttribute('position', new THREE.BufferAttribute(rayPos, 3));
+        const rayMat = new THREE.LineBasicMaterial({ color: 0x69f0ae, transparent: true, opacity: 0.6 });
+        const aiRays = new THREE.LineSegments(rayGeo, rayMat);
+        aiGroup.add(aiRays);
+
+        // --- 5. AUTONOMOUS GROUND LOGISTICS (AGVs) ---
+        const logisticsGroup = new THREE.Group();
+        scene.add(logisticsGroup);
+
+        function createAGV(label, colorHex) {
+            const agv = new THREE.Group();
+            const bGeo = new THREE.BoxGeometry(0.8, 0.25, 1.2);
+            const bMat = registerMat(new THREE.MeshStandardMaterial({ color: 0x37474f, metalness: 0.8, roughness: 0.3 }));
+            const bMesh = new THREE.Mesh(bGeo, bMat);
+            bMesh.position.y = 0.15;
+            agv.add(bMesh);
+            const canGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.5, 16);
+            const canMat = registerMat(new THREE.MeshStandardMaterial({ color: colorHex, metalness: 0.9, roughness: 0.1,
+                emissive: colorHex, emissiveIntensity: 0.4 }));
+            const canister = new THREE.Mesh(canGeo, canMat);
+            canister.position.set(0, 0.48, 0);
+            agv.add(canister);
+            const lidarGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.1, 16);
+            const lidarMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff });
+            const lidar = new THREE.Mesh(lidarGeo, lidarMat);
+            lidar.position.set(0, 0.32, 0.45);
+            agv.add(lidar);
+            return agv;
+        }
+        const agv1 = createAGV("PRO NCRE", 0x00e5ff);
+        const agv2 = createAGV("BIOCELLSO", 0xff4081);
+        logisticsGroup.add(agv1, agv2);
+
+        // --- 6. STEM CELL ISOLATION STATION ---
+        const stemCellGroup = new THREE.Group();
+        stemCellGroup.position.set(0, 0, 3.8);
+        scene.add(stemCellGroup);
+
+        const deskGeo = new THREE.BoxGeometry(3.0, 0.3, 1.2);
+        const deskMat = registerMat(new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.2 }));
+        const desk = new THREE.Mesh(deskGeo, deskMat);
+        desk.position.y = 0.15;
+        stemCellGroup.add(desk);
+
+        for (let i = -1; i <= 1; i += 2) {
+            const petriGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.06, 32);
+            const petriMat = registerMat(new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 0.9, opacity: 1,
+                transparent: true, roughness: 0.05 }));
+            const petri = new THREE.Mesh(petriGeo, petriMat);
+            petri.position.set(i * 0.7, 0.33, 0);
+            const spheroidsGeo = new THREE.DodecahedronGeometry(0.12, 1);
+            const spheroidsMat = registerMat(new THREE.MeshStandardMaterial({ color: 0x00e676, emissive: 0x00c853,
+                emissiveIntensity: 0.7 }));
+            const sph = new THREE.Mesh(spheroidsGeo, spheroidsMat);
+            sph.position.set(i * 0.7, 0.38, 0);
+            stemCellGroup.add(petri, sph);
+        }
+
+        // --- 7. PATIENT DIGITAL TWIN HOLOGRAM ---
+        const holoGroup = new THREE.Group();
+        holoGroup.position.set(0, 1.8, 0);
+        scene.add(holoGroup);
+
+        const avatarGeo = new THREE.CylinderGeometry(0.4, 0.25, 2.2, 16, 8, true);
+        const avatarMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, wireframe: true, transparent: true, opacity: 0.25 });
+        const avatar = new THREE.Mesh(avatarGeo, avatarMat);
+        holoGroup.add(avatar);
+
+        for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 2) {
+            const postGeo = new THREE.CylinderGeometry(0.1, 0.12, 1.4, 16);
+            const postMat = registerMat(new THREE.MeshStandardMaterial({ color: 0x37474f, metalness: 0.9 }));
+            const post = new THREE.Mesh(postGeo, postMat);
+            post.position.set(Math.cos(angle) * 7.5, 0.7, Math.sin(angle) * 7.5);
+            scene.add(post);
+        }
+
+        // --- 8. MOUSE & TOUCH ORBIT CONTROLS ---
+        let isUserDragging = false;
+        let prevMouseX = 0;
+        let prevMouseY = 0;
+        let spherical = { radius: 14, theta: 0, phi: Math.PI / 3 };
+        let targetLook = new THREE.Vector3(0, 1.5, 0);
+
+        function updateCameraPos() {
+            camera.position.x = targetLook.x + spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta);
+            camera.position.y = targetLook.y + spherical.radius * Math.cos(spherical.phi);
+            camera.position.z = targetLook.z + spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta);
+            camera.lookAt(targetLook);
+        }
+        updateCameraPos();
+
+        container.addEventListener('mousedown', (e) => { isUserDragging = true;
+            prevMouseX = e.clientX;
+            prevMouseY = e.clientY; });
+        window.addEventListener('mouseup', () => { isUserDragging = false; });
+        window.addEventListener('mousemove', (e) => {
+            if (!isUserDragging) return;
+            const dx = e.clientX - prevMouseX,
+                dy = e.clientY - prevMouseY;
+            prevMouseX = e.clientX;
+            prevMouseY = e.clientY;
+            spherical.theta -= dx * 0.005;
+            spherical.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, spherical.phi - dy * 0.005));
+            updateCameraPos();
+        });
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            spherical.radius = Math.max(3, Math.min(30, spherical.radius + e.deltaY * 0.01));
+            updateCameraPos();
+        }, { passive: false });
+        container.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) { isUserDragging = true;
+                prevMouseX = e.touches[0].clientX;
+                prevMouseY = e.touches[0].clientY; }
+        });
+        window.addEventListener('touchend', () => { isUserDragging = false; });
+        window.addEventListener('touchmove', (e) => {
+            if (!isUserDragging || e.touches.length !== 1) return;
+            const dx = e.touches[0].clientX - prevMouseX,
+                dy = e.touches[0].clientY - prevMouseY;
+            prevMouseX = e.touches[0].clientX;
+            prevMouseY = e.touches[0].clientY;
+            spherical.theta -= dx * 0.005;
+            spherical.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, spherical.phi - dy * 0.005));
+            updateCameraPos();
+        });
+
+        window.addEventListener('resize', () => {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        });
+
+        // --- 9. REAL-TIME ECG ANIMATION CANVAS ---
+        const ecgCanvas = document.getElementById('ecgCanvas');
+        const ecgCtx = ecgCanvas ? ecgCanvas.getContext('2d') : null;
+        let ecgX = 0;
+        let ecgPoints = [];
+
+        function initECG() {
+            if (!ecgCanvas) return;
+            ecgCanvas.width = ecgCanvas.clientWidth * 2;
+            ecgCanvas.height = ecgCanvas.clientHeight * 2;
+        }
+        initECG();
+
+        function drawECG() {
+            if (!ecgCtx || !ecgCanvas) return;
+            const w = ecgCanvas.width,
+                h = ecgCanvas.height,
+                mid = h / 2;
+            ecgCtx.fillStyle = 'rgba(10, 15, 26, 0.15)';
+            ecgCtx.fillRect(0, 0, w, h);
+            const time = Date.now() / 1000 * (telemetry.heartRate / 60);
+            const cycle = time % 1;
+            let y = mid;
+            if (cycle > 0.15 && cycle < 0.22) y -= Math.sin((cycle - 0.15) / 0.07 * Math.PI) * (h * 0.12);
+            else if (cycle >= 0.28 && cycle < 0.32) y += (h * 0.15);
+            else if (cycle >= 0.32 && cycle < 0.38) y -= (h * 0.42);
+            else if (cycle >= 0.38 && cycle < 0.42) y += (h * 0.2);
+            else if (cycle >= 0.50 && cycle < 0.65) y -= Math.sin((cycle - 0.50) / 0.15 * Math.PI) * (h * 0.18);
+            ecgPoints.push({ x: ecgX, y: y });
+            if (ecgPoints.length > 2) {
+                ecgCtx.beginPath();
+                ecgCtx.strokeStyle = '#38bdf8';
+                ecgCtx.lineWidth = 3;
+                ecgCtx.shadowColor = '#38bdf8';
+                ecgCtx.shadowBlur = 8;
+                ecgCtx.moveTo(ecgPoints[ecgPoints.length - 2].x, ecgPoints[ecgPoints.length - 2].y);
+                ecgCtx.lineTo(ecgPoints[ecgPoints.length - 1].x, ecgPoints[ecgPoints.length - 1].y);
+                ecgCtx.stroke();
+            }
+            ecgX += 2.5;
+            if (ecgX > w) { ecgX = 0;
+                ecgPoints = []; }
+        }
+
+        // --- 10. ANIMATION LOOP ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            const time = clock.getElapsedTime();
+
+            if (!isPaused) {
+                if (isAutoRotate && !isUserDragging) {
+                    spherical.theta += delta * 0.15;
+                    updateCameraPos();
+                }
+                const printAngle = time * 2.5;
+                printHead.position.x = Math.sin(printAngle) * 0.6;
+                printHead.position.z = Math.cos(printAngle * 0.7) * 0.6;
+                printHead.position.y = 1.6 + Math.sin(time * 0.5) * 0.3;
+                uvBeam.material.opacity = 0.2 + Math.sin(time * 8.0) * 0.1;
+                printLattice.rotation.y += delta * 0.3;
+
+                const hrRate = (telemetry.heartRate / 60) * Math.PI * 2;
+                const beatScale = 1.0 + Math.pow(Math.sin(time * hrRate), 4) * 0.15 * (1 + fourDValue * 0.5);
+                heartMesh.scale.set(1.0 * beatScale, 1.3 * beatScale, 0.85 * beatScale);
+                kidneyMat.emissiveIntensity = 0.2 + Math.sin(time * 3.0) * 0.15 * (1 + fourDValue * 0.4);
+
+                const bPos = bubbles.geometry.attributes.position.array;
+                for (let i = 0; i < bubbleCount; i++) {
+                    bPos[i * 3 + 1] += delta * 0.8;
+                    if (bPos[i * 3 + 1] > 2.8) bPos[i * 3 + 1] = 0.6;
+                }
+                bubbles.geometry.attributes.position.needsUpdate = true;
+
+                aiIcosa.rotation.x += delta * 0.6;
+                aiIcosa.rotation.y += delta * 0.8;
+                // El escalado del núcleo IA se controla desde las simulaciones, pero añadimos un leve efecto
+                if (!aiCore.scale.isScalar) {
+                    aiCore.scale.setScalar(1.0 + Math.sin(time * 4) * 0.08);
+                }
+
+                const agvSpeed = time * 0.35;
+                agv1.position.x = Math.cos(agvSpeed) * 8.5;
+                agv1.position.z = Math.sin(agvSpeed) * 8.5;
+                agv1.rotation.y = -agvSpeed + Math.PI / 2;
+                agv2.position.x = Math.cos(agvSpeed + Math.PI) * 8.5;
+                agv2.position.z = Math.sin(agvSpeed + Math.PI) * 8.5;
+                agv2.rotation.y = -(agvSpeed + Math.PI) + Math.PI / 2;
+
+                avatar.rotation.y += delta * 0.5;
+
+                const explodeTarget = isExploded ? 1.0 : 0.0;
+                printerGroup.position.x = THREE.MathUtils.lerp(printerGroup.position.x, -4.2 - explodeTarget * 2.5, 0.08);
+                bioreactorGroup.position.x = THREE.MathUtils.lerp(bioreactorGroup.position.x, 4.2 + explodeTarget * 2.5,
+                0.08);
+                aiGroup.position.z = THREE.MathUtils.lerp(aiGroup.position.z, -3.5 - explodeTarget * 2.0, 0.08);
+                stemCellGroup.position.z = THREE.MathUtils.lerp(stemCellGroup.position.z, 3.8 + explodeTarget * 2.0, 0.08);
+
+                // Actualización de telemetría en el loop (solo si no estamos en una simulación específica)
+                // Para no sobrescribir las simulaciones de modo, usamos un flag o simplemente dejamos que
+                // las simulaciones se encarguen. En el loop solo se actualizan valores con pequeñas variaciones.
+                // Pero si no hay simulación activa, la telemetría se mantiene estable.
+                // Para dar sensación de vida, solo variamos ligeramente si no se ha cambiado modo recientemente.
+                // En la práctica, las simulaciones de modo ya actualizan la telemetría, así que no hacemos nada aquí.
+                // drawECG se llama siempre.
+                drawECG();
+            }
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // --- 11. UI INTERACTION HANDLERS ---
+        function setCamera(mode) {
+            currentCamera = mode;
+            document.querySelectorAll('[id^="cam-"]').forEach(btn => btn.classList.remove('btn-tactical-active'));
+            const activeBtn = document.getElementById('cam-' + mode.toLowerCase());
+            if (activeBtn) activeBtn.classList.add('btn-tactical-active');
+            if (mode === 'ORBIT') { targetLook.set(0, 1.5, 0);
+                spherical.radius = 14;
+                spherical.phi = Math.PI / 3; } else if (mode === 'PRINTER') { targetLook.set(-4.2, 2.0, 0);
+                spherical.radius = 6.5;
+                spherical.phi = Math.PI / 3;
+                spherical.theta = -Math.PI / 4; } else if (mode === 'BIOREACTOR') { targetLook.set(4.2, 1.8, 0);
+                spherical.radius = 6.5;
+                spherical.phi = Math.PI / 3;
+                spherical.theta = Math.PI / 4; } else if (mode === 'HEART') { targetLook.set(3.2, 1.8, 0);
+                spherical.radius = 3.5;
+                spherical.phi = Math.PI / 2.5; } else if (mode === 'KIDNEY') { targetLook.set(5.2, 1.8, 0);
+                spherical.radius = 3.5;
+                spherical.phi = Math.PI / 2.5; } else if (mode === 'AI_CORE') { targetLook.set(0, 4.2, -3.5);
+                spherical.radius = 5.0;
+                spherical.phi = Math.PI / 3; } else if (mode === 'LOGISTICS') { targetLook.set(0, 0.5, 0);
+                spherical.radius = 16;
+                spherical.phi = Math.PI / 4; }
+            updateCameraPos();
+        }
+
+        function setOrgan(type) {
+            currentOrgan = type;
+            document.getElementById('organ-heart').classList.remove('btn-tactical-active');
+            document.getElementById('organ-kidney').classList.remove('btn-tactical-active');
+            document.getElementById('organ-both').classList.remove('btn-tactical-active');
+            document.getElementById('organ-' + type.toLowerCase()).classList.add('btn-tactical-active');
+            heartGroup.visible = type === 'HEART' || type === 'BOTH';
+            kidneyGroup.visible = type === 'KIDNEY' || type === 'BOTH';
+        }
+
+        function toggleExploded() { isExploded = !isExploded;
+            document.getElementById('btn-explode').classList.toggle('btn-tactical-active', isExploded); }
+
+        function toggleXray() {
+            isXray = !isXray;
+            document.getElementById('btn-xray').classList.toggle('btn-tactical-active', isXray);
+            allMaterials.forEach(m => {
+                if (m.type === 'MeshStandardMaterial' || m.type === 'MeshPhysicalMaterial') {
+                    m.wireframe = isXray;
+                    m.transparent = isXray ? true : (m.opacity < 1);
+                    m.opacity = isXray ? 0.35 : 1.0;
+                }
+            });
+        }
+
+        function toggleSection() { isSection = !isSection;
+            document.getElementById('btn-section').classList.toggle('btn-tactical-active', isSection);
+            renderer.clippingPlanes = isSection ? [clipPlane] : []; }
+
+        function toggleAutoRotate() { isAutoRotate = !isAutoRotate;
+            document.getElementById('btn-rotate').classList.toggle('btn-tactical-active', isAutoRotate); }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            const btn = document.getElementById('btn-pause'),
+                icon = document.getElementById('icon-pause'),
+                lbl = document.getElementById('lbl-pause');
+            btn.classList.toggle('btn-tactical-active', isPaused);
+            lbl.innerText = isPaused ? (i18n[currentLang].resume || "Reanudar") : (i18n[currentLang].pause || "Pausa");
+            if (icon) icon.setAttribute('data-lucide', isPaused ? 'play' : 'pause');
+            lucide.createIcons();
+        }
+
+        function toggleAR() {
+            isAR = !isAR;
+            document.getElementById('btn-ar').classList.toggle('btn-tactical-active', isAR);
+            scene.background = isAR ? null : new THREE.Color(0x0a0d14);
+            floor.visible = !isAR;
+            grid.visible = !isAR;
+        }
+
+        function on4DSliderChange(val) { fourDValue = parseFloat(val);
+            document.getElementById('fourDVal').innerText = Math.round(fourDValue * 100) + '%';
+            triggerSimulation(); }
+
+        function selectPhase(idx) {
+            selectedPhaseIndex = idx;
+            const p = i18n[currentLang].phasesList[idx];
+            document.getElementById('phase-title').innerText = p.title;
+            document.getElementById('phase-desc').innerText = p.desc;
+            document.getElementById('phase-badge').innerText = 'FASE ' + (idx + 1) + '/8';
+            // Resaltar pestaña
+            document.querySelectorAll('.phase-tab').forEach((btn, i) => {
+                btn.className = 'text-[9px] py-0.5 rounded font-bold transition ' +
+                    (i === idx ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-sky-600');
+            });
+            // Simulación al seleccionar fase (opcional, pero para cumplir con "todas las funciones" lo añadimos)
+            triggerSimulation();
+        }
+
+        function setOperatingMode(modeId) {
+            currentMode = modeId;
+            document.getElementById('current-mode-code').innerText = modeId;
+            renderModeButtons();
+            if (modeId === 'STANDBY') ambientLight.color.setHex(0x90caf9);
+            else if (modeId === 'BIOPRINT_4D') setCamera('PRINTER');
+            else if (modeId === 'BIOREACTOR_INCUBATION') setCamera('BIOREACTOR');
+            else if (modeId === 'AI_OPTIMIZATION') setCamera('AI_CORE');
+            else if (modeId === 'GENDER_DIFFERENTIATED') openModal('genderModal');
+            // Ejecutar simulación diferenciada para este modo
+            simulateMode(modeId);
+        }
+
+        function renderModeButtons() {
+            const container = document.getElementById('mode-buttons-container');
+            container.innerHTML = '';
+            const list = i18n[currentLang].modes;
+            list.forEach(m => {
+                const btn = document.createElement('button');
+                const isActive = m.id === currentMode;
+                btn.className = 'w-full text-left p-1.5 rounded-lg border text-[10px] transition flex flex-col gap-0.5 ' +
+                    (isActive ?
+                        'bg-sky-500/20 border-sky-400 text-white shadow-[0_0_12px_rgba(56,189,248,0.3)]' :
+                        'bg-slate-900/60 border-slate-800 text-slate-300 hover:bg-slate-800');
+                btn.onclick = () => handleClick(btn, () => setOperatingMode(m.id));
+                btn.innerHTML = '<div class="font-bold ' + (isActive ? 'text-sky-300' : 'text-slate-200') + '">' + m
+                    .name + '</div>' +
+                    '<div class="text-[8px] text-slate-400 leading-tight">' + m.desc + '</div>';
+                container.appendChild(btn);
+            });
+        }
+
+        function cycleLanguage() {
+            if (currentLang === 'es') currentLang = 'en';
+            else if (currentLang === 'en') currentLang = 'zh';
+            else currentLang = 'es';
+            document.getElementById('lang-label').innerText = currentLang.toUpperCase();
+            applyTranslations();
+            triggerSimulation(); // también simulamos al cambiar idioma
+        }
+
+        function applyTranslations() {
+            const d = i18n[currentLang];
+            document.getElementById('header-title').innerText = d.title;
+            document.getElementById('header-status').innerText = d.status;
+            document.getElementById('header-author-label').innerText = d.author;
+            document.getElementById('tour-btn-label').innerText = d.tourBtn;
+            document.getElementById('biocycle-btn-label').innerText = d.biocycleBtn;
+            document.getElementById('weekly-btn-label').innerText = d.weeklyBtn;
+            document.getElementById('regulatory-btn-label').innerText = d.regulatoryBtn;
+            document.getElementById('biblio-btn-label').innerText = d.biblioBtn;
+            document.getElementById('gender-btn-label').innerText = d.genderBtn;
+            document.getElementById('budget-btn-label').innerText = d.budgetBtn;
+            document.getElementById('manual-btn-label').innerText = d.manualBtn;
+            document.getElementById('lbl-reset').innerText = d.resetBtn;
+            document.getElementById('lbl-operating-modes').innerHTML = '<i data-lucide="cpu" class="w-3 h-3"></i> ' + d
+            .operatingModes;
+            document.getElementById('lbl-technical-phases').innerHTML = '<i data-lucide="layers" class="w-3 h-3"></i> ' + d
+            .phases;
+            document.getElementById('lbl-live-telemetry').innerHTML = '<i data-lucide="activity" class="w-3 h-3"></i> ' + d
+            .telemetry;
+            document.getElementById('lbl-heart-rate').innerText = d.heartRate;
+            document.getElementById('lbl-cell-viability').innerText = d.cellViability;
+            document.getElementById('lbl-print-progress').innerText = d.printProgress;
+            document.getElementById('lbl-viscosity').innerText = d.viscosity;
+            document.getElementById('lbl-uv-cure').innerText = d.uvCure;
+            document.getElementById('lbl-renal-filter').innerText = d.renalFilter;
+            document.getElementById('lbl-ai-defect').innerText = d.aiDefect;
+            document.getElementById('lbl-angiogenesis').innerText = d.angiogenesis;
+            document.getElementById('lbl-day-maturation').innerText = d.maturation;
+            document.getElementById('lbl-organ-focus').innerText = d.organFocus;
+            document.getElementById('lbl-cameras').innerText = d.cameras;
+            document.getElementById('lbl-4d-slider').innerHTML = '<i data-lucide="sparkles" class="w-3 h-3 text-amber-400"></i> ' +
+                d.stimulus4D;
+            document.getElementById('lbl-explode').innerText = d.explode;
+            document.getElementById('lbl-xray').innerText = d.xray;
+            document.getElementById('lbl-section').innerText = d.section;
+            document.getElementById('lbl-autorotate').innerText = d.rotate;
+            document.getElementById('lbl-ar').innerText = d.ar;
+            document.getElementById('lbl-pause').innerText = isPaused ? d.resume : d.pause;
+            document.getElementById('cam-orbit-label').innerText = d.camOrbit;
+            document.getElementById('cam-printer-label').innerText = d.camPrinter;
+            document.getElementById('cam-bioreactor-label').innerText = d.camBioreactor;
+            document.getElementById('cam-heart-label').innerText = d.camHeart;
+            document.getElementById('cam-kidney-label').innerText = d.camKidney;
+            document.getElementById('cam-ai-label').innerText = d.camAI;
+            document.getElementById('cam-logistics-label').innerText = d.camLogistics;
+            // Modales
+            document.getElementById('gender-modal-title').querySelector('span').innerText = d.genderModalTitle;
+            document.getElementById('gender-modal-content').innerHTML = d.genderModalContent;
+            document.getElementById('gender-close-btn').innerText = d.close;
+            document.getElementById('budget-modal-title').querySelector('span').innerText = d.budgetModalTitle;
+            document.getElementById('budget-modal-content').innerHTML = d.budgetModalContent;
+            document.getElementById('budget-close-btn').innerText = d.close;
+            document.getElementById('manual-modal-title').querySelector('span').innerText = d.manualModalTitle;
+            document.getElementById('manual-modal-content').innerHTML = d.manualModalContent;
+            document.getElementById('manual-close-btn').innerText = d.close;
+            document.getElementById('biocycle-modal-title').querySelector('span').innerText = d.biocycleModalTitle;
+            document.getElementById('biocycle-modal-content').innerHTML = d.biocycleModalContent;
+            document.getElementById('biocycle-close-btn').innerText = d.close;
+            document.getElementById('weekly-modal-title').querySelector('span').innerText = d.weeklyModalTitle;
+            document.getElementById('weekly-modal-content').innerHTML = d.weeklyModalContent;
+            document.getElementById('weekly-close-btn').innerText = d.close;
+            document.getElementById('regulatory-modal-title').querySelector('span').innerText = d.regulatoryModalTitle;
+            document.getElementById('regulatory-modal-content').innerHTML = d.regulatoryModalContent;
+            document.getElementById('regulatory-close-btn').innerText = d.close;
+            document.getElementById('bibliography-modal-title').querySelector('span').innerText = d
+            .bibliographyModalTitle;
+            document.getElementById('bibliography-modal-content').innerHTML = d.bibliographyModalContent;
+            document.getElementById('bibliography-close-btn').innerText = d.close;
+            renderModeButtons();
+            selectPhase(selectedPhaseIndex);
+            lucide.createIcons();
+        }
+
+        function updateTelemetryUI() {
+            document.getElementById('val-viability').innerText = telemetry.viability.toFixed(1);
+            document.getElementById('bar-viability').style.width = telemetry.viability + '%';
+            document.getElementById('val-progress').innerText = telemetry.progress.toFixed(1);
+            document.getElementById('bar-progress').style.width = telemetry.progress + '%';
+            document.getElementById('val-heart-rate').innerText = telemetry.heartRate;
+            document.getElementById('val-ai-defect').innerText = telemetry.aiDefect.toFixed(2);
+            document.getElementById('val-viscosity').innerText = telemetry.viscosity.toFixed(0);
+            document.getElementById('val-renal-p').innerText = telemetry.renalP.toFixed(1);
+            document.getElementById('val-urea').innerText = telemetry.urea.toFixed(1);
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden');
+            lucide.createIcons(); }
+
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        let tourIndex = 0;
+        const tourSequence = [
+            { cam: 'ORBIT', mode: 'BIO_INK', text: 'Paso 1: Estación de Células Madre y Banco Criogénico (Pureza ≥95%, Viabilidad >90%).' },
+            { cam: 'PRINTER', mode: 'BIOPRINT_4D', text: 'Paso 2: Bioimpresora 4D Robótica Multicanal (Resolución ≤50 μm, UV 365 nm).' },
+            { cam: 'BIOREACTOR', mode: 'BIOREACTOR_INCUBATION', text: 'Paso 3: Biorreactores Dinámicos de Doble Perfusión (120/80 mmHg y gradiente 10-20 mmHg).' },
+            { cam: 'HEART', mode: 'IN_VIVO_IMPLANT', text: 'Paso 4: Corazón Biomecánico y Riñón 4D con Polímeros Inteligentes PNIPAM a 37°C.' },
+            { cam: 'AI_CORE', mode: 'AI_OPTIMIZATION', text: 'Paso 5: Red Neuronal Sináptica IA con Corrección G-Code en Bucle Cerrado.' }
+        ];
+
+        function startGuidedTour() { tourIndex = 0;
+            runNextTourStep(); }
+
+        function runNextTourStep() {
+            if (tourIndex >= tourSequence.length) { setCamera('ORBIT'); return; }
+            const step = tourSequence[tourIndex];
+            setCamera(step.cam);
+            setOperatingMode(step.mode);
+            tourIndex++;
+            setTimeout(runNextTourStep, 3500);
+        }
+
+        // --- INICIALIZACIÓN ---
+        renderModeButtons();
+        selectPhase(selectedPhaseIndex);
+        applyTranslations();
+        lucide.createIcons();
+    </script>
+</body>
+</html>
