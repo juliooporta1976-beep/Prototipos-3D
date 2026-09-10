@@ -1,1199 +1,1875 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HELIOS - Red Global Soberana de Alta Disponibilidad</title>
-    <!-- Tailwind CSS para la interfaz HUD Táctica -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Biblioteca Principal Three.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@500;600;700&display=swap');
-        
-        body {
-            font-family: 'Rajdhani', sans-serif;
-            background-color: #020208;
-            overflow: hidden;
-            user-select: none;
-        }
-        .orbitron {
-            font-family: 'Orbitron', sans-serif;
-        }
-        /* Efecto de cristal templado holográfico */
-        .glass-panel {
-            background: rgba(6, 10, 26, 0.65);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(0, 242, 254, 0.2);
-            box-shadow: 0 0 25px rgba(0, 242, 254, 0.05);
-        }
-        .neon-text-cyan {
-            text-shadow: 0 0 10px rgba(0, 242, 254, 0.6);
-        }
-        .neon-text-amber {
-            text-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
-        }
-        .neon-border-cyan {
-            box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
-            border-color: rgba(0, 242, 254, 0.5);
-        }
-        /* Personalización de barra de scroll */
-        ::-webkit-scrollbar {
-            width: 4px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(6, 10, 26, 0.5);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(0, 242, 254, 0.3);
-            border-radius: 2px;
-        }
-        /* Animación de pulso táctico */
-        @keyframes pulse-fast {
-            0%, 100% { opacity: 0.3; }
-            50% { opacity: 1; }
-        }
-        .pulse-active {
-            animation: pulse-fast 1.5s infinite;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HELIOS - Red Global Soberana de Alta Disponibilidad | Dr. Julio César Oporta Barrera</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+        font-family: 'Rajdhani', sans-serif;
+        background-color: #020208;
+        background-image:
+            radial-gradient(ellipse 70% 55% at 50% 45%, rgba(6, 22, 56, 0.7) 0%, rgba(2, 2, 8, 0) 70%),
+            radial-gradient(ellipse 40% 40% at 12% 8%, rgba(0, 242, 254, 0.06) 0%, rgba(2, 2, 8, 0) 70%),
+            radial-gradient(ellipse 40% 40% at 88% 92%, rgba(168, 85, 247, 0.06) 0%, rgba(2, 2, 8, 0) 70%);
+        color: #f1f5f9;
+        overflow: hidden;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    .font-orbitron { font-family: 'Orbitron', monospace, sans-serif; }
+    .glass-panel {
+        background: rgba(6, 10, 26, 0.72);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border: 1px solid rgba(0, 242, 254, 0.22);
+        box-shadow: 0 0 25px rgba(0, 242, 254, 0.08);
+    }
+    .neon-text-cyan { text-shadow: 0 0 10px rgba(0, 242, 254, 0.65); }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: rgba(6, 10, 26, 0.5); }
+    ::-webkit-scrollbar-thumb { background: rgba(0, 242, 254, 0.35); border-radius: 2px; }
+    @keyframes pulse-fast { 0%,100% { opacity: 0.35; } 50% { opacity: 1; } }
+    .pulse-active { animation: pulse-fast 1.5s infinite ease-in-out; }
+    @keyframes reset-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .reset-spin { animation: reset-spin 0.7s linear; }
+    input[type=range] { accent-color: #00f2fe; }
+    #canvas-container { touch-action: none; -webkit-tap-highlight-color: transparent; transition: transform 0.05s; }
+    #canvas-container canvas { display: block; }
+    .bg-grid-fade {
+        background-image:
+            linear-gradient(rgba(0, 242, 254, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 242, 254, 0.05) 1px, transparent 1px);
+        background-size: 48px 48px;
+        mask-image: radial-gradient(ellipse 90% 90% at 50% 50%, #000 35%, transparent 85%);
+        -webkit-mask-image: radial-gradient(ellipse 90% 90% at 50% 50%, #000 35%, transparent 85%);
+    }
+    .scanbar {
+        position: absolute; left: 0; right: 0; height: 100px;
+        background: linear-gradient(180deg, rgba(0, 242, 254, 0) 0%, rgba(0, 242, 254, 0.05) 50%, rgba(0, 242, 254, 0) 100%);
+        animation: scanMove 8s linear infinite;
+        pointer-events: none;
+    }
+    @keyframes scanMove {
+        0% { transform: translateY(-150px); opacity: 0; }
+        10% { opacity: 1; } 90% { opacity: 1; }
+        100% { transform: translateY(120vh); opacity: 0; }
+    }
+    .ticker-log { animation: slideLog 0.4s ease-out; }
+    @keyframes slideLog { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+    .sat-dot { width: 6px; height: 6px; border-radius: 1px; transition: all 0.3s; }
+    .sat-dot.critical { background: #ef4444 !important; box-shadow: 0 0 6px #ef4444 !important; animation: pulse-fast 0.6s infinite; }
+    body.focus-mode .hud-panel { display: none; }
+    body.focus-mode #focusToggle { background-color: #00f2fe; color: #020208; }
+</style>
 </head>
-<body class="w-screen h-screen text-slate-100 flex flex-col justify-between">
+<body class="relative w-screen h-screen overflow-hidden select-none">
 
-    <!-- CANVAS 3D PRINCIPAL -->
-    <div id="canvas-container" class="absolute inset-0 z-0"></div>
+    <!-- FULLSCREEN 3D VIEWPORT -->
+    <div id="canvas-container" class="fixed inset-0 z-0 w-full h-full cursor-grab active:cursor-grabbing"></div>
 
-    <!-- HUD SUPERIOR: IDENTIFICACIÓN Y MODOS -->
-    <header class="relative z-10 w-full p-4 flex flex-col md:flex-row justify-between items-start md:items-center pointer-events-none gap-4">
-        <!-- Izquierda: Firma del Autor -->
-        <div class="glass-panel p-3 rounded-lg flex items-center gap-3 pointer-events-auto border-l-4 border-l-[#00f2fe]">
-            <div class="w-3 h-3 bg-[#00f2fe] rounded-full pulse-active shadow-[0_0_10px_#00f2fe]"></div>
-            <div>
-                <div class="text-xs text-[#00f2fe] tracking-widest font-bold orbitron">PATENTE REGISTRADA</div>
-                <div class="text-lg font-black tracking-wide text-white orbitron">Dr. Julio César Oporta Barrera</div>
+    <!-- Rejilla táctica -->
+    <div class="fixed inset-0 z-[1] pointer-events-none bg-grid-fade opacity-30"></div>
+    <div class="fixed inset-0 z-[1] pointer-events-none overflow-hidden"><div class="scanbar"></div></div>
+
+    <!-- Screen flash overlay (para simulaciones diferenciadas) -->
+    <div id="screenFlash" class="fixed inset-0 z-30 pointer-events-none" style="background: transparent; opacity: 0;"></div>
+
+    <!-- HUD OVERLAY -->
+    <div class="fixed inset-0 z-10 pointer-events-none flex flex-col p-2 sm:p-3 gap-2">
+
+        <!-- TOP BAR -->
+        <header class="pointer-events-auto shrink-0 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-2">
+
+            <div class="glass-panel px-3 py-1.5 rounded-xl flex items-center gap-2.5 border-l-4 border-l-[#00f2fe] shadow-[0_0_20px_rgba(0,242,254,0.15)]">
+                <div class="w-2.5 h-2.5 bg-[#00f2fe] rounded-full pulse-active shadow-[0_0_10px_#00f2fe]"></div>
+                <div>
+                    <div class="text-[9px] text-[#00f2fe] tracking-widest font-bold font-orbitron flex items-center gap-1.5">
+                        <span id="lblPatent">SOLICITUD DE PATENTE</span>
+                        <span class="text-slate-500">|</span>
+                        <span class="text-slate-300 font-mono text-[9px] flex items-center gap-1">
+                            <svg class="w-3 h-3 text-[#00f2fe]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
+                            <span id="utc-clock">--:--:-- UTC</span>
+                        </span>
+                    </div>
+                    <div class="text-xs sm:text-sm font-black tracking-wide text-white font-orbitron">Dr. Julio César Oporta Barrera</div>
+                </div>
+            </div>
+
+            <div class="hidden md:flex flex-col items-center glass-panel px-4 py-1.5 rounded-xl border border-cyan-500/30 shadow-[0_0_25px_rgba(0,242,254,0.1)]">
+                <h1 class="text-base lg:text-lg font-black tracking-[0.35em] text-white font-orbitron neon-text-cyan flex items-center gap-2">
+                    HELIOS <span class="text-[9px] font-medium px-1.5 py-0.5 bg-cyan-500/20 text-[#00f2fe] rounded border border-cyan-500/40 tracking-normal">V2.2</span>
+                </h1>
+                <p id="lblSubtitle" class="text-[9px] tracking-[0.3em] text-slate-400 font-bold uppercase">Soberanía de Alta Disponibilidad</p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-1.5 pointer-events-auto self-end lg:self-auto">
+                <button id="resetBtn" onclick="resetVisualization()" class="glass-panel px-2 py-1.5 rounded-lg text-[10px] font-bold font-orbitron text-amber-300 hover:text-white border border-amber-500/40 hover:bg-amber-500/20 transition-all cursor-pointer flex items-center gap-1" title="Reset visual">
+                    <svg id="resetIcon" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10" stroke-width="2"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" stroke-width="2"/></svg>
+                    <span id="lblReset" class="hidden sm:inline">RESET</span>
+                </button>
+
+                <button id="focusToggle" onclick="toggleFocusMode()" class="glass-panel px-2 py-1.5 rounded-lg text-[10px] font-bold font-orbitron text-cyan-300 hover:text-white border border-cyan-500/30 transition-all cursor-pointer" title="Modo enfoque">
+                    <span id="lblFocus">◉</span>
+                </button>
+
+                <div class="glass-panel px-2.5 py-1.5 rounded-lg border border-cyan-500/20 flex items-center gap-1.5">
+                    <svg class="w-3 h-3 text-[#00f2fe]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2"/></svg>
+                    <span class="text-[9px] text-slate-400 font-orbitron hidden sm:inline" id="lblMissionTime">MISSION</span>
+                    <span class="text-[10px] text-[#00f2fe] font-orbitron font-bold" id="valMissionTime">00:00:00</span>
+                </div>
+
+                <div class="glass-panel px-2.5 py-1.5 rounded-lg border border-cyan-500/20 flex items-center gap-2">
+                    <span class="text-[9px] text-slate-400 font-orbitron hidden sm:inline" id="lblThreatLevel">THREAT</span>
+                    <div class="w-12 h-1.5 bg-black/60 rounded-full overflow-hidden">
+                        <div id="threatBar" class="h-full bg-emerald-400 transition-all duration-500" style="width: 8%"></div>
+                    </div>
+                    <span class="text-[10px] font-orbitron font-bold text-emerald-400" id="valThreatLevel">LOW</span>
+                </div>
+
+                <div class="glass-panel p-1 rounded-lg border border-cyan-500/20">
+                    <select id="op-mode" onchange="handleModeChange(this.value)" class="bg-[#060a1a] text-[10px] font-bold text-slate-100 border-none outline-none p-1 rounded cursor-pointer font-orbitron">
+                        <option value="normal" id="optNormal">⚡ MODO NORMAL</option>
+                        <option value="crisis" id="optCrisis">🚨 CRISIS AMBIENTAL</option>
+                        <option value="soberano" id="optSovereign">🛡️ RESPALDO SOBERANO</option>
+                    </select>
+                </div>
+
+                <div class="glass-panel p-1 rounded-lg flex gap-0.5 text-xs font-bold border border-cyan-500/20">
+                    <button onclick="setLanguage('es')" id="btn-es" class="px-1.5 py-1 rounded bg-[#00f2fe] text-[#020208] shadow-[0_0_10px_rgba(0,242,254,0.5)] font-black font-orbitron uppercase text-[10px] cursor-pointer transition-all">ES</button>
+                    <button onclick="setLanguage('en')" id="btn-en" class="px-1.5 py-1 rounded text-slate-400 hover:text-white font-orbitron uppercase text-[10px] cursor-pointer transition-all">EN</button>
+                    <button onclick="setLanguage('zh')" id="btn-zh" class="px-1.5 py-1 rounded text-slate-400 hover:text-white font-orbitron uppercase text-[10px] cursor-pointer transition-all">ZH</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- CAMERA BAR -->
+        <div class="pointer-events-auto shrink-0 flex justify-center">
+            <div class="glass-panel p-1 rounded-xl flex items-center gap-1 border border-cyan-500/30 shadow-[0_0_20px_rgba(0,242,254,0.1)] overflow-x-auto max-w-full">
+                <div class="text-[9px] font-bold font-orbitron text-slate-400 px-1.5 flex items-center gap-1 shrink-0">
+                    <svg class="w-3 h-3 text-[#00f2fe]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    <span class="hidden sm:inline" id="lblViewCamera">CÁMARA:</span>
+                </div>
+                <button onclick="setCameraPreset('global')" id="cam-global" class="px-2 py-1 rounded text-[10px] font-bold font-orbitron transition-all whitespace-nowrap cursor-pointer bg-cyan-500/30 text-[#00f2fe] border border-cyan-400/50 shadow-[0_0_10px_rgba(0,242,254,0.3)]">Órbita Global</button>
+                <button onclick="setCameraPreset('stratosphere')" id="cam-stratosphere" class="px-2 py-1 rounded text-[10px] font-bold font-orbitron transition-all whitespace-nowrap cursor-pointer text-slate-400 hover:text-white hover:bg-white/5">HAPS</button>
+                <button onclick="setCameraPreset('satellite')" id="cam-swarm" class="px-2 py-1 rounded text-[10px] font-bold font-orbitron transition-all whitespace-nowrap cursor-pointer text-slate-400 hover:text-white hover:bg-white/5">ISL</button>
+                <button onclick="setCameraPreset('neural')" id="cam-neural" class="px-2 py-1 rounded text-[10px] font-bold font-orbitron transition-all whitespace-nowrap cursor-pointer text-slate-400 hover:text-white hover:bg-white/5">BCI</button>
             </div>
         </div>
 
-        <!-- Título Central de Proyecto -->
-        <div class="hidden lg:flex flex-col items-center glass-panel px-6 py-2 rounded-xl border border-cyan-500/30">
-            <h1 class="text-2xl font-black tracking-[0.3em] text-white orbitron neon-text-cyan flex items-center gap-2">
-                HELIOS <span class="text-xs font-medium px-2 py-0.5 bg-cyan-500/20 text-[#00f2fe] rounded border border-cyan-500/40">V1.0</span>
-            </h1>
-            <p class="text-[10px] tracking-[0.4em] text-slate-400 font-bold uppercase" id="lblSubtitle">Soberanía de Alta Disponibilidad</p>
-        </div>
+        <main class="flex-1 min-h-0 relative">
 
-        <!-- Derecha: Selector de Idioma e Indicadores de Sistema -->
-        <div class="flex items-center gap-2 pointer-events-auto self-end md:self-auto">
-            <!-- Selector de Idiomas -->
-            <div class="glass-panel p-1 rounded-lg flex gap-1 text-xs font-bold border border-cyan-500/20">
-                <button onclick="setLanguage('es')" id="btn-es" class="px-2.5 py-1 rounded bg-[#00f2fe] text-[#020208] transition-all">ES</button>
-                <button onclick="setLanguage('en')" id="btn-en" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">EN</button>
-                <button onclick="setLanguage('zh')" id="btn-zh" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">ZH</button>
-            </div>
+            <!-- LEFT HUD -->
+            <aside class="hud-panel absolute left-0 top-0 bottom-0 w-[280px] sm:w-[310px] lg:w-[330px] pointer-events-auto overflow-y-auto pr-1 flex flex-col gap-2">
 
-            <!-- Selector de Modos de Operación -->
-            <div class="glass-panel p-1 rounded-lg flex gap-1 text-xs font-bold border border-cyan-500/20">
-                <select id="op-mode" onchange="changeOpMode(this.value)" class="bg-[#060a1a] text-xs font-bold text-slate-100 border-none outline-none p-1.5 rounded cursor-pointer orbitron">
-                    <option value="normal" id="optNormal">⚡ MODO NORMAL</option>
-                    <option value="crisis" id="optCrisis">🚨 CRISIS AMBIENTAL</option>
-                    <option value="soberano" id="optSovereign">🛡️ RESPALDO SOBERANO</option>
-                </select>
-            </div>
-        </div>
-    </header>
+                <div class="glass-panel p-3 rounded-xl flex flex-col gap-2">
+                    <div class="flex justify-between items-center border-b border-cyan-500/20 pb-1.5">
+                        <h2 class="text-[11px] font-bold tracking-widest text-[#00f2fe] font-orbitron flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2" stroke-width="2"/><polyline points="2 17 12 22 22 17" stroke-width="2"/><polyline points="2 12 12 17 22 12" stroke-width="2"/></svg>
+                            <span id="lblLayerMonitor">MONITOR MULTICAPA</span>
+                        </h2>
+                        <span id="onlineBadge" class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-orbitron pulse-active">ONLINE</span>
+                    </div>
+                    <div onclick="toggleLayer('space')" id="card-space" class="flex items-center justify-between p-1.5 rounded-lg border transition-all cursor-pointer bg-cyan-950/30 border-cyan-500/30">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="chkSpace" checked readonly class="accent-cyan-400 pointer-events-none w-3 h-3">
+                            <div>
+                                <div class="text-[10px] font-black font-orbitron text-white" id="lblCapaSpace">CAPA ESPACIAL (LEO)</div>
+                                <div class="text-[9px] text-slate-400" id="lblCapaSpaceDesc">384 Satélites · ISL 10 Gbps</div>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-bold text-cyan-400 font-orbitron">30 ms</span>
+                    </div>
+                    <div onclick="toggleLayer('aerial')" id="card-aerial" class="flex items-center justify-between p-1.5 rounded-lg border transition-all cursor-pointer bg-cyan-950/30 border-cyan-500/30">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="chkAerial" checked readonly class="accent-cyan-400 pointer-events-none w-3 h-3">
+                            <div>
+                                <div class="text-[10px] font-black font-orbitron text-white" id="lblCapaAerial">CAPA AÉREA (HAPS)</div>
+                                <div class="text-[9px] text-slate-400" id="lblCapaAerialDesc">Drones Estratosféricos >20km</div>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-bold text-amber-400 font-orbitron">&gt;30d</span>
+                    </div>
+                    <div onclick="toggleLayer('terrestrial')" id="card-terrestrial" class="flex items-center justify-between p-1.5 rounded-lg border transition-all cursor-pointer bg-cyan-950/30 border-cyan-500/30">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="chkTerra" checked readonly class="accent-cyan-400 pointer-events-none w-3 h-3">
+                            <div>
+                                <div class="text-[10px] font-black font-orbitron text-white" id="lblCapaTerra">CAPA TERRESTRE</div>
+                                <div class="text-[9px] text-slate-400" id="lblCapaTerraDesc">Fibra 10 Tbps + Nodos</div>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-bold text-[#00f2fe] font-orbitron">10Tbps</span>
+                    </div>
+                    <div onclick="toggleLayer('user')" id="card-user" class="flex items-center justify-between p-1.5 rounded-lg border transition-all cursor-pointer bg-cyan-950/30 border-cyan-500/30">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="chkUser" checked readonly class="accent-cyan-400 pointer-events-none w-3 h-3">
+                            <div>
+                                <div class="text-[10px] font-black font-orbitron text-white" id="lblCapaUser">CAPA USUARIO (BCI)</div>
+                                <div class="text-[9px] text-slate-400" id="lblCapaUserDesc">Neuro-Adaptativa + Li-Fi</div>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-bold text-purple-400 font-orbitron">SoB</span>
+                    </div>
+                </div>
 
-    <!-- INTERFAZ PRINCIPAL LADO IZQUIERDO: TELEMETRÍA Y CONTROL DE CAPAS -->
-    <main class="relative z-10 flex-1 w-full max-w-full px-4 flex flex-col lg:flex-row gap-4 pointer-events-none mb-4 overflow-hidden">
-        
-        <!-- PANEL DE CONTROL IZQUIERDO: SECTORES Y CAPAS -->
-        <section class="w-full lg:w-1/4 flex flex-col gap-3 pointer-events-auto overflow-y-auto max-h-[80vh] lg:max-h-full">
-            
-            <!-- Panel 1: Monitor de Capas -->
-            <div class="glass-panel p-4 rounded-xl flex flex-col gap-3">
-                <div class="flex justify-between items-center border-b border-cyan-500/20 pb-2">
-                    <h2 class="text-sm font-bold tracking-widest text-[#00f2fe] orbitron flex items-center gap-2" id="lblLayerMonitor">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 114 0v2m-4 0h4m-4 0H3m12 0h4M12 7V5m0 2h4" /></svg>
-                        MONITOR MULTICAPA
+                <div class="glass-panel p-3 rounded-xl flex flex-col gap-2">
+                    <h2 class="text-[11px] font-bold tracking-widest text-[#00f2fe] font-orbitron border-b border-cyan-500/20 pb-1.5 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke-width="2"/></svg>
+                        <span id="lblTelemetry">TELEMETRÍA EN VIVO</span>
                     </h2>
-                    <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 orbitron pulse-active">ONLINE</span>
-                </div>
-                
-                <!-- Capa Espacial -->
-                <div class="flex items-center justify-between p-2 rounded bg-cyan-950/20 border border-cyan-500/10 hover:border-cyan-500/30 transition-all cursor-pointer" onclick="toggleLayer('space')">
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" id="chkSpace" checked class="accent-cyan-400 pointer-events-none">
-                        <div>
-                            <div class="text-xs font-black orbitron text-white" id="lblCapaSpace">CAPA ESPACIAL (LEO)</div>
-                            <div class="text-[9px] text-slate-400" id="lblCapaSpaceDesc">384 Satélites - Enlaces Láser</div>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <div class="bg-[#060a1a]/70 p-1.5 rounded-lg border border-cyan-500/15">
+                            <div class="text-[8px] text-slate-400 font-orbitron" id="lblMetricAvailability">DISPONIBILIDAD</div>
+                            <div class="text-base font-bold text-white font-orbitron tracking-tight" id="valAvailability">99.999%</div>
+                        </div>
+                        <div class="bg-[#060a1a]/70 p-1.5 rounded-lg border border-cyan-500/15">
+                            <div class="text-[8px] text-slate-400 font-orbitron" id="lblMetricLat">LATENCIA</div>
+                            <div class="text-base font-bold text-[#00f2fe] font-orbitron tracking-tight" id="valLatency">18.5 ms</div>
+                        </div>
+                        <div class="bg-[#060a1a]/70 p-1.5 rounded-lg border border-cyan-500/15">
+                            <div class="text-[8px] text-slate-400 font-orbitron" id="lblMetricEnergy">AUTOSUFIC.</div>
+                            <div class="text-base font-bold text-emerald-400 font-orbitron tracking-tight" id="valEnergy">92.5%</div>
+                        </div>
+                        <div class="bg-[#060a1a]/70 p-1.5 rounded-lg border border-cyan-500/15">
+                            <div class="text-[8px] text-slate-400 font-orbitron" id="lblMetricRecover">FALLBACK</div>
+                            <div class="text-base font-bold text-amber-500 font-orbitron tracking-tight">&lt; 3.0s</div>
                         </div>
                     </div>
-                    <span class="text-xs font-bold text-cyan-400 orbitron">30 ms</span>
+                    <div>
+                        <div class="flex justify-between items-center text-[9px] mb-1 font-orbitron">
+                            <span class="text-slate-400" id="lblFlowData">FLUJO DEL ENJAMBRE</span>
+                            <span class="text-cyan-400 font-bold" id="valThroughput">30.8 Gb/s</span>
+                        </div>
+                        <canvas id="chart-telemetry" width="240" height="56" class="w-full h-14 bg-[#030611] rounded border border-cyan-500/20"></canvas>
+                    </div>
                 </div>
 
-                <!-- Capa Aérea -->
-                <div class="flex items-center justify-between p-2 rounded bg-cyan-950/20 border border-cyan-500/10 hover:border-cyan-500/30 transition-all cursor-pointer" onclick="toggleLayer('aerial')">
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" id="chkAerial" checked class="accent-cyan-400 pointer-events-none">
+                <div class="glass-panel p-3 rounded-xl flex flex-col gap-2">
+                    <div class="flex justify-between items-center border-b border-cyan-500/20 pb-1.5">
+                        <h2 class="text-[11px] font-bold tracking-widest text-[#00f2fe] font-orbitron flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" stroke-width="2"/><rect x="14" y="3" width="7" height="7" stroke-width="2"/><rect x="3" y="14" width="7" height="7" stroke-width="2"/><rect x="14" y="14" width="7" height="7" stroke-width="2"/></svg>
+                            <span id="lblSatGrid">ESTADO DE SATÉLITES</span>
+                        </h2>
+                        <span class="text-[9px] text-emerald-400 font-orbitron font-bold" id="valSatCount">96/96</span>
+                    </div>
+                    <div id="satGrid" class="grid grid-cols-12 gap-1 p-1 bg-black/40 rounded border border-cyan-500/15"></div>
+                </div>
+
+                <div class="glass-panel p-3 rounded-xl flex flex-col gap-2">
+                    <h2 class="text-[11px] font-bold tracking-widest text-[#00f2fe] font-orbitron border-b border-cyan-500/20 pb-1.5 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10" stroke-width="2"/><line x1="18" y1="20" x2="18" y2="4" stroke-width="2"/><line x1="6" y1="20" x2="6" y2="16" stroke-width="2"/></svg>
+                        <span id="lblBandwidth">ANCHO DE BANDA</span>
+                    </h2>
+                    <div class="space-y-1.5">
                         <div>
-                            <div class="text-xs font-black orbitron text-white" id="lblCapaAerial">CAPA AÉREA (HAPS)</div>
-                            <div class="text-[9px] text-slate-400" id="lblCapaAerialDesc">Drones Estratosféricos > 20km</div>
+                            <div class="flex justify-between text-[9px] font-orbitron mb-0.5"><span class="text-cyan-400">LEO</span><span class="text-slate-300" id="bwLEO">45%</span></div>
+                            <div class="h-1 bg-black/60 rounded-full overflow-hidden"><div id="barLEO" class="h-full bg-cyan-400 transition-all duration-500" style="width:45%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[9px] font-orbitron mb-0.5"><span class="text-amber-400">HAPS</span><span class="text-slate-300" id="bwHAPS">20%</span></div>
+                            <div class="h-1 bg-black/60 rounded-full overflow-hidden"><div id="barHAPS" class="h-full bg-amber-400 transition-all duration-500" style="width:20%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[9px] font-orbitron mb-0.5"><span class="text-[#00f2fe]">TERRA</span><span class="text-slate-300" id="bwTerra">25%</span></div>
+                            <div class="h-1 bg-black/60 rounded-full overflow-hidden"><div id="barTerra" class="h-full bg-[#00f2fe] transition-all duration-500" style="width:25%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[9px] font-orbitron mb-0.5"><span class="text-purple-400">BCI</span><span class="text-slate-300" id="bwBCI">10%</span></div>
+                            <div class="h-1 bg-black/60 rounded-full overflow-hidden"><div id="barBCI" class="h-full bg-purple-400 transition-all duration-500" style="width:10%"></div></div>
                         </div>
                     </div>
-                    <span class="text-xs font-bold text-amber-400 orbitron">>30d Aut.</span>
                 </div>
+            </aside>
 
-                <!-- Capa Terrestre -->
-                <div class="flex items-center justify-between p-2 rounded bg-cyan-950/20 border border-cyan-500/10 hover:border-cyan-500/30 transition-all cursor-pointer" onclick="toggleLayer('terrestrial')">
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" id="chkTerra" checked class="accent-cyan-400 pointer-events-none">
-                        <div>
-                            <div class="text-xs font-black orbitron text-white" id="lblCapaTerra">CAPA TERRESTRE</div>
-                            <div class="text-[9px] text-slate-400" id="lblCapaTerraDesc">Fibra Óptica + Nodos Comunitarios</div>
+            <!-- RIGHT HUD -->
+            <aside class="hud-panel absolute right-0 top-0 bottom-0 w-[280px] sm:w-[310px] lg:w-[330px] pointer-events-auto overflow-y-auto pl-1 flex flex-col gap-2">
+
+                <div class="glass-panel p-3 rounded-xl flex flex-col gap-2.5">
+                    <h2 class="text-[11px] font-bold tracking-widest text-[#00f2fe] font-orbitron border-b border-cyan-500/20 pb-1.5 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14" stroke-width="2"/><line x1="4" y1="10" x2="4" y2="3" stroke-width="2"/><line x1="12" y1="21" x2="12" y2="12" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="3" stroke-width="2"/><line x1="20" y1="21" x2="20" y2="16" stroke-width="2"/><line x1="20" y1="12" x2="20" y2="3" stroke-width="2"/><line x1="1" y1="14" x2="7" y2="14" stroke-width="2"/><line x1="9" y1="8" x2="15" y2="8" stroke-width="2"/><line x1="17" y1="16" x2="23" y2="16" stroke-width="2"/></svg>
+                        <span id="lblSimulator">SIMULADOR</span>
+                    </h2>
+
+                    <div>
+                        <div class="flex justify-between text-[10px] font-bold text-slate-300 mb-1">
+                            <span class="font-orbitron" id="lblSimLEO">ALTURA ÓRBITA</span>
+                            <span class="text-cyan-400 font-orbitron" id="valOrbit">720 km</span>
                         </div>
+                        <input id="orbitSlider" type="range" min="400" max="1500" value="720" oninput="adjustOrbitHeight(this.value)" class="w-full h-1 bg-[#060a1a] rounded appearance-none cursor-pointer accent-[#00f2fe]">
                     </div>
-                    <span class="text-xs font-bold text-[#00f2fe] orbitron">10 Tbps</span>
-                </div>
 
-                <!-- Capa Usuario -->
-                <div class="flex items-center justify-between p-2 rounded bg-cyan-950/20 border border-cyan-500/10 hover:border-cyan-500/30 transition-all cursor-pointer" onclick="toggleLayer('user')">
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" id="chkUser" checked class="accent-cyan-400 pointer-events-none">
-                        <div>
-                            <div class="text-xs font-black orbitron text-white" id="lblCapaUser">CAPA USUARIO</div>
-                            <div class="text-[9px] text-slate-400" id="lblCapaUserDesc">Interfaz Neuro-Adaptativa BCI</div>
+                    <div>
+                        <div class="flex justify-between text-[10px] font-bold text-slate-300 mb-1">
+                            <span class="font-orbitron" id="lblSimEnergy">MIX SOLAR/PIEZO</span>
+                            <span class="text-emerald-400 font-orbitron" id="valEnergyProp">75/25</span>
                         </div>
+                        <input id="energySlider" type="range" min="10" max="90" value="75" oninput="adjustEnergyProp(this.value)" class="w-full h-1 bg-[#060a1a] rounded appearance-none cursor-pointer accent-emerald-400">
                     </div>
-                    <span class="text-xs font-bold text-purple-400 orbitron">Soberano</span>
+
+                    <div class="bg-purple-950/20 p-2 rounded-lg border border-purple-500/20">
+                        <div class="flex justify-between items-center text-[10px] font-bold text-purple-300 mb-1.5">
+                            <span class="font-orbitron" id="lblBCISync">BCI · COGNITIVE LOAD</span>
+                            <span class="text-purple-400 font-orbitron text-[9px] pulse-active" id="valBCISync">SYNC ON</span>
+                        </div>
+                        <div class="h-1.5 bg-black/60 rounded-full overflow-hidden mb-1.5">
+                            <div id="cogLoadBar" class="h-full bg-gradient-to-r from-purple-500 to-fuchsia-400 transition-all duration-700" style="width:32%"></div>
+                        </div>
+                        <button onclick="triggerNeuralPulse()" id="btnNeural" class="w-full py-1.5 bg-purple-500/20 hover:bg-purple-500/40 border border-purple-500/40 rounded text-[10px] font-bold text-white transition-all font-orbitron uppercase tracking-wider active:scale-95 cursor-pointer">FORZAR IMPULSO NEURONAL</button>
+                    </div>
+
+                    <div class="bg-cyan-950/20 p-2 rounded-lg border border-cyan-500/20">
+                        <div class="flex justify-between items-center text-[10px] font-bold text-[#00f2fe] mb-1.5">
+                            <span class="font-orbitron" id="lblSwarmRepair">AUTO-REPARACIÓN IA</span>
+                            <span class="font-orbitron font-bold text-[9px] text-emerald-400" id="lblStable">ÓPTIMO</span>
+                        </div>
+                        <button onclick="triggerFalloSimulado()" id="btnAnomaly" class="w-full py-1.5 bg-red-500/20 hover:bg-red-500/40 border border-red-500/40 rounded text-[10px] font-bold text-white transition-all font-orbitron uppercase tracking-wider active:scale-95 cursor-pointer">PROVOCAR CORTE</button>
+                    </div>
                 </div>
+
+                <div class="glass-panel p-3 rounded-xl flex flex-col gap-2">
+                    <h2 class="text-[11px] font-bold tracking-widest text-[#f59e0b] font-orbitron border-b border-amber-500/20 pb-1.5 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke-width="2"/><line x1="12" y1="9" x2="12" y2="13" stroke-width="2"/><line x1="12" y1="17" x2="12.01" y2="17" stroke-width="2"/></svg>
+                        <span id="lblThreats">AMENAZAS SIMULADAS</span>
+                    </h2>
+                    <button onclick="simulateSolarFlare()" id="btnSolarFlare" class="w-full py-1.5 bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/40 rounded text-[10px] font-bold text-white transition-all font-orbitron uppercase tracking-wider active:scale-95 cursor-pointer">☀ TORMENTA SOLAR</button>
+                    <button onclick="simulateDebrisImpact()" id="btnDebris" class="w-full py-1.5 bg-orange-500/20 hover:bg-orange-500/40 border border-orange-500/40 rounded text-[10px] font-bold text-white transition-all font-orbitron uppercase tracking-wider active:scale-95 cursor-pointer">☄ IMPACTO DE ESCOMBROS</button>
+                    <button onclick="simulateCyberAttack()" id="btnCyber" class="w-full py-1.5 bg-red-500/20 hover:bg-red-500/40 border border-red-500/40 rounded text-[10px] font-bold text-white transition-all font-orbitron uppercase tracking-wider active:scale-95 cursor-pointer">⚠ CIBERATAQUE</button>
+                </div>
+
+                <div class="glass-panel p-3 rounded-xl flex flex-col gap-2">
+                    <h2 class="text-[11px] font-bold tracking-widest text-emerald-400 font-orbitron border-b border-emerald-500/20 pb-1.5 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" stroke-width="2"/></svg>
+                        <span id="lblOperations">OPERACIONES TÁCTICAS</span>
+                    </h2>
+                    <button onclick="simulateLaunchSatellite()" id="btnLaunch" class="w-full py-1.5 bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/40 rounded text-[10px] font-bold text-white transition-all font-orbitron uppercase tracking-wider active:scale-95 cursor-pointer">🚀 LANZAR SATÉLITE</button>
+                    <button onclick="simulatePingTest()" id="btnPing" class="w-full py-1.5 bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-500/40 rounded text-[10px] font-bold text-white transition-all font-orbitron uppercase tracking-wider active:scale-95 cursor-pointer">📡 TEST DE PING</button>
+                    <button onclick="simulateEnergyRebalance()" id="btnRebalance" class="w-full py-1.5 bg-lime-500/20 hover:bg-lime-500/40 border border-lime-500/40 rounded text-[10px] font-bold text-white transition-all font-orbitron uppercase tracking-wider active:scale-95 cursor-pointer">⚡ REBALANCE ENERGÉTICO</button>
+                </div>
+
+                <div class="glass-panel p-3 rounded-xl flex flex-col gap-2">
+                    <h2 class="text-[11px] font-bold tracking-widest text-[#00f2fe] font-orbitron border-b border-cyan-500/20 pb-1.5 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-width="2"/></svg>
+                        <span id="lblGovernance">ESTRUCTURA SOBERANA</span>
+                    </h2>
+                    <p class="text-[10px] text-slate-300 leading-relaxed" id="lblGovernanceText">El modelo se rige de manera descentralizada con participación del Estado, la Academia y la Comunidad. Trazabilidad con encriptación cuántica y registro en red local soberana.</p>
+                    <div class="text-[9px] text-slate-400 font-orbitron pt-1 border-t border-cyan-500/15" id="lblPhaseBudget">PRESUPUESTO: $121.5M USD</div>
+                </div>
+            </aside>
+        </main>
+
+        <footer class="pointer-events-auto shrink-0">
+            <div class="glass-panel p-2 rounded-xl flex items-center gap-2 shadow-[0_0_20px_rgba(0,242,254,0.1)]">
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <div class="w-2 h-2 rounded-full bg-[#00f2fe] pulse-active"></div>
+                    <div class="text-[10px] font-bold text-[#00f2fe] font-orbitron tracking-widest uppercase flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5" stroke-width="2"/><line x1="12" y1="19" x2="20" y2="19" stroke-width="2"/></svg>
+                        <span id="lblTerminal" class="hidden sm:inline">LOG></span>
+                    </div>
+                </div>
+                <div class="text-[11px] font-mono text-slate-300 w-full truncate border-l border-cyan-500/30 pl-2" id="log-text">Sincronizando 384 satélites con capa HAPS y backbone nacional...</div>
             </div>
-
-            <!-- Panel 2: Telemetría de Alta Disponibilidad -->
-            <div class="glass-panel p-4 rounded-xl flex flex-col gap-3">
-                <h2 class="text-sm font-bold tracking-widest text-[#00f2fe] orbitron border-b border-cyan-500/20 pb-2 flex items-center gap-2" id="lblTelemetry">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                    TELEMETRÍA EN VIVO
-                </h2>
-                
-                <div class="grid grid-cols-2 gap-2">
-                    <div class="bg-[#060a1a]/50 p-2 rounded border border-cyan-500/10">
-                        <div class="text-[10px] text-slate-400" id="lblMetricAvailability">DISPONIBILIDAD</div>
-                        <div class="text-xl font-bold text-white orbitron tracking-tight" id="valAvailability">99.999%</div>
-                    </div>
-                    <div class="bg-[#060a1a]/50 p-2 rounded border border-cyan-500/10">
-                        <div class="text-[10px] text-slate-400" id="lblMetricLat">LATENCIA RED</div>
-                        <div class="text-xl font-bold text-[#00f2fe] orbitron tracking-tight" id="valLatency">18.5 ms</div>
-                    </div>
-                    <div class="bg-[#060a1a]/50 p-2 rounded border border-cyan-500/10">
-                        <div class="text-[10px] text-slate-400" id="lblMetricEnergy">AUTO-SUFICIENCIA</div>
-                        <div class="text-xl font-bold text-emerald-400 orbitron tracking-tight" id="valEnergy">94.2%</div>
-                    </div>
-                    <div class="bg-[#060a1a]/50 p-2 rounded border border-cyan-500/10">
-                        <div class="text-[10px] text-slate-400" id="lblMetricRecover">FALLBACK TIEMPO</div>
-                        <div class="text-xl font-bold text-amber-500 orbitron tracking-tight">&lt; 3.0s</div>
-                    </div>
-                </div>
-
-                <!-- Gráfico de Carga en Canvas 2D -->
-                <div class="mt-2">
-                    <div class="flex justify-between items-center text-[10px] mb-1">
-                        <span class="text-slate-400" id="lblFlowData">FLUJO DE DATOS DEL ENJAMBRE</span>
-                        <span class="text-cyan-400 font-bold orbitron" id="valThroughput">54.8 Gb/s</span>
-                    </div>
-                    <canvas id="chart-telemetry" class="w-full h-16 bg-[#030611] rounded border border-cyan-500/20"></canvas>
-                </div>
-            </div>
-        </section>
-
-        <!-- ESPACIO CENTRAL VACÍO PARA VISUALIZACIÓN 3D -->
-        <section class="flex-1"></section>
-
-        <!-- PANEL DE SIMULACIÓN DERECHO: INTERACCIONES AVANZADAS -->
-        <section class="w-full lg:w-1/4 flex flex-col gap-3 pointer-events-auto overflow-y-auto max-h-[80vh] lg:max-h-full">
-            
-            <!-- Panel 3: Simulador de Interacciones Avanzadas -->
-            <div class="glass-panel p-4 rounded-xl flex flex-col gap-3">
-                <h2 class="text-sm font-bold tracking-widest text-[#00f2fe] orbitron border-b border-cyan-500/20 pb-2 flex items-center gap-2" id="lblSimulator">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
-                    SIMULADOR INTERACTIVO
-                </h2>
-
-                <!-- Control 1: Física Modular (Constelación LEO) -->
-                <div>
-                    <div class="flex justify-between text-xs font-bold text-slate-300 mb-1">
-                        <span id="lblSimLEO">FÍSICA MODULAR: ALTURA ÓRBITA</span>
-                        <span class="text-cyan-400 orbitron" id="valOrbit">720 km</span>
-                    </div>
-                    <input type="range" min="400" max="1500" value="720" oninput="adjustOrbitHeight(this.value)" class="w-full h-1 bg-[#060a1a] rounded-lg appearance-none cursor-pointer accent-[#00f2fe]">
-                    <div class="flex justify-between text-[9px] text-slate-500 mt-0.5">
-                        <span>400 km</span>
-                        <span>1500 km</span>
-                    </div>
-                </div>
-
-                <!-- Control 2: Energía Híbrida Inteligente -->
-                <div>
-                    <div class="flex justify-between text-xs font-bold text-slate-300 mb-1">
-                        <span id="lblSimEnergy">PROPORCIÓN SOLAR / PIEZO</span>
-                        <span class="text-emerald-400 orbitron" id="valEnergyProp">75/25</span>
-                    </div>
-                    <input type="range" min="10" max="90" value="75" oninput="adjustEnergyProp(this.value)" class="w-full h-1 bg-[#060a1a] rounded-lg appearance-none cursor-pointer accent-emerald-400">
-                    <div class="flex justify-between text-[9px] text-slate-500 mt-0.5">
-                        <span id="lblSolar">SÓLO SOLAR</span>
-                        <span id="lblPiezo">SÓLO PIEZO</span>
-                    </div>
-                </div>
-
-                <!-- Control 3: Biomecánica BCI (Neurolink) -->
-                <div class="bg-purple-950/20 p-3 rounded border border-purple-500/20">
-                    <div class="flex justify-between items-center text-xs font-bold text-purple-300 mb-2">
-                        <span id="lblBCISync font-bold">INTEGRACIÓN BIOMECÁNICA (BCI)</span>
-                        <span class="text-purple-400 orbitron tracking-widest pulse-active" id="valBCISync">SYNC ON</span>
-                    </div>
-                    <button onclick="triggerNeuralPulse()" class="w-full py-2 bg-purple-500/20 hover:bg-purple-500/40 border border-purple-500/40 rounded text-xs font-bold text-white transition-all orbitron uppercase tracking-widest" id="btnNeural">
-                        FORZAR IMPULSO NEURONAL
-                    </button>
-                </div>
-
-                <!-- Control 4: Sistema de Autoreparación por IA de Enjambre -->
-                <div class="bg-cyan-950/20 p-3 rounded border border-cyan-500/20">
-                    <div class="flex justify-between items-center text-xs font-bold text-[#00f2fe] mb-2">
-                        <span id="lblSwarmRepair">SISTEMA NODOS IA: AUTO-REPARACIÓN</span>
-                        <span class="text-emerald-400 orbitron font-bold" id="lblStable">ÓPTIMO</span>
-                    </div>
-                    <button onclick="triggerFalloSimulado()" class="w-full py-2 bg-red-500/20 hover:bg-red-500/40 border border-red-500/40 rounded text-xs font-bold text-white transition-all orbitron uppercase tracking-widest" id="btnAnomaly">
-                        PROVOCAR CORTE (AUTOREPARACIÓN INMEDIATA)
-                    </button>
-                </div>
-            </div>
-
-            <!-- Panel 4: Información de Gobernanza y Modelo -->
-            <div class="glass-panel p-4 rounded-xl flex flex-col gap-3">
-                <h2 class="text-sm font-bold tracking-widest text-[#00f2fe] orbitron border-b border-cyan-500/20 pb-2 flex items-center gap-2" id="lblGovernance">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 009 11.5V9m1.277-3.061A3 3 0 0011 3.07M9.75 3h.008V3h-.008zm.37 8.07a14.218 14.218 0 002.83 4.074" /></svg>
-                    ESTRUCTURA DE SOBERANÍA
-                </h2>
-                <div class="text-[11px] text-slate-300 leading-relaxed" id="lblGovernanceText">
-                    El modelo se rige de manera descentralizada con participación del Estado, la Academia y la Comunidad. La trazabilidad se realiza con encriptación cuántica y registro en red local soberana. No depende de corporaciones transnacionales ni cables bajo control externo.
-                </div>
-            </div>
-        </section>
-
-    </main>
-
-    <!-- HUD INFERIOR: LOGS Y ALERTAS TÁCTICAS -->
-    <footer class="relative z-10 w-full p-4 pointer-events-none">
-        <div class="glass-panel p-3 rounded-xl flex flex-col md:flex-row justify-between items-center gap-4 pointer-events-auto">
-            <!-- Event Log / Terminal -->
-            <div class="w-full md:w-2/3 flex items-center gap-3">
-                <div class="text-xs font-bold text-[#00f2fe] orbitron tracking-widest uppercase" id="lblTerminal">REGISTRO_HELIOS&gt;</div>
-                <div class="text-xs font-bold text-slate-300 font-mono w-full truncate" id="log-text">Sincronizando 384 satélites con capa de Drones HAPS... Red Estable.</div>
-            </div>
-            <!-- Botón para Descargar Código Completo / Patente -->
-            <button onclick="copiarAlPortapapeles()" class="w-full md:w-auto px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 rounded-lg text-xs font-extrabold orbitron tracking-widest text-[#020208] shadow-[0_0_15px_rgba(0,242,254,0.3)] transition-all uppercase" id="btnShare">
-                COMPARTIR PROTOTIPO SOBERANO
-            </button>
-        </div>
-    </footer>
-
-    <!-- MODAL DE NOTIFICACIÓN CUSTOM (No alerts) -->
-    <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 glass-panel border-cyan-400 border py-2 px-6 rounded-xl text-xs font-bold orbitron text-white opacity-0 transition-opacity duration-300 pointer-events-none">
-        PROTOTIPO COPIADO AL PORTAPAPELES
+        </footer>
     </div>
 
-    <!-- CÓDIGO JS PRINCIPAL: MOTOR 3D Y GESTIÓN DE EVENTOS -->
     <script>
-        // --- DICCIONARIO INTERNACIONAL (MULTILENGUAJE) ---
-        const dictionary = {
-            es: {
-                lblSubtitle: "Soberanía de Alta Disponibilidad",
-                lblLayerMonitor: "MONITOR MULTICAPA",
-                lblCapaSpace: "CAPA ESPACIAL (LEO)",
-                lblCapaSpaceDesc: "384 Satélites - Enlaces Láser",
-                lblCapaAerial: "CAPA AÉREA (HAPS)",
-                lblCapaAerialDesc: "Drones Estratosféricos > 20km",
-                lblCapaTerra: "CAPA TERRESTRE",
-                lblCapaTerraDesc: "Fibra Óptica + Nodos Comunitarios",
-                lblCapaUser: "CAPA USUARIO",
-                lblCapaUserDesc: "Interfaz Neuro-Adaptativa BCI",
-                lblTelemetry: "TELEMETRÍA EN VIVO",
-                lblMetricAvailability: "DISPONIBILIDAD",
-                lblMetricLat: "LATENCIA RED",
-                lblMetricEnergy: "AUTO-SUFICIENCIA",
-                lblMetricRecover: "FALLBACK TIEMPO",
-                lblFlowData: "FLUJO DE DATOS DEL ENJAMBRE",
-                lblSimulator: "SIMULADOR INTERACTIVO",
-                lblSimLEO: "FÍSICA MODULAR: ALTURA ÓRBITA",
-                lblSimEnergy: "PROPORCIÓN SOLAR / PIEZO",
-                lblSolar: "SÓLO SOLAR",
-                lblPiezo: "SÓLO PIEZO",
-                lblBCISync: "SYNC ON",
-                btnNeural: "FORZAR IMPULSO NEURONAL",
-                lblSwarmRepair: "SISTEMA NODOS IA: AUTO-REPARACIÓN",
-                lblStable: "ÓPTIMO",
-                btnAnomaly: "PROVOCAR CORTE (AUTOREPARACIÓN)",
-                lblGovernance: "ESTRUCTURA DE SOBERANÍA",
-                lblGovernanceText: "El modelo se rige de manera descentralizada con participación del Estado, la Academia y la Comunidad. La trazabilidad se realiza con encriptación cuántica y registro en red local soberana. No depende de corporaciones transnacionales ni cables bajo control externo.",
-                lblTerminal: "REGISTRO_HELIOS>",
-                btnShare: "COMPARTIR PROTOTIPO SOBERANO",
-                toastCopy: "PROTOTIPO COPIADO AL PORTAPAPELES",
-                optNormal: "⚡ MODO NORMAL",
-                optCrisis: "🚨 CRISIS AMBIENTAL",
-                optSovereign: "🛡️ RESPALDO SOBERANO",
-                logNormal: "Sincronizando 384 satélites con capa de Drones HAPS... Red Estable.",
-                logCrisis: "¡Alerta Meteorológica! Nodos costeros sufren interrupción parcial de fibra terrestre. Swarm AI activado.",
-                logSovereign: "Cifrado cuántico activado. Enrutamiento regional restringido a fronteras soberanas nicaragüenses.",
-                logFalloSimulado: "Corte detectado en nodo secundario. IA de enjambre recalculando rutas de contingencia...",
-                logFalloReparado: "Nueva ruta láser orbital establecida en 1.8 segundos. Disponibilidad restablecida al 99.999%.",
-                logPulse: "Impulso cerebro-computadora sincronizado con éxito. Ancho de banda de capa de usuario ampliado."
-            },
-            en: {
-                lblSubtitle: "High Availability Sovereign Network",
-                lblLayerMonitor: "MULTILAYER MONITOR",
-                lblCapaSpace: "SPACE LAYER (LEO)",
-                lblCapaSpaceDesc: "384 Satellites - Laser Inter-links",
-                lblCapaAerial: "AERIAL LAYER (HAPS)",
-                lblCapaAerialDesc: "Stratospheric Drones > 20km",
-                lblCapaTerra: "TERRESTRIAL LAYER",
-                lblCapaTerraDesc: "Fiber Optics + Community Nodes",
-                lblCapaUser: "USER LAYER",
-                lblCapaUserDesc: "Neuro-Adaptive BCI Interface",
-                lblTelemetry: "LIVE TELEMETRY",
-                lblMetricAvailability: "AVAILABILITY",
-                lblMetricLat: "NETWORK LATENCY",
-                lblMetricEnergy: "SELF-SUFFICIENCY",
-                lblMetricRecover: "FALLBACK TIME",
-                lblFlowData: "SWARM DATA FLOW RATE",
-                lblSimulator: "INTERACTIVE SIMULATOR",
-                lblSimLEO: "MODULAR PHYSICS: ORBITAL HEIGHT",
-                lblSimEnergy: "SOLAR / PIEZO PROPORTION",
-                lblSolar: "SOLAR ONLY",
-                lblPiezo: "PIEZO ONLY",
-                lblBCISync: "SYNC ON",
-                btnNeural: "FORCE NEURAL PULSE",
-                lblSwarmRepair: "AI NODE SYSTEM: SELF-HEALING",
-                lblStable: "OPTIMAL",
-                btnAnomaly: "TRIGGER CORTE (SELF-HEAL)",
-                lblGovernance: "SOVEREIGNTY STRUCTURE",
-                lblGovernanceText: "The model is managed in a decentralized manner with participation from Government, Academia, and Community. Traceability is executed via quantum encryption and local sovereign network registration. No corporate reliance.",
-                lblTerminal: "HELIOS_LOG>",
-                btnShare: "SHARE SOVEREIGN PROTOTYPE",
-                toastCopy: "PROTOTYPE COPIED TO CLIPBOARD",
-                optNormal: "⚡ NORMAL MODE",
-                optCrisis: "🚨 CLIMATE CRISIS",
-                optSovereign: "🛡️ SOVEREIGN BACKUP",
-                logNormal: "Synchronizing 384 satellites with HAPS Drones layer... Network Stable.",
-                logCrisis: "Weather Warning! Coastal nodes experienced fiber cut. Swarm AI route optimization active.",
-                logSovereign: "Quantum encryption activated. Regional routing locked inside sovereign frontiers.",
-                logFalloSimulado: "Link failure simulated. AI Swarm actively recalculating redundant paths...",
-                logFalloReparado: "New orbital laser routing established in 1.8 seconds. Network restored to 99.999% availability.",
-                logPulse: "Brain-Computer pulse synchronized. User Layer bandwidth dynamically adapted."
-            },
-            zh: {
-                lblSubtitle: "主权高可用性全球网络",
-                lblLayerMonitor: "多层网络监控器",
-                lblCapaSpace: "空间层 (LEO)",
-                lblCapaSpaceDesc: "384 卫星 - 激光星间链路",
-                lblCapaAerial: "航空层 (HAPS)",
-                lblCapaAerialDesc: "平流层无人机 > 20km",
-                lblCapaTerra: "地面层",
-                lblCapaTerraDesc: "光纤 + 社区核心节点",
-                lblCapaUser: "用户层",
-                lblCapaUserDesc: "脑机接口 (BCI) 神经自适应",
-                lblTelemetry: "实时遥测数据",
-                lblMetricAvailability: "可用性",
-                lblMetricLat: "网络延迟",
-                lblMetricEnergy: "能源自足率",
-                lblMetricRecover: "故障自愈时间",
-                lblFlowData: "集群智能数据流速率",
-                lblSimulator: "高级交互式模拟器",
-                lblSimLEO: "模块化物理：轨道高度调整",
-                lblSimEnergy: "太阳能 / 压电能比例调整",
-                lblSolar: "仅太阳能",
-                lblPiezo: "仅压电能",
-                lblBCISync: "同步激活",
-                btnNeural: "强制施加神经脉冲",
-                lblSwarmRepair: "AI节点系统：智能自愈",
-                lblStable: "最佳运行",
-                btnAnomaly: "触发断开 (自动愈合系统)",
-                lblGovernance: "主权治理模式结构",
-                lblGovernanceText: "该模型采用去中心化模式，由国家、学术界 and 社区共同参与管理。通过量子加密 and 主权本地网络实现高安全性数据追溯，完全摆脱对外部跨国企业的依赖。",
-                lblTerminal: "海利奥斯日志>",
-                btnShare: "共享主权项目原型",
-                toastCopy: "项目源码及原型已成功复制到剪贴板",
-                optNormal: "⚡ 正常运行模式",
-                optCrisis: "🚨 环境危机防御模式",
-                optSovereign: "🛡️ 主权备份模式",
-                logNormal: "正在同步384颗LEO卫星与HAPS无人机层... 系统稳定运行。",
-                logCrisis: "气象灾害警报！沿海节点光纤受损。集群智能算法正重定向数据通道。",
-                logSovereign: "量子加密通信已激活。网络数据包限制在国内主权范围内流转。",
-                logFalloSimulado: "模拟节点信号中断。群智能算法正在计算冗余路由链路...",
-                logFalloReparado: "全新空间激光链路在 1.8 秒内建立完毕。可用性完全恢复至 99.999%。",
-                logPulse: "脑机接口信号同步成功。用户层带宽资源已自适应扩大。"
-            }
+    /* ===================== DICCIONARIO ===================== */
+    const dictionary = {
+        es: {
+            lblPatent: "SOLICITUD DE PATENTE", lblSubtitle: "Soberanía de Alta Disponibilidad",
+            lblReset: "RESET", lblFocus: "◉", lblMissionTime: "MISIÓN", lblThreatLevel: "AMENAZA",
+            lblLayerMonitor: "MONITOR MULTICAPA", lblCapaSpace: "CAPA ESPACIAL (LEO)", lblCapaSpaceDesc: "384 Satélites · ISL 10 Gbps",
+            lblCapaAerial: "CAPA AÉREA (HAPS)", lblCapaAerialDesc: "Drones Estratosféricos >20km",
+            lblCapaTerra: "CAPA TERRESTRE", lblCapaTerraDesc: "Fibra 10 Tbps + Nodos",
+            lblCapaUser: "CAPA USUARIO (BCI)", lblCapaUserDesc: "Neuro-Adaptativa + Li-Fi",
+            lblTelemetry: "TELEMETRÍA EN VIVO", lblMetricAvailability: "DISPONIBILIDAD", lblMetricLat: "LATENCIA",
+            lblMetricEnergy: "AUTOSUFIC.", lblMetricRecover: "FALLBACK", lblFlowData: "FLUJO DEL ENJAMBRE",
+            lblSimulator: "SIMULADOR", lblSimLEO: "ALTURA ÓRBITA", lblSimEnergy: "MIX SOLAR/PIEZO",
+            lblBCISync: "BCI · COGNITIVE LOAD", btnNeural: "FORZAR IMPULSO NEURONAL",
+            lblSwarmRepair: "AUTO-REPARACIÓN IA", lblStable: "ÓPTIMO", btnAnomaly: "PROVOCAR CORTE",
+            lblThreats: "AMENAZAS SIMULADAS", btnSolarFlare: "☀ TORMENTA SOLAR",
+            btnDebris: "☄ IMPACTO DE ESCOMBROS", btnCyber: "⚠ CIBERATAQUE",
+            lblOperations: "OPERACIONES TÁCTICAS", btnLaunch: "🚀 LANZAR SATÉLITE",
+            btnPing: "📡 TEST DE PING", btnRebalance: "⚡ REBALANCE ENERGÉTICO",
+            lblSatGrid: "ESTADO DE SATÉLITES", lblBandwidth: "ANCHO DE BANDA",
+            lblGovernance: "ESTRUCTURA SOBERANA",
+            lblGovernanceText: "El modelo se rige de manera descentralizada con participación del Estado, la Academia y la Comunidad. Trazabilidad con encriptación cuántica y registro en red local soberana.",
+            lblTerminal: "LOG>",
+            optNormal: "⚡ MODO NORMAL", optCrisis: "🚨 CRISIS AMBIENTAL", optSovereign: "🛡️ RESPALDO SOBERANO",
+            logNormal: "Sincronizando 384 satélites con capa HAPS y backbone nacional... Red estable 99.999%.",
+            logCrisis: "¡Alerta meteorológica! Nodos costeros con interrupción de fibra. Swarm AI activado.",
+            logSovereign: "Cifrado cuántico activado. Enrutamiento restringido a fronteras soberanas.",
+            logFalloSimulado: "Corte en enlace secundario. IA de enjambre recalculando rutas...",
+            logFalloReparado: "Nueva ruta láser orbital en 1.8s. Disponibilidad restablecida al 99.999%.",
+            logPulse: "Impulso BCI sincronizado. Ancho de banda usuario ampliado a 184 Gb/s.",
+            logLayerOff_space: "Capa espacial desactivada. Latencia degradada, redundancia reducida.",
+            logLayerOn_space: "Capa espacial reactivada. 384 satélites en línea, ISL 10 Gbps restaurados.",
+            logLayerOff_aerial: "Capa aérea desactivada. Cobertura HAPS perdida en zona costera.",
+            logLayerOn_aerial: "Capa aérea reactivada. Drones HAPS reanudando patrullaje estratosférico.",
+            logLayerOff_terrestrial: "Capa terrestre desactivada. Backbone de fibra 10 Tbps offline.",
+            logLayerOn_terrestrial: "Capa terrestre reactivada. Nodos comunitarios sincronizados.",
+            logLayerOff_user: "Capa usuario desactivada. Interfaz BCI en modo seguro.",
+            logLayerOn_user: "Capa usuario reactivada. Li-Fi y BCI neuro-adaptativo online.",
+            logCamera_global: "◉ Cámara en órbita global · Constelación completa desplegada",
+            logCamera_stratosphere: "◉ Enfoque estratosférico · 14 drones HAPS iluminados",
+            logCamera_swarm: "◉ Enlace láser ISL · Malla óptica intersatelital brillante",
+            logCamera_neural: "◉ Capa BCI activa · Nube sináptica pulsando",
+            logSolarFlare: "☀ ¡Tormenta solar clase X detectada! Eyección de masa coronal en curso...",
+            logSolarFlareEnd: "☀ Tormenta solar disipada. Paneles recuperados, satélites operativos.",
+            logDebris: "☄ ¡Alerta de escombros orbitales! Proyectil en trayectoria de impacto...",
+            logDebrisHit: "☄ IMPACTO DIRECTO · Satélite destruido. Enjambre IA reruteando enlaces...",
+            logDebrisEnd: "☄ Campo de escombros disipado. Satélite reconstruido desde respaldo LEO.",
+            logCyber: "⚠ ¡INTRUSIÓN CIBERNÉTICA DETECTADA! Activando protocolo cuántico...",
+            logCyberBlocked: "⚠ Ataque neutralizado. Firewall cuántico confirmó integridad al 100%.",
+            logLaunch: "🚀 IGNICIÓN · Cohete HELIOS-385 despegando desde plataforma Managua...",
+            logLaunchComplete: "🚀 DESPLIEGUE EXITOSO · HELIOS-385 en órbita LEO. Constelación reforzada.",
+            logPing: "📡 Iniciando barrido de ping multi-nodo desde NOC Managua...",
+            logPingResult: "📡 12/12 nodos responden · RTT promedio 14.2 ms · Pérdida 0% · Handshake OK",
+            logRebalance: "⚡ Analizando mix energético distribuido. Reasignando paneles solares...",
+            logRebalanceDone: "⚡ Rebalance óptimo · Eficiencia 96.8% · Paneles sincronizados en fase",
+            logReset: "◉ SISTEMA REINICIADO · Todas las capas online · Estado nominal restaurado.",
+            logFocus: "◉ Modo enfoque activado · HUDs ocultos", logFocusOff: "◉ Modo enfoque desactivado · HUDs visibles",
+            logLang_es: "🌐 Idioma cambiado a Español · Sistema localizado",
+            logLang_en: "🌐 Language switched to English · System localized",
+            logLang_zh: "🌐 语言已切换为中文 · 系统本地化",
+            threatLow: "BAJO", threatMed: "MEDIO", threatHigh: "ALTO", threatCrit: "CRÍTICO"
+        },
+        en: {
+            lblPatent: "PATENT APPLICATION", lblSubtitle: "High Availability Sovereignty",
+            lblReset: "RESET", lblFocus: "◉", lblMissionTime: "MISSION", lblThreatLevel: "THREAT",
+            lblLayerMonitor: "MULTILAYER MONITOR", lblCapaSpace: "SPACE LAYER (LEO)", lblCapaSpaceDesc: "384 Satellites · ISL 10 Gbps",
+            lblCapaAerial: "AERIAL LAYER (HAPS)", lblCapaAerialDesc: "Stratospheric Drones >20km",
+            lblCapaTerra: "TERRESTRIAL LAYER", lblCapaTerraDesc: "10 Tbps Fiber + Nodes",
+            lblCapaUser: "USER LAYER (BCI)", lblCapaUserDesc: "Neuro-Adaptive + Li-Fi",
+            lblTelemetry: "LIVE TELEMETRY", lblMetricAvailability: "AVAILABILITY", lblMetricLat: "LATENCY",
+            lblMetricEnergy: "SELF-SUF.", lblMetricRecover: "FALLBACK", lblFlowData: "SWARM FLOW",
+            lblSimulator: "SIMULATOR", lblSimLEO: "ORBITAL HEIGHT", lblSimEnergy: "SOLAR/PIEZO MIX",
+            lblBCISync: "BCI · COGNITIVE LOAD", btnNeural: "FORCE NEURAL PULSE",
+            lblSwarmRepair: "AI SELF-HEALING", lblStable: "OPTIMAL", btnAnomaly: "TRIGGER FAILURE",
+            lblThreats: "SIMULATED THREATS", btnSolarFlare: "☀ SOLAR STORM",
+            btnDebris: "☄ DEBRIS IMPACT", btnCyber: "⚠ CYBER ATTACK",
+            lblOperations: "TACTICAL OPS", btnLaunch: "🚀 LAUNCH SATELLITE",
+            btnPing: "📡 PING TEST", btnRebalance: "⚡ ENERGY REBALANCE",
+            lblSatGrid: "SATELLITE STATUS", lblBandwidth: "BANDWIDTH ALLOCATION",
+            lblGovernance: "SOVEREIGN STRUCTURE",
+            lblGovernanceText: "The model is governed in a decentralized manner with participation from Government, Academia, and Community. Traceability via quantum encryption and local sovereign network registration.",
+            lblTerminal: "LOG>",
+            optNormal: "⚡ NORMAL MODE", optCrisis: "🚨 CLIMATE CRISIS", optSovereign: "🛡️ SOVEREIGN BACKUP",
+            logNormal: "Synchronizing 384 satellites with HAPS layer and national backbone... Network stable 99.999%.",
+            logCrisis: "Weather alert! Coastal nodes with fiber interruption. Swarm AI activated.",
+            logSovereign: "Quantum encryption active. Routing restricted to sovereign frontiers.",
+            logFalloSimulado: "Secondary link failure. AI Swarm recalculating redundant paths...",
+            logFalloReparado: "New orbital laser routing in 1.8s. Availability restored to 99.999%.",
+            logPulse: "BCI pulse synchronized. User bandwidth expanded to 184 Gb/s.",
+            logLayerOff_space: "Space layer disabled. Latency degraded, redundancy reduced.",
+            logLayerOn_space: "Space layer re-enabled. 384 satellites online, ISL 10 Gbps restored.",
+            logLayerOff_aerial: "Aerial layer disabled. HAPS coverage lost in coastal zone.",
+            logLayerOn_aerial: "Aerial layer re-enabled. HAPS drones resuming stratospheric patrol.",
+            logLayerOff_terrestrial: "Terrestrial layer disabled. 10 Tbps fiber backbone offline.",
+            logLayerOn_terrestrial: "Terrestrial layer re-enabled. Community nodes synchronized.",
+            logLayerOff_user: "User layer disabled. BCI interface in safe mode.",
+            logLayerOn_user: "User layer re-enabled. Li-Fi and neuro-adaptive BCI online.",
+            logCamera_global: "◉ Camera on global orbit · Full constellation deployed",
+            logCamera_stratosphere: "◉ Stratospheric focus · 14 HAPS drones illuminated",
+            logCamera_swarm: "◉ ISL laser link · Inter-satellite optical mesh glowing",
+            logCamera_neural: "◉ BCI layer active · Synaptic cloud pulsing",
+            logSolarFlare: "☀ Class X solar storm detected! Coronal mass ejection inbound...",
+            logSolarFlareEnd: "☀ Solar storm dissipated. Panels recovered, satellites operational.",
+            logDebris: "☄ Orbital debris alert! Projectile on impact trajectory...",
+            logDebrisHit: "☄ DIRECT IMPACT · Satellite destroyed. AI Swarm rerouting links...",
+            logDebrisEnd: "☄ Debris field dispersed. Satellite rebuilt from LEO backup.",
+            logCyber: "⚠ CYBER INTRUSION DETECTED! Activating quantum protocol...",
+            logCyberBlocked: "⚠ Attack neutralized. Quantum firewall confirmed 100% integrity.",
+            logLaunch: "🚀 IGNITION · HELIOS-385 rocket lifting off from Managua platform...",
+            logLaunchComplete: "🚀 DEPLOYMENT SUCCESS · HELIOS-385 in LEO orbit. Constellation reinforced.",
+            logPing: "📡 Initiating multi-node ping sweep from Managua NOC...",
+            logPingResult: "📡 12/12 nodes responding · Avg RTT 14.2 ms · Loss 0% · Handshake OK",
+            logRebalance: "⚡ Analyzing distributed energy mix. Reassigning solar panels...",
+            logRebalanceDone: "⚡ Optimal rebalance · 96.8% efficiency · Panels phase-synchronized",
+            logReset: "◉ SYSTEM RESET · All layers online · Nominal state restored.",
+            logFocus: "◉ Focus mode ON · HUDs hidden", logFocusOff: "◉ Focus mode OFF · HUDs visible",
+            logLang_es: "🌐 Language switched to Spanish · System localized",
+            logLang_en: "🌐 Language switched to English · System localized",
+            logLang_zh: "🌐 Language switched to Chinese · System localized",
+            threatLow: "LOW", threatMed: "MED", threatHigh: "HIGH", threatCrit: "CRIT"
+        },
+        zh: {
+            lblPatent: "专利申请", lblSubtitle: "主权高可用性全球网络",
+            lblReset: "重置", lblFocus: "◉", lblMissionTime: "任务", lblThreatLevel: "威胁",
+            lblLayerMonitor: "多层网络监控器", lblCapaSpace: "空间层 (LEO)", lblCapaSpaceDesc: "384 颗卫星 · 10 Gbps 激光星间链路",
+            lblCapaAerial: "航空层 (HAPS)", lblCapaAerialDesc: "平流层无人机 >20km",
+            lblCapaTerra: "地面层", lblCapaTerraDesc: "10 Tbps 光纤 + 节点",
+            lblCapaUser: "用户层 (BCI)", lblCapaUserDesc: "脑机自适应 + 可见光通信",
+            lblTelemetry: "实时遥测", lblMetricAvailability: "可用性", lblMetricLat: "延迟",
+            lblMetricEnergy: "自足率", lblMetricRecover: "恢复时间", lblFlowData: "集群数据流",
+            lblSimulator: "模拟器", lblSimLEO: "轨道高度", lblSimEnergy: "太阳能/压电混合",
+            lblBCISync: "脑机 · 认知负荷", btnNeural: "强制施加神经脉冲",
+            lblSwarmRepair: "AI 智能自愈", lblStable: "最佳", btnAnomaly: "触发断开",
+            lblThreats: "模拟威胁", btnSolarFlare: "☀ 太阳风暴",
+            btnDebris: "☄ 碎片撞击", btnCyber: "⚠ 网络攻击",
+            lblOperations: "战术操作", btnLaunch: "🚀 发射卫星",
+            btnPing: "📡 延迟测试", btnRebalance: "⚡ 能源再平衡",
+            lblSatGrid: "卫星状态", lblBandwidth: "带宽分配",
+            lblGovernance: "主权结构",
+            lblGovernanceText: "该模型采用去中心化治理，由国家、学术界和社区共同参与。通过量子加密和本地主权网络注册实现高安全性追溯。",
+            lblTerminal: "日志>",
+            optNormal: "⚡ 正常运行模式", optCrisis: "🚨 环境危机防御", optSovereign: "🛡️ 主权备份模式",
+            logNormal: "正在同步 384 颗 LEO 卫星与 HAPS 层以及国家主干网... 系统稳定度 99.999%。",
+            logCrisis: "气象警报！沿海节点光纤受损。集群智能算法已激活。",
+            logSovereign: "量子加密通信已激活。网络数据包限制在国内主权范围内。",
+            logFalloSimulado: "次要链路故障。AI 集群正在重新计算冗余路由...",
+            logFalloReparado: "全新空间激光链路在 1.8 秒内建立。可用性恢复至 99.999%。",
+            logPulse: "脑机接口信号同步成功。用户带宽已扩大至 184 Gb/s。",
+            logLayerOff_space: "空间层已禁用。延迟增加，冗余降低。",
+            logLayerOn_space: "空间层已重新启用。384 颗卫星在线，ISL 10 Gbps 恢复。",
+            logLayerOff_aerial: "航空层已禁用。沿海区域 HAPS 覆盖丢失。",
+            logLayerOn_aerial: "航空层已重新启用。HAPS 无人机恢复平流层巡逻。",
+            logLayerOff_terrestrial: "地面层已禁用。10 Tbps 光纤主干离线。",
+            logLayerOn_terrestrial: "地面层已重新启用。社区节点已同步。",
+            logLayerOff_user: "用户层已禁用。脑机接口处于安全模式。",
+            logLayerOn_user: "用户层已重新启用。可见光通信和脑机自适应在线。",
+            logCamera_global: "◉ 全球轨道视角 · 完整星座部署",
+            logCamera_stratosphere: "◉ 平流层视角 · 14 架 HAPS 无人机高亮",
+            logCamera_swarm: "◉ ISL 激光链路 · 卫星间光学网格发光",
+            logCamera_neural: "◉ 脑机层激活 · 突触云脉冲",
+            logSolarFlare: "☀ 检测到 X 级太阳风暴！日冕物质抛射来袭...",
+            logSolarFlareEnd: "☀ 太阳风暴消散。太阳能板恢复，卫星运行正常。",
+            logDebris: "☄ 轨道碎片警报！弹道即将撞击...",
+            logDebrisHit: "☄ 直接撞击 · 卫星损毁。AI 集群正在重新路由...",
+            logDebrisEnd: "☄ 碎片场消散。卫星已从 LEO 备份重建。",
+            logCyber: "⚠ 检测到网络入侵！激活量子协议...",
+            logCyberBlocked: "⚠ 攻击已化解。量子防火墙确认完整性 100%。",
+            logLaunch: "🚀 点火 · HELIOS-385 火箭从马那瓜平台升空...",
+            logLaunchComplete: "🚀 部署成功 · HELIOS-385 进入 LEO 轨道。星座加强。",
+            logPing: "📡 从马那瓜 NOC 启动多节点 Ping 扫描...",
+            logPingResult: "📡 12/12 节点响应 · 平均 RTT 14.2 ms · 丢包 0% · 握手 OK",
+            logRebalance: "⚡ 分析分布式能源组合。重新分配太阳能板...",
+            logRebalanceDone: "⚡ 再平衡最优 · 效率 96.8% · 面板相位同步",
+            logReset: "◉ 系统重置 · 所有层在线 · 标称状态恢复。",
+            logFocus: "◉ 专注模式开启 · HUD 隐藏", logFocusOff: "◉ 专注模式关闭 · HUD 可见",
+            logLang_es: "🌐 语言已切换为西班牙语 · 系统本地化",
+            logLang_en: "🌐 语言已切换为英语 · 系统本地化",
+            logLang_zh: "🌐 语言已切换为中文 · 系统本地化",
+            threatLow: "低", threatMed: "中", threatHigh: "高", threatCrit: "严重"
+        }
+    };
+
+    let currentLang = 'es';
+    let currentMode = 'normal';
+
+    let targetRotX = 0, targetRotY = 0, curRotX = 0, curRotY = 0;
+
+    /* ========== ESTADOS DE SIMULACIÓN ========== */
+    let anomalyActive = false, solarFlareActive = false, debrisActive = false;
+    let cyberActive = false, launchActive = false, pingActive = false, rebalanceActive = false;
+    let destroyedSatIndex = -1;
+    let lasersFlash = false, hapsFlash = false, bciFlash = false;
+
+    /* ========== NUEVOS ESTADOS PARA SIMULACIONES DIFERENCIADAS ========== */
+    let cameraShake = 0;
+    let shockwaves = [];
+    let cyberGlitchInterval = null;
+    let energyWaveActive = false;
+    let energyWaveProgress = 0;
+    let solarStormIntensity = 0;
+    let launchRocketSprite = null;
+    let pingBeamLines = [];
+    let debrisSwarm = [];
+
+    /* ===================== EFECTOS HELPERS ===================== */
+    function triggerScreenFlash(color, intensity, duration) {
+        const el = document.getElementById('screenFlash');
+        if (!el) return;
+        el.style.transition = 'none';
+        el.style.background = color;
+        el.style.opacity = intensity;
+        requestAnimationFrame(() => {
+            el.style.transition = `opacity ${duration}ms ease-out`;
+            el.style.opacity = 0;
+        });
+    }
+
+    function triggerCameraShake(intensity) {
+        cameraShake = Math.max(cameraShake, intensity);
+    }
+
+    function spawnShockwave(position, color, maxScale) {
+        const geo = new THREE.RingGeometry(0.05, 0.1, 32);
+        const mat = new THREE.MeshBasicMaterial({
+            color, transparent: true, opacity: 0.95, side: THREE.DoubleSide, blending: THREE.AdditiveBlending
+        });
+        const ring = new THREE.Mesh(geo, mat);
+        ring.position.copy(position);
+        ring.lookAt(0, 0, 0);
+        ring.userData = { maxScale, currentScale: 1 };
+        scene.add(ring);
+        shockwaves.push(ring);
+    }
+
+    /* ===================== IDIOMA ===================== */
+    function setLanguage(lang) {
+        const prev = currentLang;
+        currentLang = lang;
+        ['es', 'en', 'zh'].forEach(l => {
+            const btn = document.getElementById(`btn-${l}`);
+            if (!btn) return;
+            btn.className = (l === lang)
+                ? "px-1.5 py-1 rounded bg-[#00f2fe] text-[#020208] shadow-[0_0_10px_rgba(0,242,254,0.5)] font-black font-orbitron uppercase text-[10px] cursor-pointer transition-all"
+                : "px-1.5 py-1 rounded text-slate-400 hover:text-white font-orbitron uppercase text-[10px] cursor-pointer transition-all";
+        });
+        const trans = dictionary[lang];
+        Object.keys(trans).forEach(key => {
+            const elem = document.getElementById(key);
+            if (!elem) return;
+            if (key === 'optNormal' || key === 'optCrisis' || key === 'optSovereign') elem.text = trans[key];
+            else if (key.startsWith('threat')) elem.textContent = trans[key];
+            else elem.innerHTML = trans[key];
+        });
+        const camMap = {
+            'cam-global': lang === 'es' ? 'Órbita Global' : lang === 'en' ? 'Global Orbit' : '全球轨道',
+            'cam-stratosphere': 'HAPS', 'cam-swarm': lang === 'es' ? 'ISL' : lang === 'en' ? 'ISL' : '激光链路',
+            'cam-neural': lang === 'es' ? 'BCI' : lang === 'en' ? 'BCI' : '脑机层'
         };
-
-        let currentLang = 'es';
-
-        function setLanguage(lang) {
-            currentLang = lang;
-            
-            // Actualizar botones de selector
-            ['es', 'en', 'zh'].forEach(l => {
-                const btn = document.getElementById(`btn-${l}`);
-                if (l === lang) {
-                    btn.classList.add('bg-[#00f2fe]', 'text-[#020208]');
-                    btn.classList.remove('text-slate-400');
-                } else {
-                    btn.classList.remove('bg-[#00f2fe]', 'text-[#020208]');
-                    btn.classList.add('text-slate-400');
-                }
-            });
-
-            // Reemplazar textos
-            const trans = dictionary[lang];
-            Object.keys(trans).forEach(key => {
-                const elem = document.getElementById(key);
-                if (elem) {
-                    // Si es el selector de modos, cambiar el texto interno de los options
-                    if (key === 'optNormal') elem.text = trans.optNormal;
-                    else if (key === 'optCrisis') elem.text = trans.optCrisis;
-                    else if (key === 'optSovereign') elem.text = trans.optSovereign;
-                    else elem.innerHTML = trans[key];
-                }
-            });
-
-            // Actualizar logs actuales basados en el modo actual
-            const mode = document.getElementById('op-mode').value;
-            changeOpMode(mode);
+        Object.entries(camMap).forEach(([id, txt]) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = txt;
+        });
+        updateThreatLabel();
+        if (!anomalyActive) {
+            const st = document.getElementById('lblStable');
+            if (st) st.innerText = trans.lblStable;
         }
-
-        // --- SISTEMA DE LOGS Y NOTIFICACIONES LOCALES (No alerts) ---
-        function writeLog(text) {
-            document.getElementById('log-text').innerHTML = text;
+        if (prev !== lang && earth) {
+            const orig = earth.material.emissive.getHex();
+            earth.material.emissive.setHex(0x00f2fe);
+            setTimeout(() => { earth.material.emissive.setHex(orig); }, 400);
         }
+        writeLog(trans['logLang_' + lang]);
+        setTimeout(() => {
+            if (currentMode === 'normal') writeLog(trans.logNormal);
+            else if (currentMode === 'crisis') writeLog(trans.logCrisis);
+            else if (currentMode === 'soberano') writeLog(trans.logSovereign);
+        }, 1500);
+    }
 
-        function showToast(text) {
-            const toast = document.getElementById('toast');
-            toast.innerHTML = text;
-            toast.classList.remove('opacity-0');
-            toast.classList.add('opacity-100');
-            setTimeout(() => {
-                toast.classList.remove('opacity-100');
-                toast.classList.add('opacity-0');
-            }, 3000);
+    function writeLog(text) {
+        const el = document.getElementById('log-text');
+        if (!el) return;
+        el.textContent = text;
+        el.classList.remove('ticker-log');
+        void el.offsetWidth;
+        el.classList.add('ticker-log');
+    }
+
+    /* ===================== RELOJ ===================== */
+    let missionSeconds = 0;
+    setInterval(() => {
+        const now = new Date();
+        const clockElem = document.getElementById('utc-clock');
+        if (clockElem) clockElem.innerText = now.toUTCString().slice(17, 25) + ' UTC';
+        missionSeconds++;
+        const h = String(Math.floor(missionSeconds / 3600)).padStart(2, '0');
+        const m = String(Math.floor((missionSeconds % 3600) / 60)).padStart(2, '0');
+        const s = String(missionSeconds % 60).padStart(2, '0');
+        const mt = document.getElementById('valMissionTime');
+        if (mt) mt.innerText = `${h}:${m}:${s}`;
+    }, 1000);
+
+    function toggleFocusMode() {
+        document.body.classList.toggle('focus-mode');
+        const focused = document.body.classList.contains('focus-mode');
+        const trans = dictionary[currentLang];
+        writeLog(focused ? trans.logFocus : trans.logFocusOff);
+    }
+
+    /* ===================== THREAT ===================== */
+    let threatValue = 8;
+    function setThreat(v) {
+        threatValue = Math.max(0, Math.min(100, v));
+        const bar = document.getElementById('threatBar');
+        if (!bar) return;
+        bar.style.width = threatValue + '%';
+        let cls = 'h-full transition-all duration-500 ';
+        if (threatValue < 25) cls += 'bg-emerald-400';
+        else if (threatValue < 50) cls += 'bg-yellow-400';
+        else if (threatValue < 75) cls += 'bg-orange-500';
+        else cls += 'bg-red-500';
+        bar.className = cls;
+        updateThreatLabel();
+    }
+    function updateThreatLabel() {
+        const trans = dictionary[currentLang];
+        const val = document.getElementById('valThreatLevel');
+        if (!val) return;
+        let label, color;
+        if (threatValue < 25) { label = trans.threatLow; color = 'text-emerald-400'; }
+        else if (threatValue < 50) { label = trans.threatMed; color = 'text-yellow-400'; }
+        else if (threatValue < 75) { label = trans.threatHigh; color = 'text-orange-400'; }
+        else { label = trans.threatCrit; color = 'text-red-400'; }
+        val.textContent = label;
+        val.className = 'text-[10px] font-orbitron font-bold ' + color;
+    }
+
+    /* ===================== LAYERS ===================== */
+    const activeLayers = { space: true, aerial: true, terrestrial: true, user: true };
+    function toggleLayer(layer) {
+        activeLayers[layer] = !activeLayers[layer];
+        const chk = { space: 'chkSpace', aerial: 'chkAerial', terrestrial: 'chkTerra', user: 'chkUser' }[layer];
+        const chkEl = document.getElementById(chk);
+        if (chkEl) chkEl.checked = activeLayers[layer];
+        const card = document.getElementById(`card-${layer}`);
+        if (card) {
+            card.className = activeLayers[layer]
+                ? "flex items-center justify-between p-1.5 rounded-lg border transition-all cursor-pointer bg-cyan-950/30 border-cyan-500/30"
+                : "flex items-center justify-between p-1.5 rounded-lg border transition-all cursor-pointer bg-black/40 border-slate-800 opacity-60";
         }
-
-        // --- MOTOR DE CONTROL DE CAPAS 3D ---
-        const activeLayers = {
-            space: true,
-            aerial: true,
-            terrestrial: true,
-            user: true
-        };
-
-        function toggleLayer(layer) {
-            activeLayers[layer] = !activeLayers[layer];
-            
-            // Actualizar Checkbox visual
-            if (layer === 'space') document.getElementById('chkSpace').checked = activeLayers.space;
-            if (layer === 'aerial') document.getElementById('chkAerial').checked = activeLayers.aerial;
-            if (layer === 'terrestrial') document.getElementById('chkTerra').checked = activeLayers.terrestrial;
-            if (layer === 'user') document.getElementById('chkUser').checked = activeLayers.user;
-
-            // Transición suave de visibilidad en el motor 3D
-            if (layer === 'space' && spaceGroup) spaceGroup.visible = activeLayers.space;
-            if (layer === 'aerial' && aerialGroup) aerialGroup.visible = activeLayers.aerial;
-            if (layer === 'terrestrial' && terrestrialGroup) terrestrialGroup.visible = activeLayers.terrestrial;
-            if (layer === 'user' && userGroup) userGroup.visible = activeLayers.user;
-
-            // Recalcular métricas de simulación basadas en capas activas
-            recalcMetrics();
-        }
-
-        function recalcMetrics() {
-            let activeCount = Object.values(activeLayers).filter(v => v).length;
-            let availability = 50 + activeCount * 12.499;
-            if (activeCount === 4) availability = 99.999;
-            document.getElementById('valAvailability').innerText = availability.toFixed(3) + "%";
-
-            let baseLat = 12.5 + (4 - activeCount) * 15;
-            document.getElementById('valLatency').innerText = baseLat.toFixed(1) + " ms";
-        }
-
-
-        // --- INICIALIZACIÓN DEL MOTOR GRÁFICO 3D (THREE.JS COMPLETO) ---
-        let scene, camera, renderer, container;
-        let earth, cloudMesh, atmosphere;
-        let spaceGroup, aerialGroup, terrestrialGroup, userGroup;
-        let satellites = [], satelliteLinks = [];
-        let hapsDrones = [];
-        let lasers = [];
-        let customTime = 0;
-        let brainParticles;
-        let hapsRadius = 4.8; // DECLARACIÓN EN EL ÁMBITO GLOBAL PARA SOLUCIONAR EL ERROR DE REFERENCIA
-        let particleCount = 200; // DECLARACIÓN EN EL ÁMBITO GLOBAL PARA SOLUCIONAR EL ERROR DE REFERENCIA
-        let rimLight; // DECLARACIÓN EN EL ÁMBITO GLOBAL PARA SOLUCIONAR EL ERROR DE REFERENCIA
-
-        // Variables de interacción orbital hechas a medida (Soporte offline total sin dependencias de OrbitControls)
-        let isDragging = false;
-        let previousMousePosition = { x: 0, y: 0 };
-        let rotationSpeed = 0.003;
-        let targetRotationX = 0, targetRotationY = 0;
-        let currentRotationX = 0, currentRotationY = 0;
-        let cameraDistance = 16;
-
-        function init3D() {
-            container = document.getElementById('canvas-container');
-            
-            // Crear Escena Cinemática
-            scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x020208, 0.015);
-
-            // Crear Cámara de Perspectiva
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-            camera.position.set(0, 0, cameraDistance);
-
-            // Renderizador WebGL de Alta Definición con sombras cinemáticas
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
-            renderer.setSize(container.clientWidth, container.clientHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            container.appendChild(renderer.domElement);
-
-            // --- DISEÑO DE ILUMINACIÓN CINEMATOGRÁFICA ---
-            // Luz de ambiente espacial profunda (azul-púrpura)
-            const ambientLight = new THREE.AmbientLight(0x0e0e33, 1.2);
-            scene.add(ambientLight);
-
-            // Luz solar directa con proyección de sombra para realismo espacial
-            const sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
-            sunLight.position.set(20, 10, 10);
-            sunLight.castShadow = true;
-            sunLight.shadow.mapSize.width = 1024;
-            sunLight.shadow.mapSize.height = 1024;
-            scene.add(sunLight);
-
-            // Luz de fondo atmosférica fría (ASIGNADA SIN RE-DECLARAR DE FORMA LOCAL)
-            rimLight = new THREE.DirectionalLight(0x00f2fe, 1.5);
-            rimLight.position.set(-20, -10, -10);
-            scene.add(rimLight);
-
-            // --- GRUPOS PARA GESTIÓN DE CAPAS SOBERANAS ---
-            spaceGroup = new THREE.Group();
-            aerialGroup = new THREE.Group();
-            terrestrialGroup = new THREE.Group();
-            userGroup = new THREE.Group();
-
-            scene.add(spaceGroup);
-            scene.add(aerialGroup);
-            scene.add(terrestrialGroup);
-            scene.add(userGroup);
-
-            // --- CREACIÓN DEL GLOBO TERRÁQUEO BIOMIMÉTICO HOLOGRÁFICO ---
-            // El planeta se genera proceduralmente con un sombreador táctico futurista
-            const earthGeo = new THREE.SphereGeometry(4, 64, 64);
-            
-            // Material personalizado para simular océanos y continentes cibernéticos mediante un patrón de cuadrícula de alta calidad
-            const earthMat = new THREE.MeshPhongMaterial({
-                color: 0x050f2b,
-                emissive: 0x01081a,
-                specular: 0x112244,
-                shininess: 25,
-                wireframe: false,
-                bumpScale: 0.1
-            });
-            earth = new THREE.Mesh(earthGeo, earthMat);
-            scene.add(earth);
-
-            // Capa de relieve o cuadrícula biomimética para representar la geografía hiperconectada
-            const gridGeo = new THREE.SphereGeometry(4.02, 48, 48);
-            const gridMat = new THREE.MeshBasicMaterial({
-                color: 0x00f2fe,
-                wireframe: true,
-                transparent: true,
-                opacity: 0.08
-            });
-            const earthGrid = new THREE.Mesh(gridGeo, gridMat);
-            earth.add(earthGrid);
-
-            // Atmósfera luminiscente con efecto Fresnel mediante shader básico
-            const atmosphereGeo = new THREE.SphereGeometry(4.15, 32, 32);
-            const atmosphereMat = new THREE.MeshBasicMaterial({
-                color: 0x00f2fe,
-                transparent: true,
-                opacity: 0.15,
-                blending: THREE.AdditiveBlending,
-                side: THREE.BackSide
-            });
-            atmosphere = new THREE.Mesh(atmosphereGeo, atmosphereMat);
-            earth.add(atmosphere);
-
-            // --- CAPA ESPACIAL (384 Satélites en Órbitas LEO Multi-plano) ---
-            // Representamos los planos orbitales mediante finos anillos luminiscentes
-            const orbitalPlanesCount = 12;
-            const satsPerPlane = 8; // Escalado de rendimiento óptimo para tiempo de render suave
-            const orbitRadius = 6.2; // Escala proporcional al radio de la tierra (720km de altura simulada)
-
-            for (let i = 0; i < orbitalPlanesCount; i++) {
-                const angleX = (i / orbitalPlanesCount) * Math.PI;
-                const angleY = (i / orbitalPlanesCount) * Math.PI * 0.5;
-
-                // Anillo orbital visual
-                const ringGeo = new THREE.RingGeometry(orbitRadius - 0.01, orbitRadius + 0.01, 64);
-                const ringMat = new THREE.MeshBasicMaterial({
-                    color: 0x00f2fe,
-                    transparent: true,
-                    opacity: 0.06,
-                    side: THREE.DoubleSide
-                });
-                const orbitRing = new THREE.Mesh(ringGeo, ringMat);
-                orbitRing.rotation.x = angleX;
-                orbitRing.rotation.y = angleY;
-                spaceGroup.add(orbitRing);
-
-                // Crear satélites para este plano orbital
-                for (let j = 0; j < satsPerPlane; j++) {
-                    const satAngle = (j / satsPerPlane) * Math.PI * 2;
-                    
-                    // Diseño biomimético de satélite: cuerpo con paneles solares extendidos
-                    const satMainGroup = new THREE.Group();
-                    
-                    const bodyGeo = new THREE.BoxGeometry(0.12, 0.12, 0.18);
-                    const bodyMat = new THREE.MeshPhongMaterial({ color: 0x00f2fe, emissive: 0x001a33 });
-                    const body = new THREE.Mesh(bodyGeo, bodyMat);
-                    satMainGroup.add(body);
-
-                    // Paneles solares (alas laterales extendidas)
-                    const panelGeo = new THREE.BoxGeometry(0.4, 0.02, 0.08);
-                    const panelMat = new THREE.MeshPhongMaterial({ color: 0x3b82f6, emissive: 0x1d4ed8 });
-                    const panelL = new THREE.Mesh(panelGeo, panelMat);
-                    panelL.position.x = 0.28;
-                    const panelR = panelL.clone();
-                    panelR.position.x = -0.28;
-                    satMainGroup.add(panelL);
-                    satMainGroup.add(panelR);
-
-                    // Guardar propiedades dinámicas de órbita física
-                    satellites.push({
-                        mesh: satMainGroup,
-                        planeIndex: i,
-                        satIndex: j,
-                        angleX: angleX,
-                        angleY: angleY,
-                        currentAngle: satAngle,
-                        speed: 0.02 + (i * 0.002) // Velocidad variada para dinámicas hermosas
-                    });
-
-                    spaceGroup.add(satMainGroup);
-                }
-            }
-
-            // --- CAPA AÉREA (Drones Estratosféricos HAPS) ---
-            const dronesCount = 15;
-            for (let d = 0; d < dronesCount; d++) {
-                const droneGroup = new THREE.Group();
-                // Ala delta biomimética aerodinámica de los HAPS
-                const wingGeo = new THREE.ConeGeometry(0.2, 0.5, 3);
-                wingGeo.rotateX(Math.PI / 2);
-                const wingMat = new THREE.MeshPhongMaterial({ color: 0xf59e0b, emissive: 0x78350f });
-                const wing = new THREE.Mesh(wingGeo, wingMat);
-                droneGroup.add(wing);
-
-                // Ángulo de posicionamiento esférico
-                const u = Math.random();
-                const v = Math.random();
-                const theta = u * 2.0 * Math.PI;
-                const phi = Math.acos(2.0 * v - 1.0);
-
-                hapsDrones.push({
-                    mesh: droneGroup,
-                    theta: theta,
-                    phi: phi,
-                    speed: 0.01 + Math.random() * 0.015
-                });
-                aerialGroup.add(droneGroup);
-            }
-
-            // --- CAPA TERRESTRE (Estaciones Gateway y Red Troncal) ---
-            // Ubicamos nodos luminosos en puntos específicos de la superficie
-            const gatewayCoordinates = [
-                { lat: 12.1364, lon: -86.2514, name: "Managua" },
-                { lat: 12.4355, lon: -86.8794, name: "León" },
-                { lat: 12.0131, lon: -83.7635, name: "Bluefields" },
-                { lat: 8.9824, lon: -79.5199, name: "Panamá" },
-                { lat: 19.4326, lon: -99.1332, name: "México" },
-                { lat: -23.5505, lon: -46.6333, name: "São Paulo" },
-                { lat: -33.9249, lon: 18.4241, name: "Sudáfrica" },
-                { lat: 20.5937, lon: 78.9629, name: "India" },
-                { lat: 14.5995, lon: 120.9842, name: "Filipinas" }
-            ];
-
-            gatewayCoordinates.forEach(coord => {
-                const nodeGroup = new THREE.Group();
-                
-                // Base del nodo
-                const nodeGeo = new THREE.CylinderGeometry(0.04, 0.08, 0.15, 6);
-                const nodeMat = new THREE.MeshPhongMaterial({ color: 0x00f2fe, emissive: 0x00334d });
-                const base = new THREE.Mesh(nodeGeo, nodeMat);
-                nodeGroup.add(base);
-
-                // Cúpula o haz de luz vertical
-                const beamGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.8, 4);
-                beamGeo.translate(0, 0.4, 0); // Desplazar centro para escalar desde la base
-                const beamMat = new THREE.MeshBasicMaterial({
-                    color: 0x00f2fe,
-                    transparent: true,
-                    opacity: 0.4,
-                    blending: THREE.AdditiveBlending
-                });
-                const beam = new THREE.Mesh(beamGeo, beamMat);
-                nodeGroup.add(beam);
-
-                // Convertir latitud/longitud a coordenadas cartesianas 3D de la esfera terrestre (Radio 4)
-                const latRad = (90 - coord.lat) * (Math.PI / 180);
-                const lonRad = (coord.lon + 180) * (Math.PI / 180);
-
-                const r = 4.0;
-                nodeGroup.position.x = -(r * Math.sin(latRad) * Math.sin(lonRad));
-                nodeGroup.position.y = r * Math.cos(latRad);
-                nodeGroup.position.z = r * Math.sin(latRad) * Math.cos(lonRad);
-
-                // Alinear orientación con la perpendicular al centro de la tierra
-                const targetVec = nodeGroup.position.clone().normalize();
-                nodeGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), targetVec);
-
-                terrestrialGroup.add(nodeGroup);
-            });
-
-            // --- CAPA USUARIO: INTERFAZ CEREBRO-NET (Nube de Partículas de Red Neuronal BCI) ---
-            // Nube de puntos biomimética que simula la red neuro-cognitiva flotando arriba de la atmósfera
-            const brainGeo = new THREE.BufferGeometry();
-            const positions = new Float32Array(particleCount * 3);
-            const sizes = new Float32Array(particleCount);
-
-            for(let p=0; p<particleCount; p++) {
-                // Generar forma abstracta de cerebro (dos lóbulos) a base de coordenadas polares
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.random() * Math.PI;
-                const r = 4.2 + Math.random() * 0.3; // Flota sobre la atmósfera terrestre
-
-                positions[p*3] = r * Math.sin(phi) * Math.sin(theta);
-                positions[p*3+1] = r * Math.cos(phi) * 1.2; // Alargar lóbulo
-                positions[p*3+2] = r * Math.sin(phi) * Math.cos(theta);
-                sizes[p] = Math.random() * 0.08 + 0.02;
-            }
-
-            brainGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            
-            const brainMat = new THREE.PointsMaterial({
-                color: 0xa855f7, // Púrpura BCI
-                size: 0.1,
-                transparent: true,
-                opacity: 0.6,
-                blending: THREE.AdditiveBlending
-            });
-
-            brainParticles = new THREE.Points(brainGeo, brainMat);
-            userGroup.add(brainParticles);
-
-
-            // --- SUSCRIPCIÓN DE EVENTOS DE ENTRADA / RATÓN ---
-            container.addEventListener('mousedown', onMouseDown);
-            container.addEventListener('mousemove', onMouseMove);
-            container.addEventListener('mouseup', onMouseUp);
-            container.addEventListener('wheel', onWheel);
-
-            // Soporte para gestos táctiles (Móviles / Tablets)
-            container.addEventListener('touchstart', onTouchStart);
-            container.addEventListener('touchmove', onTouchMove);
-            container.addEventListener('touchend', onTouchEnd);
-
-            window.addEventListener('resize', onWindowResize);
-
-            // Iniciar Bucle del Motor Gráfico
-            animateLoop();
-        }
-
-        // Ajustar tamaño del canvas cuando se redimensiona la ventana
-        function onWindowResize() {
-            camera.aspect = container.clientWidth / container.clientHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(container.clientWidth, container.clientHeight);
-        }
-
-        // --- MANEJADORES DE ROTACIÓN DE ESCENA EN 3D (Offline Safe) ---
-        function onMouseDown(e) {
-            isDragging = true;
-            previousMousePosition = { x: e.clientX, y: e.clientY };
-        }
-
-        function onMouseMove(e) {
-            if (!isDragging) return;
-            const deltaMove = {
-                x: e.clientX - previousMousePosition.x,
-                y: e.clientY - previousMousePosition.y
-            };
-
-            targetRotationY += deltaMove.x * rotationSpeed;
-            targetRotationX += deltaMove.y * rotationSpeed;
-
-            // Limitar rotación vertical
-            targetRotationX = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, targetRotationX));
-
-            previousMousePosition = { x: e.clientX, y: e.clientY };
-        }
-
-        function onMouseUp() {
-            isDragging = false;
-        }
-
-        function onWheel(e) {
-            cameraDistance += e.deltaY * 0.01;
-            cameraDistance = Math.max(8, Math.min(30, cameraDistance));
-            camera.position.z = cameraDistance;
-        }
-
-        // Manejadores Táctiles para Dispositivos Móviles
-        let touchStartPos = { x: 0, y: 0 };
-        function onTouchStart(e) {
-            if (e.touches.length === 1) {
-                isDragging = true;
-                touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        if (layer === 'space' && spaceGroup) spaceGroup.visible = activeLayers.space;
+        if (layer === 'aerial' && aerialGroup) aerialGroup.visible = activeLayers.aerial;
+        if (layer === 'terrestrial' && terrestrialGroup) terrestrialGroup.visible = activeLayers.terrestrial;
+        if (layer === 'user' && userGroup) userGroup.visible = activeLayers.user;
+        if (activeLayers[layer]) {
+            if (layer === 'aerial') { hapsFlash = true; setTimeout(() => hapsFlash = false, 800); }
+            if (layer === 'user' && brainParticles) {
+                brainParticles.material.size = 0.28;
+                setTimeout(() => { if (brainParticles) brainParticles.material.size = 0.12; }, 800);
             }
         }
+        const trans = dictionary[currentLang];
+        writeLog(activeLayers[layer] ? trans['logLayerOn_' + layer] : trans['logLayerOff_' + layer]);
+        if (!activeLayers[layer]) setThreat(threatValue + 12);
+        else setThreat(Math.max(5, threatValue - 10));
+        recalcMetrics();
+        updateBandwidth();
+    }
 
-        function onTouchMove(e) {
-            if (!isDragging || e.touches.length !== 1) return;
-            const deltaMove = {
-                x: e.touches[0].clientX - touchStartPos.x,
-                y: e.touches[0].clientY - touchStartPos.y
-            };
-
-            targetRotationY += deltaMove.x * rotationSpeed * 1.5;
-            targetRotationX += deltaMove.y * rotationSpeed * 1.5;
-
-            targetRotationX = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, targetRotationX));
-            touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    function recalcMetrics() {
+        const activeCount = Object.values(activeLayers).filter(Boolean).length;
+        let availability, latency;
+        if (anomalyActive) { availability = "94.103%"; latency = "48.2 ms"; }
+        else {
+            availability = (activeCount === 4) ? "99.999%" : (50 + activeCount * 12.499).toFixed(3) + "%";
+            const baseLat = 12.5 + (4 - activeCount) * 15;
+            latency = `${baseLat.toFixed(1)} ms`;
         }
-
-        function onTouchEnd() {
-            isDragging = false;
+        const av = document.getElementById('valAvailability');
+        const lt = document.getElementById('valLatency');
+        if (av) av.innerText = availability;
+        if (lt) lt.innerText = latency;
+        const online = document.getElementById('onlineBadge');
+        if (online) {
+            if (activeCount === 4 && !anomalyActive) {
+                online.className = 'text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-orbitron pulse-active';
+                online.innerText = 'ONLINE';
+            } else {
+                online.className = 'text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-orbitron pulse-active';
+                online.innerText = 'DEGRADED';
+            }
         }
+    }
 
-        // --- SISTEMA DE SIMULACIONES FÍSICAS EN TIEMPO REAL ---
-        
-        // Simulación 1: Física Modular - Modificar Altura Orbital LEO
-        let scaleOrbitSpeedMultiplier = 1.0;
-        function adjustOrbitHeight(heightValue) {
-            document.getElementById('valOrbit').innerText = heightValue + " km";
-            
-            // Convertir altura real (400 a 1500km) a escala de visualización en el motor 3D
-            const relativeScale = 4.0 + (heightValue / 1500) * 3.5;
-            
-            // Modificar de manera fluida y física la órbita de los satélites
-            satellites.forEach(sat => {
-                sat.mesh.scale.setScalar(1.0); // Reset scale
-            });
+    function updateBandwidth() {
+        let leo = 45, haps = 20, terra = 25, bci = 10;
+        if (!activeLayers.space) { leo = 0; haps += 10; terra += 20; bci += 15; }
+        if (!activeLayers.aerial) { haps = 0; leo += 8; terra += 8; bci += 4; }
+        if (!activeLayers.terrestrial) { terra = 0; leo += 10; haps += 10; bci += 5; }
+        if (!activeLayers.user) { bci = 0; leo += 5; haps += 3; terra += 2; }
+        if (anomalyActive) { leo = Math.max(5, leo - 10); terra = Math.max(3, terra - 8); }
+        const total = leo + haps + terra + bci || 1;
+        const norm = v => Math.round((v / total) * 100);
+        const values = { LEO: norm(leo), HAPS: norm(haps), Terra: norm(terra), BCI: norm(bci) };
+        ['LEO','HAPS','Terra','BCI'].forEach(k => {
+            const bar = document.getElementById('bar' + k);
+            const txt = document.getElementById('bw' + k);
+            if (bar) bar.style.width = values[k] + '%';
+            if (txt) txt.textContent = values[k] + '%';
+        });
+    }
 
-            // Ajustar visualización de los anillos orbitales en el grupo espacial
-            spaceGroup.children.forEach(child => {
-                if (child instanceof THREE.Mesh && child.geometry instanceof THREE.RingGeometry) {
-                    child.scale.setScalar(relativeScale / 6.2);
+    /* ===================== SAT GRID ===================== */
+    const satStates = new Array(96).fill(1);
+    function buildSatGrid() {
+        const grid = document.getElementById('satGrid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        for (let i = 0; i < 96; i++) {
+            const d = document.createElement('div');
+            d.className = 'sat-dot bg-cyan-400 shadow-[0_0_4px_#00f2fe]';
+            d.title = `SAT-${String(i + 1).padStart(3, '0')}`;
+            grid.appendChild(d);
+        }
+    }
+    function updateSatGrid() {
+        const grid = document.getElementById('satGrid');
+        if (!grid) return;
+        const dots = grid.children;
+        for (let i = 0; i < dots.length; i++) {
+            if (!satStates[i]) {
+                dots[i].className = 'sat-dot critical';
+            } else if (cyberActive && Math.random() < 0.15) {
+                dots[i].className = 'sat-dot bg-yellow-400 shadow-[0_0_6px_#facc15]';
+            } else {
+                dots[i].className = 'sat-dot bg-cyan-400 shadow-[0_0_4px_#00f2fe]';
+            }
+        }
+        const activeCount = satStates.filter(Boolean).length;
+        const el = document.getElementById('valSatCount');
+        if (el) el.textContent = `${activeCount}/96`;
+    }
+
+    /* ===================== THREE.JS ===================== */
+    let scene, camera, renderer, container;
+    let earth, atmosphere, rimLight, sunLight;
+    let spaceGroup, aerialGroup, terrestrialGroup, userGroup;
+    let satellites = [], hapsDrones = [], lasers = [], dataPackets = [];
+    let orbitRings = [];
+    let brainParticles, brainLines;
+    let debrisField, solarGlow, pingRings = [], launchTrail;
+    let customTime = 0;
+
+    const baseCamPos = new THREE.Vector3(0, 4, 16);
+    const targetCamPos = baseCamPos.clone();
+    const baseLookAt = new THREE.Vector3(0, 0, 0);
+    const targetLookAt = baseLookAt.clone();
+    const tmpTarget = new THREE.Vector3();
+
+    let camScale = 1, userZoom = 1, orbitHeightKm = 720;
+    const NEURAL_COUNT = 260;
+
+    function setCameraPreset(preset) {
+        ['global', 'stratosphere', 'swarm', 'neural'].forEach(id => {
+            const b = document.getElementById(`cam-${id}`);
+            if (!b) return;
+            b.className = "px-2 py-1 rounded text-[10px] font-bold font-orbitron transition-all whitespace-nowrap cursor-pointer text-slate-400 hover:text-white hover:bg-white/5";
+        });
+        const activeBtnId = { global: 'cam-global', stratosphere: 'cam-stratosphere', satellite: 'cam-swarm', neural: 'cam-neural' }[preset];
+        const ab = activeBtnId && document.getElementById(activeBtnId);
+        if (ab) ab.className = "px-2 py-1 rounded text-[10px] font-bold font-orbitron transition-all whitespace-nowrap cursor-pointer bg-cyan-500/30 text-[#00f2fe] border border-cyan-400/50 shadow-[0_0_10px_rgba(0,242,254,0.3)]";
+        switch (preset) {
+            case 'global':
+                baseCamPos.set(0, 4, 16); baseLookAt.set(0, 0, 0);
+                if (earth) {
+                    const orig = earth.material.emissive.getHex();
+                    earth.material.emissive.setHex(0x00f2fe);
+                    setTimeout(() => { if (earth) earth.material.emissive.setHex(orig); }, 500);
                 }
-            });
-
-            // Actualizar el factor multiplicador de velocidad Kepleriana (órbitas más bajas = mayor velocidad)
-            scaleOrbitSpeedMultiplier = 1500 / heightValue;
-        }
-
-        // Simulación 2: Proporción de Energía Híbrida
-        function adjustEnergyProp(val) {
-            const solar = val;
-            const piezo = 100 - val;
-            document.getElementById('valEnergyProp').innerText = `${solar}/${piezo}`;
-            
-            // Afectar consumo y auto-suficiencia según proporción
-            const selfSufficiency = 80.0 + (solar * 0.15) + (piezo * 0.05);
-            document.getElementById('valEnergy').innerText = selfSufficiency.toFixed(1) + "%";
-        }
-
-        // Simulación 3: Impulso Cerebro-Computadora (BCI)
-        function triggerNeuralPulse() {
-            // Animar un destello púrpura en la nube de partículas neuronales
-            const origColor = brainParticles.material.color.clone();
-            brainParticles.material.color.setHex(0xff00ff);
-            brainParticles.material.size = 0.25;
-
-            // Emitir pulso de datos masivo
-            document.getElementById('valThroughput').innerText = "184.2 Gb/s";
-
-            writeLog(dictionary[currentLang].logPulse);
-
-            setTimeout(() => {
-                brainParticles.material.color.copy(origColor);
-                brainParticles.material.size = 0.1;
-                document.getElementById('valThroughput').innerText = "54.8 Gb/s";
-            }, 1800);
-        }
-
-        // Simulación 4: Swarm AI - Simulación de Fallo de Nodos y Autoreparación Inmediata
-        let anomalyActive = false;
-        let recoveryTimer = null;
-
-        function triggerFalloSimulado() {
-            if (anomalyActive) return;
-            anomalyActive = true;
-
-            // Modificar la interfaz táctica para alertar al usuario del incidente
-            const alertLabel = document.getElementById('lblStable');
-            alertLabel.innerText = "ALERTA: FALLO";
-            alertLabel.classList.remove('text-emerald-400');
-            alertLabel.classList.add('text-red-500', 'pulse-active');
-
-            // Bajar métricas en vivo drásticamente
-            document.getElementById('valAvailability').innerText = "94.103%";
-            document.getElementById('valLatency').innerText = "48.2 ms";
-
-            // Registrar incidente en terminal soberana
-            writeLog(dictionary[currentLang].logFalloSimulado);
-
-            // Romper visualmente los enlaces de satélites en 3D tiñéndolos de rojo
-            lasers.forEach(laser => {
-                laser.material.color.setHex(0xef4444);
-                laser.material.opacity = 0.7;
-            });
-
-            // Desencadenar la autoreparación por inteligencia de enjambre en menos de 3 segundos (como exige el diseño técnico)
-            recoveryTimer = setTimeout(() => {
-                alertLabel.innerText = "AUTOREPARADO";
-                alertLabel.classList.remove('text-red-500', 'pulse-active');
-                alertLabel.classList.add('text-amber-400');
-
-                // Volver a enrutar mediante satélites adyacentes (Color dorado)
-                lasers.forEach(laser => {
-                    laser.material.color.setHex(0xf59e0b);
-                    laser.material.opacity = 0.55;
-                });
-
-                writeLog(dictionary[currentLang].logFalloReparado);
-
-                // Normalización de sistema completo después de reparación
+                break;
+            case 'stratosphere':
+                baseCamPos.set(0, 5.5, 6.5); baseLookAt.set(0, 3.0, 3.0);
+                hapsFlash = true; setTimeout(() => hapsFlash = false, 1200);
+                break;
+            case 'satellite':
+                baseCamPos.set(5.5, 3.0, 8.5); baseLookAt.set(3.5, 1.5, 4.5);
+                lasersFlash = true; setTimeout(() => lasersFlash = false, 1200);
+                break;
+            case 'neural':
+                baseCamPos.set(0, 2.0, 10.5); baseLookAt.set(0, 1.5, 4.0);
+                bciFlash = true;
+                if (brainParticles) { brainParticles.material.size = 0.32; brainParticles.material.color.setHex(0xff00ff); }
                 setTimeout(() => {
-                    alertLabel.innerText = dictionary[currentLang].lblStable;
-                    alertLabel.classList.remove('text-amber-400');
-                    alertLabel.classList.add('text-emerald-400');
-                    recalcMetrics();
-                    anomalyActive = false;
-                }, 3000);
-
-            }, 2200); // 2.2 Segundos de reacción robótica autolimpiable
+                    bciFlash = false;
+                    if (brainParticles) {
+                        brainParticles.material.size = 0.12;
+                        const c = currentMode === 'crisis' ? 0xf59e0b : currentMode === 'soberano' ? 0x10b981 : 0xa855f7;
+                        brainParticles.material.color.setHex(c);
+                    }
+                }, 1200);
+                break;
         }
+        targetCamPos.copy(baseCamPos);
+        targetLookAt.copy(baseLookAt);
+        userZoom = 1;
+        updateCameraFit();
+        const logMap = { 'global': 'logCamera_global', 'stratosphere': 'logCamera_stratosphere', 'satellite': 'logCamera_swarm', 'neural': 'logCamera_neural' };
+        const key = logMap[preset];
+        if (key && dictionary[currentLang][key]) writeLog(dictionary[currentLang][key]);
+    }
 
-        // --- SELECCIÓN DE MODOS DE OPERACIÓN GENERALES ---
-        function changeOpMode(mode) {
-            if (!rimLight) return; // Salvaguarda en caso de inicialización asíncrona
-            if (mode === "normal") {
-                writeLog(dictionary[currentLang].logNormal);
-                earth.material.color.setHex(0x050f2b);
-                rimLight.color.setHex(0x00f2fe);
-                if (brainParticles) brainParticles.material.color.setHex(0xa855f7);
-            } else if (mode === "crisis") {
-                writeLog(dictionary[currentLang].logCrisis);
-                // Iluminación táctica de emergencia (Ámbar intenso)
-                earth.material.color.setHex(0x1a1205);
-                rimLight.color.setHex(0xf59e0b);
-                if (brainParticles) brainParticles.material.color.setHex(0xf59e0b);
-            } else if (mode === "soberano") {
-                writeLog(dictionary[currentLang].logSovereign);
-                // Modo ultra defensivo hermético (Azul cian eléctrico)
-                earth.material.color.setHex(0x011c1e);
-                rimLight.color.setHex(0x10b981);
-                if (brainParticles) brainParticles.material.color.setHex(0x10b981);
+    function updateCameraFit() {
+        if (!container) return;
+        const w = Math.max(1, container.clientWidth);
+        const h = Math.max(1, container.clientHeight);
+        const aspect = w / h;
+        camScale = aspect >= 1.6 ? 1 : Math.min(2.1, 1.6 / Math.max(0.42, aspect));
+    }
+
+    function init3D() {
+        container = document.getElementById('canvas-container');
+        if (!container) return;
+        const width = Math.max(1, container.clientWidth);
+        const height = Math.max(1, container.clientHeight);
+
+        scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x020208, 0.014);
+
+        camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 200);
+        camera.position.copy(targetCamPos);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.15;
+        renderer.domElement.style.display = 'block';
+        container.appendChild(renderer.domElement);
+
+        scene.add(new THREE.AmbientLight(0x0a1128, 1.4));
+        sunLight = new THREE.DirectionalLight(0xffffff, 2.8);
+        sunLight.position.set(25, 12, 18);
+        scene.add(sunLight);
+        rimLight = new THREE.DirectionalLight(0x00f2fe, 1.8);
+        rimLight.position.set(-25, -12, -18);
+        scene.add(rimLight);
+
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 1400;
+        const starPos = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount; i++) {
+            const rad = 80 + Math.random() * 40;
+            const th = Math.random() * Math.PI * 2;
+            const ph = Math.acos(Math.random() * 2 - 1);
+            starPos[i * 3] = rad * Math.sin(ph) * Math.cos(th);
+            starPos[i * 3 + 1] = rad * Math.sin(ph) * Math.sin(th);
+            starPos[i * 3 + 2] = rad * Math.cos(ph);
+        }
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0x7dd3fc, size: 0.6, transparent: true, opacity: 0.7 })));
+
+        spaceGroup = new THREE.Group();
+        aerialGroup = new THREE.Group();
+        terrestrialGroup = new THREE.Group();
+        userGroup = new THREE.Group();
+        scene.add(spaceGroup, aerialGroup, terrestrialGroup, userGroup);
+
+        const earthCanvas = document.createElement('canvas');
+        earthCanvas.width = 1024; earthCanvas.height = 512;
+        const ctx = earthCanvas.getContext('2d');
+        const grad = ctx.createLinearGradient(0, 0, 0, 512);
+        grad.addColorStop(0, '#020b1e'); grad.addColorStop(0.5, '#051336'); grad.addColorStop(1, '#020b1e');
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, 1024, 512);
+        ctx.strokeStyle = 'rgba(0, 242, 254, 0.12)'; ctx.lineWidth = 1;
+        for (let y = 32; y < 512; y += 32) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(1024, y); ctx.stroke(); }
+        for (let x = 32; x < 1024; x += 64) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 512); ctx.stroke(); }
+        ctx.fillStyle = 'rgba(0, 242, 254, 0.08)';
+        ctx.strokeStyle = 'rgba(0, 242, 254, 0.35)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.ellipse(280, 180, 90, 70, -0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(270, 220); ctx.lineTo(290, 250); ctx.lineTo(315, 275); ctx.lineWidth = 3; ctx.strokeStyle = '#00f2fe'; ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(330, 350, 70, 110, 0.2, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0, 242, 254, 0.08)'; ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(560, 290, 60, 90, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(680, 160, 140, 75, 0.1, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        const earthTexture = new THREE.CanvasTexture(earthCanvas);
+        earthTexture.wrapS = THREE.RepeatWrapping;
+
+        const earthGeo = new THREE.SphereGeometry(4, 64, 64);
+        const earthMat = new THREE.MeshPhongMaterial({ map: earthTexture, color: 0x071b42, emissive: 0x020a1c, specular: 0x00f2fe, shininess: 35 });
+        earth = new THREE.Mesh(earthGeo, earthMat);
+        scene.add(earth);
+        earth.add(new THREE.Mesh(new THREE.SphereGeometry(4.02, 48, 48), new THREE.MeshBasicMaterial({ color: 0x00f2fe, wireframe: true, transparent: true, opacity: 0.09 })));
+        atmosphere = new THREE.Mesh(new THREE.SphereGeometry(4.16, 32, 32), new THREE.MeshBasicMaterial({ color: 0x00f2fe, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, side: THREE.BackSide }));
+        earth.add(atmosphere);
+
+        solarGlow = new THREE.PointLight(0xffaa00, 0, 60);
+        solarGlow.position.set(20, 15, 10);
+        scene.add(solarGlow);
+
+        const orbitalPlanesCount = 12, satsPerPlane = 8, baseOrbitRadius = 6.2;
+        const bodyGeo = new THREE.BoxGeometry(0.12, 0.12, 0.2);
+        const panelGeo = new THREE.BoxGeometry(0.42, 0.02, 0.09);
+        const thrusterGeo = new THREE.CylinderGeometry(0.02, 0.04, 0.06, 6);
+        const busMat = new THREE.MeshPhongMaterial({ color: 0x00f2fe, emissive: 0x002b4d, specular: 0xffffff, shininess: 50 });
+        const panelMat = new THREE.MeshPhongMaterial({ color: 0x1d4ed8, emissive: 0x0f2b66, specular: 0x60a5fa, shininess: 80 });
+        const thrusterMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.8 });
+
+        for (let i = 0; i < orbitalPlanesCount; i++) {
+            const angleX = 0.95, angleY = (i / orbitalPlanesCount) * Math.PI * 2;
+            const orbitRing = new THREE.Mesh(new THREE.RingGeometry(baseOrbitRadius - 0.015, baseOrbitRadius + 0.015, 72), new THREE.MeshBasicMaterial({ color: 0x00f2fe, transparent: true, opacity: 0.08, side: THREE.DoubleSide }));
+            orbitRing.rotation.x = angleX; orbitRing.rotation.y = angleY;
+            spaceGroup.add(orbitRing); orbitRings.push(orbitRing);
+            for (let j = 0; j < satsPerPlane; j++) {
+                const satAngle = (j / satsPerPlane) * Math.PI * 2;
+                const g = new THREE.Group();
+                const bus = new THREE.Mesh(bodyGeo, busMat);
+                g.add(bus);
+                const pL = new THREE.Mesh(panelGeo, panelMat); pL.position.x = 0.32;
+                const pR = new THREE.Mesh(panelGeo, panelMat); pR.position.x = -0.32;
+                g.add(pL, pR);
+                const t = new THREE.Mesh(thrusterGeo, thrusterMat); t.position.z = -0.12; t.rotation.x = Math.PI / 2;
+                g.add(t);
+                satellites.push({ mesh: g, angleX, angleY, currentAngle: satAngle, speed: 0.022 + (i % 3) * 0.002 });
+                spaceGroup.add(g);
             }
         }
 
+        const packetGeo = new THREE.SphereGeometry(0.04, 8, 8);
+        const packetMat = new THREE.MeshBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending });
+        for (let p = 0; p < 16; p++) {
+            const packet = new THREE.Mesh(packetGeo, packetMat);
+            packet.visible = false;
+            spaceGroup.add(packet);
+            dataPackets.push(packet);
+        }
 
-        // --- BUCLE DE ANIMACIÓN Y RENDERIZADO PRINCIPAL (3D LOOP) ---
-        function animateLoop() {
-            requestAnimationFrame(animateLoop);
+        const wingMat = new THREE.MeshPhongMaterial({ color: 0xf59e0b, emissive: 0x78350f, shininess: 40 });
+        for (let d = 0; d < 14; d++) {
+            const g = new THREE.Group();
+            const wingGeo = new THREE.ConeGeometry(0.24, 0.65, 3); wingGeo.rotateX(Math.PI / 2);
+            g.add(new THREE.Mesh(wingGeo, wingMat));
+            const coneGeo = new THREE.ConeGeometry(0.4, 0.8, 16, 1, true); coneGeo.rotateX(Math.PI); coneGeo.translate(0, -0.4, 0);
+            g.add(new THREE.Mesh(coneGeo, new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.08, wireframe: true })));
+            const pLight = new THREE.PointLight(0xf59e0b, 0.8, 2); pLight.position.set(0, 0.1, 0); g.add(pLight);
+            const u = (d / 14) * 0.7 + 0.15, v = 0.4 + (d % 3) * 0.12;
+            hapsDrones.push({ mesh: g, theta: u * 2.0 * Math.PI, phi: Math.acos(2.0 * v - 1.0), speed: 0.012 + Math.random() * 0.008, light: pLight });
+            aerialGroup.add(g);
+        }
+
+        const stationsData = [
+            { type: 'noc', lat: 12.1364, lon: -86.2514 }, { type: 'soc', lat: 12.4355, lon: -86.8794 }, { type: 'soc', lat: 12.0131, lon: -83.7635 },
+            { type: 'pilot', lat: 11.5392, lon: -85.6983 }, { type: 'pilot', lat: 13.1764, lon: -86.6128 }, { type: 'pilot', lat: 14.0351, lon: -83.3888 },
+            { type: 'gateway', lat: 8.9824, lon: -79.5199 }, { type: 'gateway', lat: 19.4326, lon: -99.1332 }, { type: 'gateway', lat: -23.5505, lon: -46.6333 },
+            { type: 'gateway', lat: -33.9249, lon: 18.4241 }, { type: 'gateway', lat: 20.5937, lon: 78.9629 }, { type: 'gateway', lat: 14.5995, lon: 120.9842 }
+        ];
+        stationsData.forEach(st => {
+            const g = new THREE.Group();
+            const isNoc = st.type === 'noc', isSoc = st.type === 'soc', isPilot = st.type === 'pilot';
+            const color = isNoc ? 0x00f2fe : isSoc ? 0x10b981 : isPilot ? 0xa855f7 : 0x38bdf8;
+            const baseHeight = isNoc ? 0.22 : 0.14;
+            g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.09, baseHeight, 8), new THREE.MeshPhongMaterial({ color, emissive: isNoc ? 0x00334d : 0x02201a, shininess: 60 })));
+            const beamHeight = isNoc ? 1.6 : 0.9;
+            const beamGeo = new THREE.CylinderGeometry(0.015, 0.015, beamHeight, 6); beamGeo.translate(0, beamHeight / 2, 0);
+            g.add(new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: isNoc ? 0.75 : 0.45, blending: THREE.AdditiveBlending })));
+            if (isNoc || isSoc) { const pLight = new THREE.PointLight(color, 1.2, 3); pLight.position.set(0, beamHeight, 0); g.add(pLight); }
+            const latRad = (90 - st.lat) * (Math.PI / 180), lonRad = (st.lon + 180) * (Math.PI / 180), r = 4.0;
+            g.position.set(-(r * Math.sin(latRad) * Math.sin(lonRad)), r * Math.cos(latRad), r * Math.sin(latRad) * Math.cos(lonRad));
+            g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), g.position.clone().normalize());
+            g.userData.originalBeamOpacity = isNoc ? 0.75 : 0.45;
+            terrestrialGroup.add(g);
+        });
+
+        const brainGeo = new THREE.BufferGeometry();
+        const positions = new Float32Array(NEURAL_COUNT * 3);
+        const lineIndices = [];
+        for (let p = 0; p < NEURAL_COUNT; p++) {
+            const theta = Math.random() * Math.PI * 2, phi = Math.random() * Math.PI, r = 4.25 + Math.random() * 0.35;
+            positions[p * 3] = r * Math.sin(phi) * Math.sin(theta);
+            positions[p * 3 + 1] = r * Math.cos(phi) * 1.15;
+            positions[p * 3 + 2] = r * Math.sin(phi) * Math.cos(theta);
+            if (p > 0 && p % 3 === 0) lineIndices.push(p, p - 1);
+        }
+        brainGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        brainParticles = new THREE.Points(brainGeo, new THREE.PointsMaterial({ color: 0xa855f7, size: 0.12, transparent: true, opacity: 0.65, blending: THREE.AdditiveBlending }));
+        userGroup.add(brainParticles);
+        const blg = new THREE.BufferGeometry(); blg.setAttribute('position', new THREE.BufferAttribute(positions.slice(), 3)); blg.setIndex(lineIndices);
+        brainLines = new THREE.LineSegments(blg, new THREE.LineBasicMaterial({ color: 0xa855f7, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending }));
+        userGroup.add(brainLines);
+
+        const debrisCount = 200;
+        const debrisGeo = new THREE.BufferGeometry();
+        const debrisPos = new Float32Array(debrisCount * 3);
+        for (let i = 0; i < debrisCount; i++) {
+            const r = 5.5 + Math.random() * 3;
+            const th = Math.random() * Math.PI * 2;
+            const ph = Math.acos(Math.random() * 2 - 1);
+            debrisPos[i * 3] = r * Math.sin(ph) * Math.cos(th);
+            debrisPos[i * 3 + 1] = r * Math.sin(ph) * Math.sin(th);
+            debrisPos[i * 3 + 2] = r * Math.cos(ph);
+        }
+        debrisGeo.setAttribute('position', new THREE.BufferAttribute(debrisPos, 3));
+        debrisField = new THREE.Points(debrisGeo, new THREE.PointsMaterial({ color: 0xff6600, size: 0.15, transparent: true, opacity: 0, blending: THREE.AdditiveBlending }));
+        scene.add(debrisField);
+
+        launchTrail = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+            new THREE.LineBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0, blending: THREE.AdditiveBlending })
+        );
+        scene.add(launchTrail);
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let downX = 0, downY = 0;
+        container.addEventListener('mousedown', e => { downX = e.clientX; downY = e.clientY; });
+        container.addEventListener('click', e => {
+            if (Math.abs(e.clientX - downX) > 5 || Math.abs(e.clientY - downY) > 5) return;
+            const rect = container.getBoundingClientRect();
+            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(satellites.map(s => s.mesh), true);
+            if (hits.length > 0) {
+                let obj = hits[0].object;
+                while (obj.parent && !satellites.find(s => s.mesh === obj)) obj = obj.parent;
+                const sat = satellites.find(s => s.mesh === obj);
+                if (sat) {
+                    sat.mesh.scale.setScalar(1.8);
+                    setTimeout(() => sat.mesh.scale.setScalar(1), 600);
+                    const idx = satellites.indexOf(sat);
+                    writeLog(`◉ SAT-${String(idx + 1).padStart(3, '0')} · Link locked · ISL 10 Gbps · Battery OK`);
+                }
+            }
+        });
+
+        let isDragging = false, prevMouse = { x: 0, y: 0 };
+        const rotSpeed = 0.0035;
+        container.addEventListener('mousedown', e => { isDragging = true; prevMouse = { x: e.clientX, y: e.clientY }; });
+        window.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            const dx = e.clientX - prevMouse.x, dy = e.clientY - prevMouse.y;
+            targetRotY += dx * rotSpeed;
+            targetRotX = Math.max(-Math.PI / 2.3, Math.min(Math.PI / 2.3, targetRotX + dy * rotSpeed));
+            prevMouse = { x: e.clientX, y: e.clientY };
+        });
+        window.addEventListener('mouseup', () => { isDragging = false; });
+        container.addEventListener('wheel', e => {
+            e.preventDefault();
+            userZoom = Math.max(0.55, Math.min(2.2, userZoom + e.deltaY * 0.0011));
+        }, { passive: false });
+        let touchStart = { x: 0, y: 0 };
+        container.addEventListener('touchstart', e => {
+            if (e.touches.length === 1) { isDragging = true; touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }
+        }, { passive: true });
+        window.addEventListener('touchmove', e => {
+            if (!isDragging || e.touches.length !== 1) return;
+            const dx = e.touches[0].clientX - touchStart.x, dy = e.touches[0].clientY - touchStart.y;
+            targetRotY += dx * rotSpeed * 1.5;
+            targetRotX = Math.max(-Math.PI / 2.3, Math.min(Math.PI / 2.3, targetRotX + dy * rotSpeed * 1.5));
+            touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }, { passive: true });
+        window.addEventListener('touchend', () => { isDragging = false; });
+
+        function onResize() {
+            if (!container || !camera || !renderer) return;
+            const w = Math.max(1, container.clientWidth), h = Math.max(1, container.clientHeight);
+            camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h); updateCameraFit();
+        }
+        if (window.ResizeObserver) new ResizeObserver(onResize).observe(container);
+        window.addEventListener('resize', onResize);
+
+        function animate() {
+            requestAnimationFrame(animate);
             customTime += 0.015;
 
-            // Interpolación suavizada (Lerp) para movimiento orbital de cámara táctica
-            currentRotationX += (targetRotationX - currentRotationX) * 0.08;
-            currentRotationY += (targetRotationY - currentRotationY) * 0.08;
+            tmpTarget.copy(baseCamPos).multiplyScalar(camScale * userZoom);
+            camera.position.lerp(tmpTarget, 0.045);
+            camera.lookAt(targetLookAt);
 
-            // Aplicar matriz de rotación al globo terrestre
-            earth.rotation.y = customTime * 0.05 + currentRotationY;
-            earth.rotation.x = currentRotationX;
+            curRotX += (targetRotX - curRotX) * 0.08;
+            curRotY += (targetRotY - curRotY) * 0.08;
 
-            // Sincronizar grupos de capas terrestres y usuarios con la rotación del planeta
-            terrestrialGroup.rotation.y = earth.rotation.y;
-            terrestrialGroup.rotation.x = earth.rotation.x;
+            if (cameraShake > 0.5) {
+                const sx = (Math.random() - 0.5) * cameraShake;
+                const sy = (Math.random() - 0.5) * cameraShake;
+                container.style.transform = `translate(${sx}px, ${sy}px)`;
+                cameraShake *= 0.88;
+            } else if (cameraShake > 0) {
+                cameraShake = 0;
+                container.style.transform = 'none';
+            }
 
-            userGroup.rotation.y = earth.rotation.y;
-            userGroup.rotation.x = earth.rotation.x;
+            earth.rotation.y = customTime * 0.03 + curRotY;
+            earth.rotation.x = curRotX;
+            terrestrialGroup.rotation.y = earth.rotation.y; terrestrialGroup.rotation.x = earth.rotation.x;
+            userGroup.rotation.y = earth.rotation.y; userGroup.rotation.x = earth.rotation.x;
 
-            // Actualizar Física de Satélites (Capa Espacial LEO)
-            satellites.forEach(sat => {
-                // Modificar ángulo actual de Kepler basado en reguladores físicos de enjambre
-                sat.currentAngle += sat.speed * scaleOrbitSpeedMultiplier * 0.3;
+            const relativeScale = 4.0 + (orbitHeightKm / 1500) * 3.5;
+            const scaleSpeedMultiplier = 1500 / orbitHeightKm;
+            const ringScale = relativeScale / 6.2;
+            orbitRings.forEach(r => r.scale.setScalar(ringScale));
 
-                // Calcular posición matemática en órbita inclinada
-                const currentOrbitRadius = 6.2 * (document.getElementById('op-mode').value === 'crisis' ? 0.95 : 1.0); // Ajustar por crisis climática
-                const cosAngle = Math.cos(sat.currentAngle);
-                const sinAngle = Math.sin(sat.currentAngle);
+            const orbitR = relativeScale * (currentMode === 'crisis' ? 0.96 : 1.0);
+            const satFlicker = solarFlareActive ? (Math.sin(customTime * 30) * 0.5 + 0.5) : 1;
 
-                // Rotación tridimensional de matrices orbitales combinadas
-                const posX = currentOrbitRadius * cosAngle;
-                const posY = currentOrbitRadius * sinAngle * Math.sin(sat.angleX);
-                const posZ = currentOrbitRadius * sinAngle * Math.cos(sat.angleX);
-
-                sat.mesh.position.set(posX, posY, posZ);
-                // Apuntar cara al centro del planeta para alineación de antenas
+            for (let i = 0; i < satellites.length; i++) {
+                const sat = satellites[i];
+                sat.currentAngle += sat.speed * scaleSpeedMultiplier * 0.28;
+                const cosA = Math.cos(sat.currentAngle), sinA = Math.sin(sat.currentAngle);
+                sat.mesh.position.set(orbitR * cosA, orbitR * sinA * Math.sin(sat.angleX), orbitR * sinA * Math.cos(sat.angleX));
                 sat.mesh.lookAt(earth.position);
-            });
-
-            // Actualizar trayectoria de Drones HAPS (Capa Aérea)
-            hapsDrones.forEach((drone, idx) => {
-                drone.theta += drone.speed * 0.2;
-                
-                // Calcular coordenadas esféricas polares de HAPS
-                const posX = hapsRadius * Math.sin(drone.phi) * Math.sin(drone.theta);
-                const posY = hapsRadius * Math.cos(drone.phi);
-                const posZ = hapsRadius * Math.sin(drone.phi) * Math.cos(drone.theta);
-
-                drone.mesh.position.set(posX, posY, posZ);
-
-                // Pequeño bamboleo biomimético de las alas
-                drone.mesh.rotation.y = Math.sin(customTime + idx) * 0.1;
-                drone.mesh.rotation.z = Math.cos(customTime + idx * 0.5) * 0.05;
-            });
-
-            // --- SISTEMA DINÁMICO DE ENLACES DE COMUNICACIÓN LÁSER (Swarm AI) ---
-            // Dibujar dinámicamente haces de luz láser interconectados entre satélites adyacentes
-            clearLasers();
-
-            if (activeLayers.space) {
-                // Conectar cada satélite con su adyacente para ilustrar la Red de Enjambre
-                const linksLimit = satellites.length;
-                const step = 4; // Filtrado de enlaces para conservar rendimiento de render fluido
-                
-                for (let i = 0; i < linksLimit; i += step) {
-                    const nextIdx = (i + step) % linksLimit;
-                    const satA = satellites[i];
-                    const satB = satellites[nextIdx];
-
-                    createLaserLink(satA.mesh.position, satB.mesh.position);
+                if (solarFlareActive && sat.mesh.children[0] && sat.mesh.children[0].material) {
+                    sat.mesh.children[0].material.emissive.setHex(0xffaa00);
+                    sat.mesh.children[0].material.emissiveIntensity = 0.3 + satFlicker * 0.9;
+                } else if (!cyberActive && sat.mesh.children[0] && sat.mesh.children[0].material) {
+                    sat.mesh.children[0].material.emissive.setHex(0x002b4d);
+                    sat.mesh.children[0].material.emissiveIntensity = 1;
+                }
+                if (destroyedSatIndex === i) {
+                    sat.mesh.visible = false;
+                } else if (destroyedSatIndex !== i) {
+                    sat.mesh.visible = activeLayers.space;
                 }
             }
 
-            // Animar un sutil centelleo dinámico en la nube de interfaces neuroadaptativas (Usuario BCI)
-            if (brainParticles) {
-                const posArr = brainParticles.geometry.attributes.position.array;
-                for(let i=0; i<particleCount; i++) {
-                    posArr[i*3+1] += Math.sin(customTime * 2 + i) * 0.002; // Vibración armónica
+            for (let idx = 0; idx < hapsDrones.length; idx++) {
+                const d = hapsDrones[idx];
+                d.theta += d.speed * 0.2;
+                d.mesh.position.set(4.75 * Math.sin(d.phi) * Math.sin(d.theta), 4.75 * Math.cos(d.phi), 4.75 * Math.sin(d.phi) * Math.cos(d.theta));
+                d.mesh.rotation.y = Math.sin(customTime + idx) * 0.12;
+                d.mesh.rotation.z = Math.cos(customTime + idx * 0.6) * 0.06;
+                if (solarFlareActive) {
+                    d.light.intensity = 0.3 + Math.abs(Math.sin(customTime * 15 + idx)) * 1.8;
+                } else {
+                    d.light.intensity = hapsFlash ? 3 : (0.5 + Math.sin(customTime * 8 + idx) * 0.5);
                 }
+            }
+
+            for (let i = 0; i < lasers.length; i++) {
+                scene.remove(lasers[i]);
+                lasers[i].geometry.dispose();
+                lasers[i].material.dispose();
+            }
+            lasers.length = 0;
+
+            if (activeLayers.space) {
+                const step = 4;
+                let laserColor = 0x00f2fe;
+                let laserOpacity = 0.45;
+                if (anomalyActive) { laserColor = 0xef4444; laserOpacity = 0.8; }
+                else if (cyberActive) {
+                    const glitchColors = [0xff00ff, 0xffff00, 0x00ffff, 0xff0000];
+                    laserColor = glitchColors[Math.floor(customTime * 20) % glitchColors.length];
+                    laserOpacity = 0.6 + Math.sin(customTime * 40) * 0.35;
+                }
+                else if (solarFlareActive) { laserColor = 0xffaa00; laserOpacity = 0.7; }
+                else if (debrisActive) { laserColor = 0xff6600; laserOpacity = 0.6; }
+                else if (currentMode === 'crisis') laserColor = 0xf59e0b;
+                else if (currentMode === 'soberano') laserColor = 0x10b981;
+                if (lasersFlash) { laserColor = 0xffffff; laserOpacity = 0.95; }
+
+                for (let i = 0; i < satellites.length; i += step) {
+                    const nextIdx = (i + step) % satellites.length;
+                    const satA = satellites[i], satB = satellites[nextIdx];
+                    if (!satA.mesh.visible || !satB.mesh.visible) continue;
+                    const lineGeo = new THREE.BufferGeometry().setFromPoints([satA.mesh.position, satB.mesh.position]);
+                    const lineMat = new THREE.LineBasicMaterial({ color: laserColor, transparent: true, opacity: laserOpacity, blending: THREE.AdditiveBlending });
+                    const line = new THREE.Line(lineGeo, lineMat);
+                    scene.add(line); lasers.push(line);
+                    const packetIdx = (i / step) % dataPackets.length;
+                    const packet = dataPackets[packetIdx];
+                    if (packet) {
+                        const progress = (customTime * 2 + i) % 1;
+                        packet.position.lerpVectors(satA.mesh.position, satB.mesh.position, progress);
+                        packet.visible = true;
+                    }
+                }
+            } else {
+                dataPackets.forEach(p => p.visible = false);
+            }
+
+            if (brainParticles && activeLayers.user) {
+                const arr = brainParticles.geometry.attributes.position.array;
+                for (let i = 0; i < NEURAL_COUNT; i++) arr[i * 3 + 1] += Math.sin(customTime * 2.5 + i) * 0.002;
                 brainParticles.geometry.attributes.position.needsUpdate = true;
             }
 
-            // Renderizar la escena final procesada
+            if (solarGlow) {
+                const targetIntensity = solarFlareActive ? (5 + Math.sin(customTime * 12) * 3) : 0;
+                solarGlow.intensity += (targetIntensity - solarGlow.intensity) * 0.08;
+            }
+
+            if (debrisField) {
+                debrisField.rotation.y += debrisActive ? 0.025 : 0;
+                debrisField.rotation.x += debrisActive ? 0.008 : 0;
+                const targetOpacity = debrisActive ? 0.95 : 0;
+                debrisField.material.opacity += (targetOpacity - debrisField.material.opacity) * 0.06;
+                debrisField.material.size = debrisActive ? 0.2 : 0.15;
+            }
+
+            for (let i = pingRings.length - 1; i >= 0; i--) {
+                const r = pingRings[i];
+                r.scale.x += 0.12; r.scale.y += 0.12; r.scale.z += 0.12;
+                r.material.opacity -= 0.014;
+                if (r.material.opacity <= 0) { scene.remove(r); r.geometry.dispose(); r.material.dispose(); pingRings.splice(i, 1); }
+            }
+
+            if (launchTrail && launchTrail.material.opacity > 0) launchTrail.material.opacity -= 0.006;
+
+            for (let i = shockwaves.length - 1; i >= 0; i--) {
+                const sw = shockwaves[i];
+                sw.userData.currentScale += 0.14;
+                sw.scale.setScalar(sw.userData.currentScale);
+                sw.material.opacity -= 0.022;
+                if (sw.material.opacity <= 0) {
+                    scene.remove(sw); sw.geometry.dispose(); sw.material.dispose(); shockwaves.splice(i, 1);
+                }
+            }
+
+            if (energyWaveActive) {
+                energyWaveProgress += 0.025;
+                satellites.forEach((s, i) => {
+                    const dist = Math.abs((i / satellites.length) - (energyWaveProgress % 1));
+                    if (dist < 0.06 && s.mesh.children[0] && s.mesh.children[0].material) {
+                        s.mesh.children[0].material.emissive.setHex(0xa3e635);
+                        s.mesh.children[0].material.emissiveIntensity = 2;
+                    } else if (s.mesh.children[0] && s.mesh.children[0].material && !cyberActive && !solarFlareActive) {
+                        s.mesh.children[0].material.emissive.setHex(0x002b4d);
+                        s.mesh.children[0].material.emissiveIntensity = 1;
+                    }
+                });
+                if (energyWaveProgress > 1.5) energyWaveActive = false;
+            }
+
             renderer.render(scene, camera);
         }
 
-        // Crear enlace visual láser 3D
-        function createLaserLink(vectorStart, vectorEnd) {
-            const points = [vectorStart, vectorEnd];
-            const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-            
-            // Variar el color del láser según el modo de operación
-            let laserColor = 0x00f2fe; // Cian normal
-            const mode = document.getElementById('op-mode').value;
-            if (mode === 'crisis') laserColor = 0xf59e0b; // Alerta ámbar
-            if (mode === 'soberano') laserColor = 0x10b981; // Autonomía verde
+        updateCameraFit();
+        animate();
+    }
 
-            const lineMat = new THREE.LineBasicMaterial({
-                color: laserColor,
-                transparent: true,
-                opacity: 0.35,
-                blending: THREE.AdditiveBlending
-            });
-            const line = new THREE.Line(lineGeo, lineMat);
-            scene.add(line);
-            lasers.push(line);
+    /* =========================================================
+       SIMULACIONES DIFERENCIADAS
+    ========================================================= */
+
+    function adjustOrbitHeight(v) {
+        orbitHeightKm = Number(v);
+        const el = document.getElementById('valOrbit');
+        if (el) el.innerText = v + " km";
+        writeLog(`◉ Órbita ajustada a ${v} km · Velocidad orbital recalculada · Cobertura ${v < 700 ? 'reforzada' : 'ampliada'}`);
+        setThreat(threatValue + (v < 500 ? 8 : v > 1200 ? 4 : -2));
+        updateBandwidth();
+    }
+
+    function adjustEnergyProp(v) {
+        const solar = Number(v), piezo = 100 - solar;
+        const el = document.getElementById('valEnergyProp');
+        if (el) el.innerText = `${solar}/${piezo}`;
+        const eff = Math.min(99.9, 80 + solar * 0.15 + piezo * 0.05);
+        const en = document.getElementById('valEnergy');
+        if (en) en.innerText = eff.toFixed(1) + "%";
+        const tint = solar > 60 ? 0x1d4ed8 : solar < 40 ? 0xf59e0b : 0x0f2b66;
+        satellites.forEach(s => { if (s.mesh.children[1]) s.mesh.children[1].material.emissive.setHex(tint); });
+        writeLog(`◉ Mix energético ${solar}/${piezo} · Autosuficiencia ${eff.toFixed(1)}% · ${solar > 60 ? 'Dominancia solar' : piezo > 60 ? 'Dominancia piezoeléctrica' : 'Balance óptimo'}`);
+    }
+
+    let spikeThroughput = false;
+    function triggerNeuralPulse() {
+        if (!brainParticles) return;
+        const mat = brainParticles.material;
+        const origColor = mat.color.clone();
+        mat.color.setHex(0xff00ff); mat.size = 0.28;
+        spikeThroughput = true;
+        document.getElementById('valThroughput').innerText = "184.2 Gb/s";
+        writeLog(dictionary[currentLang].logPulse);
+        const cl = document.getElementById('cogLoadBar');
+        if (cl) cl.style.width = '88%';
+        setThreat(threatValue + 5);
+        setTimeout(() => {
+            if (brainParticles) { brainParticles.material.color.copy(origColor); brainParticles.material.size = 0.12; }
+            spikeThroughput = false;
+            document.getElementById('valThroughput').innerText = "54.8 Gb/s";
+            if (cl) cl.style.width = '32%';
+            setThreat(Math.max(5, threatValue - 5));
+        }, 1800);
+    }
+
+    function triggerFalloSimulado() {
+        if (anomalyActive) return;
+        anomalyActive = true;
+        const lbl = document.getElementById('lblStable');
+        lbl.innerText = "ALERTA";
+        lbl.className = "font-orbitron font-bold text-[9px] text-red-500 pulse-active";
+        recalcMetrics(); updateBandwidth();
+        writeLog(dictionary[currentLang].logFalloSimulado);
+        setThreat(78);
+        triggerScreenFlash('rgba(239, 68, 68, 0.4)', 0.5, 400);
+        triggerCameraShake(10);
+        setTimeout(() => {
+            lbl.innerText = "REPARANDO";
+            lbl.className = "font-orbitron font-bold text-[9px] text-amber-400";
+            writeLog(dictionary[currentLang].logFalloReparado);
+            triggerScreenFlash('rgba(0, 242, 254, 0.3)', 0.4, 400);
+            setTimeout(() => {
+                lbl.innerText = dictionary[currentLang].lblStable;
+                lbl.className = "font-orbitron font-bold text-[9px] text-emerald-400";
+                anomalyActive = false;
+                recalcMetrics(); updateBandwidth();
+                setThreat(18);
+            }, 3000);
+        }, 2200);
+    }
+
+    function handleModeChange(mode) {
+        currentMode = mode;
+        if (!rimLight || !earth) return;
+        if (mode === "normal") {
+            writeLog(dictionary[currentLang].logNormal);
+            earth.material.color.setHex(0x071b42);
+            rimLight.color.setHex(0x00f2fe);
+            atmosphere.material.color.setHex(0x00f2fe);
+            if (brainParticles) brainParticles.material.color.setHex(0xa855f7);
+            setThreat(8);
+        } else if (mode === "crisis") {
+            writeLog(dictionary[currentLang].logCrisis);
+            earth.material.color.setHex(0x1a1104);
+            rimLight.color.setHex(0xf59e0b);
+            atmosphere.material.color.setHex(0xf59e0b);
+            if (brainParticles) brainParticles.material.color.setHex(0xf59e0b);
+            setThreat(58);
+        } else if (mode === "soberano") {
+            writeLog(dictionary[currentLang].logSovereign);
+            earth.material.color.setHex(0x021c17);
+            rimLight.color.setHex(0x10b981);
+            atmosphere.material.color.setHex(0x10b981);
+            if (brainParticles) brainParticles.material.color.setHex(0x10b981);
+            setThreat(35);
         }
+    }
 
-        // Limpiar trazadores de láser de la escena anterior
-        function clearLasers() {
-            lasers.forEach(laser => scene.remove(laser));
-            lasers = [];
+    function simulateSolarFlare() {
+        if (solarFlareActive) return;
+        solarFlareActive = true;
+        setThreat(88);
+        writeLog(dictionary[currentLang].logSolarFlare);
+        const en = document.getElementById('valEnergy');
+        en.innerText = "41.2%";
+        triggerScreenFlash('rgba(255, 170, 0, 0.55)', 0.65, 700);
+        triggerCameraShake(9);
+        if (atmosphere) atmosphere.material.color.setHex(0xffaa00);
+        if (rimLight) rimLight.color.setHex(0xffaa00);
+        if (sunLight) {
+            const sunDir = sunLight.position.clone().normalize().multiplyScalar(4);
+            spawnShockwave(sunDir, 0xffaa00, 8);
+            setTimeout(() => spawnShockwave(sunDir, 0xffdd00, 10), 250);
+            setTimeout(() => spawnShockwave(sunDir, 0xff8800, 12), 500);
         }
-
-
-        // --- GRÁFICO 2D REAL-TIME DE ANCHO DE BANDA ---
-        const canvasChart = document.getElementById('chart-telemetry');
-        const ctxChart = canvasChart.getContext('2d');
-        let chartData = Array(40).fill(30);
-
-        function updateChart2D() {
-            // Añadir nuevo punto de telemetría fluctuante
-            const baseValue = document.getElementById('op-mode').value === 'soberano' ? 45 : 30;
-            const fluctuation = Math.random() * 12 - 6;
-            chartData.push(baseValue + fluctuation);
-            chartData.shift();
-
-            // Dibujar gráfico en Canvas 2D
-            ctxChart.clearRect(0, 0, canvasChart.width, canvasChart.height);
-            ctxChart.beginPath();
-            ctxChart.strokeStyle = '#00f2fe';
-            ctxChart.lineWidth = 1.5;
-
-            const stepX = canvasChart.width / (chartData.length - 1);
-            for (let i = 0; i < chartData.length; i++) {
-                const x = i * stepX;
-                const y = canvasChart.height - (chartData[i] / 60) * canvasChart.height;
-                if (i === 0) ctxChart.moveTo(x, y);
-                else ctxChart.lineTo(x, y);
+        setTimeout(() => {
+            solarFlareActive = false;
+            writeLog(dictionary[currentLang].logSolarFlareEnd);
+            en.innerText = "92.5%";
+            setThreat(22);
+            if (atmosphere) {
+                const c = currentMode === 'crisis' ? 0xf59e0b : currentMode === 'soberano' ? 0x10b981 : 0x00f2fe;
+                atmosphere.material.color.setHex(c);
+                rimLight.color.setHex(c);
             }
-            ctxChart.stroke();
+        }, 4200);
+    }
 
-            // Relleno degradado holográfico debajo de la línea
-            ctxChart.lineTo(canvasChart.width, canvasChart.height);
-            ctxChart.lineTo(0, canvasChart.height);
-            const gradient = ctxChart.createLinearGradient(0, 0, 0, canvasChart.height);
-            gradient.addColorStop(0, 'rgba(0, 242, 254, 0.15)');
-            gradient.addColorStop(1, 'rgba(0, 242, 254, 0.0)');
-            ctxChart.fillStyle = gradient;
-            ctxChart.fill();
+    function simulateDebrisImpact() {
+        if (debrisActive) return;
+        debrisActive = true;
+        setThreat(92);
+        writeLog(dictionary[currentLang].logDebris);
+        const idx = 7 + Math.floor(Math.random() * 20);
+        destroyedSatIndex = idx;
+        satStates[idx] = 0;
+        updateSatGrid();
+        triggerCameraShake(22);
+        triggerScreenFlash('rgba(255, 102, 0, 0.45)', 0.7, 500);
+        const sat = satellites[idx];
+        if (sat) {
+            const pos = sat.mesh.position.clone();
+            for (let k = 0; k < 4; k++) {
+                setTimeout(() => spawnShockwave(pos, 0xff6600, 6 + k * 2.5), k * 120);
+            }
+        }
+        setTimeout(() => {
+            writeLog(dictionary[currentLang].logDebrisHit);
+            triggerCameraShake(14);
+            triggerScreenFlash('rgba(255, 100, 0, 0.3)', 0.5, 400);
+            setTimeout(() => {
+                debrisActive = false;
+                satStates[idx] = 1;
+                destroyedSatIndex = -1;
+                updateSatGrid();
+                setThreat(30);
+                writeLog(dictionary[currentLang].logDebrisEnd);
+            }, 4500);
+        }, 1800);
+    }
 
-            // Actualizar número en vivo
-            const currentVal = chartData[chartData.length - 1].toFixed(1);
-            document.getElementById('valThroughput').innerText = `${currentVal} Gb/s`;
+    function simulateCyberAttack() {
+        if (cyberActive) return;
+        cyberActive = true;
+        setThreat(85);
+        writeLog(dictionary[currentLang].logCyber);
+        triggerScreenFlash('rgba(255, 0, 255, 0.5)', 0.6, 500);
+        triggerCameraShake(7);
+        if (earth) earth.material.emissive.setHex(0x330033);
+        if (brainParticles) brainParticles.material.color.setHex(0xff0000);
+        if (brainLines) brainLines.material.color.setHex(0xff0000);
+        cyberGlitchInterval = setInterval(() => {
+            satellites.forEach((s) => {
+                if (Math.random() < 0.4 && s.mesh.children[0] && s.mesh.children[0].material) {
+                    const colors = [0xff0000, 0xffff00, 0xff00ff, 0x00ffff];
+                    s.mesh.children[0].material.emissive.setHex(colors[Math.floor(Math.random() * 4)]);
+                }
+            });
+            if (Math.random() < 0.4) {
+                triggerScreenFlash('rgba(255, 0, 255, 0.15)', 0.3, 150);
+            }
+            updateSatGrid();
+        }, 100);
+        setTimeout(() => {
+            cyberActive = false;
+            if (cyberGlitchInterval) { clearInterval(cyberGlitchInterval); cyberGlitchInterval = null; }
+            if (earth) earth.material.emissive.setHex(0x020a1c);
+            writeLog(dictionary[currentLang].logCyberBlocked);
+            setThreat(15);
+            satellites.forEach(s => {
+                if (s.mesh.children[0] && s.mesh.children[0].material) {
+                    s.mesh.children[0].material.emissive.setHex(0x002b4d);
+                    s.mesh.children[0].material.emissiveIntensity = 1;
+                }
+            });
+            if (brainParticles) {
+                const c = currentMode === 'crisis' ? 0xf59e0b : currentMode === 'soberano' ? 0x10b981 : 0xa855f7;
+                brainParticles.material.color.setHex(c);
+                if (brainLines) brainLines.material.color.setHex(c);
+            }
+            updateSatGrid();
+            triggerScreenFlash('rgba(16, 185, 129, 0.3)', 0.4, 400);
+        }, 3600);
+    }
+
+    function simulateLaunchSatellite() {
+        if (launchActive) return;
+        launchActive = true;
+        writeLog(dictionary[currentLang].logLaunch);
+        setThreat(threatValue - 3);
+        triggerScreenFlash('rgba(16, 185, 129, 0.25)', 0.4, 400);
+        triggerCameraShake(5);
+        if (launchTrail) {
+            launchTrail.geometry.dispose();
+            const lat = 12.1364, lon = -86.2514;
+            const latRad = (90 - lat) * (Math.PI / 180), lonRad = (lon + 180) * (Math.PI / 180), r = 4.0;
+            const launchOrigin = new THREE.Vector3(
+                -(r * Math.sin(latRad) * Math.sin(lonRad)),
+                r * Math.cos(latRad),
+                r * Math.sin(latRad) * Math.cos(lonRad)
+            );
+            const pts = [];
+            const targetPos = new THREE.Vector3(launchOrigin.x * 1.6, launchOrigin.y + 3.5, launchOrigin.z * 1.6);
+            for (let i = 0; i <= 30; i++) {
+                const t = i / 30;
+                pts.push(new THREE.Vector3().lerpVectors(launchOrigin, targetPos, t));
+            }
+            launchTrail.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+            launchTrail.material.opacity = 1;
+            launchTrail.material.color.setHex(0x10b981);
+        }
+        updateSatGrid();
+        setTimeout(() => {
+            const firstOff = satStates.indexOf(0);
+            if (firstOff !== -1) satStates[firstOff] = 1;
+            updateSatGrid();
+            writeLog(dictionary[currentLang].logLaunchComplete);
+            triggerScreenFlash('rgba(16, 185, 129, 0.5)', 0.5, 600);
+            triggerCameraShake(8);
+            const deployPos = new THREE.Vector3(0, 4.5, 5);
+            spawnShockwave(deployPos, 0x10b981, 6);
+            setTimeout(() => spawnShockwave(deployPos, 0x34d399, 8), 200);
+            launchActive = false;
+        }, 3500);
+    }
+
+    function simulatePingTest() {
+        if (pingActive) return;
+        pingActive = true;
+        writeLog(dictionary[currentLang].logPing);
+        triggerScreenFlash('rgba(0, 242, 254, 0.2)', 0.35, 400);
+        const lat = 12.1364, lon = -86.2514;
+        const latRad = (90 - lat) * (Math.PI / 180), lonRad = (lon + 180) * (Math.PI / 180), r = 4.0;
+        const managuaPos = new THREE.Vector3(
+            -(r * Math.sin(latRad) * Math.sin(lonRad)),
+            r * Math.cos(latRad),
+            r * Math.sin(latRad) * Math.cos(lonRad)
+        );
+        const ringGeo = new THREE.RingGeometry(0.08, 0.12, 32);
+        for (let i = 0; i < 4; i++) {
+            setTimeout(() => {
+                const ringMat = new THREE.MeshBasicMaterial({
+                    color: 0x00f2fe, transparent: true, opacity: 0.95,
+                    side: THREE.DoubleSide, blending: THREE.AdditiveBlending
+                });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.position.copy(managuaPos);
+                ring.lookAt(0, 0, 0);
+                ring.scale.setScalar(1);
+                scene.add(ring);
+                pingRings.push(ring);
+            }, i * 300);
+        }
+        const groundNodes = terrestrialGroup.children;
+        groundNodes.forEach((node, i) => {
+            setTimeout(() => {
+                if (node.children[1] && node.children[1].material) {
+                    const origOp = node.userData.originalBeamOpacity || 0.45;
+                    node.children[1].material.opacity = 1.0;
+                    node.children[1].material.color.setHex(0x10b981);
+                    setTimeout(() => {
+                        if (node.children[1].material) {
+                            node.children[1].material.opacity = origOp;
+                            const c = i === 0 ? 0x00f2fe : i < 3 ? 0x10b981 : i < 6 ? 0xa855f7 : 0x38bdf8;
+                            node.children[1].material.color.setHex(c);
+                        }
+                    }, 500);
+                }
+                if (satellites.length > 0) {
+                    const sat = satellites[i % satellites.length];
+                    const beamGeo = new THREE.BufferGeometry().setFromPoints([
+                        node.position.clone(),
+                        sat.mesh.position.clone()
+                    ]);
+                    const beamMat = new THREE.LineBasicMaterial({
+                        color: 0x10b981, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending
+                    });
+                    const beam = new THREE.Line(beamGeo, beamMat);
+                    scene.add(beam);
+                    pingBeamLines.push(beam);
+                    let op = 0.9;
+                    const fade = setInterval(() => {
+                        op -= 0.05;
+                        beam.material.opacity = op;
+                        if (op <= 0) {
+                            clearInterval(fade);
+                            scene.remove(beam);
+                            beam.geometry.dispose();
+                            beam.material.dispose();
+                            const bi = pingBeamLines.indexOf(beam);
+                            if (bi > -1) pingBeamLines.splice(bi, 1);
+                        }
+                    }, 40);
+                }
+            }, 500 + i * 180);
+        });
+        setTimeout(() => {
+            writeLog(dictionary[currentLang].logPingResult);
+            pingActive = false;
+            triggerScreenFlash('rgba(16, 185, 129, 0.25)', 0.35, 500);
+        }, 2800);
+    }
+
+    function simulateEnergyRebalance() {
+        if (rebalanceActive) return;
+        rebalanceActive = true;
+        writeLog(dictionary[currentLang].logRebalance);
+        triggerScreenFlash('rgba(163, 230, 53, 0.4)', 0.5, 500);
+        triggerCameraShake(3);
+        energyWaveActive = true;
+        energyWaveProgress = 0;
+        satellites.forEach((s) => {
+            if (s.mesh.children[1] && s.mesh.children[2]) {
+                const t0 = s.mesh.children[1].rotation.z;
+                const t1 = s.mesh.children[2].rotation.z;
+                s.mesh.children[1].rotation.z = t0 + 0.4;
+                s.mesh.children[2].rotation.z = t1 + 0.4;
+                setTimeout(() => {
+                    if (s.mesh.children[1]) s.mesh.children[1].rotation.z = t0;
+                    if (s.mesh.children[2]) s.mesh.children[2].rotation.z = t1;
+                }, 1400);
+            }
+        });
+        hapsDrones.forEach((d, i) => {
+            let pulses = 0;
+            const pulseInterval = setInterval(() => {
+                d.light.intensity = 3;
+                setTimeout(() => { d.light.intensity = 0.5; }, 200);
+                pulses++;
+                if (pulses > 3) clearInterval(pulseInterval);
+            }, 300 + i * 30);
+        });
+        if (atmosphere) {
+            atmosphere.material.color.setHex(0xa3e635);
+            setTimeout(() => {
+                if (atmosphere && !solarFlareActive) {
+                    const c = currentMode === 'crisis' ? 0xf59e0b : currentMode === 'soberano' ? 0x10b981 : 0x00f2fe;
+                    atmosphere.material.color.setHex(c);
+                }
+            }, 1400);
+        }
+        const en = document.getElementById('valEnergy');
+        en.innerText = "96.8%";
+        setThreat(Math.max(5, threatValue - 12));
+        setTimeout(() => {
+            writeLog(dictionary[currentLang].logRebalanceDone);
+            rebalanceActive = false;
+        }, 2200);
+    }
+
+    /* ===================== RESET ===================== */
+    function resetVisualization() {
+        const icon = document.getElementById('resetIcon');
+        if (icon) {
+            icon.classList.remove('reset-spin');
+            void icon.offsetWidth;
+            icon.classList.add('reset-spin');
         }
 
+        activeLayers.space = true;
+        activeLayers.aerial = true;
+        activeLayers.terrestrial = true;
+        activeLayers.user = true;
+        ['space','aerial','terrestrial','user'].forEach(l => {
+            const chk = { space: 'chkSpace', aerial: 'chkAerial', terrestrial: 'chkTerra', user: 'chkUser' }[l];
+            const chkEl = document.getElementById(chk);
+            if (chkEl) chkEl.checked = true;
+            const card = document.getElementById(`card-${l}`);
+            if (card) card.className = "flex items-center justify-between p-1.5 rounded-lg border transition-all cursor-pointer bg-cyan-950/30 border-cyan-500/30";
+        });
+        if (spaceGroup) spaceGroup.visible = true;
+        if (aerialGroup) aerialGroup.visible = true;
+        if (terrestrialGroup) terrestrialGroup.visible = true;
+        if (userGroup) userGroup.visible = true;
 
-        // --- ACCIÓN DE COPIAR AL PORTAPAPELES (Exportación del código autónomo de la patente) ---
-        function copiarAlPortapapeles() {
-            // Se realiza la copia autónoma empleando el comando tradicional de alta compatibilidad en iframe
-            const el = document.createElement('textarea');
-            el.value = document.documentElement.outerHTML;
-            document.body.appendChild(el);
-            el.select();
-            document.execCommand('copy');
-            document.body.removeChild(el);
+        setCameraPreset('global');
 
-            showToast(dictionary[currentLang].toastCopy);
+        targetRotX = 0; targetRotY = 0; curRotX = 0; curRotY = 0;
+        userZoom = 1;
+        cameraShake = 0;
+        if (container) container.style.transform = 'none';
+
+        currentMode = 'normal';
+        const sel = document.getElementById('op-mode');
+        if (sel) sel.value = 'normal';
+        if (earth) {
+            earth.material.color.setHex(0x071b42);
+            earth.material.emissive.setHex(0x020a1c);
+        }
+        if (rimLight) rimLight.color.setHex(0x00f2fe);
+        if (atmosphere) atmosphere.material.color.setHex(0x00f2fe);
+        if (brainParticles) {
+            brainParticles.material.color.setHex(0xa855f7);
+            brainParticles.material.size = 0.12;
+        }
+        if (brainLines) brainLines.material.color.setHex(0xa855f7);
+
+        orbitHeightKm = 720;
+        const orbitEl = document.getElementById('valOrbit');
+        if (orbitEl) orbitEl.innerText = '720 km';
+        const orbitSlider = document.getElementById('orbitSlider');
+        if (orbitSlider) orbitSlider.value = 720;
+
+        const energySlider = document.getElementById('energySlider');
+        if (energySlider) energySlider.value = 75;
+        const propEl = document.getElementById('valEnergyProp');
+        if (propEl) propEl.innerText = '75/25';
+        const enEl = document.getElementById('valEnergy');
+        if (enEl) enEl.innerText = '92.5%';
+        satellites.forEach(s => {
+            if (s.mesh.children[1]) s.mesh.children[1].material.emissive.setHex(0x0f2b66);
+            if (s.mesh.children[0]) {
+                s.mesh.children[0].material.emissive.setHex(0x002b4d);
+                s.mesh.children[0].material.emissiveIntensity = 1;
+            }
+            s.mesh.visible = true;
+        });
+
+        anomalyActive = false;
+        solarFlareActive = false;
+        debrisActive = false;
+        cyberActive = false;
+        launchActive = false;
+        pingActive = false;
+        rebalanceActive = false;
+        destroyedSatIndex = -1;
+        lasersFlash = false; hapsFlash = false; bciFlash = false;
+        energyWaveActive = false;
+        solarStormIntensity = 0;
+
+        if (cyberGlitchInterval) { clearInterval(cyberGlitchInterval); cyberGlitchInterval = null; }
+
+        satStates.fill(1);
+        updateSatGrid();
+
+        if (solarGlow) solarGlow.intensity = 0;
+        if (debrisField) {
+            debrisField.material.opacity = 0;
+            debrisField.rotation.set(0, 0, 0);
+        }
+        if (launchTrail) launchTrail.material.opacity = 0;
+        pingRings.forEach(r => { scene.remove(r); r.geometry.dispose(); r.material.dispose(); });
+        pingRings.length = 0;
+        pingBeamLines.forEach(b => { scene.remove(b); b.geometry.dispose(); b.material.dispose(); });
+        pingBeamLines.length = 0;
+        shockwaves.forEach(sw => { scene.remove(sw); sw.geometry.dispose(); sw.material.dispose(); });
+        shockwaves.length = 0;
+
+        const lbl = document.getElementById('lblStable');
+        if (lbl) {
+            lbl.innerText = dictionary[currentLang].lblStable;
+            lbl.className = "font-orbitron font-bold text-[9px] text-emerald-400";
         }
 
+        const cl = document.getElementById('cogLoadBar');
+        if (cl) cl.style.width = '32%';
 
-        // --- CARGAR SISTEMAS AL INICIAR LA VENTANA ---
-        window.onload = function() {
-            init3D();
-            setLanguage('es');
+        recalcMetrics();
+        updateBandwidth();
+        setThreat(8);
 
-            // Intervalo de actualización de telemetría y gráficos tácticos
-            setInterval(updateChart2D, 150);
-        };
+        const thr = document.getElementById('valThroughput');
+        if (thr) thr.innerText = '30.8 Gb/s';
+
+        const flashEl = document.getElementById('screenFlash');
+        if (flashEl) { flashEl.style.transition = 'opacity 200ms'; flashEl.style.opacity = 0; }
+
+        writeLog(dictionary[currentLang].logReset);
+    }
+
+    /* ===================== CHART ===================== */
+    const canvasChart = document.getElementById('chart-telemetry');
+    const ctxChart = canvasChart.getContext('2d');
+    const chartData = new Array(40).fill(30);
+
+    function updateChart2D() {
+        let baseValue = 30;
+        if (currentMode === 'soberano') baseValue = 45;
+        if (currentMode === 'crisis') baseValue = 22;
+        if (anomalyActive) baseValue = 15;
+        if (solarFlareActive) baseValue = 8;
+        if (cyberActive) baseValue = 18;
+        if (debrisActive) baseValue = 12;
+        let fluctuation = (Math.random() * 12 - 6);
+        if (spikeThroughput) fluctuation = 140 + Math.random() * 15;
+        const newVal = Math.max(8, baseValue + fluctuation);
+        chartData.push(newVal); chartData.shift();
+        if (!spikeThroughput) {
+            const el = document.getElementById('valThroughput');
+            if (el) el.innerText = `${newVal.toFixed(1)} Gb/s`;
+        }
+        const w = canvasChart.width, h = canvasChart.height;
+        ctxChart.clearRect(0, 0, w, h);
+        ctxChart.beginPath();
+        let color = '#00f2fe';
+        if (currentMode === 'crisis') color = '#f59e0b';
+        else if (currentMode === 'soberano') color = '#10b981';
+        if (anomalyActive) color = '#ef4444';
+        if (cyberActive) color = '#ff00ff';
+        if (solarFlareActive) color = '#ffaa00';
+        if (debrisActive) color = '#ff6600';
+        ctxChart.strokeStyle = color;
+        ctxChart.lineWidth = 1.5;
+        const maxVal = 180, stepX = w / (chartData.length - 1);
+        for (let i = 0; i < chartData.length; i++) {
+            const x = i * stepX, y = h - (chartData[i] / maxVal) * h;
+            if (i === 0) ctxChart.moveTo(x, y); else ctxChart.lineTo(x, y);
+        }
+        ctxChart.stroke();
+        ctxChart.lineTo(w, h); ctxChart.lineTo(0, h);
+        const gradient = ctxChart.createLinearGradient(0, 0, 0, h);
+        gradient.addColorStop(0, color + '33');
+        gradient.addColorStop(1, 'rgba(0,0,0,0)');
+        ctxChart.fillStyle = gradient;
+        ctxChart.fill();
+    }
+
+    /* ===================== ARRANQUE ===================== */
+    window.addEventListener('load', function () {
+        init3D();
+        buildSatGrid();
+        updateSatGrid();
+        setLanguage('es');
+        adjustEnergyProp(75);
+        recalcMetrics();
+        updateBandwidth();
+        setThreat(8);
+        setInterval(updateChart2D, 150);
+        setInterval(() => { if (!anomalyActive && !solarFlareActive && !debrisActive && !cyberActive) setThreat(Math.max(5, threatValue - 1)); }, 2500);
+    });
     </script>
 </body>
 </html>
