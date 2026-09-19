@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ORIÓN-BYPASS X™ — Simulador Maestro</title>
+<style>
+:root{
+ --graphite:#2b303a;--graphite2:#343a46;--anthracite:#20242c;
+ --cyan:#4FC3F7;--cyan-d:#2aa3da;--silver:#c3ccd6;--white:#f4f7fa;
+ --panel:rgba(48,54,66,.86);--panel-b:rgba(150,170,190,.28);
+ --txt:#e9eef4;--txt-dim:#aeb9c7;--good:#5fd6a6;--warn:#f2b45a;--bad:#f2795f;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;width:100%;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#2b303a;color:var(--txt)}
+#scene{position:fixed;inset:0;z-index:0}
+#labels{position:fixed;inset:0;z-index:2;pointer-events:none}
+.lbl{position:absolute;transform:translate(-50%,-120%);white-space:nowrap;font-size:12px;font-weight:600;color:#eef4fb;background:rgba(40,46,58,.82);border:1px solid rgba(120,200,240,.5);padding:3px 8px;border-radius:6px;letter-spacing:.2px;text-shadow:0 1px 2px rgba(0,0,0,.5);backdrop-filter:blur(2px)}
+.lbl.node{border-color:rgba(120,200,240,.6)}
+.lbl.hot{border-color:#f2795f;color:#ffe0d8;background:rgba(70,34,28,.85)}
+.lbl.gate{border-color:#5fd6a6;color:#dcfff0;background:rgba(28,56,46,.85)}
+
+/* ===== TOPBAR (una sola fila horizontal, altura ~52px) ===== */
+#topbar{position:fixed;top:0;left:0;right:0;z-index:8;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 16px;min-height:52px;background:linear-gradient(180deg,rgba(38,43,53,.95),rgba(38,43,53,.35));border-bottom:1px solid var(--panel-b)}
+.brand{display:flex;align-items:center;gap:14px;flex-wrap:wrap;line-height:1.15;min-width:0}
+.brand b{font-size:17px;letter-spacing:.5px;color:var(--cyan);white-space:nowrap}
+.brand span{font-size:11px;color:var(--txt-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px}
+#authorTag{background:#ffffff;color:#000000;font-weight:800;font-size:12px;padding:4px 10px;border-radius:6px;letter-spacing:.2px;box-shadow:0 1px 4px rgba(0,0,0,.4);white-space:nowrap}
+.topright{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.lang{display:flex;gap:6px}
+.lang button{cursor:pointer;background:rgba(60,68,82,.85);color:#dbe6f2;border:1px solid var(--panel-b);padding:6px 12px;border-radius:8px;font-weight:600;font-size:12px}
+.lang button.on{background:var(--cyan);color:#0c2230;border-color:var(--cyan)}
+.topbtn{cursor:pointer;background:rgba(60,68,82,.85);color:#dbe6f2;border:1px solid var(--panel-b);padding:6px 11px;border-radius:8px;font-weight:600;font-size:12px}
+.topbtn:hover{background:rgba(79,195,247,.22);border-color:var(--cyan)}
+.topbtn.primary{background:rgba(79,195,247,.25);border-color:var(--cyan);color:var(--cyan)}
+.topbtn.primary:hover{background:var(--cyan);color:#0c2230}
+
+/* ===== COLUMNA IZQUIERDA (controles) ===== */
+#controls{position:fixed;top:60px;left:8px;bottom:40px;z-index:6;width:208px;overflow-y:auto;overflow-x:hidden;padding:8px 10px;background:var(--panel);border:1px solid var(--panel-b);border-radius:12px;backdrop-filter:blur(5px);font-size:11px;scrollbar-width:thin}
+#controls h3{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--cyan);margin:8px 2px 8px}
+.fn,.cam,.st{display:block;width:100%;text-align:left;cursor:pointer;margin:3px 0;padding:6px 9px;border-radius:7px;font-size:11px;font-weight:600;color:#e2ebf6;background:rgba(62,70,84,.7);border:1px solid var(--panel-b);transition:.15s}
+.fn:hover,.cam:hover,.st:hover{background:rgba(79,195,247,.2);border-color:var(--cyan)}
+.fn.active{background:var(--cyan);border-color:var(--cyan);color:#0c2230}
+.camrow{display:flex;gap:4px;flex-wrap:wrap}
+.cam{flex:1 1 46%;text-align:center;padding:5px 3px;font-size:10px}
+.cam.on{background:#1f8f6b;border-color:#3fd39f;color:#fff}
+.st.on{background:#2f79a8;border-color:var(--cyan);color:#fff}
+
+/* ===== COLUMNA DERECHA (métricas arriba + info debajo) ===== */
+#rightcol{position:fixed;top:60px;right:8px;bottom:200px;width:290px;display:flex;flex-direction:column;gap:8px;z-index:7;pointer-events:none;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin}
+#rightcol>*{pointer-events:auto}
+
+#metpanel{position:static;width:100%;padding:10px;background:var(--panel);border:1px solid var(--panel-b);border-radius:10px;backdrop-filter:blur(5px);font-size:11px}
+#metpanel h4{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--cyan);margin-bottom:8px;display:flex;justify-content:space-between}
+#metpanel h4 em{font-style:normal;font-size:9px;color:var(--good);border:1px solid var(--good);border-radius:4px;padding:1px 5px}
+.mrow{margin:7px 0}
+.mrow .lab{display:flex;justify-content:space-between;font-size:11px;color:var(--txt-dim)}
+.mrow .lab b{font-family:ui-monospace,monospace}
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.mcell{background:rgba(62,70,84,.6);border:1px solid var(--panel-b);border-radius:7px;padding:6px}
+.mcell span{font-size:9px;color:var(--txt-dim);display:block}
+.mcell b{font-family:ui-monospace,monospace;font-size:12px;color:#eef4fb}
+#spark{width:100%;height:34px;margin-top:8px;background:rgba(30,36,44,.5);border-radius:6px}
+
+#infopanel{position:static;width:100%;max-height:none;overflow-y:auto;padding:14px;background:var(--panel);border:1px solid var(--panel-b);border-radius:12px;backdrop-filter:blur(6px);display:none;position:relative}
+#infopanel.show{display:block}
+#infoTitle{font-size:16px;color:var(--cyan);margin-bottom:8px;padding-right:24px}
+#infoBody{font-size:13px;line-height:1.55;color:#d5dfec}
+#closeInfo{position:absolute;top:10px;right:12px;cursor:pointer;background:none;border:none;color:var(--txt-dim);font-size:22px;line-height:1}
+.metrics{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.metric{background:rgba(62,70,84,.7);border:1px solid var(--panel-b);border-radius:9px;padding:8px}
+.metric .k{font-size:10px;color:var(--txt-dim);text-transform:uppercase;letter-spacing:.6px}
+.metric .v{font-size:17px;font-weight:700;color:#eef4fb;margin-top:2px}
+.metric .v.good{color:var(--good)}.metric .v.warn{color:var(--warn)}.metric .v.bad{color:var(--bad)}
+.bar{height:6px;border-radius:4px;background:rgba(255,255,255,.14);margin-top:6px;overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:4px;background:var(--cyan)}
+
+/* ===== HUD inferior derecha ===== */
+#hud{position:fixed;right:8px;bottom:40px;z-index:6;width:290px;padding:9px 12px;background:var(--panel);border:1px solid var(--panel-b);border-radius:10px;backdrop-filter:blur(5px);font-size:11px}
+#hud .hrow{display:flex;justify-content:space-between;align-items:center;margin:4px 0;color:var(--txt-dim)}
+#hud .hrow b{color:#eef4fb;font-weight:700}
+#hud .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+#hud .hbtns{display:flex;gap:6px;margin-top:9px}
+#hud .hbtns button{flex:1;cursor:pointer;background:rgba(62,70,84,.85);color:#e2ebf6;border:1px solid var(--panel-b);border-radius:7px;padding:6px 0;font-size:13px;font-weight:700}
+#hud .hbtns button:hover{background:rgba(79,195,247,.25)}
+#hud .hbtns button.on{background:var(--cyan);border-color:var(--cyan);color:#0c2230}
+
+/* ===== Franja inferior central (legend + evlog) ===== */
+#legend{position:fixed;left:224px;right:306px;bottom:40px;z-index:6;display:flex;gap:12px;flex-wrap:wrap;justify-content:center;padding:6px 10px;background:var(--panel);border:1px solid var(--panel-b);border-radius:8px;font-size:10px;color:#c6d2e0}
+#legend i{display:inline-block;width:12px;height:4px;border-radius:2px;margin-right:5px;vertical-align:middle}
+#evlog{position:fixed;left:224px;right:306px;bottom:80px;z-index:6;max-height:120px;overflow-y:auto;overflow-x:hidden;padding:7px 9px;background:var(--panel);border:1px solid var(--panel-b);border-radius:10px;backdrop-filter:blur(5px);font-size:10px}
+#evlog h4{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--cyan);margin-bottom:6px}
+#evlog .ev{padding:3px 0;border-bottom:1px solid rgba(150,170,190,.14);color:#c6d2e0;line-height:1.35}
+#evlog .ev b{color:var(--cyan);font-family:ui-monospace,monospace;font-size:10px}
+
+#statusbar{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;gap:12px;padding:8px 16px;font-size:12px;color:var(--txt-dim);background:linear-gradient(0deg,rgba(38,43,53,.95),rgba(38,43,53,.2));border-top:1px solid var(--panel-b);align-items:center}
+#simStatus{color:#dbe6f2;font-weight:600}
+#kbd{font-size:10px;color:#8496ab;background:rgba(43,48,58,.7);padding:3px 8px;border-radius:6px;white-space:nowrap}
+
+#toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:9;background:rgba(46,58,74,.96);border:1px solid var(--cyan);color:#eef4fb;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;transition:.3s;pointer-events:none}
+#toast.show{opacity:1}
+
+#vtip{position:fixed;z-index:9;pointer-events:none;display:none;background:rgba(40,50,64,.97);border:1px solid var(--cyan);border-radius:8px;padding:8px 10px;font-size:12px;color:#eef4fb;max-width:230px;box-shadow:0 4px 14px rgba(0,0,0,.45)}
+#vtip b{color:var(--cyan)}
+
+.modal{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;background:rgba(20,24,30,.72);backdrop-filter:blur(4px);padding:16px}
+.modal.show{display:flex}
+.mbox{width:100%;max-width:460px;background:var(--graphite2);border:1px solid var(--cyan);border-radius:16px;padding:20px;color:#e9eef4;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.mbox h3{color:var(--cyan);font-size:16px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
+.mbox h3 button{background:none;border:none;color:var(--txt-dim);font-size:22px;cursor:pointer}
+.mbox .sub{font-size:11px;color:var(--txt-dim);margin-bottom:12px}
+.prow{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid rgba(150,170,190,.16);font-size:12px}
+.prow span{color:var(--txt-dim)}.prow b{text-align:right}
+.mbtn{display:block;width:100%;margin-top:14px;padding:12px;border:none;border-radius:10px;background:var(--cyan);color:#0c2230;font-weight:800;font-size:13px;cursor:pointer}
+.mbtn:hover{background:var(--cyan-d)}
+.vctl{margin:8px 0}
+.vctl label{display:flex;justify-content:space-between;font-size:11px;color:var(--txt-dim);margin-bottom:3px}
+.vctl input[type=range]{width:100%;accent-color:var(--cyan)}
+.vtog{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--txt-dim);margin:8px 0}
+.vtog button{cursor:pointer;padding:3px 10px;border-radius:6px;font-size:10px;font-weight:700;border:1px solid var(--panel-b);background:rgba(62,70,84,.8);color:#e2ebf6}
+.vtog button.on{background:var(--cyan);color:#0c2230;border-color:var(--cyan)}
+canvas{cursor:grab}
+
+/* ===== Responsive ===== */
+@media(max-width:1180px){
+  .brand span{max-width:180px}
+}
+@media(max-width:1050px){
+  .brand span{display:none}
+}
+@media(max-width:1150px){
+  #controls{width:176px}
+  #rightcol{width:230px}
+  #hud{width:230px}
+  #legend{left:192px;right:246px}
+  #evlog{left:192px;right:246px}
+}
+@media(max-width:820px){
+  #controls{display:none}
+  #rightcol{width:220px}
+  #hud{width:220px}
+  #legend{left:8px;right:236px}
+  #evlog{left:8px;right:236px}
+  #kbd{display:none}
+}
+</style>
+</head>
+<body>
+<div id="scene"></div>
+<div id="labels"></div>
+<div id="toast"></div>
+
+<header id="topbar">
+  <div class="brand">
+    <div id="authorTag">Dr. Julio César Oporta Barrera</div>
+    <b>ORIÓN-BYPASS X™</b>
+    <span data-i18n="appSub"></span>
+  </div>
+  <div class="topright">
+    <button class="topbtn primary" id="btnPassport" data-i18n="passportBtn"></button>
+    <button class="topbtn primary" id="btnResetTop" data-i18n="fnReset"></button>
+    <div class="lang">
+      <button data-lang="es" class="on">ES</button>
+      <button data-lang="en">EN</button>
+      <button data-lang="zh">中文</button>
+    </div>
+  </div>
+</header>
+
+<aside id="controls">
+  <h3 data-i18n="camTitle"></h3>
+  <div class="camrow">
+    <button class="cam on" data-cam="orbit" data-i18n="camOrbit"></button>
+    <button class="cam" data-cam="corridor" data-i18n="camCorridor"></button>
+    <button class="cam" data-cam="chokepoint" data-i18n="camChokepoint"></button>
+    <button class="cam" data-cam="vessel" data-i18n="camVessel"></button>
+  </div>
+  <h3 data-i18n="statesTitle"></h3>
+  <button class="st on" data-st="NORMAL" data-i18n="stNormal"></button>
+  <button class="st" data-st="EARLY_WARNING" data-i18n="stWarn"></button>
+  <button class="st" data-st="HORMUZ_BLOCKED" data-i18n="stHormuz"></button>
+  <button class="st" data-st="DUQM_EXPRESS" data-i18n="stDuqm"></button>
+  <button class="st" data-st="SALALAH_DEEPSEA" data-i18n="stSalalah"></button>
+  <button class="st" data-st="DEGRADED_OFFLINE" data-i18n="stDegraded"></button>
+  <h3 data-i18n="fnTitle"></h3>
+  <button class="fn" data-fn="guide" data-i18n="fnGuide"></button>
+  <button class="fn" data-fn="engine" data-i18n="fnEngine"></button>
+  <button class="fn" data-fn="upsc" data-i18n="fnUpsc"></button>
+  <button class="fn" data-fn="domains" data-i18n="fnDomains"></button>
+  <button class="fn" data-fn="control" data-i18n="fnControl"></button>
+  <button class="fn" data-fn="scenarios" data-i18n="fnScenarios"></button>
+  <button class="fn" data-fn="phases" data-i18n="fnPhases"></button>
+  <button class="fn" data-fn="standards" data-i18n="fnStandards"></button>
+  <button class="fn" data-fn="e2e" data-i18n="fnE2e"></button>
+  <button class="fn" data-fn="compare" data-i18n="fnCompare"></button>
+  <button class="fn" data-fn="impact" data-i18n="fnImpact"></button>
+  <button class="fn" data-fn="routes" data-i18n="fnRoutes"></button>
+  <h3 data-i18n="modTitle"></h3>
+  <button class="fn" data-fn="weather" data-i18n="fnWeather"></button>
+  <button class="fn" data-fn="cyber" data-i18n="fnCyber"></button>
+  <button class="fn" data-fn="capacity" data-i18n="fnCapacity"></button>
+  <button class="fn" data-fn="gov" data-i18n="fnGov"></button>
+  <button class="fn" data-fn="convoy" data-i18n="fnConvoy"></button>
+  <button class="fn" data-fn="pulse" data-i18n="fnPulse"></button>
+  <button class="fn" data-fn="swarm" data-i18n="fnSwarm"></button>
+  <h3 data-i18n="visualTitle"></h3>
+  <div class="vctl"><label><span data-i18n="vCyan"></span><b id="vCyanV">1.0x</b></label><input type="range" id="vCyan" min="0.2" max="2.2" step="0.1" value="1"></div>
+  <div class="vctl"><label><span data-i18n="vWave"></span><b id="vWaveV">1.0x</b></label><input type="range" id="vWave" min="0.1" max="3" step="0.1" value="1"></div>
+  <div class="vctl"><label><span data-i18n="vParticles"></span><b id="vPartV">1.0x</b></label><input type="range" id="vPart" min="0" max="2" step="0.1" value="1"></div>
+  <div class="vtog"><span data-i18n="vGrid"></span><button id="vGrid" class="on">ON</button></div>
+</aside>
+
+<div id="rightcol">
+  <div id="metpanel">
+    <h4><span data-i18n="metricsTitle"></span><em>LIVE</em></h4>
+    <div class="mrow"><div class="lab"><span data-i18n="mIEC"></span><b id="mIECv">–</b></div><div class="bar"><i id="mIECbar"></i></div></div>
+    <div class="mrow"><div class="lab"><span data-i18n="mIR"></span><b id="mIRv">–</b></div><div class="bar"><i id="mIRbar"></i></div></div>
+    <div class="mgrid">
+      <div class="mcell"><span data-i18n="mFlow"></span><b id="mFlowv">–</b></div>
+      <div class="mcell"><span data-i18n="mFleet"></span><b id="mFleetv">–</b></div>
+      <div class="mcell"><span data-i18n="mUPSC"></span><b id="mUPSCv">–</b></div>
+      <div class="mcell"><span data-i18n="mCO2"></span><b id="mCO2v">–</b></div>
+      <div class="mcell"><span data-i18n="mFDS"></span><b id="mFDSv">–</b></div>
+      <div class="mcell"><span data-i18n="mAvgCost"></span><b id="mCostv">–</b></div>
+    </div>
+    <canvas id="spark" width="216" height="34"></canvas>
+  </div>
+
+  <section id="infopanel">
+    <button id="closeInfo">×</button>
+    <div id="infoTitle"></div>
+    <div id="infoBody"></div>
+    <div id="infoMetrics" class="metrics"></div>
+  </section>
+</div>
+
+<div id="evlog"><h4 data-i18n="eventTitle"></h4><div id="evList"></div></div>
+<div id="legend"></div>
+<div id="vtip"></div>
+
+<div id="hud">
+  <div class="hrow"><span>🕒 UTC</span><b id="hudTime">--:--</b></div>
+  <div class="hrow"><span data-i18n="hudState"></span><b id="hudStateV">—</b></div>
+  <div class="hrow"><span data-i18n="hudAlert"></span><b id="hudAlertV"><span class="dot"></span>—</b></div>
+  <div class="hrow"><span data-i18n="hudSea"></span><b id="hudSeaV">—</b></div>
+  <div class="hrow"><span data-i18n="hudActive"></span><b id="hudRouteV">A/B/C</b></div>
+  <div class="hrow"><span data-i18n="hudPhase"></span><b id="hudPhaseV">—</b></div>
+  <div class="hbtns"><button id="btnPause" title="Space">⏸</button><button id="btnSlow">–</button><button id="btnFast">+</button></div>
+</div>
+
+<footer id="statusbar">
+  <span id="simStatus"></span>
+  <span id="kbd" data-i18n="kbdHelp"></span>
+  <span id="authorNote">Dr. Julio César Oporta Barrera · OBX-001</span>
+</footer>
+
+<div class="modal" id="passportModal"><div class="mbox">
+  <h3><span data-i18n="pTitle"></span><button id="pClose">×</button></h3>
+  <div class="sub">UUID: OBX-2026-SHP-09884</div>
+  <div class="prow"><span data-i18n="pRoute"></span><b><span data-i18n="pRouteMain"></span></b></div>
+  <div class="prow"><span data-i18n="pAltA"></span><b><span data-i18n="pRouteA"></span></b></div>
+  <div class="prow"><span data-i18n="pAltB"></span><b><span data-i18n="pRouteB"></span></b></div>
+  <div class="prow"><span data-i18n="pUpsc"></span><b id="pUpscV" style="color:var(--good)">–</b></div>
+  <div class="prow"><span data-i18n="pCustoms"></span><b><span data-i18n="pImoFal"></span></b></div>
+  <div class="prow"><span data-i18n="pVerified"></span><b><span data-i18n="authorFull"></span></b></div>
+  <button class="mbtn" id="pOk" data-i18n="pClose2"></button>
+</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const I18N={
+es:{
+appSub:'Sistema Adaptativo de Continuidad Marítima',
+camTitle:'Cámaras',camOrbit:'Órbita',camCorridor:'Corredor',camChokepoint:'Estrecho',camVessel:'Buque',
+statesTitle:'Estados operativos',stNormal:'Normal',stWarn:'Alerta temprana',stHormuz:'Ormuz bloqueado',stDuqm:'Express Duqm',stSalalah:'Oceánico Salalah',stDegraded:'Degradado offline',
+fnTitle:'Funciones y simulaciones',
+fnGuide:'¿Qué es?',fnEngine:'Motor de Resiliencia IA',fnUpsc:'Último Punto Seguro de Cambio',fnDomains:'Dominios de fallo',fnControl:'Centro de control',fnScenarios:'Escenarios',fnPhases:'Fases del proyecto',fnStandards:'Estándares y cumplimiento',fnE2e:'Modelo E2E',fnCompare:'Comparación de crisis',fnImpact:'Impacto en Centroamérica',fnRoutes:'Rutas A/B/C',fnReset:'Reiniciar',
+modTitle:'Módulos avanzados',fnWeather:'Estado del mar',fnCyber:'Operación degradada',fnCapacity:'Capacidad de contingencia',fnGov:'Autorización (HITL)',fnConvoy:'Convoy escoltado',fnPulse:'Pulso biomecánico',fnSwarm:'Enjambre adaptativo',
+visualTitle:'Control visual',vCyan:'Intensidad cian',vWave:'Velocidad oleaje',vParticles:'Densidad partículas',vGrid:'Rejilla holográfica',
+nGulf:'Golfo Pérsico',nOrmuz:'Estrecho de Ormuz',nLand:'Corredor terrestre',nGate:'Puerta marítima exterior (Khor Fakkan / Duqm)',nIndian:'Océano Índico',nDest:'Destino',
+ready:'Sistema listo. Selecciona una función para simular.',
+mCost:'Costo',mTime:'Tiempo',mCap:'Capacidad',mRisk:'Riesgo',mDep:'Dependencia',mWait:'Espera',mThru:'Flujo',mInteg:'Integridad',
+legR:'Ruta base (Ormuz)',legB:'Bypass corredor',legC:'Ruta alterna',legShip:'Buque de carga',
+hudState:'Estado',hudAlert:'Alerta',hudSea:'Mar',hudActive:'Ruta activa',hudPhase:'Fase',
+alert0:'Verde',alert1:'Ámbar',alert2:'Rojo',sea0:'Calmo',sea1:'Moderado',sea2:'Agitado',
+metricsTitle:'Métricas operativas',mIEC:'Índice IEC',mIR:'Índice resiliencia',mFlow:'Flujo TEU',mFleet:'Flota activa',mUPSC:'Ventana UPSC',mCO2:'CO₂ ahorrado',mFDS:'Sep. dominios',mAvgCost:'Costo/TEU',
+eventTitle:'Registro de eventos',
+passportBtn:'Pasaporte',
+pTitle:'Pasaporte de embarque ORIÓN',pRoute:'Ruta primaria',pAltA:'Ruta alt. A',pAltB:'Ruta alt. B',pUpsc:'Estado UPSC',pCustoms:'Aduana marítima',pVerified:'Verificado por',pClose2:'Cerrar',
+simGuide:['Vista general del corredor','ORIÓN-BYPASS X™ prepara alternativas ejecutables antes de una interrupción. Concepto rector: Golfo Pérsico → corredor terrestre → puerta marítima exterior → Océano Índico → destino.'],
+simEngine:['ORIÓN Route Resilience Engine™','El motor puntúa las rutas A/B/C considerando simultáneamente costo, tiempo, capacidad, riesgo y dependencia compartida.'],
+simUpsc:['Último Punto Seguro de Cambio (UPSC)','Un buque avanza hasta el UPSC: el punto donde todavía es posible cambiar de ruta con impacto controlable.'],
+simDomains:['Diversificación de dominio de fallo','Se simula el bloqueo del Estrecho de Ormuz (dominio en rojo). El tráfico se reencamina a una alternativa independiente.'],
+simControl:['Centro de control','Tablero operativo en vivo: flujo, espera, costo por TEU e integridad documental actualizados en tiempo real.'],
+simScenarios:['Selector de escenarios','Alterna entre operación Normal, Crisis en Ormuz y Bypass activo.'],
+simPhases:['Fases del proyecto','Progresión por puertas de decisión: Prefactibilidad → Diseño de referencia → Piloto → Validación → Escalamiento.'],
+simStandards:['Estándares y cumplimiento','Verificación de seguridad de la cadena, aduanas, integridad de sellos, ciberseguridad y trazabilidad.'],
+simE2e:['Modelo end-to-end','Se traza un embarque completo por todos los nodos registrando marcas de tiempo.'],
+simCompare:['Comparación de crisis','Contraste entre respuesta reactiva y ORIÓN preparado: espera, precio del petróleo, flete.'],
+simImpact:['Impacto en Centroamérica','Efecto de una interrupción en indicadores locales: gasolina, fertilizante, alimentos y flete.'],
+simRoutes:['Rutas A/B/C','Se muestran y comparan las tres arquitecturas de ruta con su perfil de costo, tiempo y riesgo.'],
+simWeather:['Estado del mar dinámico','Cicla mar calmo, moderado y agitado. El oleaje y la velocidad de los buques cambian en tiempo real.'],
+simCyber:['Operación degradada (P7)','Simula pérdida parcial de capacidades digitales y ciberincidente.'],
+simCapacity:['Capacidad de contingencia','Activa la capacidad de reserva: se despliegan buques adicionales.'],
+simGov:['Human-in-the-loop (P6)','Puerta de autorización: los buques se detienen esperando la decisión de la autoridad.'],
+simConvoy:['Convoy escoltado','Agrupa los buques en un convoy sincronizado con velocidad común.'],
+simPulse:['Pulso biomecánico','Onda de energía sincronizada recorre toda la red de nodos mostrando coherencia del sistema.'],
+simSwarm:['Enjambre adaptativo','Activa comportamiento de enjambre: los buques se agrupan dinámicamente optimizando rutas en tiempo real.'],
+simReset:['Escena reiniciada','El estado 3D vuelve a su condición inicial.'],
+kbdHelp:'Espacio: pausa · +/−: velocidad · 1-4: cámaras · clic en buque/nodo',
+tipTitle:'Buque de carga',tipRoute:'Ruta',tipProg:'Progreso',tipSpeed:'Velocidad',tipCargo:'Carga',tipNode:'Nodo',
+evGreen:'✅',evAmber:'⚠️',evRed:'🛑',ph1:'Prefactibilidad',ph2:'Diseño de referencia',ph3:'Piloto',ph4:'Validación',ph5:'Escalamiento',pRouteMain:'Golfo Pérsico → Fujairah → Índico',pRouteA:'Corredor Omán (Duqm) → Índico',pRouteB:'Bypass Oceánico Salalah',authorFull:'Dr. Julio César Oporta Barrera',pImoFal:'IMO FAL ✓'
+},
+en:{
+appSub:'Adaptive Maritime Continuity System',
+camTitle:'Cameras',camOrbit:'Orbit',camCorridor:'Corridor',camChokepoint:'Chokepoint',camVessel:'Vessel',
+statesTitle:'Operational states',stNormal:'Normal',stWarn:'Early warning',stHormuz:'Hormuz blocked',stDuqm:'Duqm Express',stSalalah:'Salalah Deep-sea',stDegraded:'Degraded offline',
+fnTitle:'Functions & simulations',
+fnGuide:'What is it?',fnEngine:'AI Resilience Engine',fnUpsc:'Last Safe Switch Point',fnDomains:'Failure Domains',fnControl:'Control Center',fnScenarios:'Scenarios',fnPhases:'Project Phases',fnStandards:'Standards & Compliance',fnE2e:'E2E Model',fnCompare:'Crisis Comparison',fnImpact:'Impact on Central America',fnRoutes:'Routes A/B/C',fnReset:'Reset',
+modTitle:'Advanced modules',fnWeather:'Sea state',fnCyber:'Degraded operation',fnCapacity:'Contingency capacity',fnGov:'Authorization (HITL)',fnConvoy:'Escorted convoy',fnPulse:'Biomechanical pulse',fnSwarm:'Adaptive swarm',
+visualTitle:'Visual control',vCyan:'Cyan intensity',vWave:'Wave speed',vParticles:'Particle density',vGrid:'Holographic grid',
+nGulf:'Persian Gulf',nOrmuz:'Strait of Hormuz',nLand:'Land Corridor',nGate:'Outer Maritime Gate (Khor Fakkan / Duqm)',nIndian:'Indian Ocean',nDest:'Destination',
+ready:'System ready. Pick a function to simulate.',
+mCost:'Cost',mTime:'Time',mCap:'Capacity',mRisk:'Risk',mDep:'Dependency',mWait:'Wait',mThru:'Throughput',mInteg:'Integrity',
+legR:'Baseline route (Hormuz)',legB:'Corridor bypass',legC:'Alternate route',legShip:'Cargo vessel',
+hudState:'State',hudAlert:'Alert',hudSea:'Sea',hudActive:'Active route',hudPhase:'Phase',
+alert0:'Green',alert1:'Amber',alert2:'Red',sea0:'Calm',sea1:'Moderate',sea2:'Rough',
+metricsTitle:'Operational metrics',mIEC:'IEC Index',mIR:'Resilience Index',mFlow:'Flow TEU',mFleet:'Active fleet',mUPSC:'UPSC window',mCO2:'CO₂ saved',mFDS:'Domain sep.',mAvgCost:'Cost/TEU',
+eventTitle:'Event log',
+passportBtn:'Passport',
+pTitle:'ORIÓN Shipping Passport',pRoute:'Primary route',pAltA:'Alt. route A',pAltB:'Alt. route B',pUpsc:'UPSC status',pCustoms:'Maritime customs',pVerified:'Verified by',pClose2:'Close',
+simGuide:['Corridor overview','ORIÓN-BYPASS X™ prepares executable alternatives before an interruption. Guiding concept: Persian Gulf → land corridor → outer maritime gate → Indian Ocean → destination.'],
+simEngine:['ORIÓN Route Resilience Engine™','The engine scores routes A/B/C weighing cost, time, capacity, risk and shared dependency simultaneously.'],
+simUpsc:['Last Safe Switch Point (LSSP)','A vessel advances to the LSSP: the point where switching route is still possible with controllable impact.'],
+simDomains:['Failure-domain diversification','A blockage of the Strait of Hormuz is simulated (domain turns red). Routes depending on that domain become unusable.'],
+simControl:['Control center','Live operations dashboard: shipment flow, wait time, cost per TEU and documentary integrity update in real time.'],
+simScenarios:['Scenario selector','Toggle between Normal operation, Hormuz crisis and Active bypass.'],
+simPhases:['Project phases','Progression through decision gates: Pre-feasibility → Reference design → Pilot → Validation → Scale-up.'],
+simStandards:['Standards & compliance','Verification of supply-chain security, customs, seal integrity, cybersecurity and traceability.'],
+simE2e:['End-to-end model','A full shipment is traced across all nodes logging timestamps.'],
+simCompare:['Crisis comparison','Contrast between reactive response (no bypass) and prepared ORIÓN.'],
+simImpact:['Impact on Central America','Effect of an interruption on local indicators: gasoline, fertilizer, food, freight.'],
+simRoutes:['Routes A/B/C','Three route architectures shown and compared with cost, time and risk profiles.'],
+simWeather:['Dynamic sea state','Cycles calm, moderate and rough seas. Swell and vessel speed change in real time.'],
+simCyber:['Degraded operation (P7)','Simulates partial loss of digital capabilities and cyber incident.'],
+simCapacity:['Contingency capacity','Activates prepared reserve capacity: additional vessels deploy on bypass routes.'],
+simGov:['Human-in-the-loop (P6)','Authorization gate: vessels hold awaiting authority decision.'],
+simConvoy:['Escorted convoy','Groups vessels into a synchronized convoy with common speed.'],
+simPulse:['Biomechanical pulse','Synchronized energy wave travels the full node network showing system coherence.'],
+simSwarm:['Adaptive swarm','Activates swarm behavior: vessels dynamically group optimizing routes in real time.'],
+simReset:['Scene reset','3D state returns to initial condition.'],
+kbdHelp:'Space: pause · +/−: speed · 1-4: cameras · click vessel/node',
+tipTitle:'Cargo vessel',tipRoute:'Route',tipProg:'Progress',tipSpeed:'Speed',tipCargo:'Cargo',tipNode:'Node',
+evGreen:'✅',evAmber:'⚠️',evRed:'🛑',ph1:'Pre-feasibility',ph2:'Reference design',ph3:'Pilot',ph4:'Validation',ph5:'Scale-up',pRouteMain:'Persian Gulf → Fujairah → Indian Ocean',pRouteA:'Oman Corridor (Duqm) → Indian Ocean',pRouteB:'Salalah Oceanic Bypass',authorFull:'Dr. Julio César Oporta Barrera',pImoFal:'IMO FAL ✓'
+},
+zh:{
+appSub:'自适应海事连续性系统',
+camTitle:'镜头',camOrbit:'轨道',camCorridor:'走廊',camChokepoint:'海峡',camVessel:'船舶',
+statesTitle:'运行状态',stNormal:'正常',stWarn:'早期预警',stHormuz:'霍尔木兹封锁',stDuqm:'杜库姆快线',stSalalah:'萨拉拉深海',stDegraded:'降级离线',
+fnTitle:'功能与仿真',
+fnGuide:'简介',fnEngine:'AI韧性引擎',fnUpsc:'最后安全切换点',fnDomains:'故障域',fnControl:'控制中心',fnScenarios:'场景',fnPhases:'项目阶段',fnStandards:'标准与合规',fnE2e:'端到端模型',fnCompare:'危机对比',fnImpact:'对中美洲影响',fnRoutes:'路线 A/B/C',fnReset:'重置',
+modTitle:'高级模块',fnWeather:'海况',fnCyber:'降级运行',fnCapacity:'应急运力',fnGov:'授权(HITL)',fnConvoy:'护航船队',fnPulse:'生物力学脉冲',fnSwarm:'自适应集群',
+visualTitle:'视觉控制',vCyan:'青色强度',vWave:'波浪速度',vParticles:'粒子密度',vGrid:'全息网格',
+nGulf:'波斯湾',nOrmuz:'霍尔木兹海峡',nLand:'陆地走廊',nGate:'外部海上门户（豪尔法坎/杜库姆）',nIndian:'印度洋',nDest:'目的地',
+ready:'系统就绪。请选择功能进行仿真。',
+mCost:'成本',mTime:'时间',mCap:'运力',mRisk:'风险',mDep:'依赖',mWait:'等待',mThru:'流量',mInteg:'完整性',
+legR:'基线航线(霍尔木兹)',legB:'走廊旁通',legC:'备选航线',legShip:'货船',
+hudState:'状态',hudAlert:'警报',hudSea:'海况',hudActive:'活跃航线',hudPhase:'阶段',
+alert0:'绿',alert1:'黄',alert2:'红',sea0:'平静',sea1:'中等',sea2:'恶劣',
+metricsTitle:'运营指标',mIEC:'IEC指数',mIR:'韧性指数',mFlow:'TEU流量',mFleet:'活跃船队',mUPSC:'UPSC窗口',mCO2:'CO₂节约',mFDS:'域分离',mAvgCost:'每TEU成本',
+eventTitle:'事件日志',
+passportBtn:'护照',
+pTitle:'ORIÓN航运护照',pRoute:'主航线',pAltA:'替代航线A',pAltB:'替代航线B',pUpsc:'UPSC状态',pCustoms:'海事海关',pVerified:'验证人',pClose2:'关闭',
+simGuide:['走廊概览','ORIÓN-BYPASS X™在中断之前准备可执行的替代方案。核心概念：波斯湾→陆地走廊→外部海上门户→印度洋→目的地。'],
+simEngine:['ORIÓN路线韧性引擎™','引擎同时权衡成本、时间、运力、风险和共享依赖对A/B/C路线评分。'],
+simUpsc:['最后安全切换点','船舶前进至LSSP：仍然可以切换路线且影响可控的点。'],
+simDomains:['故障域多样化','模拟霍尔木兹海峡封锁（域变红）。依赖该域的路线无法使用。'],
+simControl:['控制中心','实时运营仪表板：货物流量、等待时间、每TEU成本和单证完整性实时更新。'],
+simScenarios:['场景选择器','在正常运营、霍尔木兹危机和活跃旁通之间切换。'],
+simPhases:['项目阶段','通过决策门推进：预可行性→参考设计→试点→验证→扩展。'],
+simStandards:['标准与合规','验证供应链安全、海关、封条完整性、网络安全和可追溯性。'],
+simE2e:['端到端模型','追踪完整货物在所有节点的时间戳。'],
+simCompare:['危机对比','反应性响应与准备好的ORIÓN之间的直接对比。'],
+simImpact:['对中美洲影响','中断对当地指标的影响：汽油、化肥、食品和海运费。'],
+simRoutes:['路线 A/B/C','展示并比较三种路线架构的成本、时间和风险特征。'],
+simWeather:['动态海况','循环平静、中等和恶劣海况。波浪和船速实时变化。'],
+simCyber:['降级运行(P7)','模拟数字能力部分丧失和网络事件。'],
+simCapacity:['应急运力','激活预备储备运力：在旁通路线上部署额外船舶。'],
+simGov:['人机协同(P6)','授权门：船舶等待主管机关决定。'],
+simConvoy:['护航船队','将船舶编组为同步船队，具有共同速度。'],
+simPulse:['生物力学脉冲','同步能量波穿过整个节点网络，显示系统一致性。'],
+simSwarm:['自适应集群','激活集群行为：船舶动态分组实时优化路线。'],
+simReset:['场景重置','3D状态恢复到初始状态。'],
+kbdHelp:'空格:暂停 · +/−:速度 · 1-4:镜头 · 点击船舶/节点',
+tipTitle:'货船',tipRoute:'航线',tipProg:'进度',tipSpeed:'速度',tipCargo:'货物',tipNode:'节点',
+evGreen:'✅',evAmber:'⚠️',evRed:'🛑',ph1:'预可行性',ph2:'参考设计',ph3:'试点',ph4:'验证',ph5:'规模化',pRouteMain:'波斯湾 → 富查伊拉 → 印度洋',pRouteA:'阿曼走廊(杜库姆) → 印度洋',pRouteB:'萨拉拉远洋旁通',authorFull:'Dr. Julio César Oporta Barrera',pImoFal:'IMO FAL ✓'
+}
+};
+let lang='es';
+const t=k=>{const d=I18N[lang]||I18N.es;return d[k]!==undefined?d[k]:(I18N.es[k]!==undefined?I18N.es[k]:k);};
+
+/* ===== THREE.js scene ===== */
+const host=document.getElementById('scene');
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);host.appendChild(renderer.domElement);
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x2b303a);
+scene.fog=new THREE.Fog(0x2b303a,120,260);
+const camera=new THREE.PerspectiveCamera(52,innerWidth/innerHeight,.1,600);
+camera.position.set(0,64,94);
+const camTarget=new THREE.Vector3(0,0,0);
+const camGoal={pos:new THREE.Vector3(0,64,94),tgt:new THREE.Vector3(0,0,0)};
+
+scene.add(new THREE.AmbientLight(0xdce8f4,.7));
+const sun=new THREE.DirectionalLight(0xffffff,1.1);sun.position.set(50,90,40);scene.add(sun);
+const hemi=new THREE.HemisphereLight(0xe0f0ff,0x1a2030,.5);scene.add(hemi);
+const cyanPt=new THREE.PointLight(0x4FC3F7,.6,80);cyanPt.position.set(-10,20,10);scene.add(cyanPt);
+
+const oceanGeo=new THREE.PlaneGeometry(420,320,80,60);
+const oceanMat=new THREE.MeshPhongMaterial({color:0x1a3f62,shininess:70,specular:0x4090c0,transparent:true,opacity:.94});
+const ocean=new THREE.Mesh(oceanGeo,oceanMat);ocean.rotation.x=-Math.PI/2;scene.add(ocean);
+const oceanBase=oceanGeo.attributes.position.array.slice();
+
+const landMat=new THREE.MeshPhongMaterial({color:0x8a7a50,shininess:8});
+function land(x,z,w,d){const m=new THREE.Mesh(new THREE.BoxGeometry(w,2.2,d),landMat);m.position.set(x,1.1,z);scene.add(m);return m;}
+land(-46,0,18,52);land(-28,14,14,36);land(-10,2,22,44);land(8,16,14,36);land(22,-2,16,30);
+
+let gridGroup=new THREE.Group();
+function buildGrid(){
+ while(gridGroup.children.length)gridGroup.remove(gridGroup.children[0]);
+ const mat=new THREE.LineBasicMaterial({color:0x4FC3F7,transparent:true,opacity:.12});
+ for(let x=-100;x<=100;x+=20){const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,.3,-80),new THREE.Vector3(x,.3,80)]);gridGroup.add(new THREE.Line(g,mat));}
+ for(let z=-80;z<=80;z+=20){const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-100,.3,z),new THREE.Vector3(100,.3,z)]);gridGroup.add(new THREE.Line(g,mat));}
+}
+buildGrid();scene.add(gridGroup);
+let showGrid=true;
+
+const NODES={
+ gulf:{pos:new THREE.Vector3(-56,0,-8),cls:'node'},
+ ormuz:{pos:new THREE.Vector3(-34,0,-16),cls:'hot'},
+ land:{pos:new THREE.Vector3(-15,0,8),cls:'node'},
+ gate:{pos:new THREE.Vector3(6,0,14),cls:'gate'},
+ indian:{pos:new THREE.Vector3(34,0,2),cls:'node'},
+ dest:{pos:new THREE.Vector3(58,0,-8),cls:'node'}
+};
+const nodeKeyMap={gulf:'nGulf',ormuz:'nOrmuz',land:'nLand',gate:'nGate',indian:'nIndian',dest:'nDest'};
+Object.keys(NODES).forEach(k=>{const n=NODES[k];const col=k==='ormuz'?0xf2795f:(k==='gate'?0x5fd6a6:0x4FC3F7);
+ const g=new THREE.Group();
+ const pole=new THREE.Mesh(new THREE.CylinderGeometry(.5,.5,10,10),new THREE.MeshPhongMaterial({color:col,emissive:col,emissiveIntensity:.35}));pole.position.y=5;g.add(pole);
+ const ring=new THREE.Mesh(new THREE.TorusGeometry(3.4,.35,10,32),new THREE.MeshPhongMaterial({color:col,emissive:col,emissiveIntensity:.5}));ring.rotation.x=-Math.PI/2;ring.position.y=.4;g.add(ring);
+ const orb=new THREE.Mesh(new THREE.SphereGeometry(1.5,20,20),new THREE.MeshPhongMaterial({color:col,emissive:col,emissiveIntensity:.6}));orb.position.y=11;g.add(orb);
+ g.position.copy(n.pos);scene.add(g);n.group=g;n.orb=orb;n.baseColor=col;g.userData={kind:'node',key:k};
+});
+
+function buildShip(hullColor){
+ const s=new THREE.Group();
+ const hullMat=new THREE.MeshPhongMaterial({color:hullColor,shininess:35});
+ const redMat=new THREE.MeshPhongMaterial({color:0x8a1f14,shininess:20});
+ const whiteMat=new THREE.MeshPhongMaterial({color:0xf4f7fa,shininess:45});
+ const deckMat=new THREE.MeshPhongMaterial({color:0x343a46});
+ const hull=new THREE.Mesh(new THREE.BoxGeometry(9,1.7,2.8),hullMat);hull.position.y=1.1;s.add(hull);
+ const bowGeo=new THREE.CylinderGeometry(0,1.6,2.8,4,1);
+ const bow=new THREE.Mesh(bowGeo,hullMat);bow.rotation.z=-Math.PI/2;bow.rotation.y=Math.PI/4;bow.scale.set(.9,1.1,1);bow.position.set(5.2,1.1,0);s.add(bow);
+ const boot=new THREE.Mesh(new THREE.BoxGeometry(9,.35,2.9),redMat);boot.position.y=.4;s.add(boot);
+ const deck=new THREE.Mesh(new THREE.BoxGeometry(8.4,.25,2.5),deckMat);deck.position.y=2;s.add(deck);
+ const cols=[0xf2b45a,0x4FC3F7,0xe74c3c,0x2ecc71,0xf4f7fa,0x3498db];
+ for(let i=0;i<4;i++)for(let j=0;j<2;j++){
+  const c=new THREE.Mesh(new THREE.BoxGeometry(1.1,.55,.72),new THREE.MeshPhongMaterial({color:cols[(i+j)%cols.length]}));
+  c.position.set(3.2-i*1.6,2.35,j*1-0.5);s.add(c);
+ }
+ const sup=new THREE.Mesh(new THREE.BoxGeometry(1.6,2,2.3),whiteMat);sup.position.set(-3.6,3.1,0);s.add(sup);
+ const bridge=new THREE.Mesh(new THREE.BoxGeometry(1.7,.5,2.4),new THREE.MeshPhongMaterial({color:0x2b303a}));bridge.position.set(-3.6,4.2,0);s.add(bridge);
+ const fun=new THREE.Mesh(new THREE.CylinderGeometry(.45,.55,1.4,14),redMat);fun.position.set(-4.4,4.4,0);s.add(fun);
+ s.scale.set(1.15,1.15,1.15);return s;
+}
+
+function P(k){return NODES[k].pos.clone();}
+const ROUTES={
+ A:{color:0x4FC3F7,pts:[P('gulf'),P('ormuz'),new THREE.Vector3(2,0,-14),P('indian'),P('dest')]},
+ B:{color:0x5fd6a6,pts:[P('gulf'),new THREE.Vector3(-34,0,2),P('land'),P('gate'),P('indian'),P('dest')]},
+ C:{color:0xf2b45a,pts:[P('gulf'),new THREE.Vector3(-30,0,14),P('land'),new THREE.Vector3(14,0,22),P('indian'),P('dest')]}
+};
+function curveOf(pts){return new THREE.CatmullRomCurve3(pts.map(p=>p.clone().setY(1.2)),false,'catmullrom',.2);}
+Object.keys(ROUTES).forEach(k=>{const r=ROUTES[k];r.curve=curveOf(r.pts);
+ const g=new THREE.TubeGeometry(r.curve,120,.45,8,false);
+ r.mat=new THREE.MeshPhongMaterial({color:r.color,emissive:r.color,emissiveIntensity:.35,transparent:true,opacity:.88});
+ r.mesh=new THREE.Mesh(g,r.mat);scene.add(r.mesh);});
+
+const SHIPS=[];
+let reserveShips=[];
+function addShip(routeKey,off,color,reserve){const s=buildShip(color);scene.add(s);const rec={obj:s,route:routeKey,t:off,speed:.02,color,cargo:Math.round(800+Math.random()*1400),reserve:!!reserve};s.userData={kind:'ship',ref:rec};SHIPS.push(rec);return rec;}
+addShip('A',0,0x3a4258);addShip('A',.45,0x44546a);
+addShip('B',.2,0x2a6b52);addShip('B',.7,0x347a5e);
+addShip('C',.35,0x6b5830);
+
+const labelLayer=document.getElementById('labels');
+const LABELS=[];
+Object.keys(NODES).forEach(k=>{const el=document.createElement('div');el.className='lbl '+NODES[k].cls;labelLayer.appendChild(el);
+ LABELS.push({el,get pos(){return NODES[k].pos},y:13,i18n:nodeKeyMap[k],cls:NODES[k].cls});});
+function refreshLabelText(){LABELS.forEach(L=>{L.el.textContent=t(L.i18n);});}
+
+/* ==== PROYECCIÓN DE ETIQUETAS CON "SAFE AREA": NUNCA DETRÁS DE LOS PANELES ==== */
+const _v=new THREE.Vector3();
+function projectLabels(){
+ const ctrl=document.getElementById('controls');
+ const rcol=document.getElementById('rightcol');
+ const hud=document.getElementById('hud');
+ const cR=ctrl?ctrl.getBoundingClientRect():{right:0,top:0,bottom:0};
+ const rR=rcol?rcol.getBoundingClientRect():{left:innerWidth,top:0,bottom:0};
+ const hR=hud?hud.getBoundingClientRect():{left:innerWidth,top:innerHeight,bottom:innerHeight};
+ const M=6;
+ LABELS.forEach(L=>{
+  _v.copy(L.pos);_v.y+=L.y;_v.project(camera);
+  const x=(_v.x*.5+.5)*innerWidth, y=(-_v.y*.5+.5)*innerHeight;
+  if(_v.z>1||_v.z<-1){L.el.style.display='none';return;}
+  const overLeftPanel  = x < cR.right + M && y > cR.top - 24 && y < cR.bottom + 24;
+  const overRightCol   = x > rR.left - M && y > rR.top - 24 && y < rR.bottom + 24;
+  const overHud        = x > hR.left - M && y > hR.top - 24 && y < hR.bottom + 24;
+  if(overLeftPanel || overRightCol || overHud){L.el.style.display='none';return;}
+  L.el.style.display='block';
+  L.el.style.left=x+'px';L.el.style.top=y+'px';
+ });
+}
+
+const CAM={
+ orbit:{pos:new THREE.Vector3(0,66,96),tgt:new THREE.Vector3(0,0,0)},
+ corridor:{pos:new THREE.Vector3(-10,26,52),tgt:new THREE.Vector3(-4,0,6)},
+ chokepoint:{pos:new THREE.Vector3(-34,16,4),tgt:new THREE.Vector3(-34,0,-16)},
+ vessel:{pos:new THREE.Vector3(10,10,26),tgt:new THREE.Vector3(6,2,14)}
+};
+let camMode='orbit',orbitAng=0,orbitFree=true;
+function setCam(m){camMode=m;orbitFree=(m==='orbit');if(CAM[m]){camGoal.pos.copy(CAM[m].pos);camGoal.tgt.copy(CAM[m].tgt);}
+ document.querySelectorAll('.cam').forEach(b=>b.classList.toggle('on',b.dataset.cam===m));}
+
+const PCOUNT=400;
+const pGeo=new THREE.BufferGeometry();
+const pPos=new Float32Array(PCOUNT*3);
+for(let i=0;i<PCOUNT;i++){pPos[i*3]=(Math.random()-.5)*300;pPos[i*3+1]=Math.random()*18+2;pPos[i*3+2]=(Math.random()-.5)*200;}
+pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
+const pMat=new THREE.PointsMaterial({color:0x4FC3F7,size:.4,transparent:true,opacity:.45});
+const particles=new THREE.Points(pGeo,pMat);scene.add(particles);
+
+let opState='NORMAL';
+let vesselFollow=null,paused=false,speedMul=1;
+let seaState=0,alertLevel=0,degraded=false,govHold=false,convoyMode=false,pulseActive=false,swarmActive=false;
+let phaseIdx=0,scenIdx=0,routeIdx=0,activeFn=null;
+let sparkData=new Array(60).fill(0);
+let metVals={iec:68,ir:42.5,flow:14280,fleet:4,upsc:258,co2:124.5,fds:65,cost:820};
+
+let vCyan=1,vWave=1,vPart=1;
+function applyVC(){cyanPt.intensity=.4*vCyan;pMat.opacity=.35*vPart;}
+applyVC();
+
+const clock=new THREE.Clock();
+function animate(){requestAnimationFrame(animate);const dt=clock.getDelta();const el=clock.elapsedTime;
+ const sa=.6*(1+seaState*.9);
+ const arr=oceanGeo.attributes.position.array;
+ for(let i=0;i<arr.length;i+=3){const bx=oceanBase[i],by=oceanBase[i+1];arr[i+2]=oceanBase[i+2]+Math.sin((bx*.05)+el*1.1*vWave)*sa+Math.cos((by*.06)+el*.9*vWave)*sa*.8;}
+ oceanGeo.attributes.position.needsUpdate=true;
+
+ const dn=.5+.5*Math.sin((el*.018)*Math.PI*2);
+ sun.intensity=.45+dn*.95;hemi.intensity=.28+dn*.45;
+ const bgL=.12+dn*.1;scene.background.setHSL(.6,.3,bgL);scene.fog.color.copy(scene.background);
+ gridGroup.visible=showGrid;
+
+ Object.keys(NODES).forEach(k=>{const n=NODES[k];if(n.orb){
+  let s=1+Math.sin(el*2+n.pos.x)*.1;
+  if(pulseActive){const d=Math.abs(Math.sin(el*4-n.pos.x*.08));s=1+d*.45;}
+  n.orb.scale.setScalar(s);
+ }});
+
+ SHIPS.forEach(sh=>{const r=ROUTES[sh.route];if(!r||!r.mesh.visible){sh.obj.visible=false;return;}sh.obj.visible=true;
+ const eff=speedMul*(seaState===2?.55:seaState===1?.8:1)*((govHold&&!sh.reserve)?0:1);
+ if(!paused)sh.t=(sh.t+sh.speed*dt*2.4*eff)%1;
+ const p=r.curve.getPointAt(sh.t);const p2=r.curve.getPointAt((sh.t+0.01)%1);
+ sh.obj.position.set(p.x,1.1+Math.sin(el*2+sh.t*30)*.15,p.z);
+ sh.obj.lookAt(p2.x,sh.obj.position.y,p2.z);sh.obj.rotateY(Math.PI/2);
+ if(swarmActive){
+  const nearest=SHIPS.reduce((best,o)=>{if(o===sh)return best;const d=sh.obj.position.distanceTo(o.obj.position);return d<best.d?{o,d}:best},{o:null,d:1e9});
+  if(nearest.o&&nearest.d<12){
+   const mid=nearest.o.obj.position.clone().add(sh.obj.position).multiplyScalar(.5);
+   sh.obj.position.lerp(mid,.005);}
+ }
+ });
+
+ for(let i=0;i<PCOUNT;i++){pPos[i*3+1]+=.04*(seaState+.5)*vPart;if(pPos[i*3+1]>20)pPos[i*3+1]=2;}
+ pGeo.attributes.position.needsUpdate=true;
+
+ if(camMode==='vessel'&&SHIPS.length){const f=SHIPS.find(s=>s.obj.visible)||SHIPS[0];camGoal.tgt.copy(f.obj.position);camGoal.pos.set(f.obj.position.x-16,12,f.obj.position.z+18);}
+ if(orbitFree){orbitAng+=dt*.08;const rad=100;camGoal.pos.set(Math.sin(orbitAng)*rad,64,Math.cos(orbitAng)*rad);camGoal.tgt.set(0,0,0);}
+ camera.position.lerp(camGoal.pos,.05);camTarget.lerp(camGoal.tgt,.06);camera.lookAt(camTarget);
+ projectLabels();renderer.render(scene,camera);}
+animate();
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+
+function showRoutes(keys){Object.keys(ROUTES).forEach(k=>{ROUTES[k].mesh.visible=keys.includes(k);ROUTES[k].mat.emissiveIntensity=.35;ROUTES[k].mat.opacity=.88;});}
+function highlight(key){Object.keys(ROUTES).forEach(k=>{const on=k===key;ROUTES[k].mat.emissiveIntensity=on?.85:.15;ROUTES[k].mat.opacity=on?1:.4;});}
+function setDomainFailure(on){const o=NODES.ormuz;const col=on?0xf2795f:o.baseColor;
+ o.group.traverse(m=>{if(m.material&&m.material.emissive){m.material.color.setHex(on&&o.cls==='hot'?0xf2795f:col);m.material.emissive.setHex(col);m.material.emissiveIntensity=on?.9:.4;}});
+ ROUTES.A.mesh.visible=!on;
+ SHIPS.forEach(s=>{if(s.route==='A'&&on)s.route='B';});
+ LABELS.forEach(L=>{if(L.i18n==='nOrmuz')L.el.classList.toggle('hot',true);});}
+let liveTimer=null;function stopLive(){if(liveTimer){clearInterval(liveTimer);liveTimer=null;}}
+
+function calcMetrics(){
+ const st=opState;
+ if(st==='NORMAL')Object.assign(metVals,{iec:68,ir:42.5,flow:14280,fleet:SHIPS.filter(s=>s.obj.visible).length,upsc:258,co2:124.5,fds:65,cost:820});
+ else if(st==='EARLY_WARNING')Object.assign(metVals,{iec:54,ir:68,flow:16400,fleet:SHIPS.filter(s=>s.obj.visible).length+2,upsc:180,co2:198,fds:80,cost:940});
+ else if(st==='HORMUZ_BLOCKED')Object.assign(metVals,{iec:4.2,ir:96.5,flow:21500,fleet:SHIPS.filter(s=>s.obj.visible).length+4,upsc:0,co2:412,fds:100,cost:1580});
+ else if(st==='DUQM_EXPRESS')Object.assign(metVals,{iec:2.1,ir:98.2,flow:23800,fleet:SHIPS.filter(s=>s.obj.visible).length+3,upsc:0,co2:520,fds:100,cost:1360});
+ else if(st==='SALALAH_DEEPSEA')Object.assign(metVals,{iec:.5,ir:99.8,flow:28500,fleet:SHIPS.filter(s=>s.obj.visible).length+5,upsc:0,co2:640,fds:100,cost:1280});
+ else if(st==='DEGRADED_OFFLINE')Object.assign(metVals,{iec:12,ir:88,flow:12000,fleet:SHIPS.filter(s=>s.obj.visible).length,upsc:60,co2:310,fds:100,cost:1120});
+ if(swarmActive)metVals.flow+=3200;
+}
+function renderMetricsPanel(){
+ document.getElementById('mIECv').textContent=metVals.iec.toFixed(1)+'%';
+ const iecB=Math.min(100,metVals.iec);document.getElementById('mIECbar').style.cssText='width:'+iecB+'%;background:'+(metVals.iec>50?'var(--bad)':'var(--good)');
+ document.getElementById('mIRv').textContent=metVals.ir.toFixed(1)+'%';
+ document.getElementById('mIRbar').style.cssText='width:'+Math.min(100,metVals.ir)+'%;background:var(--cyan)';
+ document.getElementById('mFlowv').textContent=metVals.flow.toLocaleString()+' TEU';
+ document.getElementById('mFleetv').textContent=metVals.fleet+' '+t('mFleet');
+ document.getElementById('mUPSCv').textContent=metVals.upsc+'m';
+ document.getElementById('mCO2v').textContent=metVals.co2.toFixed(1)+' Ton';
+ document.getElementById('mFDSv').textContent=metVals.fds+'%';
+ document.getElementById('mCostv').textContent='$'+metVals.cost;
+}
+let metTick=null;
+function startMetEngine(){calcMetrics();renderMetricsPanel();metTick=setInterval(()=>{calcMetrics();renderMetricsPanel();drawSpark();},800);}
+function stopMetEngine(){if(metTick){clearInterval(metTick);metTick=null;}}
+
+function drawSpark(){
+ const c=document.getElementById('spark');const ctx=c.getContext('2d');
+ sparkData.shift();sparkData.push(metVals.flow/300);
+ ctx.clearRect(0,0,c.width,c.height);
+ const w=c.width,h=c.height,n=sparkData.length,dx=w/n;
+ ctx.strokeStyle='rgba(79,195,247,.7)';ctx.lineWidth=1.5;ctx.beginPath();
+ for(let i=0;i<n;i++){const y=h-sparkData[i]/3*h;i===0?ctx.moveTo(i*dx,y):ctx.lineTo(i*dx,y);}
+ ctx.stroke();
+ ctx.fillStyle='rgba(79,195,247,.12)';ctx.beginPath();ctx.moveTo(0,h);
+ for(let i=0;i<n;i++)ctx.lineTo(i*dx,h-sparkData[i]/3*h);
+ ctx.lineTo(w,h);ctx.fill();
+}
+
+const evList=[];
+function logEv(msg,level){
+ const now=new Date();const ts=now.toISOString().slice(11,19);
+ evList.unshift({msg,level,ts});if(evList.length>20)evList.pop();
+ renderEvLog();
+}
+function renderEvLog(){
+ document.getElementById('evList').innerHTML=evList.map(e=>
+  '<div class="ev"><b>'+e.ts+'</b> '+t('ev'+e.level)+' '+e.msg+'</div>'
+ ).join('');
+}
+
+const panel=document.getElementById('infopanel'),elTitle=document.getElementById('infoTitle'),elBody=document.getElementById('infoBody'),elMet=document.getElementById('infoMetrics'),elStatus=document.getElementById('simStatus'),toastEl=document.getElementById('toast');
+let toastT=null;function toast(m){toastEl.textContent=m;toastEl.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>toastEl.classList.remove('show'),2200);}
+function setStatus(m){elStatus.textContent=m;}
+function metricEl(k,v,cls,pct){return '<div class="metric"><div class="k">'+t(k)+'</div><div class="v '+cls+'">'+v+'</div>'+(pct!=null?'<div class="bar"><i style="width:'+pct+'%;background:'+(pct>66?'var(--bad)':pct>33?'var(--warn)':'var(--good)')+'"></i></div>':'')+'</div>';}
+function renderMetrics(list){elMet.innerHTML=(list||[]).map(m=>metricEl(m.k,m.v,m.cls,m.pct)).join('');}
+function openInfo(key,bodyExtra,metrics){const arr=t('sim'+key);elTitle.textContent=arr[0];elBody.innerHTML='<p>'+arr[1]+'</p>'+(bodyExtra||'');renderMetrics(metrics);panel.classList.add('show');}
+document.getElementById('closeInfo').onclick=()=>panel.classList.remove('show');
+
+const PH={es:['Prefactibilidad','Diseño de referencia','Piloto','Validación','Escalamiento'],en:['Pre-feasibility','Reference design','Pilot','Validation','Scale-up'],zh:['预可行性','参考设计','试点','验证','规模化']};
+const SC={es:['Operación normal','Crisis en Ormuz','Bypass activo'],en:['Normal operation','Hormuz crisis','Active bypass'],zh:['正常运营','霍尔木兹危机','旁通激活']};
+const RT=['A','B','C'];
+
+function resetScene(){stopLive();stopMetEngine();paused=false;speedMul=1;seaState=0;alertLevel=0;degraded=false;govHold=false;convoyMode=false;pulseActive=false;swarmActive=false;opState='NORMAL';showRoutes(['A','B','C']);
+ reserveShips.forEach(r=>{scene.remove(r.obj);const i=SHIPS.indexOf(r);if(i>=0)SHIPS.splice(i,1);});reserveShips=[];
+ Object.keys(NODES).forEach(k=>{const n=NODES[k];n.group.traverse(m=>{if(m.material&&m.material.emissive){m.material.color.setHex(n.baseColor);m.material.emissive.setHex(n.baseColor);m.material.emissiveIntensity=.4;}});});
+ LABELS.forEach(L=>{if(L.i18n==='nOrmuz')L.el.classList.add('hot');});
+ const def=['A','A','B','B','C'];SHIPS.forEach((s,i)=>{if(def[i])s.route=def[i];s.obj.scale.set(1.15,1.15,1.15);});
+ Object.keys(ROUTES).forEach(k=>{ROUTES[k].mat.emissiveIntensity=.35;ROUTES[k].mat.opacity=.88;});
+ document.querySelectorAll('.st').forEach(b=>b.classList.toggle('on',b.dataset.st==='NORMAL'));
+}
+
+function runSim(fn){
+ activeFn=fn;document.querySelectorAll('.fn').forEach(b=>b.classList.toggle('active',b.dataset.fn===fn));
+ if(fn!=='control')stopLive();
+ switch(fn){
+ case'guide':resetScene();setCam('orbit');openInfo('Guide','',[{k:'mCap',v:'A/B/C',cls:'good'},{k:'mDep',v:'↓'}]);logEv(t('fnGuide'),'Green');startMetEngine();break;
+ case'engine':resetScene();setCam('corridor');highlight('B');openInfo('Engine','',[{k:'mCost',v:'B ★',cls:'good'},{k:'mTime',v:'−18%',cls:'good',pct:30},{k:'mRisk',v:'Bajo',cls:'good',pct:28},{k:'mDep',v:'↓ 42%',cls:'good',pct:35}]);toast('A · B★ · C');logEv(t('fnEngine'),'Green');startMetEngine();break;
+ case'upsc':resetScene();setDomainFailure(false);showRoutes(['A','B']);setCam('chokepoint');setTimeout(()=>setCam('vessel'),1600);SHIPS.forEach((s,i)=>{if(i===0)s.route='B';});openInfo('Upsc','',[{k:'mTime',v:'UPSC',cls:'warn'},{k:'mRisk',v:'Controlable',cls:'good',pct:25}]);logEv(t('fnUpsc'),'Green');startMetEngine();break;
+ case'domains':resetScene();opState='HORMUZ_BLOCKED';setDomainFailure(true);showRoutes(['B','C']);setCam('chokepoint');openInfo('Domains','',[{k:'mRisk',v:'Ormuz ✕',cls:'bad',pct:92},{k:'mDep',v:'Indep.',cls:'good',pct:20},{k:'mCap',v:'B+C',cls:'good'}]);toast(t('stHormuz'));logEv(SC[lang][1],'Red');startMetEngine();break;
+ case'control':resetScene();setCam('orbit');stopLive();openInfo('Control','',[]);let th=118,wt=6.2,cs=920,ig=99.2;const tick=()=>{th+=(Math.random()*8-3);wt+=(Math.random()*.6-.3);cs+=(Math.random()*24-12);ig=Math.min(100,Math.max(97,ig+(Math.random()*.3-.15)));renderMetrics([{k:'mThru',v:Math.round(th)+' TEU/h',cls:'good'},{k:'mWait',v:wt.toFixed(1)+' h',cls:wt>8?'bad':'warn'},{k:'mCost',v:'$'+Math.round(cs)+'/TEU'},{k:'mInteg',v:ig.toFixed(1)+'%',cls:'good'}]);};tick();liveTimer=setInterval(tick,1000);logEv(t('fnControl'),'Green');startMetEngine();break;
+ case'scenarios':scenIdx=(scenIdx+1)%3;if(scenIdx===0){resetScene();setCam('orbit');}else if(scenIdx===1){resetScene();opState='HORMUZ_BLOCKED';setDomainFailure(true);showRoutes(['B','C']);setCam('chokepoint');}else{resetScene();opState='EARLY_WARNING';showRoutes(['B','C']);highlight('B');setCam('corridor');}openInfo('Scenarios','<p><b>'+t(['stNormal','stHormuz','stWarn'][scenIdx])+'</b></p>',[{k:'mCap',v:scenIdx===0?'100%':'70%',cls:scenIdx===0?'good':'warn',pct:scenIdx===0?20:60}]);toast(t(['stNormal','stHormuz','stWarn'][scenIdx]));logEv(SC[lang][scenIdx],scenIdx===2?'Amber':'Green');startMetEngine();break;
+ case'phases':phaseIdx=(phaseIdx+1)%5;resetScene();setCam('orbit');openInfo('Phases','<p><b>'+(phaseIdx+1)+'/5 · '+t('ph'+(phaseIdx+1))+'</b></p>',[{k:'mTime',v:(phaseIdx+1)+'/5',cls:'warn',pct:(phaseIdx+1)*20}]);toast(t('ph'+(phaseIdx+1)));startMetEngine();break;
+ case'standards':resetScene();setCam('corridor');openInfo('Standards','<p>✅ '+t('fnStandards')+'</p>',[{k:'mInteg',v:'5/5',cls:'good',pct:15},{k:'mRisk',v:t('alert0'),cls:'good',pct:10}]);toast('✓ 100%');logEv('Compliance 100%','Green');break;
+ case'e2e':resetScene();showRoutes(['B']);highlight('B');setCam('vessel');openInfo('E2e','<p>t0 → detect → '+t('fnE2e')+' → <b>delivered</b></p>',[{k:'mTime',v:'−13% Δt',cls:'good',pct:30},{k:'mInteg',v:'100%',cls:'good',pct:15},{k:'mDep',v:'↓',cls:'good',pct:20}]);logEv('E2E trace started','Green');startMetEngine();break;
+ case'compare':resetScene();setCam('orbit');openInfo('Compare','<p>'+t('fnCompare')+'</p>',[{k:'mWait',v:'12h → 4h',cls:'good',pct:35},{k:'mCost',v:'+38% → +11%',cls:'warn',pct:40},{k:'mRisk',v:t('mRisk')+': ↓',cls:'warn',pct:45}]);startMetEngine();break;
+ case'impact':resetScene();setCam('corridor');showRoutes(['B','C']);openInfo('Impact','<p>'+t('fnImpact')+'</p>',[{k:'mCost',v:'⛽ +9%',cls:'warn',pct:45},{k:'mCap',v:'🌾 +7%',cls:'warn',pct:40},{k:'mThru',v:'+6%',cls:'warn',pct:38},{k:'mTime',v:'🚢 +12%',cls:'warn',pct:52}]);startMetEngine();break;
+ case'routes':routeIdx=(routeIdx+1)%3;const rk=RT[routeIdx];resetScene();highlight(rk);setCam('corridor');const prof={A:[{k:'mCost',v:'Base'},{k:'mRisk',v:'Alto',cls:'bad',pct:80}],B:[{k:'mCost',v:'−',cls:'good'},{k:'mRisk',v:'Bajo',cls:'good',pct:28}],C:[{k:'mCost',v:'+',cls:'warn'},{k:'mRisk',v:'Medio',cls:'warn',pct:50}]};openInfo('Routes','<p><b>'+t('leg'+(rk==='A'?'R':rk))+'</b></p>',prof[rk]);toast(t('leg'+(rk==='A'?'R':rk))+' '+rk);startMetEngine();break;
+ case'weather':resetScene();seaState=(seaState+1)%3;alertLevel=seaState;setCam('vessel');openInfo('Weather','<p><b>'+t('sea'+seaState)+'</b></p>',[{k:'mThru',v:seaState===2?'−':seaState===1?'·':'+',cls:seaState===2?'bad':seaState===1?'warn':'good',pct:seaState*45+10},{k:'mRisk',v:t('alert'+alertLevel),cls:['good','warn','bad'][alertLevel],pct:alertLevel*45+10}]);toast(t('sea'+seaState));logEv(t('sea'+seaState),alertLevel===2?'Red':alertLevel===1?'Amber':'Green');startMetEngine();break;
+ case'cyber':resetScene();degraded=true;alertLevel=2;opState='DEGRADED_OFFLINE';setCam('corridor');Object.keys(NODES).forEach(k=>{if(k!=='ormuz')NODES[k].group.traverse(m=>{if(m.material&&m.material.emissive)m.material.emissiveIntensity=.08;});});showRoutes(['B']);openInfo('Cyber','',[{k:'mRisk',v:t('alert2'),cls:'bad',pct:90},{k:'mInteg',v:'↓',cls:'warn',pct:60},{k:'mThru',v:'−30%',cls:'warn',pct:55}]);toast(t('alert2'));logEv(t('fnCyber')+' P7','Red');startMetEngine();break;
+ case'capacity':resetScene();setCam('orbit');reserveShips.push(addShip('B',.05,0x2f9e78,true));reserveShips.push(addShip('C',.55,0xcaa23a,true));reserveShips.push(addShip('B',.85,0x2f9e78,true));openInfo('Capacity','',[{k:'mCap',v:'+3 ⚓',cls:'good',pct:18},{k:'mThru',v:'+24%',cls:'good'}]);toast('+3 ⚓ '+t('fnCapacity'));logEv('+3 reserve vessels','Green');startMetEngine();break;
+ case'gov':resetScene();setCam('chokepoint');govHold=true;alertLevel=1;openInfo('Gov','<p>⏳ '+t('alert1')+' ...</p>',[{k:'mRisk',v:t('alert1'),cls:'warn',pct:45}]);toast('⏳ HITL');logEv('HITL authorization hold','Amber');setTimeout(()=>{govHold=false;alertLevel=0;toast('✓');logEv('HITL approved','Green');if(activeFn==='gov'){elBody.innerHTML='<p>'+t('simGov')[1]+'</p><p><b>✅ '+t('alert0')+'</b></p>';renderMetrics([{k:'mRisk',v:t('alert0'),cls:'good',pct:15}]);}},2600);break;
+ case'convoy':resetScene();convoyMode=true;showRoutes(['B']);highlight('B');setCam('vessel');SHIPS.forEach((s,i)=>{s.route='B';s.t=(i*0.06)%1;});openInfo('Convoy','',[{k:'mRisk',v:'↓',cls:'good',pct:25},{k:'mCap',v:'Convoy',cls:'good'}]);toast('⚓ '+t('fnConvoy'));logEv('Convoy mode ON','Green');startMetEngine();break;
+ case'pulse':resetScene();pulseActive=true;opState='EARLY_WARNING';setCam('orbit');openInfo('Pulse','',[{k:'mRisk',v:'↓',cls:'good',pct:20}]);toast('〰️ '+t('fnPulse'));logEv('Biomech pulse active','Amber');setTimeout(()=>{pulseActive=false;toast('✓');logEv('Pulse complete','Green');},4500);startMetEngine();break;
+ case'swarm':resetScene();swarmActive=true;opState='DUQM_EXPRESS';showRoutes(['B','C']);highlight('B');setCam('corridor');openInfo('Swarm','',[{k:'mThru',v:'+20%',cls:'good'},{k:'mRisk',v:'Opt',cls:'good',pct:18}]);toast('🐝 '+t('fnSwarm'));logEv('Swarm behavior ON','Green');startMetEngine();break;
+ case'reset':resetScene();setCam('orbit');panel.classList.remove('show');activeFn=null;document.querySelectorAll('.fn').forEach(b=>b.classList.remove('active'));openInfo('Reset','',[]);setStatus(t('ready'));return;
+ }
+ setStatus(t('fn'+fn.charAt(0).toUpperCase()+fn.slice(1)));
+}
+
+function renderLegend(){document.getElementById('legend').innerHTML=[['#4FC3F7','legR'],['#5fd6a6','legB'],['#f2b45a','legC'],['#f4f7fa','legShip']].map(a=>'<span><i style="background:'+a[0]+'"></i>'+t(a[1])+'</span>').join('');}
+function reRenderSim(){if(!activeFn)return;if(activeFn==='scenarios')scenIdx=(scenIdx+2)%3;else if(activeFn==='phases')phaseIdx=(phaseIdx+4)%5;else if(activeFn==='routes')routeIdx=(routeIdx+2)%3;else if(activeFn==='weather')seaState=(seaState+2)%3;runSim(activeFn);}
+function applyI18n(){document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));document.documentElement.lang=lang;refreshLabelText();renderLegend();if(activeFn&&panel.classList.contains('show'))reRenderSim();else setStatus(t('ready'));updateHUD();}
+
+function updateHUD(){
+ const d=new Date();document.getElementById('hudTime').textContent=('0'+d.getUTCHours()).slice(-2)+':'+('0'+d.getUTCMinutes()).slice(-2)+':'+('0'+d.getUTCSeconds()).slice(-2);
+ const stKey={NORMAL:'stNormal',EARLY_WARNING:'stWarn',HORMUZ_BLOCKED:'stHormuz',DUQM_EXPRESS:'stDuqm',SALALAH_DEEPSEA:'stSalalah',DEGRADED_OFFLINE:'stDegraded'}[opState]||'stNormal';
+ document.getElementById('hudStateV').textContent=t(stKey);
+ const ac=['#5fd6a6','#f2b45a','#f2795f'][alertLevel];
+ document.getElementById('hudAlertV').innerHTML='<span class="dot" style="background:'+ac+'"></span>'+t('alert'+alertLevel);
+ document.getElementById('hudSeaV').textContent=t('sea'+seaState);
+ const vis=Object.keys(ROUTES).filter(k=>ROUTES[k].mesh.visible);document.getElementById('hudRouteV').textContent=vis.join('/')||'—';
+ document.getElementById('hudPhaseV').textContent=(phaseIdx+1)+'/5';
+}
+setInterval(updateHUD,600);
+
+const ray=new THREE.Raycaster(),mouse=new THREE.Vector2(),vtip=document.getElementById('vtip');
+function pick(ev){mouse.x=(ev.clientX/innerWidth)*2-1;mouse.y=-(ev.clientY/innerHeight)*2+1;ray.setFromCamera(mouse,camera);
+ const hits=ray.intersectObjects(scene.children,true);for(const h of hits){let o=h.object;while(o&&!(o.userData&&o.userData.kind))o=o.parent;if(o&&o.userData&&o.userData.kind)return o;}return null;}
+renderer.domElement.addEventListener('mousemove',ev=>{const o=pick(ev);
+ if(o&&o.userData.kind==='ship'){const r=o.userData.ref;vtip.style.display='block';vtip.style.left=(ev.clientX+14)+'px';vtip.style.top=(ev.clientY+14)+'px';
+ vtip.innerHTML='<b>'+t('tipTitle')+'</b><br>'+t('tipRoute')+': '+r.route+'<br>'+t('tipProg')+': '+Math.round(r.t*100)+'%<br>'+t('tipCargo')+': '+r.cargo+' TEU';renderer.domElement.style.cursor='pointer';}
+ else if(o&&o.userData.kind==='node'){vtip.style.display='block';vtip.style.left=(ev.clientX+14)+'px';vtip.style.top=(ev.clientY+14)+'px';
+ vtip.innerHTML='<b>'+t(nodeKeyMap[o.userData.key])+'</b><br>'+t('tipNode');renderer.domElement.style.cursor='pointer';}
+ else{vtip.style.display='none';renderer.domElement.style.cursor='grab';}});
+renderer.domElement.addEventListener('click',ev=>{const o=pick(ev);if(!o)return;
+ if(o.userData.kind==='ship'){const r=o.userData.ref;setCam('vessel');toast(t('tipTitle')+' · '+r.route+' · '+Math.round(r.t*100)+'%');}
+ else if(o.userData.kind==='node'){const k=o.userData.key;orbitFree=false;camMode='free';camGoal.tgt.copy(NODES[k].pos);camGoal.pos.set(NODES[k].pos.x-10,15,NODES[k].pos.z+22);toast(t(nodeKeyMap[k]));}});
+addEventListener('keydown',e=>{const p=document.getElementById('btnPause');
+ if(e.code==='Space'){paused=!paused;p.classList.toggle('on',paused);e.preventDefault();}
+ else if(e.key==='+'||e.key==='='){speedMul=Math.min(4,speedMul+.5);toast('×'+speedMul);}
+ else if(e.key==='-'||e.key==='_'){speedMul=Math.max(.5,speedMul-.5);toast('×'+speedMul);}
+ else if(['1','2','3','4'].includes(e.key)){setCam(['orbit','corridor','chokepoint','vessel'][+e.key-1]);}});
+document.getElementById('btnPause').onclick=function(){paused=!paused;this.classList.toggle('on',paused);};
+document.getElementById('btnSlow').onclick=()=>{speedMul=Math.max(.5,speedMul-.5);toast('×'+speedMul);};
+document.getElementById('btnFast').onclick=()=>{speedMul=Math.min(4,speedMul+.5);toast('×'+speedMul);};
+
+document.querySelectorAll('.st').forEach(b=>b.onclick=()=>{
+ const st=b.dataset.st;
+ opState=st;
+ document.querySelectorAll('.st').forEach(x=>x.classList.toggle('on',x.dataset.st===st));
+ if(st==='NORMAL'){resetScene();}
+ else if(st==='HORMUZ_BLOCKED'){resetScene();opState=st;setDomainFailure(true);showRoutes(['B','C']);}
+ else if(st==='EARLY_WARNING'){resetScene();opState=st;alertLevel=1;showRoutes(['A','B','C']);logEv('Early warning','Amber');}
+ else if(st==='DUQM_EXPRESS'){resetScene();opState=st;showRoutes(['B']);highlight('B');logEv('Duqm Express route','Green');}
+ else if(st==='SALALAH_DEEPSEA'){resetScene();opState=st;showRoutes(['C']);highlight('C');logEv('Salalah deep-sea route','Green');}
+ else if(st==='DEGRADED_OFFLINE'){runSim('cyber');return;}
+ startMetEngine();
+});
+
+document.getElementById('vCyan').oninput=function(){vCyan=+this.value;document.getElementById('vCyanV').textContent=vCyan.toFixed(1)+'x';applyVC();};
+document.getElementById('vCyan').addEventListener('change',function(){toast(t('vCyan')+' '+vCyan.toFixed(1)+'x');logEv(t('vCyan')+' '+vCyan.toFixed(1)+'x','Green');});
+document.getElementById('vWave').oninput=function(){vWave=+this.value;document.getElementById('vWaveV').textContent=vWave.toFixed(1)+'x';};
+document.getElementById('vWave').addEventListener('change',function(){toast(t('vWave')+' '+vWave.toFixed(1)+'x');logEv(t('vWave')+' '+vWave.toFixed(1)+'x','Green');});
+document.getElementById('vPart').oninput=function(){vPart=+this.value;document.getElementById('vPartV').textContent=vPart.toFixed(1)+'x';applyVC();};
+document.getElementById('vPart').addEventListener('change',function(){toast(t('vParticles')+' '+vPart.toFixed(1)+'x');logEv(t('vParticles')+' '+vPart.toFixed(1)+'x','Green');});
+document.getElementById('vGrid').onclick=function(){showGrid=!showGrid;this.classList.toggle('on',showGrid);this.textContent=showGrid?'ON':'OFF';toast(t('vGrid')+': '+(showGrid?'ON':'OFF'));logEv(t('vGrid')+': '+(showGrid?'ON':'OFF'),showGrid?'Green':'Amber');};
+
+document.getElementById('btnPassport').onclick=()=>document.getElementById('passportModal').classList.add('show');
+document.getElementById('pClose').onclick=()=>document.getElementById('passportModal').classList.remove('show');
+document.getElementById('pOk').onclick=()=>document.getElementById('passportModal').classList.remove('show');
+
+function updateUPSC(){document.getElementById('pUpscV').textContent=govHold?'HOLD':(metVals.upsc>0?'SAFE ('+metVals.upsc+'m)':'CLOSED');}
+setInterval(updateUPSC,500);
+
+document.querySelectorAll('.lang button').forEach(b=>b.onclick=()=>{lang=b.dataset.lang;document.querySelectorAll('.lang button').forEach(x=>x.classList.toggle('on',x===b));applyI18n();});
+const CAMKEY={orbit:'camOrbit',corridor:'camCorridor',chokepoint:'camChokepoint',vessel:'camVessel'};
+function camSim(c){
+ if(c==='orbit'){orbitFree=true;showRoutes(['A','B','C']);}
+ else if(c==='corridor'){highlight('B');}
+ else if(c==='chokepoint'){highlight('A');}
+ toast(t(CAMKEY[c]));logEv(t('camTitle')+': '+t(CAMKEY[c]),'Green');
+}
+document.querySelectorAll('.cam').forEach(b=>b.onclick=()=>{setCam(b.dataset.cam);camSim(b.dataset.cam);});
+document.querySelectorAll('.fn').forEach(b=>b.onclick=()=>runSim(b.dataset.fn));
+
+document.getElementById('btnResetTop').onclick=()=>{resetScene();setCam('orbit');panel.classList.remove('show');activeFn=null;document.querySelectorAll('.fn').forEach(b=>b.classList.remove('active'));setStatus(t('ready'));logEv(t('fnReset'),'Green');openInfo('Reset','<p>'+t('simReset')[0]+'</p><p>'+t('simReset')[1]+'</p>',[]);};
+
+refreshLabelText();renderLegend();applyI18n();setCam('orbit');setStatus(t('ready'));startMetEngine();
+</script>
+</body>
+</html>
