@@ -1,0 +1,2228 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>IPIRANGA FUEL-HARMONY™ 3D Protótipo</title>
+<meta name="description" content="Protótipo interativo 3D de IPIRANGA FUEL-HARMONY™ — Dr. Julio César Oporta Barrera." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  html, body { height: 100%; }
+  body { color: #f8fafc; background-color: #0f172a; font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif; overflow: hidden; margin: 0; }
+  .font-mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  #root { height: 100vh; width: 100vw; }
+  canvas { display: block; cursor: pointer; }
+  @keyframes pulse { 50% { opacity: .5; } }
+  @keyframes bounce { 0%,to { animation-timing-function: cubic-bezier(.8,0,1,1); transform: translateY(-25%); } 50% { animation-timing-function: cubic-bezier(0,0,.2,1); transform: none; } }
+  @keyframes flash { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  @keyframes hash-verify { 0% { background-position: 0 0; } 100% { background-position: 200% 0; } }
+  @keyframes panel-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(6,182,212,0.6); } 50% { box-shadow: 0 0 22px 6px rgba(6,182,212,0.55); } }
+  @keyframes holographic-scan { 0% { transform: translateY(110%); opacity:0; } 25% { opacity: .9; } 100% { transform: translateY(-110%); opacity:0; } }
+  @keyframes tooltip-in { 0% { opacity:0; transform: translate(-50%, 12px) scale(0.96); } 100% { opacity:1; transform: translate(-50%, 0) scale(1); } }
+  @keyframes tooltip-out { 0% { opacity:1; transform: translate(-50%, 0) scale(1); } 100% { opacity:0; transform: translate(-50%, -8px) scale(0.96); } }
+  @keyframes ripple { 0% { transform: translate(-50%,-50%) scale(0); opacity: 0.8; } 100% { transform: translate(-50%,-50%) scale(2.4); opacity: 0; } }
+  .animate-pulse { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
+  .animate-bounce { animation: bounce 1s infinite; }
+  .animate-flash { animation: flash 0.5s ease-in-out infinite; }
+  .animate-hash { background: linear-gradient(90deg,#0e7490,#22d3ee,#0e7490); background-size: 200% 100%; animation: hash-verify 1.1s linear infinite; }
+  .panel-active { animation: panel-pulse 0.9s ease-in-out; }
+  .scanline { position: relative; overflow: hidden; }
+  .scanline::after { content:''; position:absolute; inset:0; background: linear-gradient(180deg, transparent, rgba(34,211,238,.4), transparent); animation: holographic-scan 1s ease-in-out; pointer-events:none; }
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: #0f172a; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  #boot-error { display:none; position:fixed; inset:0; z-index:9999; background:#0f172a; color:#f8fafc; align-items:center; justify-content:center; padding:24px; font-family:sans-serif; }
+  #boot-error.show { display:flex; }
+  .panel-collapse-btn { transition: transform 0.25s ease; }
+  .panel-collapse-btn.collapsed { transform: rotate(-90deg); }
+  .tooltip-card { animation: tooltip-in 0.28s cubic-bezier(.2,.9,.3,1.2) forwards; }
+  .tooltip-card.leaving { animation: tooltip-out 0.35s ease-in forwards; }
+  .click-ripple { position: fixed; width: 60px; height: 60px; border: 2px solid #22d3ee; border-radius: 50%; pointer-events: none; animation: ripple 0.6s ease-out forwards; z-index: 30; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="boot-error">
+  <div style="max-width:520px;text-align:center">
+    <h2 style="font-size:20px;font-weight:800;margin-bottom:12px;color:#f43f5e">Não foi possível inicializar o protótipo</h2>
+    <p style="font-size:14px;line-height:1.6;color:#cbd5e1">Verifique sua <strong>conexão com a internet</strong> na primeira execução. Depois recarregue a página com <code style="background:#1e293b;padding:2px 6px;border-radius:4px">Ctrl+F5</code>.</p>
+  </div>
+</div>
+
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.25.6/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+// ============================================================
+//   IPIRANGA FUEL-HARMONY™  —  Protótipo 3D interativo
+//   Dr. Julio César Oporta Barrera
+//   React 18 UMD + Three.js r147 UMD + Babel Standalone
+//   Idiomas: Português (BR) · English · Español
+//   v4.0 — Módulos: VRU · Additive Injection · Pipeline PIG · Fire Suppression
+// ============================================================
+const { useRef, useEffect, useState, useCallback } = React;
+
+/* ============================================================
+   i18n
+   ============================================================ */
+const I18N = {
+  pt: {
+    authorRole: 'Autor & Proponente de Patente · Sistema Integrado de Decisão Operacional',
+    systemTagline: 'Sistema Integrado de Decisão Operacional Verificável para Recebimento, Transferência e Controle de Qualidade de Combustíveis',
+    modesTitle: 'Modo Operacional',
+    modeShadow: 'Modo Sombra', modeActive: 'Transferência Ativa', modeQuarantine: 'Quarentena Qualidade', modeLockout: 'Interlock HAZOP', modeSwarm: 'Enxame IA',
+    modeVRU: 'Recuperação Vapores', modeAdditive: 'Injeção Aditivos', modeFire: 'Supressão Incêndio',
+    camGlobal: 'Panorâmica', camTruck: 'Cisterna', camTanks: 'Tanques', camLab: 'Lab & Sede', camDrone: 'Drone IA',
+    camReset: 'Restaurar Vista',
+    layoutComplete: 'Completo', layoutCompact: 'Compacto', layoutMinimal: 'Mínimo',
+    layoutLabel: 'Vista',
+    hudDigitalTwin: 'GÊMEO DIGITAL 3D', hudBatchPassport: 'PASSAPORTE DE LOTE', hudDecisionEngine: 'MOTOR DE DECISÕES', hudTankState: 'ESTADO DOS TANQUES',
+    hudFireGas: 'MATRIZ FOGO & GÁS', hudVaporRecovery: 'RECUPERAÇÃO DE VAPORES', hudPipelinePig: 'PIG DE INTEGRIDADE',
+    batchId: 'ID do Lote', carrier: 'Caminhão Cisterna', density20C: 'Densidade @20°C', ethanolPercent: 'Etanol Anidro', sulfurPpm: 'Enxofre Total', flashPoint: 'Ponto de Fulgor',
+    compliant: 'CONFORME ANP', nonCompliant: 'NÃO CONFORME',
+    flowRate: 'Vazão', level: 'Nível', temp: 'Temp.', pressure: 'Pressão', strat: 'Estrat.', homogeneous: 'Homogêneo', stratified: 'Estratificado',
+    syncLabel: 'Sincronia', sensorsLabel: 'Sensores', fpsLabel: 'FPS', coreLabel: 'Núcleo', onlineLabel: '4/4 EM LINHA',
+    fireDetectors: 'Detectores', fireSuppression: 'Supressão', fireFoamReserve: 'Reserva Espuma', fireLastTest: 'Último Teste',
+    stateArmed: 'ARMADO', stateTriggered: 'ACIONADO', stateStandby: 'STANDBY', stateActive: 'ATIVO', stateIdle: 'INATIVO', stateOnline: 'EM LINHA',
+    vaporRecoveryRate: 'Taxa Recup.', vaporEmissions: 'Emissões VOC', vaporVruStatus: 'Status VRU', vaporVocCaptured: 'VOC Capturado',
+    pigPosition: 'Posição PIG', pigVelocity: 'Velocidade', pigLastRun: 'Última Corrida', pigIntegrity: 'Integridade',
+    additiveRate: 'Taxa Injeção', additiveType: 'Aditivo', additiveRemaining: 'Restante', additiveDosage: 'Dosagem',
+    hazopStatus: { NORMAL: 'NORMAL', ALERT: 'ALERTA', TRIPPED: 'DISPARADO' },
+    instIpirangaName: 'TERMINAL DE DISTRIBUIÇÃO IPIRANGA', instIpirangaDesc: 'Infraestrutura de armazenamento, manifold e despacho de hidrocarbonetos.',
+    instOportaName: 'CENTRO DE P&D DR. OPORTO', instOportaDesc: 'Laboratório, Quality Exception Cell e nó mestre FUEL-HARMONY™.',
+    btnSimulateFault: 'Simular Desvio', btnResetSystem: 'Restaurar Sistema', btnEmergencyStop: 'PARADA EMERGÊNCIA', btnPatent: 'Plano Patente', btnOmnia: 'OMNIA-5000',
+    btnCinemaMode: 'Modo Cinema', btnShowHUD: 'Mostrar HUD',
+    btnHidePanels: 'Ocultar Painéis', btnShowPanels: 'Mostrar Painéis',
+    btnHideAuthor: 'Ocultar Autor', btnShowAuthor: 'Mostrar Autor',
+    toggleWireframe: 'Capa Holográfica Gêmeo Digital', toggleParticles: 'Fluxo de Partículas', toggleDrones: 'Enxame IA',
+    omniaTitle: 'Protocolo de Auditoria OMNIA-5000', omniaDesc: 'Verificação de 12 pontos de rigor de engenharia segundo o Manual Mestre:',
+    omniaItems: [
+      '01. Definição única do objeto e escopo operacional','02. Entradas e saídas parametrizadas','03. Dicionário matemático de KPIs','04. Controle de falha e modos degradados',
+      '05. Matriz RACI e responsabilidades','06. Protocolos de teste e aceitação','07. Registro de mudanças e controle de versões','08. Separação entre proposta e evidência',
+      '09. Cibersegurança OT (IEC 62443) e NR-20','10. Entregáveis e transferência tecnológica','11. Critérios GO / NO-GO antes de licenciar','12. Fechamento rastreável de achados'
+    ],
+    omniaStatus: 'CONFORME',
+    patentTitle: 'IPIRANGA FUEL-HARMONY™ · Arquitetura de Patente', patentSubtitle: 'Dr. Julio César Oporta Barrera · Representação Técnica',
+    patentSchema: 'ESQUEMA MESTRE DE INTEGRAÇÃO FÍSICA E DIGITAL', patentPlatform: 'PLATAFORMA CENTRAL E CONDUITS',
+    patent01: '01. ENTRADA & DOCA CISTERNA', patent01Desc: 'Recebimento de cisterna Bitrem, condutividade estática, aterramento e verificação de passaporte digital.',
+    patent02: '02. MOTOR DE DECISÕES & ENXAME IA', patent02Desc: 'Validação determinística ANP, risco de estratificação e interlocks SIL-2.',
+    patent03: '03. BATERIA DE TANQUES & CONTENÇÃO', patent03Desc: 'Distribuição para T-01..T-04 com telemetria multinível e desvio para quarentena.',
+    patentIpiranga: 'IPIRANGA · Infraestrutura Industrial', patentIpirangaDesc: 'Tanques de armazenamento, manifold, baías e edifício corporativo.',
+    patentOporto: 'DR. OPORTO · P&D & Quality Exception Cell', patentOportoDesc: 'Certificação analítica, algoritmos preditivos, enxame e governança OMNIA-5000.',
+    close: 'Fechar', ruleLabel: 'Regras:', hashLabel: 'SHA256:', patentPending: 'Patente em Trâmite',
+    manualTitle: 'Manual Técnico Mestre · 2026',
+    modeLabels: { shadow: 'Modo Sombra (Validação Paralela)', active: 'Transferência Ativa (Bombeamento)', quarantine: 'Célula de Exceção de Qualidade (Isolamento)', lockout: 'Interlock HAZOP (Parada de Segurança)', swarm_sync: 'Sincronia Enxame IA', vru_active: 'Recuperação de Vapores VRU (Emissões Zero)', additive_injection: 'Injeção de Aditivos (Dosagem Controlada)', emergency_fire: 'Supressão de Incêndio (Emergência NR-20)' },
+    rules: ['R101 (ANP)', 'R112 (Cavitação)', 'R131 (Térmico)', 'R152 (Interlock Bomba)'],
+    tanks: ['Gasolina Aditivada', 'Diesel S-10', 'Etanol Hidratado', 'Gasolina Comum'],
+    recommendation: { AUTHORIZE: 'AUTORIZAR', HOLD_FOR_RESAMPLE: 'RETER / RE-AMOSTRAR', REJECT_INTERLOCK: 'REJEITAR / INTERLOCK', FIRE_EMERGENCY: 'EMERGÊNCIA INCÊNDIO' },
+    toast: {
+      tankSelect: 'Tanque selecionado — câmera e telemetria atualizadas',
+      twinPulse: 'Gêmeo digital: sincronização espectral completa',
+      passportScan: 'Passaporte de lote: hash SHA-256 verificado',
+      decisionEval: 'Motor de decisões: 4 regras avaliadas em 12 ms',
+      tankProbe: 'Sonda multinível: estratificação homogênea confirmada',
+      qualityScan: 'Espectrometria NIR: sem desvios detectados',
+      swarmScan: 'Enxame IA: 6 nós sincronizados',
+      omnia: 'OMNIA-5000: 12/12 critérios conformes',
+      patent: 'Plano de patente aberto',
+      viewReset: 'Vista da câmera restaurada ao enquadramento inicial',
+      systemReset: 'Sistema restaurado: modo Sombra, tanques, lote, decisão e vistas no estado inicial',
+      vruActive: 'VRU ativa: recuperando vapores orgânicos a 97,4%',
+      additiveActive: 'Injeção de aditivo ativa: dosagem 25 ppm',
+      fireActive: 'Supressão de incêndio armada: monitores pressurizados',
+      isolate: 'Tanque isolado — válvula de bloqueio fechada',
+      unisolate: 'Tanque reaberto — válvula de bloqueio liberada',
+      hover: 'Passe o mouse sobre um tanque para destacar'
+    },
+    objects: {
+      tank:      { title: 'Tanque de Armazenamento', desc: 'Recipiente cilíndrico horizontal T-01..T-04 com telemetria multinível. Clique para selecionar, duplo-clique para isolar a válvula de bloqueio.' },
+      dock:      { title: 'Doca de Recebimento', desc: 'Muelle de acoplamento hermético para caminhão cisterna Bitrem. Contém aterramento estático e leitura do Passaporte Digital do lote.' },
+      truck:     { title: 'Caminhão Cisterna Bitrem', desc: 'Veículo de transporte com 45.000 L de combustível. Origem: Refinaria Duque de Caxias (REDUC).' },
+      hose:      { title: 'Mangueira de Transferência', desc: 'Acoplamento flexível que conecta a cisterna ao manifold. Suporta 1.450 L/min nominais.' },
+      manifold:  { title: 'Manifold de Distribuição', desc: 'Coletor principal com válvulas motorizadas SIL-2. Roteia o lote para o tanque destino.' },
+      pipe:      { title: 'Tubulação de Transferência', desc: 'Rede de aço-carbono. O fluxo luminoso representa as partículas de combustível em tempo real.' },
+      hub:       { title: 'Terminal Central Ipiranga', desc: 'Sede operacional. Centraliza ERP, SCADA, LIMS e o nó de decisão OMNIA-5000.' },
+      lab:       { title: 'Centro de P&D Dr. Oporto', desc: 'Laboratório de certificação analítica. Hospeda o Quality Exception Cell™ e o Digital Twin™.' },
+      solar:     { title: 'Matriz Solar Fotovoltaica', desc: 'Geração híbrida de energia limpa. Fornece 184 kW, evitando 1.420 kg CO₂e por operação.' },
+      parking:   { title: 'Pátio de Estacionamento', desc: 'Área de manobra monitorada por geofencing para sincronização com o despacho.' },
+      drone:     { title: 'Drone de Enxame IA', desc: 'Inspeção não intrusiva com termografia, leitura de densímetros e varredura de nível.' },
+      sensor:    { title: 'Nó Sensor IoT', desc: 'Ponto da malha de sensores. Coleta dados de processo e alimenta o Gêmeo Digital 3D.' },
+      platform:  { title: 'Plataforma Central', desc: 'Base operacional projetada conforme NR-20 com contenção secundária.' },
+      particles: { title: 'Fluxo de Combustível', desc: 'Visualização do lote em transferência. Cor e velocidade variam por modo e vazão.' },
+      ground:    { title: 'Área do Terminal', desc: 'Superfície com faixas, drenagem e delimitação de zonas ATEX / NR-20.' },
+      label3d:   { title: 'Identificador Visual', desc: 'Etiqueta holográfica para rastreabilidade visual em inspeções remotas.' },
+      vru:       { title: 'Unidade de Recuperação de Vapores (VRU)', desc: 'Torre de adsorção que captura vapores orgânicos (VOC) da transferência e os recicla ao processo. Ativa no modo Recuperação Vapores.' },
+      additiveSkid: { title: 'Skid de Injeção de Aditivos', desc: 'Unidade dosadora que injeta aditivos (detergente, anticorrosivo, marcador) no fluxo principal na proporção configurada. Ativa no modo Injeção Aditivos.' },
+      pig:       { title: 'PIG de Integridade de Ducto', desc: 'Esfera instrumentada que percorre a tubulação inspecionando espessura, corrosão e vazamentos. Ativa nos modos Transferência e Injeção.' },
+      fireMonitor: { title: 'Monitor de Supressão de Incêndio', desc: 'Bicos pressurizados de espuma AFFF que cobrem os tanques em caso de incêndio. Ativos no modo Supressão de Incêndio.' }
+    }
+  },
+  en: {
+    authorRole: 'Author & Patent Proponent · Comprehensive Operational Decision System',
+    systemTagline: 'Comprehensive Verifiable Operational Decision System for Fuel Reception, Transfer, and Quality Control',
+    modesTitle: 'Operational Mode',
+    modeShadow: 'Shadow Mode', modeActive: 'Active Transfer', modeQuarantine: 'Quality Quarantine', modeLockout: 'HAZOP Lockout', modeSwarm: 'Swarm AI',
+    modeVRU: 'Vapor Recovery', modeAdditive: 'Additive Injection', modeFire: 'Fire Suppression',
+    camGlobal: 'Panoramic', camTruck: 'Tanker', camTanks: 'Tanks', camLab: 'Lab & HQ', camDrone: 'Drone AI',
+    camReset: 'Reset View',
+    layoutComplete: 'Complete', layoutCompact: 'Compact', layoutMinimal: 'Minimal',
+    layoutLabel: 'View',
+    hudDigitalTwin: '3D DIGITAL TWIN', hudBatchPassport: 'BATCH PASSPORT', hudDecisionEngine: 'DECISION ENGINE', hudTankState: 'TANK STATE',
+    hudFireGas: 'FIRE & GAS SAFETY', hudVaporRecovery: 'VAPOR RECOVERY', hudPipelinePig: 'PIPELINE PIG',
+    batchId: 'Batch ID', carrier: 'Cistern Truck', density20C: 'Density @20°C', ethanolPercent: 'Anhydrous Ethanol', sulfurPpm: 'Total Sulfur', flashPoint: 'Flash Point',
+    compliant: 'ANP COMPLIANT', nonCompliant: 'NON-COMPLIANT',
+    flowRate: 'Flow Rate', level: 'Level', temp: 'Temp.', pressure: 'Pressure', strat: 'Strat.', homogeneous: 'Homogeneous', stratified: 'Stratified',
+    syncLabel: 'Sync', sensorsLabel: 'Sensors', fpsLabel: 'FPS', coreLabel: 'Core', onlineLabel: '4/4 ONLINE',
+    fireDetectors: 'Detectors', fireSuppression: 'Suppression', fireFoamReserve: 'Foam Reserve', fireLastTest: 'Last Test',
+    stateArmed: 'ARMED', stateTriggered: 'TRIGGERED', stateStandby: 'STANDBY', stateActive: 'ACTIVE', stateIdle: 'IDLE', stateOnline: 'ONLINE',
+    vaporRecoveryRate: 'Recovery Rate', vaporEmissions: 'VOC Emissions', vaporVruStatus: 'VRU Status', vaporVocCaptured: 'VOC Captured',
+    pigPosition: 'PIG Position', pigVelocity: 'Velocity', pigLastRun: 'Last Run', pigIntegrity: 'Integrity',
+    additiveRate: 'Injection Rate', additiveType: 'Additive', additiveRemaining: 'Remaining', additiveDosage: 'Dosage',
+    hazopStatus: { NORMAL: 'NORMAL', ALERT: 'ALERT', TRIPPED: 'TRIPPED' },
+    instIpirangaName: 'IPIRANGA DISTRIBUTION TERMINAL', instIpirangaDesc: 'Bulk hydrocarbon storage, manifold, and dispatch infrastructure.',
+    instOportaName: 'DR. OPORTO R&D CENTER', instOportaDesc: 'Laboratory, Quality Exception Cell, and FUEL-HARMONY™ master node.',
+    btnSimulateFault: 'Simulate Fault', btnResetSystem: 'Reset System', btnEmergencyStop: 'EMERGENCY STOP', btnPatent: 'Patent Blueprint', btnOmnia: 'OMNIA-5000',
+    btnCinemaMode: 'Cinema Mode', btnShowHUD: 'Show HUD',
+    btnHidePanels: 'Hide Panels', btnShowPanels: 'Show Panels',
+    btnHideAuthor: 'Hide Author', btnShowAuthor: 'Show Author',
+    toggleWireframe: 'Holographic Digital Twin Layer', toggleParticles: 'Fuel Particle Flow', toggleDrones: 'Swarm AI Inspection',
+    omniaTitle: 'OMNIA-5000 Audit Protocol', omniaDesc: '12-point engineering rigor verification according to the Master Manual:',
+    omniaItems: [
+      '01. Unique object definition and operational scope','02. Parameterized and auditable inputs/outputs','03. Mathematical KPI dictionary','04. Failure control and degraded modes',
+      '05. RACI matrix and assigned responsibilities','06. Testing protocols and acceptance criteria','07. Change registry and version control','08. Separation of design vs. field evidence',
+      '09. Industrial OT cybersecurity (IEC 62443) and NR-20','10. Engineering deliverables and technological transfer','11. GO / NO-GO gating before licensing','12. Traceable audit findings closure'
+    ],
+    omniaStatus: 'COMPLIANT',
+    patentTitle: 'IPIRANGA FUEL-HARMONY™ · Patent Architecture', patentSubtitle: 'Dr. Julio César Oporta Barrera · Technical Representation',
+    patentSchema: 'MASTER PHYSICAL & DIGITAL INTEGRATION SCHEMA', patentPlatform: 'CENTRAL PLATFORM & CONDUITS',
+    patent01: '01. INLET & TANKER DOCK', patent01Desc: 'Bitrem tanker reception, static conductivity, grounding, and digital passport verification.',
+    patent02: '02. DECISION ENGINE & AI SWARM', patent02Desc: 'Deterministic ANP validation, stratification risk, and SIL-2 valve interlocks.',
+    patent03: '03. TANK BATTERY & CONTAINMENT', patent03Desc: 'Distribution to T-01..T-04 with multi-level telemetry and quarantine diversion.',
+    patentIpiranga: 'IPIRANGA · Industrial Infrastructure', patentIpirangaDesc: 'Bulk storage tanks, manifold, parking bays, and corporate building.',
+    patentOporto: 'DR. OPORTO · R&D & Quality Exception Cell', patentOportoDesc: 'Analytical batch certification, predictive algorithms, swarm inspection, and OMNIA-5000 governance.',
+    close: 'Close', ruleLabel: 'Rules:', hashLabel: 'SHA256:', patentPending: 'Patent Pending',
+    manualTitle: 'Master Technical Manual · 2026',
+    modeLabels: { shadow: 'Shadow Mode (Parallel Validation)', active: 'Active Transfer (Dynamic Pumping)', quarantine: 'Quality Exception Cell (Isolation)', lockout: 'HAZOP Safety Interlock (Shutdown)', swarm_sync: 'Swarm AI Sync', vru_active: 'Vapor Recovery VRU (Zero Emissions)', additive_injection: 'Additive Injection (Controlled Dosing)', emergency_fire: 'Fire Suppression (NR-20 Emergency)' },
+    rules: ['R101 (ANP)', 'R112 (Cavitation)', 'R131 (Thermal)', 'R152 (Pump Interlock)'],
+    tanks: ['Additive Gasoline', 'Diesel S-10', 'Hydrous Ethanol', 'Regular Gasoline'],
+    recommendation: { AUTHORIZE: 'AUTHORIZE', HOLD_FOR_RESAMPLE: 'HOLD / RESAMPLE', REJECT_INTERLOCK: 'REJECT / INTERLOCK', FIRE_EMERGENCY: 'FIRE EMERGENCY' },
+    toast: {
+      tankSelect: 'Tank selected — camera and telemetry updated',
+      twinPulse: 'Digital Twin: full spectral sync completed',
+      passportScan: 'Batch passport: SHA-256 hash verified',
+      decisionEval: 'Decision Engine: 4 rules evaluated in 12 ms',
+      tankProbe: 'Multi-level probe: stratification confirmed homogeneous',
+      qualityScan: 'NIR spectrometry: no deviations detected',
+      swarmScan: 'AI Swarm: 6 nodes synchronized',
+      omnia: 'OMNIA-5000: 12/12 criteria compliant',
+      patent: 'Patent blueprint opened',
+      viewReset: 'Camera view restored to initial framing',
+      systemReset: 'System reset: Shadow mode, tanks, batch, decision and views restored to initial state',
+      vruActive: 'VRU active: recovering organic vapors at 97.4%',
+      additiveActive: 'Additive injection active: 25 ppm dosing',
+      fireActive: 'Fire suppression armed: pressurized monitors',
+      isolate: 'Tank isolated — isolation valve closed',
+      unisolate: 'Tank reopened — isolation valve released',
+      hover: 'Hover over a tank to highlight'
+    },
+    objects: {
+      tank:      { title: 'Storage Tank', desc: 'Horizontal cylindrical vessel T-01..T-04 with multi-level telemetry. Click to select, double-click to toggle isolation valve.' },
+      dock:      { title: 'Receiving Dock', desc: 'Hermetic coupling dock for Bitrem cistern truck. Includes static grounding and digital batch passport reading.' },
+      truck:     { title: 'Bitrem Cistern Truck', desc: 'Transport vehicle carrying 45,000 L of fuel. Origin: Duque de Caxias Refinery (REDUC).' },
+      hose:      { title: 'Transfer Hose', desc: 'Flexible coupling connecting cistern to manifold. Supports 1,450 L/min nominal.' },
+      manifold:  { title: 'Distribution Manifold', desc: 'Main collector with SIL-2 motorized valves. Routes the batch to the target tank.' },
+      pipe:      { title: 'Transfer Piping', desc: 'Carbon steel network. The luminous flow represents real-time fuel particles.' },
+      hub:       { title: 'Ipiranga Central Terminal', desc: 'Operations HQ. Centralizes ERP, SCADA, LIMS and OMNIA-5000 decision node.' },
+      lab:       { title: 'Dr. Oporto R&D Center', desc: 'Analytical certification lab. Hosts the Quality Exception Cell™ and Digital Twin™.' },
+      solar:     { title: 'Solar Photovoltaic Array', desc: 'Hybrid clean energy. Supplies 184 kW, avoiding 1,420 kg CO₂e per operation.' },
+      parking:   { title: 'Parking Yard', desc: 'Maneuvering area monitored by geofencing for dispatch synchronization.' },
+      drone:     { title: 'AI Swarm Drone', desc: 'Non-intrusive inspection with thermography, densitometer reading and level scanning.' },
+      sensor:    { title: 'IoT Sensor Node', desc: 'Sensor mesh point. Collects process data and feeds the 3D Digital Twin.' },
+      platform:  { title: 'Central Platform', desc: 'Operational base designed per NR-20 with secondary containment.' },
+      particles: { title: 'Fuel Flow', desc: 'Batch visualization in transfer. Color and speed vary by mode and flow.' },
+      ground:    { title: 'Terminal Area', desc: 'Surface with stripes, drainage and ATEX / NR-20 zone delimitation.' },
+      label3d:   { title: 'Visual Identifier', desc: 'Holographic label for visual traceability in remote inspections.' },
+      vru:       { title: 'Vapor Recovery Unit (VRU)', desc: 'Adsorption tower capturing organic vapors (VOC) from transfer and recycling them to process. Active in Vapor Recovery mode.' },
+      additiveSkid: { title: 'Additive Injection Skid', desc: 'Dosing unit injecting additives (detergent, anti-corrosion, marker) into the main stream at configured ratio. Active in Additive Injection mode.' },
+      pig:       { title: 'Pipeline Integrity PIG', desc: 'Instrumented sphere that travels through the pipeline inspecting thickness, corrosion and leaks. Active in Transfer and Injection modes.' },
+      fireMonitor: { title: 'Fire Suppression Monitor', desc: 'Pressurized AFFF foam nozzles covering the tanks in case of fire. Active in Fire Suppression mode.' }
+    }
+  },
+  es: {
+    authorRole: 'Autor & Proponente de Patente · Sistema Integral de Decisión Operativa',
+    systemTagline: 'Sistema Integral de Decisión Operativa Verificable para Recepción, Transferencia y Control de Calidad de Combustibles',
+    modesTitle: 'Modo Operativo',
+    modeShadow: 'Modo Sombra', modeActive: 'Transferencia Activa', modeQuarantine: 'Cuarentena Calidad', modeLockout: 'Interlock HAZOP', modeSwarm: 'Enjambre IA',
+    modeVRU: 'Recuperación Vapores', modeAdditive: 'Inyección Aditivos', modeFire: 'Supresión Incendio',
+    camGlobal: 'Panorámica', camTruck: 'Cisterna', camTanks: 'Tanques', camLab: 'Lab & Sede', camDrone: 'Dron IA',
+    camReset: 'Restablecer Vista',
+    layoutComplete: 'Completo', layoutCompact: 'Compacto', layoutMinimal: 'Mínimo',
+    layoutLabel: 'Vista',
+    hudDigitalTwin: 'GEMELO DIGITAL 3D', hudBatchPassport: 'PASAPORTE DE LOTE', hudDecisionEngine: 'MOTOR DE DECISIONES', hudTankState: 'ESTADO DE TANQUES',
+    hudFireGas: 'MATRIZ FUEGO & GAS', hudVaporRecovery: 'RECUPERACIÓN DE VAPORES', hudPipelinePig: 'PIG DE INTEGRIDAD',
+    batchId: 'ID de Lote', carrier: 'Camión Cisterna', density20C: 'Densidad @20°C', ethanolPercent: 'Etanol Anhidro', sulfurPpm: 'Azufre Total', flashPoint: 'Punto Inflamación',
+    compliant: 'CONFORME ANP', nonCompliant: 'NO CONFORME',
+    flowRate: 'Caudal', level: 'Nivel', temp: 'Temp.', pressure: 'Presión', strat: 'Estrat.', homogeneous: 'Homogéneo', stratified: 'Estratificado',
+    syncLabel: 'Sincronía', sensorsLabel: 'Sensores', fpsLabel: 'FPS', coreLabel: 'Núcleo', onlineLabel: '4/4 EN LÍNEA',
+    fireDetectors: 'Detectores', fireSuppression: 'Supresión', fireFoamReserve: 'Reserva Espuma', fireLastTest: 'Último Test',
+    stateArmed: 'ARMADO', stateTriggered: 'ACCIONADO', stateStandby: 'STANDBY', stateActive: 'ACTIVO', stateIdle: 'INACTIVO', stateOnline: 'EN LÍNEA',
+    vaporRecoveryRate: 'Tasa Recup.', vaporEmissions: 'Emisiones VOC', vaporVruStatus: 'Estado VRU', vaporVocCaptured: 'VOC Capturado',
+    pigPosition: 'Posición PIG', pigVelocity: 'Velocidad', pigLastRun: 'Última Corrida', pigIntegrity: 'Integridad',
+    additiveRate: 'Tasa Inyección', additiveType: 'Aditivo', additiveRemaining: 'Restante', additiveDosage: 'Dosificación',
+    hazopStatus: { NORMAL: 'NORMAL', ALERT: 'ALERTA', TRIPPED: 'DISPARADO' },
+    instIpirangaName: 'TERMINAL DE DISTRIBUCIÓN IPIRANGA', instIpirangaDesc: 'Infraestructura de almacenamiento, manifold y despacho de hidrocarburos.',
+    instOportaName: 'CENTRO DE I+D DR. OPORTO', instOportaDesc: 'Laboratorio, Quality Exception Cell y nodo maestro FUEL-HARMONY™.',
+    btnSimulateFault: 'Simular Desviación', btnResetSystem: 'Restablecer Sistema', btnEmergencyStop: 'PARO EMERGENCIA', btnPatent: 'Plano Patente', btnOmnia: 'OMNIA-5000',
+    btnCinemaMode: 'Modo Cine', btnShowHUD: 'Mostrar HUD',
+    btnHidePanels: 'Ocultar Paneles', btnShowPanels: 'Mostrar Paneles',
+    btnHideAuthor: 'Ocultar Autor', btnShowAuthor: 'Mostrar Autor',
+    toggleWireframe: 'Capa Holográfica Digital Twin', toggleParticles: 'Flujo de Partículas', toggleDrones: 'Enjambre IA',
+    omniaTitle: 'Protocolo de Auditoría OMNIA-5000', omniaDesc: 'Verificación de 12 puntos de rigor de ingeniería según el Manual Maestro:',
+    omniaItems: [
+      '01. Definición única del objeto y alcance operativo','02. Entradas y salidas parametrizadas','03. Métricas y diccionario de KPIs con rigor matemático','04. Control de fallo y modos degradados',
+      '05. Matriz RACI y responsabilidades','06. Protocolos de prueba y aceptación','07. Registro de cambios y control de versiones','08. Separación entre propuesta y evidencia',
+      '09. Ciberseguridad OT (IEC 62443) y NR-20','10. Entregables y transferencia tecnológica','11. Criterios GO / NO-GO antes de licenciar','12. Cierre trazable de hallazgos'
+    ],
+    omniaStatus: 'CONFORME',
+    patentTitle: 'IPIRANGA FUEL-HARMONY™ · Arquitectura de Patente', patentSubtitle: 'Dr. Julio César Oporta Barrera · Representación Técnica',
+    patentSchema: 'ESQUEMA MAESTRO DE INTEGRACIÓN FÍSICA Y DIGITAL', patentPlatform: 'PLATAFORMA CENTRAL Y CONDUITS',
+    patent01: '01. ENTRADA & MUELLE CISTERNA', patent01Desc: 'Recepción de cisterna Bitrem, conductividad estática, puesta a tierra y verificación de pasaporte digital.',
+    patent02: '02. MOTOR DE DECISIONES & ENJAMBRE IA', patent02Desc: 'Validación determinística ANP, riesgo de estratificación e interlocks SIL-2.',
+    patent03: '03. BATERÍA TANQUES & CONTENCIÓN', patent03Desc: 'Distribución a T-01..T-04 con telemetría multinivel y desvío a cuarentena.',
+    patentIpiranga: 'IPIRANGA · Infraestructura Industrial', patentIpirangaDesc: 'Tanques de almacenamiento, manifold, bahías y edificio corporativo.',
+    patentOporto: 'DR. OPORTO · I+D & Quality Exception Cell', patentOportoDesc: 'Certificación analítica, algoritmos predictivos, enjambre y gobernanza OMNIA-5000.',
+    close: 'Cerrar', ruleLabel: 'Reglas:', hashLabel: 'SHA256:', patentPending: 'Patente en Trámite',
+    manualTitle: 'Manual Técnico Maestro · 2026',
+    modeLabels: { shadow: 'Modo Sombra (Validación Paralela)', active: 'Transferencia Activa (Bombeo)', quarantine: 'Célula Excepción Calidad (Aislamiento)', lockout: 'Interlock HAZOP (Paro Seguridad)', swarm_sync: 'Sincronía Enjambre IA', vru_active: 'Recuperación de Vapores VRU (Cero Emisiones)', additive_injection: 'Inyección de Aditivos (Dosificación Controlada)', emergency_fire: 'Supresión de Incendio (Emergencia NR-20)' },
+    rules: ['R101 (ANP)', 'R112 (Cavitación)', 'R131 (Térmico)', 'R152 (Interlock Bomba)'],
+    tanks: ['Gasolina Aditivada', 'Diésel S-10', 'Etanol Hidratado', 'Gasolina Común'],
+    recommendation: { AUTHORIZE: 'AUTORIZAR', HOLD_FOR_RESAMPLE: 'RETENER / RE-MUESTREAR', REJECT_INTERLOCK: 'RECHAZAR / INTERLOCK', FIRE_EMERGENCY: 'EMERGENCIA INCENDIO' },
+    toast: {
+      tankSelect: 'Tanque seleccionado — cámara y telemetría actualizadas',
+      twinPulse: 'Gemelo digital: sincronización espectral completa',
+      passportScan: 'Pasaporte de lote: hash SHA-256 verificado',
+      decisionEval: 'Motor de decisiones: 4 reglas evaluadas en 12 ms',
+      tankProbe: 'Sonda multinivel: estratificación confirmada homogénea',
+      qualityScan: 'Espectrometría NIR: sin desviaciones detectadas',
+      swarmScan: 'Enjambre IA: 6 nodos sincronizados',
+      omnia: 'OMNIA-5000: 12/12 criterios conformes',
+      patent: 'Plano de patente abierto',
+      viewReset: 'Vista de cámara restablecida al encuadre inicial',
+      systemReset: 'Sistema restablecido: modo Sombra, tanques, lote, decisión y vistas en estado inicial',
+      vruActive: 'VRU activa: recuperando vapores orgánicos al 97,4%',
+      additiveActive: 'Inyección de aditivo activa: dosificación 25 ppm',
+      fireActive: 'Supresión de incendio armada: monitores presurizados',
+      isolate: 'Tanque aislado — válvula de bloqueo cerrada',
+      unisolate: 'Tanque reabierto — válvula de bloqueo liberada',
+      hover: 'Pase el cursor sobre un tanque para resaltarlo'
+    },
+    objects: {
+      tank:      { title: 'Tanque de Almacenamiento', desc: 'Recipiente cilíndrico horizontal T-01..T-04 con telemetría multinivel. Clic para seleccionar, doble clic para aislar la válvula.' },
+      dock:      { title: 'Muelle de Recepción', desc: 'Doca de acople hermético para camión cisterna Bitrem. Incluye puesta a tierra y lectura de Pasaporte Digital.' },
+      truck:     { title: 'Camión Cisterna Bitrem', desc: 'Vehículo con 45.000 L de combustible. Origen: Refinería Duque de Caxias (REDUC).' },
+      hose:      { title: 'Manguera de Transferencia', desc: 'Acople flexible entre cisterna y manifold. Soporta 1.450 L/min nominales.' },
+      manifold:  { title: 'Manifold de Distribución', desc: 'Colector principal con válvulas SIL-2. Enruta el lote al tanque destino.' },
+      pipe:      { title: 'Tubería de Transferencia', desc: 'Red de acero-carbono. El flujo luminoso representa partículas en tiempo real.' },
+      hub:       { title: 'Terminal Central Ipiranga', desc: 'Sede operativa. Centraliza ERP, SCADA, LIMS y el nodo OMNIA-5000.' },
+      lab:       { title: 'Centro de I+D Dr. Oporto', desc: 'Laboratorio de certificación. Aloja el Quality Exception Cell™ y el Digital Twin™.' },
+      solar:     { title: 'Matriz Solar Fotovoltaica', desc: 'Generación híbrida. Aporta 184 kW, evitando 1.420 kg CO₂e por operación.' },
+      parking:   { title: 'Patio de Estacionamiento', desc: 'Área de maniobra monitoreada por geofencing.' },
+      drone:     { title: 'Dron de Enjambre IA', desc: 'Inspección no intrusiva con termografía, densímetros y barrido de nivel.' },
+      sensor:    { title: 'Nodo Sensor IoT', desc: 'Punto de la malla. Colecta datos y alimenta el Gemelo Digital 3D.' },
+      platform:  { title: 'Plataforma Central', desc: 'Base operativa según NR-20 con contención secundaria.' },
+      particles: { title: 'Flujo de Combustible', desc: 'Visualización del lote en transferencia. Color y velocidad varían por modo.' },
+      ground:    { title: 'Área del Terminal', desc: 'Superficie con franjas, drenaje y zonas ATEX / NR-20.' },
+      label3d:   { title: 'Identificador Visual', desc: 'Etiqueta holográfica para trazabilidad en inspecciones remotas.' },
+      vru:       { title: 'Unidad de Recuperación de Vapores (VRU)', desc: 'Torre de adsorción que captura vapores orgánicos (VOC) y los recicla al proceso. Activa en modo Recuperación Vapores.' },
+      additiveSkid: { title: 'Skid de Inyección de Aditivos', desc: 'Unidad dosificadora que inyecta aditivos (detergente, anticorrosivo, marcador) al flujo principal. Activa en modo Inyección Aditivos.' },
+      pig:       { title: 'PIG de Integridad de Ducto', desc: 'Esfera instrumentada que recorre la tubería inspeccionando espesor, corrosión y fugas. Activa en modos Transferencia e Inyección.' },
+      fireMonitor: { title: 'Monitor de Supresión de Incendio', desc: 'Boquillas presurizadas de espuma AFFF que cubren los tanques en caso de incendio. Activas en modo Supresión de Incendio.' }
+    }
+  }
+};
+
+/* ============================================================
+   Estado inicial
+   ============================================================ */
+const initialTanks = [
+  { id: 1, capacity: 200000, levelPct: 78, currentLitres: 156000, temperatureC: 21.4, pressureBar: 1.28, stratificationIndex: 0.08, isolated: false },
+  { id: 2, capacity: 200000, levelPct: 64, currentLitres: 128000, temperatureC: 22.1, pressureBar: 1.15, stratificationIndex: 0.12, isolated: false },
+  { id: 3, capacity: 200000, levelPct: 45, currentLitres: 90000,  temperatureC: 20.8, pressureBar: 0.98, stratificationIndex: 0.05, isolated: false },
+  { id: 4, capacity: 200000, levelPct: 89, currentLitres: 178000, temperatureC: 21.7, pressureBar: 1.42, stratificationIndex: 0.15, isolated: false }
+];
+const initialBatch = { batchId:'BR-2026-ETH9842', carrierTruckId:'TK-IPIRANGA-882 (Bitrem)', density20C:742.8, ethanolPercent:27.2, sulfurPpm:8.4, flashPointC:43.5, complianceANP:true, sha256Hash:'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' };
+const initialDecision = { recommendation:'AUTHORIZE', confidenceScore:99.4, hazopStatus:'NORMAL', flowRateLpm:1450, hybridPowerKw:184, co2AvoidedKg:1420 };
+const CAMERA_INITIAL = { pos: [34, 24, 42], target: [0, 4.5, 0] };
+
+/* ============================================================
+   Utilidades Three.js
+   ============================================================ */
+function makeLabelTexture(line1, bg, fg, line2, accent) {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 256;
+  const x = c.getContext('2d');
+  x.fillStyle = bg; x.fillRect(0, 0, c.width, c.height);
+  if (accent) { x.fillStyle = accent; x.fillRect(0, c.height-18, c.width, 18); x.fillRect(0, 0, c.width, 8); }
+  x.fillStyle = fg; x.font = 'bold 62px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText(line1, c.width/2, line2 ? 100 : c.height/2);
+  if (line2) { x.fillStyle = accent || '#94A3B8'; x.font = '600 28px sans-serif'; x.fillText(line2, c.width/2, 175); }
+  const t = new THREE.CanvasTexture(c); t.needsUpdate = true; return t;
+}
+function makeSpriteLabel(line1, bg, fg, line2, accent) {
+  const tex = makeLabelTexture(line1, bg, fg, line2, accent);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+  const s = new THREE.Sprite(mat);
+  s.scale.set(10, 2.5, 1); return s;
+}
+function makeStripedTexture() {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 64;
+  const x = c.getContext('2d');
+  x.fillStyle = '#0F172A'; x.fillRect(0, 0, c.width, c.height);
+  x.fillStyle = '#F59E0B';
+  for (let i = -c.height; i < c.width + c.height; i += 64) {
+    x.beginPath(); x.moveTo(i, c.height); x.lineTo(i+32, c.height); x.lineTo(i+32+c.height, 0); x.lineTo(i+c.height, 0); x.closePath(); x.fill();
+  }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(12, 1); t.needsUpdate = true; return t;
+}
+
+/* ============================================================
+   OrbitControls minimalista
+   ============================================================ */
+class SimpleOrbitControls {
+  constructor(camera, dom) {
+    this.camera = camera; this.dom = dom;
+    this.target = new THREE.Vector3();
+    this.enableDamping = true; this.dampingFactor = 0.08;
+    this.minDistance = 6; this.maxDistance = 180;
+    this.maxPolarAngle = Math.PI / 2 - 0.03;
+    this.minPolarAngle = 0.1;
+    this.spherical = new THREE.Spherical();
+    this.sphericalDelta = new THREE.Spherical(0, 0, 0);
+    this.scale = 1;
+    this.panOffset = new THREE.Vector3();
+    this.isDown = false; this.isPan = false;
+    this.lastX = 0; this.lastY = 0;
+    this.downX = 0; this.downY = 0;
+    this._onDown = this._onDown.bind(this);
+    this._onMove = this._onMove.bind(this);
+    this._onUp = this._onUp.bind(this);
+    this._onWheel = this._onWheel.bind(this);
+    this._onCtx = e => e.preventDefault();
+    dom.addEventListener('pointerdown', this._onDown);
+    window.addEventListener('pointermove', this._onMove);
+    window.addEventListener('pointerup', this._onUp);
+    dom.addEventListener('wheel', this._onWheel, { passive: false });
+    dom.addEventListener('contextmenu', this._onCtx);
+    this.update();
+  }
+  _onDown(e) { this.isDown = true; this.isPan = (e.button === 2) || e.shiftKey; this.lastX = e.clientX; this.lastY = e.clientY; this.downX = e.clientX; this.downY = e.clientY; }
+  _onMove(e) {
+    if (!this.isDown) return;
+    const dx = e.clientX - this.lastX, dy = e.clientY - this.lastY;
+    this.lastX = e.clientX; this.lastY = e.clientY;
+    if (this.isPan) {
+      const dist = this.camera.position.distanceTo(this.target);
+      const f = dist * 0.0018;
+      const m = this.camera.matrixWorld.elements;
+      const right = new THREE.Vector3(m[0], m[1], m[2]);
+      const up = new THREE.Vector3(m[4], m[5], m[6]);
+      this.panOffset.addScaledVector(right, -dx * f);
+      this.panOffset.addScaledVector(up, dy * f);
+    } else {
+      this.sphericalDelta.theta -= dx * 0.005;
+      this.sphericalDelta.phi   -= dy * 0.005;
+    }
+  }
+  _onUp(e) {
+    this.isDown = false;
+    const moved = Math.hypot(e.clientX - this.downX, e.clientY - this.downY);
+    if (moved < 5 && this.onClick) this.onClick(e);
+  }
+  _onWheel(e) { e.preventDefault(); const f = e.deltaY > 0 ? 1.08 : 0.92; this.scale *= f; }
+  update() {
+    const off = new THREE.Vector3().subVectors(this.camera.position, this.target);
+    this.spherical.setFromVector3(off);
+    this.spherical.theta += this.sphericalDelta.theta * (this.enableDamping ? this.dampingFactor : 1);
+    this.spherical.phi   += this.sphericalDelta.phi   * (this.enableDamping ? this.dampingFactor : 1);
+    this.spherical.phi = Math.max(this.minPolarAngle, Math.min(this.maxPolarAngle, this.spherical.phi));
+    this.spherical.radius = Math.max(this.minDistance, Math.min(this.maxDistance, this.spherical.radius * this.scale));
+    this.target.add(this.panOffset.clone().multiplyScalar(this.enableDamping ? this.dampingFactor : 1));
+    off.setFromSpherical(this.spherical);
+    this.camera.position.copy(this.target).add(off);
+    this.camera.lookAt(this.target);
+    if (this.enableDamping) {
+      this.sphericalDelta.theta *= (1 - this.dampingFactor);
+      this.sphericalDelta.phi   *= (1 - this.dampingFactor);
+      this.panOffset.multiplyScalar(1 - this.dampingFactor);
+    } else { this.sphericalDelta.set(0,0,0); this.panOffset.set(0,0,0); }
+    this.scale = 1;
+  }
+  dispose() {
+    this.dom.removeEventListener('pointerdown', this._onDown);
+    window.removeEventListener('pointermove', this._onMove);
+    window.removeEventListener('pointerup', this._onUp);
+    this.dom.removeEventListener('wheel', this._onWheel);
+    this.dom.removeEventListener('contextmenu', this._onCtx);
+  }
+}
+
+/* ============================================================
+   Escena 3D
+   ============================================================ */
+function ThreeCanvas({ mode, tanks, selectedTankId, showWireframe, showParticles, showDrones, cameraPreset, cameraNonce, onSelectTank, onPickObject, onToggleIsolation }) {
+  const mountRef = useRef(null);
+  const cameraRef = useRef(null);
+  const rendererRef = useRef(null);
+  const controlsRef = useRef(null);
+  const tankRefs = useRef([]);
+  const droneRefs = useRef([]);
+  const sensorRefs = useRef([]);
+  const particlesRef = useRef(null);
+  const particleDataRef = useRef(null);
+  const cameraAnimRef = useRef({ t: 1, fromPos: new THREE.Vector3(), fromTarget: new THREE.Vector3(), toPos: new THREE.Vector3(), toTarget: new THREE.Vector3() });
+  const shakeRef = useRef({ until: 0 });
+  // [v4.3] estado vivo: el bucle de animación se crea una sola vez y antes leía props del primer render
+  const liveRef = useRef({});
+  liveRef.current = { mode, tanks, selectedTankId, showWireframe, showParticles, showDrones };
+  const clockRef = useRef(null);
+  // NEW aux refs for added modules
+  const auxRef = useRef({ vru:null, vaporParticles:null, vaporGeo:null, vaporCount:0, vaporSpeed:null, additiveSkid:null, additiveStream:null, additiveGeo:null, addCount:0, pig:null, pigT:0, pigCurve:null, fireCones:[], hoveredTankId:null });
+  const onPickObjectRef = useRef(onPickObject);
+  const onSelectTankRef = useRef(onSelectTank);
+  const onToggleIsolationRef = useRef(onToggleIsolation);
+  useEffect(() => { onPickObjectRef.current = onPickObject; }, [onPickObject]);
+  useEffect(() => { onSelectTankRef.current = onSelectTank; }, [onSelectTank]);
+  useEffect(() => { onToggleIsolationRef.current = onToggleIsolation; }, [onToggleIsolation]);
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f172a);
+    scene.fog = new THREE.FogExp2(0x0f172a, 0.0075);
+
+    const camera = new THREE.PerspectiveCamera(45, mount.clientWidth / mount.clientHeight, 0.5, 350);
+    camera.position.set(...CAMERA_INITIAL.pos);
+    cameraRef.current = camera;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(mount.clientWidth, mount.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
+    if (THREE.ACESFilmicToneMapping) renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    mount.innerHTML = '';
+    mount.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    const controls = new SimpleOrbitControls(camera, renderer.domElement);
+    controls.target.set(...CAMERA_INITIAL.target);
+    controlsRef.current = controls;
+    clockRef.current = new THREE.Clock();
+
+    // Luces
+    scene.add(new THREE.AmbientLight(0x1e293b, 1.3));
+    const sun = new THREE.DirectionalLight(0xfce7c3, 2.0);
+    sun.position.set(38, 48, 28); sun.castShadow = true;
+    sun.shadow.mapSize.width = 2048; sun.shadow.mapSize.height = 2048;
+    sun.shadow.camera.near = 1; sun.shadow.camera.far = 160;
+    sun.shadow.camera.left = -40; sun.shadow.camera.right = 40; sun.shadow.camera.top = 40; sun.shadow.camera.bottom = -40;
+    sun.shadow.bias = -0.0004; scene.add(sun);
+    const fill = new THREE.DirectionalLight(0x1d4ed8, 1.6); fill.position.set(-35, 25, -35); scene.add(fill);
+    const pl = new THREE.PointLight(0x38bdf8, 1.6, 80); pl.position.set(0, 18, 0); scene.add(pl);
+    const sp = new THREE.SpotLight(0xfbbf24, 2.6, 50, Math.PI/4, 0.35);
+    sp.position.set(-16, 20, 16); sp.target.position.set(-16, 2, 9); sp.castShadow = true;
+    scene.add(sp); scene.add(sp.target);
+
+    const matSteel    = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.85, roughness: 0.25 });
+    const matPipe     = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.95, roughness: 0.12 });
+    const matFrame    = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.72, roughness: 0.4 });
+    const matConcrete = new THREE.MeshStandardMaterial({ color: 0xa8a29e, roughness: 0.35, metalness: 0.08 });
+    const matAmber    = new THREE.MeshStandardMaterial({ color: 0x06b6d4, emissive: 0x06b6d4, emissiveIntensity: 0.85, roughness: 0.2 });
+    const matGlass    = new THREE.MeshPhysicalMaterial({ color: 0x38bdf8, metalness: 0.1, roughness: 0.08, transmission: 0.88, transparent: true, opacity: 0.85 });
+    const matWire     = new THREE.MeshBasicMaterial({ color: 0x38bdf8, wireframe: true, transparent: true, opacity: 0.35 });
+    const matLiquid   = new THREE.MeshStandardMaterial({ color: 0x06b6d4, emissive: 0x06b6d4, emissiveIntensity: 0.8 });
+
+    // Suelo
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(280, 280), new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.85, metalness: 0.1 }));
+    ground.rotation.x = -Math.PI/2; ground.position.y = -0.05; ground.receiveShadow = true;
+    ground.userData.pickKey = 'ground'; scene.add(ground);
+    const grid = new THREE.GridHelper(200, 80, 0x1e293b, 0x0f1e35); grid.position.y = 0.01; scene.add(grid);
+
+    // Plataforma
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(40, 1.5, 30), matFrame);
+    slab.position.y = 0.75; slab.receiveShadow = true; slab.castShadow = true;
+    slab.userData.pickKey = 'platform'; scene.add(slab);
+    const stripes = new THREE.Mesh(new THREE.BoxGeometry(40.2, 0.4, 30.2), new THREE.MeshBasicMaterial({ map: makeStripedTexture() }));
+    stripes.position.y = 1.3; scene.add(stripes);
+
+    // Tanques
+    tankRefs.current = [];
+    const tankPositions = [
+      { id: 1, x: -7.5, z: -6 }, { id: 2, x: 7.5, z: -6 },
+      { id: 3, x: -7.5, z: 6 },  { id: 4, x: 7.5, z: 6 }
+    ];
+    tankPositions.forEach(pos => {
+      const grp = new THREE.Group(); grp.position.set(pos.x, 1.5, pos.z);
+      const legGeo = new THREE.BoxGeometry(1.3, 1.4, 6.4);
+      const legL = new THREE.Mesh(legGeo, matFrame); legL.position.set(-3.4, 0.7, 0); legL.castShadow = true; grp.add(legL);
+      const legR = new THREE.Mesh(legGeo, matFrame); legR.position.set(3.4, 0.7, 0); legR.castShadow = true; grp.add(legR);
+      const r = 2.45, len = 9.4;
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 32), matSteel.clone());
+      body.rotation.z = Math.PI/2; body.position.y = 3.3; body.castShadow = true; body.receiveShadow = true; grp.add(body);
+      const capL = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 16, 0, Math.PI*2, 0, Math.PI/2), matSteel.clone());
+      capL.rotation.z = -Math.PI/2; capL.position.set(-len/2, 3.3, 0); capL.castShadow = true; grp.add(capL);
+      const capR = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 16, 0, Math.PI*2, 0, Math.PI/2), matSteel.clone());
+      capR.rotation.z = Math.PI/2; capR.position.set(len/2, 3.3, 0); capR.castShadow = true; grp.add(capR);
+      const top = new THREE.Mesh(new THREE.BoxGeometry(len * 0.85, 0.15, 1.2), matFrame);
+      top.position.set(0, 5.85, 0); top.castShadow = true; grp.add(top);
+      [-0.55, 0.55].forEach(z => {
+        const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, len * 0.85), matAmber);
+        rail.rotation.z = Math.PI/2; rail.position.set(0, 6.6, z); grp.add(rail);
+      });
+      const ladder = new THREE.Mesh(new THREE.BoxGeometry(0.1, 5, 0.6), matFrame); ladder.position.set(5.5, 2.6, 0); grp.add(ladder);
+      const ladderRail = new THREE.Mesh(new THREE.BoxGeometry(0.3, 3.8, 0.35), matFrame); ladderRail.position.set(5.1, 3.3, 1.6); grp.add(ladderRail);
+      const liquid = new THREE.Mesh(new THREE.BoxGeometry(0.24, 3.4, 0.24), matLiquid.clone());
+      liquid.position.set(5.15, 1.8, 1.6); grp.add(liquid);
+      const wire = new THREE.Mesh(new THREE.CylinderGeometry(2.59, 2.59, 10, 16), matWire);
+      wire.rotation.z = Math.PI/2; wire.position.y = 3.3; wire.visible = false; grp.add(wire);
+      const ringMat = new THREE.MeshStandardMaterial({ color: 0x06b6d4, emissive: 0x06b6d4, emissiveIntensity: 0.9 });
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(2.55, 0.06, 12, 32), ringMat);
+      ring.rotation.y = Math.PI/2; ring.position.set(0, 3.3, 0); grp.add(ring);
+      // Isolation disc (visible only when isolated) — NEW
+      const isoMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xef4444, emissiveIntensity: 0.9 });
+      const isoDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.1, 16), isoMat);
+      isoDisc.rotation.z = Math.PI/2; isoDisc.position.set(5.4, 3.3, 0); isoDisc.visible = false; grp.add(isoDisc);
+      const label = makeSpriteLabel('T-0' + pos.id, '#0F172A', '#38BDF8', 'FUEL-HARMONY TANK', '#06B6D4');
+      label.position.set(0, 7.6, 0); grp.add(label);
+      grp.userData.tankId = pos.id; grp.userData.pickKey = 'tank';
+      [legL, legR, body, capL, capR, top, ladder, ladderRail, liquid, wire, ring, isoDisc].forEach(o => { o.userData.tankId = pos.id; o.userData.pickKey = 'tank'; });
+      scene.add(grp);
+      tankRefs.current.push({ id: pos.id, group: grp, body, liquid, wire, ring, isoDisc });
+    });
+
+    // Manifold
+    const manifold = new THREE.Group();
+    const mainPipe = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 28, 24), matPipe);
+    mainPipe.rotation.x = Math.PI/2; mainPipe.position.set(0, 2.2, 0); mainPipe.castShadow = true; mainPipe.userData.pickKey = 'manifold'; manifold.add(mainPipe);
+    [-7.5, 7.5].forEach(x => {
+      const branch = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 15, 16), matPipe);
+      branch.position.set(x, 2.2, 0); branch.castShadow = true; branch.userData.pickKey = 'manifold'; manifold.add(branch);
+      [-5, 5].forEach(z => {
+        const j = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.65, 12), matFrame); j.position.set(x, 2.2, z); j.userData.pickKey = 'manifold'; manifold.add(j);
+        const v = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.06, 8, 20), matAmber); v.rotation.x = Math.PI/2; v.position.set(x, 2.75, z); v.userData.pickKey = 'manifold'; manifold.add(v);
+      });
+    });
+    scene.add(manifold);
+
+    // Doca + caminhão
+    const dock = new THREE.Group(); dock.position.set(-24.5, 0, 11); dock.rotation.y = Math.PI/2;
+    const dockDeck = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.65, 17.5), matFrame); dockDeck.position.y = 1.15; dockDeck.castShadow = true; dockDeck.userData.pickKey = 'dock'; dock.add(dockDeck);
+    const wheelGeo = new THREE.CylinderGeometry(0.76, 0.76, 0.65, 20);
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.85 });
+    const hubMat   = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.9, roughness: 0.2 });
+    [[-1.45,-7.2],[1.45,-7.2],[-1.45,-4.2],[1.45,-4.2],[-1.45,-2.8],[1.45,-2.8],[-1.45,4.8],[1.45,4.8],[-1.45,6.6],[1.45,6.6]].forEach(([x, z]) => {
+      const w = new THREE.Mesh(wheelGeo, wheelMat); w.rotation.z = Math.PI/2; w.position.set(x, 0.82, z); w.castShadow = true; w.userData.pickKey = 'truck'; dock.add(w);
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.67, 16), hubMat); hub.rotation.z = Math.PI/2; hub.position.set(x, 0.82, z); hub.userData.pickKey = 'truck'; dock.add(hub);
+    });
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(3.1, 2.4, 4.4), matSteel); cabin.position.set(0, 2.5, -6); cabin.castShadow = true; cabin.userData.pickKey = 'truck'; dock.add(cabin);
+    const windshield = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.3, 0.1), matGlass); windshield.position.set(0, 2.9, -8.25); windshield.rotation.x = -0.22; windshield.userData.pickKey = 'truck'; dock.add(windshield);
+    [-1.2, 1.2].forEach(x => {
+      const light = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.35, 0.1), new THREE.MeshBasicMaterial({ color: 0xfce7c3 }));
+      light.position.set(x, 1.6, -8.22); light.userData.pickKey = 'truck'; dock.add(light);
+    });
+    const cisR = 1.75;
+    const cisBody = new THREE.Mesh(new THREE.CylinderGeometry(cisR, cisR, 11.8, 28), matPipe);
+    cisBody.rotation.x = Math.PI/2; cisBody.position.set(0, 3.05, 2.4); cisBody.castShadow = true; cisBody.userData.pickKey = 'truck'; dock.add(cisBody);
+    const cisCapL = new THREE.Mesh(new THREE.SphereGeometry(cisR, 20, 14, 0, Math.PI*2, 0, Math.PI/2), matPipe);
+    cisCapL.rotation.x = -Math.PI/2; cisCapL.position.set(0, 3.05, -3.5); cisCapL.userData.pickKey = 'truck'; dock.add(cisCapL);
+    const cisCapR = new THREE.Mesh(new THREE.SphereGeometry(cisR, 20, 14, 0, Math.PI*2, 0, Math.PI/2), matPipe);
+    cisCapR.rotation.x = Math.PI/2; cisCapR.position.set(0, 3.05, 8.3); cisCapR.userData.pickKey = 'truck'; dock.add(cisCapR);
+    const ipLabel = makeSpriteLabel('IPIRANGA', '#1E3A8A', '#FBBF24', 'BATCH RECEPTION', '#F59E0B');
+    ipLabel.position.set(1.78, 3.05, 2.4); ipLabel.rotation.y = Math.PI/2; ipLabel.scale.set(6, 1.5, 1); ipLabel.userData.pickKey = 'label3d'; dock.add(ipLabel);
+    const hoseCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(1.8, 1.9, 1.2), new THREE.Vector3(3, 2.5, 1.2),
+      new THREE.Vector3(4.4, 3, 1), new THREE.Vector3(4.8, 3.3, 1)
+    ]);
+    const hose = new THREE.Mesh(new THREE.TubeGeometry(hoseCurve, 24, 0.22, 8), new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.35 }));
+    hose.userData.pickKey = 'hose'; dock.add(hose);
+    scene.add(dock);
+    const dockSign = makeSpriteLabel('MUELLE CISTERNA', '#0F172A', '#FBBF24', '', '#F59E0B');
+    dockSign.position.set(-24.5, 6, 11); dockSign.scale.set(10, 2, 1); dockSign.userData.pickKey = 'dock'; scene.add(dockSign);
+
+    // HUB
+    const hub = new THREE.Group(); hub.position.set(44, 0, -20);
+    const hubBody = new THREE.Mesh(new THREE.BoxGeometry(24, 18, 20), matFrame); hubBody.position.y = 9; hubBody.castShadow = true; hubBody.receiveShadow = true; hubBody.userData.pickKey = 'hub'; hub.add(hubBody);
+    const hubGlass = new THREE.Mesh(new THREE.BoxGeometry(22, 15, 0.4), matGlass); hubGlass.position.set(0, 9, 10.1); hubGlass.userData.pickKey = 'hub'; hub.add(hubGlass);
+    const hubSign = makeSpriteLabel('IPIRANGA', '#1E3A8A', '#FBBF24', 'TERMINAL CENTRAL', '#F59E0B');
+    hubSign.position.set(0, 20, 10.2); hubSign.scale.set(14, 3, 1); hubSign.userData.pickKey = 'hub'; hub.add(hubSign);
+    scene.add(hub);
+
+    // LAB
+    const lab = new THREE.Group(); lab.position.set(-44, 0, -20);
+    const labBody = new THREE.Mesh(new THREE.BoxGeometry(22, 14, 18), matConcrete); labBody.position.y = 7; labBody.castShadow = true; labBody.receiveShadow = true; labBody.userData.pickKey = 'lab'; lab.add(labBody);
+    const labGlass = new THREE.Mesh(new THREE.BoxGeometry(18, 7, 0.4), matGlass); labGlass.position.set(0, 7, 9.1); labGlass.userData.pickKey = 'lab'; lab.add(labGlass);
+    const labSign = makeSpriteLabel('CENTRO I+D DR. OPORTO', '#0F172A', '#38BDF8', 'QUALITY EXCEPTION CELL', '#06B6D4');
+    labSign.position.set(0, 15.5, 9.2); labSign.scale.set(14, 3, 1); labSign.userData.pickKey = 'lab'; lab.add(labSign);
+    [-5, -3].forEach(x => {
+      const chimney = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 4.5, 12), matPipe);
+      chimney.position.set(x, 16.25, -4); chimney.userData.pickKey = 'lab'; lab.add(chimney);
+    });
+    scene.add(lab);
+
+    // Parking
+    const parking = new THREE.Group(); parking.position.set(42, 0, 18);
+    const lot = new THREE.Mesh(new THREE.BoxGeometry(26, 0.08, 20), new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.9 }));
+    lot.position.y = 0.04; lot.receiveShadow = true; lot.userData.pickKey = 'parking'; parking.add(lot);
+    const carColors = [0x3b82f6, 0x64748b, 0xffffff, 0x1e293b, 0xd946ef];
+    [-9, -4.5, 0, 4.5, 9].forEach((x, i) => {
+      const cg = new THREE.Group(); cg.position.set(x, 0, 0);
+      const car = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.95, 4.6), new THREE.MeshStandardMaterial({ color: carColors[i % carColors.length], metalness: 0.6, roughness: 0.3 }));
+      car.position.y = 0.75; car.castShadow = true; car.userData.pickKey = 'parking'; cg.add(car);
+      const cab = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.75, 2.5), matGlass); cab.position.set(0, 1.5, -0.2); cab.userData.pickKey = 'parking'; cg.add(cab);
+      parking.add(cg);
+    });
+    scene.add(parking);
+
+    // Solar
+    const solar = new THREE.Group(); solar.position.set(-38, 0, 22);
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 4; j++) {
+      const p = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.08, 2.4), new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.9, roughness: 0.15 }));
+      p.rotation.x = -0.32; p.position.set(j * 3.8 - 5.7, 4.3, i * 3 - 3); p.userData.pickKey = 'solar'; solar.add(p);
+    }
+    const solarBase = new THREE.Mesh(new THREE.BoxGeometry(7, 3.4, 3), matConcrete);
+    solarBase.position.set(0, 1.7, 8); solarBase.castShadow = true; solarBase.userData.pickKey = 'solar'; solar.add(solarBase);
+    scene.add(solar);
+
+    // Partículas
+    const pGeo = new THREE.BufferGeometry();
+    const pPos = new Float32Array(600);
+    const pT = new Float32Array(200);
+    const pCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-23, 2.1, 12), new THREE.Vector3(-19.5, 3.3, 12),
+      new THREE.Vector3(-14, 2.2, 10), new THREE.Vector3(-14, 2.2, 0),
+      new THREE.Vector3(0, 2.2, 0),   new THREE.Vector3(-7.5, 2.2, 0),
+      new THREE.Vector3(-7.5, 3.3, -6)
+    ]);
+    for (let i = 0; i < 200; i++) {
+      pT[i] = i / 200;
+      const v = pCurve.getPoint(pT[i]);
+      pPos[i*3] = v.x; pPos[i*3+1] = v.y; pPos[i*3+2] = v.z;
+    }
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+    const particles = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0x38bdf8, size: 0.5, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending }));
+    particles.userData.pickKey = 'particles'; scene.add(particles);
+    particlesRef.current = particles;
+    particleDataRef.current = { positions: pPos, t: pT, curve: pCurve, baseSpeed: 0.008 };
+
+    // Drones
+    droneRefs.current = [];
+    const droneConfigs = [
+      { r: 13, spd: 0.85, ph: 0, alt: 10 },
+      { r: 18, spd: -0.65, ph: Math.PI * 0.7, alt: 12 },
+      { r: 15, spd: 0.95, ph: Math.PI * 1.4, alt: 10.8 }
+    ];
+    droneConfigs.forEach(cfg => {
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.58, 16, 12), matFrame); body.scale.set(1, 0.45, 1); body.userData.pickKey = 'drone'; g.add(body);
+      const core = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 8), matAmber); core.position.y = -0.15; core.userData.pickKey = 'drone'; g.add(core);
+      const rotors = [];
+      [0, Math.PI/2, Math.PI, Math.PI*1.5].forEach(a => {
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, 1.3), matFrame); arm.rotation.y = a; arm.position.y = 0.05; arm.userData.pickKey = 'drone'; g.add(arm);
+        const rotor = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.02, 8, 12), matAmber);
+        rotor.position.set(Math.cos(a)*0.7, 0.12, Math.sin(a)*0.7); rotor.userData.pickKey = 'drone'; g.add(rotor); rotors.push(rotor);
+      });
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(2.6, 8, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }));
+      cone.position.y = -4; cone.rotation.x = Math.PI; cone.userData.pickKey = 'drone'; g.add(cone);
+      g.userData.pickKey = 'drone';
+      scene.add(g);
+      droneRefs.current.push({ group: g, rotors, cone, radius: cfg.r, speed: cfg.spd, phase: cfg.ph, altitude: cfg.alt });
+    });
+
+    // Sensores
+    const sensorPositions = [
+      new THREE.Vector3(-15, 11, -10), new THREE.Vector3(-4, 12.5, -9), new THREE.Vector3(8, 11.5, -8),
+      new THREE.Vector3(-10, 11.2, 7), new THREE.Vector3(9, 13, 8), new THREE.Vector3(-19, 10, 13)
+    ];
+    sensorRefs.current = [];
+    sensorPositions.forEach(p => {
+      const oct = new THREE.Mesh(new THREE.OctahedronGeometry(0.75, 0), new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x06b6d4, emissiveIntensity: 0.9, wireframe: true }));
+      oct.position.copy(p); oct.userData.pickKey = 'sensor'; scene.add(oct); sensorRefs.current.push(oct);
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 12), matAmber); dot.position.copy(p); dot.userData.pickKey = 'sensor'; scene.add(dot);
+    });
+    [[0,1],[1,2],[0,3],[1,3],[2,4],[3,4],[3,5],[0,5]].forEach(([a, b]) => {
+      const geo = new THREE.BufferGeometry().setFromPoints([sensorPositions[a], sensorPositions[b]]);
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.55 }));
+      line.userData.pickKey = 'sensor'; scene.add(line);
+    });
+
+    /* ========================================================
+       NUEVOS MÓDULOS DE SIMULACIÓN (aditivos, no destructivos)
+       ======================================================== */
+
+    // -- VRU Tower (Vapor Recovery Unit)
+    const vru = new THREE.Group(); vru.position.set(-28, 0, 5);
+    const vruBase = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.8, 3.2), matFrame);
+    vruBase.position.y = 0.4; vruBase.castShadow = true; vruBase.userData.pickKey = 'vru'; vru.add(vruBase);
+    const vruBody = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.35, 7, 20), matSteel);
+    vruBody.position.y = 4.3; vruBody.castShadow = true; vruBody.userData.pickKey = 'vru'; vru.add(vruBody);
+    const vruTop = new THREE.Mesh(new THREE.ConeGeometry(1.35, 1.6, 20), matFrame);
+    vruTop.position.y = 8.6; vruTop.userData.pickKey = 'vru'; vru.add(vruTop);
+    const vruRing = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.08, 8, 24), new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x10b981, emissiveIntensity: 0.6, roughness: 0.3 }));
+    vruRing.rotation.x = Math.PI/2; vruRing.position.y = 6.5; vruRing.userData.pickKey = 'vru'; vru.add(vruRing);
+    const vruLabel = makeSpriteLabel('VRU', '#052e16', '#6ee7b7', 'VAPOR RECOVERY', '#10b981');
+    vruLabel.position.set(0, 10.6, 0); vruLabel.scale.set(6, 1.5, 1); vruLabel.userData.pickKey = 'vru'; vru.add(vruLabel);
+    scene.add(vru);
+    auxRef.current.vru = vru;
+    auxRef.current.vruRing = vruRing;
+
+    // Vapor particles (rising from the truck hose area)
+    const vaporCount = 90;
+    const vaporGeo = new THREE.BufferGeometry();
+    const vaporPos = new Float32Array(vaporCount * 3);
+    const vaporSpeed = new Float32Array(vaporCount);
+    for (let i = 0; i < vaporCount; i++) {
+      vaporPos[i*3] = -25 + (Math.random()-0.5)*3;
+      vaporPos[i*3+1] = 1.5 + Math.random()*7;
+      vaporPos[i*3+2] = 8 + (Math.random()-0.5)*3;
+      vaporSpeed[i] = 0.02 + Math.random()*0.035;
+    }
+    vaporGeo.setAttribute('position', new THREE.BufferAttribute(vaporPos, 3));
+    const vaporParticles = new THREE.Points(vaporGeo, new THREE.PointsMaterial({ color: 0x6ee7b7, size: 0.55, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
+    vaporParticles.userData.pickKey = 'vru';
+    vaporParticles.visible = false;
+    scene.add(vaporParticles);
+    auxRef.current.vaporParticles = vaporParticles;
+    auxRef.current.vaporGeo = vaporGeo;
+    auxRef.current.vaporCount = vaporCount;
+    auxRef.current.vaporSpeed = vaporSpeed;
+
+    // -- Additive Skid (small dosing unit near manifold)
+    const additiveSkid = new THREE.Group(); additiveSkid.position.set(-14, 0, 5);
+    const addBase = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1, 2), matFrame);
+    addBase.position.y = 0.5; addBase.castShadow = true; addBase.userData.pickKey = 'additiveSkid'; additiveSkid.add(addBase);
+    const addTank = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 2.6, 16), matSteel);
+    addTank.position.y = 2.3; addTank.castShadow = true; addTank.userData.pickKey = 'additiveSkid'; additiveSkid.add(addTank);
+    const addRing = new THREE.Mesh(new THREE.TorusGeometry(0.82, 0.06, 8, 20), new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xf59e0b, emissiveIntensity: 0.7, roughness: 0.3 }));
+    addRing.rotation.x = Math.PI/2; addRing.position.y = 3.6; addRing.userData.pickKey = 'additiveSkid'; additiveSkid.add(addRing);
+    const addLabel = makeSpriteLabel('ADDITIVE', '#78350f', '#fbbf24', 'DOSING SKID', '#f59e0b');
+    addLabel.position.set(0, 5, 0); addLabel.scale.set(6, 1.5, 1); addLabel.userData.pickKey = 'additiveSkid'; additiveSkid.add(addLabel);
+    scene.add(additiveSkid);
+    auxRef.current.additiveSkid = additiveSkid;
+
+    // Additive stream (yellow particles from skid to main pipe)
+    const addCount = 50;
+    const additiveGeo = new THREE.BufferGeometry();
+    const additivePos = new Float32Array(addCount * 3);
+    const addProgress = new Float32Array(addCount);
+    for (let i = 0; i < addCount; i++) {
+      addProgress[i] = Math.random();
+      additivePos[i*3] = -14 + addProgress[i] * 7;
+      additivePos[i*3+1] = 2.2;
+      additivePos[i*3+2] = 5 - addProgress[i] * 5;
+    }
+    additiveGeo.setAttribute('position', new THREE.BufferAttribute(additivePos, 3));
+    const additiveStream = new THREE.Points(additiveGeo, new THREE.PointsMaterial({ color: 0xfbbf24, size: 0.35, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending }));
+    additiveStream.userData.pickKey = 'additiveSkid';
+    additiveStream.visible = false;
+    scene.add(additiveStream);
+    auxRef.current.additiveStream = additiveStream;
+    auxRef.current.additiveGeo = additiveGeo;
+    auxRef.current.addCount = addCount;
+
+    // -- PIG (pipeline integrity sphere)
+    const pigGeo = new THREE.SphereGeometry(0.38, 18, 14);
+    const pigMat = new THREE.MeshStandardMaterial({ color: 0xf97316, emissive: 0xf97316, emissiveIntensity: 0.9, metalness: 0.5, roughness: 0.3 });
+    const pig = new THREE.Mesh(pigGeo, pigMat);
+    pig.userData.pickKey = 'pig';
+    pig.visible = false;
+    scene.add(pig);
+    const pigGlowGeo = new THREE.SphereGeometry(0.62, 12, 10);
+    const pigGlowMat = new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false });
+    const pigGlow = new THREE.Mesh(pigGlowGeo, pigGlowMat);
+    pig.add(pigGlow);
+    const pigCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-14, 2.2, 10),
+      new THREE.Vector3(-14, 2.2, 0),
+      new THREE.Vector3(-7.5, 2.2, 0),
+      new THREE.Vector3(-7.5, 2.2, -6)
+    ]);
+    auxRef.current.pig = pig;
+    auxRef.current.pigCurve = pigCurve;
+    auxRef.current.pigT = 0;
+
+    // -- Fire Suppression Monitors (visible only in emergency_fire mode)
+    const fireCones = [];
+    tankPositions.forEach(pos => {
+      const fc = new THREE.Mesh(
+        new THREE.ConeGeometry(3.6, 9, 20, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0xfca5a5, transparent: true, opacity: 0.32, side: THREE.DoubleSide, depthWrite: false })
+      );
+      fc.position.set(pos.x, 12, pos.z);
+      fc.rotation.x = Math.PI;
+      fc.visible = false;
+      fc.userData.pickKey = 'fireMonitor';
+      scene.add(fc);
+      fireCones.push(fc);
+    });
+    auxRef.current.fireCones = fireCones;
+
+    // Raycast click
+    const ray = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const handleClick = ev => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const px = ev.clientX, py = ev.clientY;
+      mouse.x = ((px - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((py - rect.top) / rect.height) * 2 + 1;
+      ray.setFromCamera(mouse, camera);
+      const hits = ray.intersectObjects(scene.children, true);
+      for (const h of hits) {
+        let o = h.object;
+        while (o && o !== scene) {
+          if (o.userData && o.userData.tankId) {
+            onSelectTankRef.current(o.userData.tankId);
+            if (onPickObjectRef.current) onPickObjectRef.current('tank', { px, py });
+            return;
+          }
+          if (o.userData && o.userData.pickKey) {
+            if (onPickObjectRef.current) onPickObjectRef.current(o.userData.pickKey, { px, py });
+            return;
+          }
+          o = o.parent;
+        }
+      }
+    };
+    renderer.domElement.addEventListener('click', handleClick);
+    controls.onClick = handleClick;
+
+    // NEW: Hover highlight on tanks
+    const handlePointerMove = ev => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+      ray.setFromCamera(mouse, camera);
+      const hits = ray.intersectObjects(scene.children, true);
+      let newHover = null;
+      for (const h of hits) {
+        let o = h.object;
+        while (o && o !== scene) {
+          if (o.userData && o.userData.tankId) { newHover = o.userData.tankId; break; }
+          o = o.parent;
+        }
+        if (newHover) break;
+      }
+      auxRef.current.hoveredTankId = newHover;
+      renderer.domElement.style.cursor = newHover ? 'pointer' : 'default';
+    };
+    renderer.domElement.addEventListener('pointermove', handlePointerMove);
+
+    // NEW: Double-click to toggle isolation
+    const handleDblClick = ev => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+      ray.setFromCamera(mouse, camera);
+      const hits = ray.intersectObjects(scene.children, true);
+      for (const h of hits) {
+        let o = h.object;
+        while (o && o !== scene) {
+          if (o.userData && o.userData.tankId) {
+            if (onToggleIsolationRef.current) onToggleIsolationRef.current(o.userData.tankId);
+            return;
+          }
+          o = o.parent;
+        }
+      }
+    };
+    renderer.domElement.addEventListener('dblclick', handleDblClick);
+
+    // Animación
+    let rafId;
+    const animate = () => {
+      rafId = requestAnimationFrame(animate);
+      const { mode, tanks, selectedTankId, showWireframe, showParticles, showDrones } = liveRef.current;
+      const t = clockRef.current.getElapsedTime();
+      controls.update();
+
+      const ca = cameraAnimRef.current;
+      if (ca.t < 1) {
+        ca.t = Math.min(1, ca.t + 0.035);
+        const k = 1 - Math.pow(1 - ca.t, 3);
+        camera.position.lerpVectors(ca.fromPos, ca.toPos, k);
+        controls.target.lerpVectors(ca.fromTarget, ca.toTarget, k);
+      }
+      if (performance.now() < shakeRef.current.until) {
+        camera.position.x += (Math.random() - 0.5) * 0.09;
+        camera.position.y += (Math.random() - 0.5) * 0.09;
+      }
+
+      // Drones
+      droneRefs.current.forEach((d, i) => {
+        d.group.visible = showDrones;
+        if (!showDrones) return;
+        if (mode === 'swarm_sync') {
+          const ang = t * 0.4 + d.phase + i * (Math.PI * 2 / 3);
+          d.group.position.set(Math.cos(ang) * 8, 9 + Math.sin(t * 2 + i) * 0.3, Math.sin(ang) * 6);
+          d.group.rotation.y = -ang + Math.PI/2;
+        } else if (mode === 'lockout' || mode === 'emergency_fire') {
+          d.group.position.set(Math.cos(d.phase) * d.radius, d.altitude - 2, Math.sin(d.phase) * d.radius * 0.75);
+          d.group.rotation.y = -d.phase + Math.PI/2;
+        } else {
+          const tt = t * d.speed + d.phase;
+          d.group.position.set(Math.cos(tt) * d.radius, d.altitude + Math.sin(t * 2.5 + d.phase) * 0.5, Math.sin(tt) * d.radius * 0.75);
+          d.group.rotation.y = -tt + Math.PI/2;
+        }
+        const rSpd = (mode === 'lockout' || mode === 'emergency_fire') ? 0 : (mode === 'quarantine' ? 0.15 : (mode === 'swarm_sync' ? 1.2 : 0.45));
+        d.rotors.forEach((r, idx) => { r.rotation.y += rSpd * (idx % 2 === 0 ? 1 : -1); });
+        d.cone.material.opacity = mode === 'quarantine' ? 0.05 : ((mode === 'lockout' || mode === 'emergency_fire') ? 0.0 : 0.22);
+      });
+
+      // Sensores
+      sensorRefs.current.forEach((s, i) => {
+        const spd = (mode === 'lockout' || mode === 'emergency_fire') ? 0 : (mode === 'quarantine' ? 0.2 : (mode === 'swarm_sync' ? 1.4 : 0.7));
+        s.rotation.x = t * spd + i;
+        s.rotation.y = t * spd * 1.3 + i;
+        s.position.y += Math.sin(t * 2 + i) * 0.003;
+      });
+
+      // Partículas
+      if (showParticles && particlesRef.current) {
+        particlesRef.current.visible = true;
+        const data = particleDataRef.current;
+        let spd = data.baseSpeed * 0.3;
+        if (mode === 'active') spd = data.baseSpeed * 2;
+        else if (mode === 'quarantine') spd = data.baseSpeed * 0.6;
+        else if (mode === 'lockout' || mode === 'emergency_fire') spd = 0;
+        else if (mode === 'swarm_sync') spd = data.baseSpeed * 1.4;
+        else if (mode === 'vru_active') spd = data.baseSpeed * 1.0;
+        else if (mode === 'additive_injection') spd = data.baseSpeed * 1.5;
+        const dir = mode === 'quarantine' ? -1 : 1;
+        for (let i = 0; i < 200; i++) {
+          data.t[i] = (data.t[i] + spd * dir + 1) % 1;
+          const v = data.curve.getPoint(data.t[i]);
+          data.positions[i*3] = v.x;
+          data.positions[i*3+1] = v.y + Math.sin(t * 8 + i) * 0.06;
+          data.positions[i*3+2] = v.z;
+        }
+        particlesRef.current.geometry.attributes.position.needsUpdate = true;
+        let pcolor = 0x38bdf8;
+        if (mode === 'quarantine') pcolor = 0xf59e0b;
+        else if (mode === 'lockout' || mode === 'emergency_fire') pcolor = 0xef4444;
+        else if (mode === 'vru_active') pcolor = 0x10b981;
+        else if (mode === 'additive_injection') pcolor = 0xfbbf24;
+        particlesRef.current.material.color.setHex(pcolor);
+      } else if (particlesRef.current) {
+        particlesRef.current.visible = false;
+      }
+
+      // Tanques + hover + isolation
+      tankRefs.current.forEach(ref => {
+        const tk = tanks.find(x => x.id === ref.id);
+        if (!tk) return;
+        const pct = tk.levelPct / 100;
+        ref.liquid.scale.y = Math.max(0.05, pct);
+        ref.liquid.position.y = 1.6 + pct * 3.4 / 2;
+        ref.wire.visible = showWireframe;
+
+        let ringColor = 0x06b6d4;
+        if (mode === 'lockout' || mode === 'emergency_fire') ringColor = 0xef4444;
+        else if (mode === 'quarantine' && ref.id === 1) ringColor = 0xf59e0b;
+        else if (mode === 'swarm_sync') ringColor = 0xa855f7;
+        else if (mode === 'vru_active') ringColor = 0x10b981;
+        else if (mode === 'additive_injection') ringColor = 0xfbbf24;
+        ref.ring.material.color.setHex(ringColor);
+        ref.ring.material.emissive.setHex(ringColor);
+        ref.ring.material.emissiveIntensity = (mode === 'lockout' || mode === 'emergency_fire') ? (0.6 + Math.sin(t * 12) * 0.5) : 0.9;
+
+        const sel = ref.id === selectedTankId;
+        const isHover = auxRef.current.hoveredTankId === ref.id;
+        if (isHover) {
+          ref.body.material.emissive = new THREE.Color(0x0891b2);
+          ref.body.material.emissiveIntensity = 0.45 + Math.sin(t * 4) * 0.15;
+          ref.ring.scale.set(1.06, 1.06, 1.06);
+        } else {
+          ref.body.material.emissive = new THREE.Color(sel ? 0x1e40af : 0x000000);
+          ref.body.material.emissiveIntensity = sel ? 0.4 : 0;
+          ref.ring.scale.set(1, 1, 1);
+        }
+        // Isolation disc
+        if (ref.isoDisc) {
+          ref.isoDisc.visible = !!tk.isolated;
+          if (ref.isoDisc.visible) {
+            ref.isoDisc.material.emissiveIntensity = 0.7 + Math.sin(t * 6) * 0.3;
+          }
+        }
+      });
+
+      // --- VRU animation (added module) ---
+      const aux = auxRef.current;
+      const vruActive = (mode === 'vru_active');
+      if (aux.vaporParticles) {
+        aux.vaporParticles.visible = vruActive;
+        if (vruActive) {
+          const vp = aux.vaporGeo.attributes.position.array;
+          for (let i = 0; i < aux.vaporCount; i++) {
+            vp[i*3+1] += aux.vaporSpeed[i] * (1 + Math.sin(t + i) * 0.2);
+            if (vp[i*3+1] > 10.5) {
+              vp[i*3+1] = 1.2;
+              vp[i*3] = -25 + (Math.random()-0.5)*3;
+              vp[i*3+2] = 8 + (Math.random()-0.5)*3;
+            }
+          }
+          aux.vaporGeo.attributes.position.needsUpdate = true;
+        }
+      }
+      if (aux.vruRing) {
+        aux.vruRing.material.emissiveIntensity = vruActive ? (0.7 + Math.sin(t * 5) * 0.4) : 0.35;
+        aux.vruRing.material.color.setHex(vruActive ? 0x10b981 : 0x06b6d4);
+        aux.vruRing.material.emissive.setHex(vruActive ? 0x10b981 : 0x06b6d4);
+      }
+
+      // --- Additive stream animation ---
+      const addActive = (mode === 'additive_injection');
+      if (aux.additiveStream) {
+        aux.additiveStream.visible = addActive;
+        if (addActive) {
+          const ap = aux.additiveGeo.attributes.position.array;
+          for (let i = 0; i < aux.addCount; i++) {
+            ap[i*3] += 0.22;
+            ap[i*3+2] -= 0.16;
+            if (ap[i*3] > -7) {
+              ap[i*3] = -14;
+              ap[i*3+1] = 2.2;
+              ap[i*3+2] = 5;
+            }
+          }
+          aux.additiveGeo.attributes.position.needsUpdate = true;
+        }
+      }
+
+      // --- PIG animation ---
+      const pigVisible = (mode === 'active' || mode === 'additive_injection' || mode === 'vru_active');
+      if (aux.pig) {
+        aux.pig.visible = pigVisible;
+        if (pigVisible && aux.pigCurve) {
+          aux.pigT = (aux.pigT + 0.0035) % 1;
+          const p = aux.pigCurve.getPoint(aux.pigT);
+          aux.pig.position.copy(p);
+          aux.pig.rotation.y += 0.06;
+          aux.pig.rotation.x += 0.03;
+          if (aux.pig.children[0]) {
+            aux.pig.children[0].material.opacity = 0.2 + Math.sin(t * 6) * 0.12;
+            aux.pig.children[0].scale.setScalar(1 + Math.sin(t * 4) * 0.08);
+          }
+        }
+      }
+
+      // --- Fire suppression cones ---
+      const fireActive = (mode === 'emergency_fire');
+      aux.fireCones.forEach((fc, i) => {
+        fc.visible = fireActive;
+        if (fireActive) {
+          fc.material.opacity = 0.28 + Math.sin(t * 8 + i) * 0.14;
+          fc.scale.y = 1 + Math.sin(t * 6 + i) * 0.12;
+          fc.rotation.y += 0.02;
+        }
+      });
+
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    const ro = new ResizeObserver(entries => {
+      for (const e of entries) {
+        const w = Math.max(e.contentRect.width, 300);
+        const h = Math.max(e.contentRect.height, 200);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      }
+    });
+    ro.observe(mount);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      ro.disconnect();
+      renderer.domElement.removeEventListener('click', handleClick);
+      renderer.domElement.removeEventListener('pointermove', handlePointerMove);
+      renderer.domElement.removeEventListener('dblclick', handleDblClick);
+      controls.dispose();
+      renderer.dispose();
+      if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
+    };
+    // eslint-disable-next-line
+  }, []);
+
+  useEffect(() => {
+    if (mode === 'lockout' || mode === 'emergency_fire') shakeRef.current.until = performance.now() + 900;
+  }, [mode]);
+
+  useEffect(() => {
+    const cam = cameraRef.current, controls = controlsRef.current;
+    if (!cam || !controls) return;
+    let pos = new THREE.Vector3(...CAMERA_INITIAL.pos), target = new THREE.Vector3(...CAMERA_INITIAL.target);
+    switch (cameraPreset) {
+      case 'reset':
+      case 'global': pos.set(...CAMERA_INITIAL.pos); target.set(...CAMERA_INITIAL.target); break;
+      case 'truck':  pos.set(-36, 12, 24); target.set(-20, 3, 11); break;
+      case 'tanks':  pos.set(0, 16, 26);   target.set(0, 4, 0); break;
+      case 'lab':    pos.set(-54, 18, 12); target.set(-44, 7, -20); break;
+      case 'drone':  pos.set(14, 18, 16);  target.set(0, 8, 0); break;
+    }
+    cameraAnimRef.current = {
+      t: 0,
+      fromPos: cam.position.clone(),
+      fromTarget: controls.target.clone(),
+      toPos: pos,
+      toTarget: target
+    };
+  }, [cameraPreset, cameraNonce]);  // [v4.3] nonce: permite re-disparar 'global' aunque ya esté seleccionado
+
+  return <div ref={mountRef} className="absolute inset-0 w-full h-full overflow-hidden select-none bg-slate-950" />;
+}
+
+/* ============================================================
+   Iconos SVG
+   ============================================================ */
+const SVG = ({ className, children, d }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    {d && <path d={d} />}
+    {children}
+  </svg>
+);
+const IcPlay     = p => <SVG {...p}><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></SVG>;
+const IcReset    = p => <SVG {...p}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></SVG>;
+const IcResetView = p => <SVG {...p}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><circle cx="12" cy="12" r="3"/></SVG>;
+const IcShieldAlert = p => <SVG {...p}><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/></SVG>;
+const IcShieldCheck = p => <SVG {...p}><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></SVG>;
+const IcAlertTri = p => <SVG {...p}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></SVG>;
+const IcEye      = p => <SVG {...p}><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></SVG>;
+const IcEyeOff   = p => <SVG {...p}><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></SVG>;
+const IcCpu      = p => <SVG {...p}><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="8" y="8" width="8" height="8" rx="1"/><path d="M12 20v2M12 2v2M17 20v2M17 2v2M2 12h2M2 17h2M2 7h2M20 12h2M20 17h2M20 7h2M7 20v2M7 2v2"/></SVG>;
+const IcDatabase = p => <SVG {...p}><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></SVG>;
+const IcZap      = p => <SVG {...p}><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></SVG>;
+const IcLayers   = p => <SVG {...p}><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></SVG>;
+const IcRadio    = p => <SVG {...p}><path d="M16.247 7.761a6 6 0 0 1 0 8.478"/><path d="M19.075 4.933a10 10 0 0 1 0 14.134"/><path d="M4.925 19.067a10 10 0 0 1 0-14.134"/><path d="M7.753 16.239a6 6 0 0 1 0-8.478"/><circle cx="12" cy="12" r="2"/></SVG>;
+const IcGlobe    = p => <SVG {...p}><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></SVG>;
+const IcCamera   = p => <SVG {...p}><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/><circle cx="12" cy="13" r="3"/></SVG>;
+const IcClipboard = p => <SVG {...p}><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></SVG>;
+const IcCheck    = p => <SVG {...p}><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></SVG>;
+const IcX        = p => <SVG {...p}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></SVG>;
+const IcActivity = p => <SVG {...p}><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></SVG>;
+const IcFlame    = p => <SVG {...p}><path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"/></SVG>;
+const IcSun      = p => <SVG {...p}><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></SVG>;
+const IcRadar    = p => <SVG {...p}><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62a10 10 0 1 0 19.02-1.27"/><path d="M16.24 7.76a6 6 0 1 0-8.01 8.91"/><path d="M12 18h.01"/><path d="M17.99 11.66a6 6 0 0 1-2.22 5.01"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/></SVG>;
+const IcChevronDown = p => <SVG {...p}><path d="m6 9 6 6 6-6"/></SVG>;
+const IcSparkles = p => <SVG {...p}><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></SVG>;
+const IcInfo     = p => <SVG {...p}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></SVG>;
+const IcPointer  = p => <SVG {...p}><path d="M14 4.1 12 6"/><path d="m5.1 8-2.9-.8"/><path d="m6 12-1.9 2"/><path d="M7.2 2.2 8 5.1"/><path d="M9.037 9.69a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z"/></SVG>;
+// NEW icons for the added HUDs
+const IcDroplet  = p => <SVG {...p}><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></SVG>;
+const IcWind     = p => <SVG {...p}><path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/></SVG>;
+const IcGauge    = p => <SVG {...p}><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></SVG>;
+const IcWaves    = p => <SVG {...p}><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></SVG>;
+const IcFlame2   = p => <SVG {...p}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></SVG>;
+
+/* ============================================================
+   Componentes UI
+   ============================================================ */
+function Toast({ message, onDone }) {
+  useEffect(() => {
+    const id = setTimeout(onDone, 2200);
+    return () => clearTimeout(id);
+  }, [message, onDone]);
+  return (
+    <div className="pointer-events-none absolute top-20 left-1/2 -translate-x-1/2 z-40 px-4 py-2.5 rounded-xl bg-cyan-950/95 border border-cyan-500/50 text-cyan-200 text-xs font-semibold shadow-2xl animate-pulse max-w-md text-center">
+      {message}
+    </div>
+  );
+}
+
+function ObjectTooltip({ objectKey, lang }) {
+  const [leaving, setLeaving] = useState(false);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    setVisible(true); setLeaving(false);
+    const t1 = setTimeout(() => setLeaving(true), 3600);
+    const t2 = setTimeout(() => setVisible(false), 4000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [objectKey]);
+  if (!visible) return null;
+  const obj = I18N[lang].objects[objectKey];
+  if (!obj) return null;
+  return (
+    <div className={'tooltip-card pointer-events-none absolute left-1/2 top-1/2 z-50 max-w-md w-[88%] sm:w-auto sm:min-w-[380px] -translate-x-1/2 -translate-y-1/2 ' + (leaving ? 'leaving' : '')}>
+      <div className="bg-white/95 backdrop-blur-md border-2 border-cyan-600 rounded-xl shadow-2xl overflow-hidden">
+        <div className="bg-gradient-to-r from-cyan-100 to-white px-4 py-2.5 flex items-center gap-2 border-b border-cyan-600/30">
+          <div className="w-7 h-7 rounded-lg bg-cyan-600/15 border border-cyan-600/60 flex items-center justify-center">
+            <IcInfo className="w-4 h-4 text-cyan-700" />
+          </div>
+          <div className="flex-1">
+            <div className="text-[9px] uppercase font-mono tracking-widest text-cyan-800">IPIRANGA FUEL-HARMONY™ · {I18N[lang].layoutLabel}</div>
+            <div className="text-sm font-extrabold text-slate-900 leading-tight">{obj.title}</div>
+          </div>
+          <div className="w-1 h-8 rounded-full bg-gradient-to-b from-cyan-600 to-transparent animate-pulse" />
+        </div>
+        <div className="p-4">
+          <p className="text-[12px] text-slate-900 leading-relaxed font-medium">{obj.desc}</p>
+        </div>
+        <div className="px-4 py-1.5 bg-slate-100 border-t border-slate-300 flex items-center justify-between text-[9px] font-mono text-slate-600">
+          <span className="flex items-center gap-1"><IcPointer className="w-3 h-3 text-cyan-700" /> click-to-inspect</span>
+          <span>auto-dismiss · 4s</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClickRipple({ x, y, id }) {
+  return <div key={id} className="click-ripple" style={{ left: x + 'px', top: y + 'px' }} />;
+}
+
+function Row({ label, value, valueClass }) {
+  return (
+    <div className="flex justify-between items-center py-0.5">
+      <span className="text-slate-400 text-[11px]">{label}</span>
+      <span className={'font-mono font-bold text-[11px] ' + (valueClass || 'text-slate-200')}>{value}</span>
+    </div>
+  );
+}
+function MiniStat({ label, value, valueClass }) {
+  return (
+    <div className="bg-slate-950/70 p-1.5 rounded border border-slate-800">
+      <span className="text-slate-400 block text-[9px]">{label}</span>
+      <span className={'font-mono font-bold text-[11px] ' + (valueClass || 'text-white')}>{value}</span>
+    </div>
+  );
+}
+
+function HudCard({ title, icon, children, onPulse, pulseActive, collapsed, onToggleCollapse, accent }) {
+  const borderColor = accent || 'rgba(6,182,212,0.3)';
+  return (
+    <div
+      className={'bg-slate-900/90 backdrop-blur-md rounded-xl border shadow-2xl text-slate-100 transition-all ' + (pulseActive ? 'panel-active scanline' : '')}
+      style={{ borderColor }}
+    >
+      <div className="flex items-center justify-between px-3 py-2 border-b border-cyan-500/20">
+        <div className="flex items-center gap-1.5 cursor-pointer flex-1" onClick={onPulse}>
+          {icon}
+          <span className="text-[11px] font-bold text-cyan-300 tracking-wider">{title}</span>
+        </div>
+        <button onClick={onToggleCollapse} className="p-0.5 text-slate-400 hover:text-cyan-300 transition-colors" title="Toggle">
+          <IcChevronDown className={'w-3.5 h-3.5 panel-collapse-btn ' + (collapsed ? 'collapsed' : '')} />
+        </button>
+      </div>
+      <div className={'overflow-hidden transition-all duration-300 ' + (collapsed ? 'max-h-0 opacity-0' : 'max-h-[420px] opacity-100')}>
+        <div className="p-3 cursor-pointer" onClick={onPulse}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function TacticalHUD({
+  lang, mode, tanks, selectedTankId, batchPassport, decisionState,
+  showWireframe, showParticles, showDrones,
+  onToggleWireframe, onToggleParticles, onToggleDrones,
+  onSelectTank, onPanelPulse, pulseKey,
+  cinemaMode, onToggleCinemaMode,
+  layout,
+  showPanels, onTogglePanels,
+  showAuthor, onToggleAuthor,
+  guideOpen, onToggleGuide
+}) {
+  const t = I18N[lang];
+  const tk = tanks.find(x => x.id === selectedTankId) || tanks[0];
+  const [twinPulse, setTwinPulse] = useState(false);
+  const [passPulse, setPassPulse] = useState(false);
+  const [decPulse, setDecPulse]   = useState(false);
+  const [tankPulse, setTankPulse] = useState(false);
+  // NEW pulse states for added HUDs
+  const [firePulse, setFirePulse] = useState(false);
+  const [vruPulse, setVruPulse]   = useState(false);
+  const [pigPulse, setPigPulse]   = useState(false);
+  const [collapse, setCollapse] = useState({ twin: false, passport: false, decision: false, tank: false, fire: true, vru: true, pig: true });
+
+  useEffect(() => {
+    if (!pulseKey) return;
+    const map = { twin: setTwinPulse, passport: setPassPulse, decision: setDecPulse, tank: setTankPulse, fire: setFirePulse, vru: setVruPulse, pig: setPigPulse };
+    const setter = map[pulseKey.key];
+    if (!setter) return;
+    setter(true);
+    const id = setTimeout(() => setter(false), 900);
+    return () => clearTimeout(id);
+  }, [pulseKey]);
+
+  if (cinemaMode) {
+    return (
+      <div className="pointer-events-none absolute inset-0 z-10">
+        <div className="pointer-events-auto absolute top-3 right-3 flex items-center gap-2">
+          <button onClick={onToggleCinemaMode}
+            className="px-3 py-1.5 rounded-lg bg-slate-900/95 backdrop-blur-md border border-cyan-500/50 text-cyan-300 text-xs font-semibold shadow-2xl hover:bg-slate-800 transition-colors flex items-center gap-1.5">
+            <IcEye className="w-3.5 h-3.5" />{t.btnShowHUD}
+          </button>
+        </div>
+        <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-slate-900/80 backdrop-blur-md border border-cyan-500/30 text-[10px] text-cyan-300 font-mono">
+          IPIRANGA FUEL-HARMONY™ · {I18N[lang].modeLabels[mode]}
+        </div>
+      </div>
+    );
+  }
+
+  const modeLabel = t.modeLabels[mode] || '';
+  const modeColor = (mode === 'lockout' || mode === 'emergency_fire') ? 'bg-rose-950/90 border-rose-500 text-rose-200'
+    : mode === 'quarantine' ? 'bg-amber-950/90 border-amber-500 text-amber-200'
+    : mode === 'active' ? 'bg-cyan-950/90 border-cyan-500 text-cyan-200'
+    : mode === 'swarm_sync' ? 'bg-purple-950/90 border-purple-500 text-purple-200'
+    : mode === 'vru_active' ? 'bg-emerald-950/90 border-emerald-500 text-emerald-200'
+    : mode === 'additive_injection' ? 'bg-amber-950/90 border-amber-500 text-amber-100'
+    : 'bg-slate-900/90 border-slate-700 text-slate-200';
+
+  const showLeft = showPanels && (layout === 'complete' || layout === 'compact');
+  const showRight = showPanels && (layout === 'complete' || layout === 'compact');
+  const showAuthorCard = showAuthor && layout === 'complete';
+  const showInstitCards = layout === 'complete';
+
+  // Dynamic values driven by mode
+  const fireArmed = mode !== 'emergency_fire';
+  const vruActive = mode === 'vru_active';
+  const addActive = mode === 'additive_injection';
+  const pigVisible = (mode === 'active' || mode === 'vru_active' || mode === 'additive_injection');
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-2 md:p-3 overflow-hidden">
+      {/* Fila superior */}
+      <div className="flex flex-wrap items-start justify-between gap-2 relative z-20">
+        {showAuthorCard && (
+          <div className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-xl p-2.5 shadow-2xl border border-slate-300 max-w-xs relative">
+            <button onClick={onToggleAuthor}
+              className="absolute top-1 right-1 p-0.5 text-slate-500 hover:text-slate-900"
+              title={t.btnHideAuthor}>
+              <IcX className="w-3 h-3" />
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <h1 className="text-xs md:text-sm font-extrabold tracking-tight text-black leading-tight pr-4">Dr. Julio César Oporta Barrera</h1>
+            </div>
+            <p className="mt-1 text-[10px] text-slate-700 font-semibold leading-snug">{t.authorRole}</p>
+            <div className="mt-1.5 pt-1.5 border-t border-slate-200 flex items-center justify-between text-[9px] text-slate-600">
+              <span className="font-bold text-slate-900">FUEL-HARMONY™ {t.patentPending}</span>
+              <span className="font-medium">OMNIA-5000</span>
+            </div>
+          </div>
+        )}
+
+        <div className="pointer-events-auto hidden xl:flex flex-col items-center bg-slate-900/90 backdrop-blur-md px-4 py-1.5 rounded-xl border border-cyan-500/40 shadow-2xl mx-auto">
+          <div className="flex items-center gap-2">
+            <IcFlame className="w-4 h-4 text-cyan-400 animate-pulse" />
+            <span className="font-extrabold tracking-wider text-white text-sm">IPIRANGA FUEL-HARMONY™</span>
+          </div>
+          <span className="text-[10px] text-cyan-300 font-medium tracking-wide text-center max-w-md leading-tight">{t.systemTagline}</span>
+        </div>
+
+        <div className="pointer-events-auto flex flex-col items-end gap-1.5">
+          <div className="flex items-stretch gap-1.5">
+          <button onClick={onToggleGuide} title={GD_TXT.btn[lang] || GD_TXT.btn.pt} aria-pressed={!!guideOpen}
+            className={'px-3 py-1.5 rounded-xl backdrop-blur-md border shadow-xl flex items-center gap-2 text-left transition-colors ' + (guideOpen ? 'bg-cyan-600 border-cyan-300 text-white' : 'bg-slate-900/90 border-cyan-500/50 text-cyan-200 hover:bg-slate-800')}>
+            <span className="text-sm leading-none">{guideOpen ? '✕' : '▶'}</span>
+            <span className="hidden sm:block">
+              <span className="block text-[11px] font-extrabold leading-tight">{GD_TXT.btn[lang] || GD_TXT.btn.pt}</span>
+              <span className="block text-[8px] font-mono text-amber-300 leading-tight">{lang === 'en' ? 'ILLUSTRATIVE' : 'ILUSTRATIVO'}</span>
+            </span>
+          </button>
+          <div className={'px-3 py-1.5 rounded-xl backdrop-blur-md border shadow-xl flex items-center gap-2 ' + modeColor}>
+            {(mode === 'lockout' || mode === 'emergency_fire') ? <IcShieldAlert className="w-4 h-4 text-rose-400 animate-bounce" />
+              : mode === 'quarantine' ? <IcAlertTri className="w-4 h-4 text-amber-400" />
+              : mode === 'swarm_sync' ? <IcRadar className="w-4 h-4 text-purple-400" />
+              : mode === 'vru_active' ? <IcWind className="w-4 h-4 text-emerald-400" />
+              : mode === 'additive_injection' ? <IcGauge className="w-4 h-4 text-amber-400" />
+              : <IcShieldCheck className="w-4 h-4 text-cyan-400" />}
+            <div>
+              <div className="text-[8px] uppercase font-bold tracking-widest opacity-80">{t.modesTitle}</div>
+              <div className="text-[11px] font-extrabold">{modeLabel}</div>
+            </div>
+          </div>
+          </div>
+
+          <div className="flex items-center gap-1 bg-slate-900/90 backdrop-blur-md p-1 rounded-lg border border-slate-800 text-[10px]">
+            <button onClick={onToggleWireframe} title={t.toggleWireframe}
+              className={'px-2 py-1 rounded font-semibold transition-colors flex items-center gap-1 ' + (showWireframe ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
+              <IcCpu className="w-3 h-3" /><span className="hidden sm:inline">Twin</span>
+            </button>
+            <button onClick={onToggleParticles} title={t.toggleParticles}
+              className={'px-2 py-1 rounded font-semibold transition-colors flex items-center gap-1 ' + (showParticles ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
+              <IcActivity className="w-3 h-3" /><span className="hidden sm:inline">Flow</span>
+            </button>
+            <button onClick={onToggleDrones} title={t.toggleDrones}
+              className={'px-2 py-1 rounded font-semibold transition-colors flex items-center gap-1 ' + (showDrones ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
+              <IcRadio className="w-3 h-3" /><span className="hidden sm:inline">Swarm</span>
+            </button>
+            <div className="w-px h-4 bg-slate-700 mx-0.5" />
+            <button onClick={onTogglePanels} title={showPanels ? t.btnHidePanels : t.btnShowPanels}
+              className={'px-2 py-1 rounded font-semibold transition-colors flex items-center gap-1 ' + (showPanels ? 'text-cyan-300 hover:bg-cyan-950/60' : 'bg-cyan-600 text-white')}>
+              {showPanels ? <IcEyeOff className="w-3 h-3" /> : <IcEye className="w-3 h-3" />}
+            </button>
+            <button onClick={onToggleCinemaMode} title={t.btnCinemaMode}
+              className="px-2 py-1 rounded bg-slate-800 text-cyan-300 font-semibold hover:bg-slate-700 transition-colors flex items-center gap-1">
+              <IcSparkles className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Paneles laterales */}
+      <div className={'flex-1 flex justify-between items-start my-2 gap-2 min-h-0 ' + (showPanels ? '' : 'hidden')}>
+        {/* Columna izquierda */}
+        <div className={'pointer-events-auto flex-col gap-2 w-[260px] max-w-[260px] max-h-full overflow-y-auto scrollbar-thin pr-0.5 ' + (showLeft ? 'flex' : 'hidden')}>
+          <HudCard title={t.hudDigitalTwin} icon={<IcCpu className="w-3.5 h-3.5 text-cyan-400" />}
+            onPulse={() => onPanelPulse('twin')} pulseActive={twinPulse}
+            collapsed={collapse.twin} onToggleCollapse={() => setCollapse(c => ({ ...c, twin: !c.twin }))}>
+            <div className="space-y-1 text-[11px]">
+              <Row label={t.syncLabel} value="100% Real-Time" valueClass="text-cyan-200" />
+              <Row label={t.sensorsLabel} value="48 / 48 SIL-2" />
+              <Row label={t.fpsLabel} value="60" valueClass="text-emerald-300" />
+              <Row label={t.coreLabel} value="OMNIA-5000" valueClass="text-emerald-300" />
+            </div>
+          </HudCard>
+
+          <HudCard title={t.hudBatchPassport} icon={<IcDatabase className="w-3.5 h-3.5 text-cyan-400" />}
+            onPulse={() => onPanelPulse('passport')} pulseActive={passPulse}
+            collapsed={collapse.passport} onToggleCollapse={() => setCollapse(c => ({ ...c, passport: !c.passport }))}>
+            <div className="flex justify-end mb-1">
+              <span className={'text-[9px] font-bold px-1.5 py-0.5 rounded ' + (batchPassport.complianceANP ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/30' : 'bg-rose-950 text-rose-300 border border-rose-500/30')}>
+                {batchPassport.complianceANP ? t.compliant : t.nonCompliant}
+              </span>
+            </div>
+            <div className="space-y-1 text-[11px]">
+              <Row label={t.batchId} value={batchPassport.batchId} valueClass="text-cyan-300" />
+              <Row label={t.carrier} value={batchPassport.carrierTruckId} />
+              <div className="grid grid-cols-2 gap-1.5 pt-1 text-[10px]">
+                <MiniStat label={t.density20C} value={batchPassport.density20C.toFixed(1) + ' kg/m³'} />
+                <MiniStat label={t.ethanolPercent} value={batchPassport.ethanolPercent.toFixed(1) + ' %'} valueClass="text-cyan-300" />
+                <MiniStat label={t.sulfurPpm} value={batchPassport.sulfurPpm.toFixed(1) + ' ppm'} valueClass="text-emerald-300" />
+                <MiniStat label={t.flashPoint} value={batchPassport.flashPointC.toFixed(1) + ' °C'} valueClass="text-amber-300" />
+              </div>
+              <div className={'pt-1 text-[9px] font-mono truncate ' + (passPulse ? 'animate-hash text-cyan-200 rounded px-1' : 'text-slate-500')}>
+                {t.hashLabel} {batchPassport.sha256Hash.slice(0, 24)}…
+              </div>
+            </div>
+          </HudCard>
+
+          {/* NEW HUD #1: Fire & Gas Safety Matrix */}
+          <HudCard
+            title={t.hudFireGas}
+            icon={<IcFlame2 className="w-3.5 h-3.5 text-rose-400" />}
+            onPulse={() => onPanelPulse('fire')}
+            pulseActive={firePulse}
+            collapsed={collapse.fire}
+            onToggleCollapse={() => setCollapse(c => ({ ...c, fire: !c.fire }))}
+            accent="rgba(244,63,94,0.4)"
+          >
+            <div className="space-y-1 text-[11px]">
+              <Row label={t.fireDetectors} value="48 / 48" valueClass="text-emerald-300" />
+              <Row label={t.fireSuppression} value={fireArmed ? t.stateArmed : t.stateTriggered} valueClass={fireArmed ? 'text-emerald-300' : 'text-rose-300 animate-pulse'} />
+              <Row label={t.fireFoamReserve} value={mode === 'emergency_fire' ? '92%' : '100%'} valueClass={mode === 'emergency_fire' ? 'text-amber-300' : 'text-slate-200'} />
+              <Row label={t.fireLastTest} value="2026-09-15" />
+            </div>
+            <div className={'mt-2 flex items-center gap-1.5 text-[9px] font-mono px-1.5 py-1 rounded ' + (mode === 'emergency_fire' ? 'bg-rose-950/70 border border-rose-500/50 text-rose-300' : 'bg-emerald-950/60 border border-emerald-500/30 text-emerald-300')}>
+              <span className={'w-1.5 h-1.5 rounded-full ' + (mode === 'emergency_fire' ? 'bg-rose-400 animate-flash' : 'bg-emerald-400 animate-pulse')} />
+              {mode === 'emergency_fire' ? 'AFFF · 3 monitors active' : 'MONITORING · LOOP OK'}
+            </div>
+          </HudCard>
+        </div>
+
+        {/* Columna derecha */}
+        <div className={'pointer-events-auto flex-col gap-2 w-[260px] max-w-[260px] max-h-full overflow-y-auto scrollbar-thin pl-0.5 ' + (showRight ? 'flex' : 'hidden')}>
+          <HudCard title={t.hudDecisionEngine} icon={<IcZap className="w-3.5 h-3.5 text-cyan-400" />}
+            onPulse={() => onPanelPulse('decision')} pulseActive={decPulse}
+            collapsed={collapse.decision} onToggleCollapse={() => setCollapse(c => ({ ...c, decision: !c.decision }))}>
+            <div className="flex justify-end mb-1">
+              <span className="text-[9px] font-mono text-cyan-300 bg-cyan-950/80 px-1.5 py-0.5 rounded border border-cyan-500/30">{decisionState.confidenceScore}% CERT</span>
+            </div>
+            <div className="space-y-1.5 text-[11px]">
+              <div className={'p-1.5 rounded-lg border flex items-center justify-between text-[10px] ' + (decisionState.recommendation === 'AUTHORIZE' ? 'bg-emerald-950/70 border-emerald-500/50 text-emerald-300' : decisionState.recommendation === 'HOLD_FOR_RESAMPLE' ? 'bg-amber-950/70 border-amber-500/50 text-amber-300' : 'bg-rose-950/70 border-rose-500/50 text-rose-300')}>
+                <span className="font-bold uppercase tracking-wide">{t.recommendation[decisionState.recommendation]}</span>
+                <span className="font-mono">HAZOP: {t.hazopStatus[decisionState.hazopStatus] || decisionState.hazopStatus}</span>
+              </div>
+              <Row label={t.flowRate} value={decisionState.flowRateLpm + ' L/min'} valueClass="text-cyan-300" />
+              <div className={'text-[9px] text-slate-400 bg-slate-950/50 p-1.5 rounded border ' + (decPulse ? 'border-cyan-500/50' : 'border-slate-800/60')}>
+                <strong className="text-cyan-300">{t.ruleLabel}</strong>{' '}
+                {t.rules.map((r, i) => <span key={i}>{r}{i < t.rules.length - 1 ? ', ' : ''}</span>)}
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-slate-800 text-[9px] text-slate-400">
+                <span className="flex items-center gap-1"><IcSun className="w-3 h-3 text-amber-400" />{decisionState.hybridPowerKw} kW</span>
+                <span className="text-emerald-400 font-semibold">-{decisionState.co2AvoidedKg} kg CO₂e</span>
+              </div>
+            </div>
+          </HudCard>
+
+          <HudCard title={t.hudTankState} icon={<IcLayers className="w-3.5 h-3.5 text-cyan-400" />}
+            onPulse={() => onPanelPulse('tank')} pulseActive={tankPulse}
+            collapsed={collapse.tank} onToggleCollapse={() => setCollapse(c => ({ ...c, tank: !c.tank }))}>
+            <div className="grid grid-cols-4 gap-1 mb-2">
+              {tanks.map(tk2 => (
+                <button key={tk2.id}
+                  onClick={e => { e.stopPropagation(); onSelectTank(tk2.id); }}
+                  className={'py-1 rounded text-[10px] font-mono font-bold transition-all text-center ' + (tk2.id === selectedTankId ? 'bg-cyan-600 text-white shadow-md' : 'bg-slate-950/70 text-slate-400 hover:text-slate-200') + (tk2.isolated ? ' ring-1 ring-rose-500' : '')}>
+                  T-0{tk2.id}
+                </button>
+              ))}
+            </div>
+            <div className={'bg-slate-950/70 p-2 rounded-lg border space-y-1.5 text-[11px] ' + (tankPulse ? 'border-cyan-500/50' : 'border-slate-800')}>
+              <div className="flex justify-between items-center">
+                <div className="text-[10px] font-semibold text-cyan-300">T-0{tk.id} · {t.tanks[tk.id - 1]}</div>
+                <span className={'text-[9px] font-mono ' + (tk.isolated ? 'text-rose-400' : 'text-emerald-400')}>{tk.isolated ? 'ISOLATED' : t.onlineLabel}</span>
+              </div>
+              <div>
+                <div className="flex justify-between text-[10px] mb-0.5">
+                  <span className="text-slate-400">{t.level}</span>
+                  <span className="font-mono font-bold text-white">{tk.levelPct}% ({tk.currentLitres.toLocaleString()} L)</span>
+                </div>
+                <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div className={'h-full transition-all duration-300 ' + (tk.levelPct > 85 ? 'bg-amber-500' : 'bg-cyan-500')} style={{ width: tk.levelPct + '%' }} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-1 pt-1 text-[9px] font-mono">
+                <MiniStat label={t.temp} value={tk.temperatureC.toFixed(1) + '°C'} />
+                <MiniStat label={t.pressure} value={tk.pressureBar.toFixed(2) + ' bar'} />
+                <MiniStat label={t.strat} value={tk.stratificationIndex < 0.2 ? t.homogeneous : t.stratified} valueClass="text-emerald-400" />
+              </div>
+              <div className="text-[9px] text-slate-500 pt-1 border-t border-slate-800 font-mono">↔ {lang === 'pt' ? 'Duplo-clique para isolar' : lang === 'en' ? 'Double-click to isolate' : 'Doble clic para aislar'}</div>
+            </div>
+          </HudCard>
+
+          {/* NEW HUD #2: Vapor Recovery */}
+          <HudCard
+            title={t.hudVaporRecovery}
+            icon={<IcWind className="w-3.5 h-3.5 text-emerald-400" />}
+            onPulse={() => onPanelPulse('vru')}
+            pulseActive={vruPulse}
+            collapsed={collapse.vru}
+            onToggleCollapse={() => setCollapse(c => ({ ...c, vru: !c.vru }))}
+            accent="rgba(16,185,129,0.4)"
+          >
+            <div className="space-y-1 text-[11px]">
+              <Row label={t.vaporRecoveryRate} value={vruActive ? '97.4%' : '—'} valueClass={vruActive ? 'text-emerald-300' : 'text-slate-500'} />
+              <Row label={t.vaporEmissions} value={vruActive ? '0.8 kg/h' : '32.4 kg/h'} valueClass={vruActive ? 'text-emerald-300' : 'text-amber-300'} />
+              <Row label={t.vaporVruStatus} value={vruActive ? t.stateActive : t.stateStandby} valueClass={vruActive ? 'text-emerald-300' : 'text-slate-400'} />
+              <Row label={t.vaporVocCaptured} value="1.84 t/mês" />
+            </div>
+            <div className={'mt-2 flex items-center gap-1.5 text-[9px] font-mono px-1.5 py-1 rounded ' + (vruActive ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-300' : 'bg-slate-950/60 border border-slate-800 text-slate-500')}>
+              <span className={'w-1.5 h-1.5 rounded-full ' + (vruActive ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600')} />
+              {vruActive ? 'ADSORPTION · CARBON BED OK' : 'STANDBY · READY'}
+            </div>
+          </HudCard>
+
+          {/* NEW HUD #3: Pipeline PIG Tracker */}
+          <HudCard
+            title={t.hudPipelinePig}
+            icon={<IcWaves className="w-3.5 h-3.5 text-amber-400" />}
+            onPulse={() => onPanelPulse('pig')}
+            pulseActive={pigPulse}
+            collapsed={collapse.pig}
+            onToggleCollapse={() => setCollapse(c => ({ ...c, pig: !c.pig }))}
+            accent="rgba(251,191,36,0.4)"
+          >
+            <div className="space-y-1 text-[11px]">
+              <Row label={t.pigPosition} value={pigVisible ? '43.2 %' : '0.0 %'} valueClass={pigVisible ? 'text-amber-300' : 'text-slate-500'} />
+              <Row label={t.pigVelocity} value={pigVisible ? '0.42 m/s' : '0.00 m/s'} valueClass={pigVisible ? 'text-amber-300' : 'text-slate-500'} />
+              <Row label={t.pigLastRun} value="12 h atrás" />
+              <Row label={t.pigIntegrity} value="100 %" valueClass="text-emerald-300" />
+            </div>
+            <div className={'mt-2 flex items-center gap-1.5 text-[9px] font-mono px-1.5 py-1 rounded ' + (pigVisible ? 'bg-amber-950/60 border border-amber-500/40 text-amber-300' : 'bg-slate-950/60 border border-slate-800 text-slate-500')}>
+              <span className={'w-1.5 h-1.5 rounded-full ' + (pigVisible ? 'bg-amber-400 animate-pulse' : 'bg-slate-600')} />
+              {pigVisible ? 'SCAN · UT / MFL ACTIVE' : 'IDLE · PARKED'}
+            </div>
+          </HudCard>
+        </div>
+      </div>
+
+      {/* Pie institucional */}
+      {showInstitCards && (
+        <div className="hidden lg:flex flex-wrap items-end justify-between gap-2 text-[10px] pointer-events-none">
+          <div className="pointer-events-auto bg-slate-900/85 backdrop-blur-md rounded-lg px-3 py-1.5 border border-slate-700 shadow-xl max-w-xs">
+            <div className="flex items-center gap-1.5">
+              <span className="px-1 py-0.5 rounded bg-blue-900 text-yellow-400 font-bold text-[9px] tracking-wider border border-blue-500/40">IPIRANGA</span>
+              <span className="font-semibold text-slate-200 text-[10px]">{t.instIpirangaName}</span>
+            </div>
+          </div>
+          <div className="pointer-events-auto bg-slate-900/85 backdrop-blur-md rounded-lg px-3 py-1.5 border border-cyan-500/40 shadow-xl max-w-xs">
+            <div className="flex items-center gap-1.5">
+              <span className="px-1 py-0.5 rounded bg-cyan-950 text-cyan-300 font-bold text-[9px] tracking-wider border border-cyan-500/50">DR. OPORTO</span>
+              <span className="font-semibold text-cyan-200 text-[10px]">{t.instOportaName}</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SimulationControls({
+  lang, onLangChange, mode, onModeChange, cameraPreset, onCameraChange, onResetView,
+  onSimulateFault, onResetSystem, onEmergencyStop, onOpenOmniaModal, onOpenPatentModal,
+  layout, setLayout
+}) {
+  const t = I18N[lang];
+  const modeBtns = [
+    { key: 'shadow', label: t.modeShadow, color: 'blue' },
+    { key: 'active', label: t.modeActive, color: 'cyan', icon: <IcPlay className="w-3.5 h-3.5 fill-current" /> },
+    { key: 'quarantine', label: t.modeQuarantine, color: 'amber' },
+    { key: 'swarm_sync', label: t.modeSwarm, color: 'purple' },
+    { key: 'vru_active', label: t.modeVRU, color: 'emerald', icon: <IcWind className="w-3.5 h-3.5" /> },
+    { key: 'additive_injection', label: t.modeAdditive, color: 'teal', icon: <IcGauge className="w-3.5 h-3.5" /> },
+    { key: 'emergency_fire', label: t.modeFire, color: 'rose', icon: <IcFlame2 className="w-3.5 h-3.5" /> }
+  ];
+  const camBtns = [
+    { key: 'global', label: t.camGlobal },
+    { key: 'truck', label: t.camTruck },
+    { key: 'tanks', label: t.camTanks },
+    { key: 'lab', label: t.camLab },
+    { key: 'drone', label: t.camDrone }
+  ];
+  const layoutBtns = [
+    { key: 'complete', label: t.layoutComplete },
+    { key: 'compact', label: t.layoutCompact },
+    { key: 'minimal', label: t.layoutMinimal }
+  ];
+  const colorMap = {
+    blue:   'bg-blue-600 text-white shadow-md',
+    cyan:   'bg-cyan-600 text-white shadow-md',
+    amber:  'bg-amber-600 text-white shadow-md',
+    purple: 'bg-purple-600 text-white shadow-md',
+    emerald:'bg-emerald-600 text-white shadow-md',
+    teal:   'bg-teal-600 text-white shadow-md',
+    rose:   'bg-rose-600 text-white shadow-md'
+  };
+  return (
+    <div className="relative z-20 bg-slate-900 border-t border-slate-800 px-3 py-2.5 shadow-2xl">
+      <div className="max-w-[1700px] mx-auto flex flex-col xl:flex-row items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 justify-center xl:justify-start">
+          {modeBtns.map(b => (
+            <button key={b.key} onClick={() => onModeChange(b.key)}
+              className={'px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1 ' + (mode === b.key ? colorMap[b.color] : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white')}>
+              {b.icon}{b.label}
+            </button>
+          ))}
+          <button onClick={onEmergencyStop}
+            className={'px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1 ' + (mode === 'lockout' ? 'bg-rose-600 text-white animate-pulse' : 'bg-rose-950/80 text-rose-300 hover:bg-rose-900 border border-rose-800/60')}>
+            <IcShieldAlert className="w-3.5 h-3.5" /><span className="hidden sm:inline">{t.btnEmergencyStop}</span>
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 justify-center">
+          <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800 text-[11px]">
+            <IcCamera className="w-3.5 h-3.5 text-slate-500 ml-1.5 mr-0.5" />
+            {camBtns.map(b => (
+              <button key={b.key} onClick={() => onCameraChange(b.key)}
+                className={'px-2 py-1 rounded transition-colors ' + (cameraPreset === b.key ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:text-slate-200')}
+                title={b.label}>{b.label}</button>
+            ))}
+            <div className="w-px h-4 bg-slate-700 mx-0.5" />
+            <button onClick={onResetView}
+              className="px-2 py-1 rounded transition-colors flex items-center gap-1 text-cyan-300 hover:bg-cyan-950/60 font-semibold"
+              title={t.camReset}>
+              <IcResetView className="w-3.5 h-3.5" /><span className="hidden md:inline">{t.camReset}</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800 text-[11px]">
+            <span className="text-slate-500 ml-1.5 mr-1 hidden sm:inline">{t.layoutLabel}:</span>
+            {layoutBtns.map(b => (
+              <button key={b.key} onClick={() => setLayout(b.key)}
+                className={'px-2 py-1 rounded transition-colors ' + (layout === b.key ? 'bg-cyan-600 text-white font-semibold' : 'text-slate-400 hover:text-slate-200')}
+                title={b.label}>{b.label}</button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 justify-center xl:justify-end">
+          <button onClick={onSimulateFault} className="px-2 py-1.5 rounded-lg text-[11px] font-medium bg-amber-950/70 text-amber-300 hover:bg-amber-900/90 border border-amber-600/40">
+            {t.btnSimulateFault}
+          </button>
+          <button onClick={onResetSystem} className="px-2 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-1" title={t.btnResetSystem}>
+            <IcReset className="w-4 h-4" /><span className="hidden md:inline text-[11px] font-semibold">{t.btnResetSystem}</span>
+          </button>
+          <button onClick={onOpenPatentModal} className="px-2 py-1.5 rounded-lg text-[11px] font-semibold bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/40 flex items-center gap-1">
+            <IcLayers className="w-3.5 h-3.5 text-cyan-400" /><span className="hidden sm:inline">{t.btnPatent}</span>
+          </button>
+          <button onClick={onOpenOmniaModal} className="px-2 py-1.5 rounded-lg text-[11px] font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1">
+            <IcClipboard className="w-3.5 h-3.5 text-cyan-400" /><span className="hidden sm:inline">{t.btnOmnia}</span>
+          </button>
+          <div className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800 text-[11px]">
+            <IcGlobe className="w-3.5 h-3.5 text-slate-400 ml-1 mr-1" />
+            {['pt', 'en', 'es'].map(l => (
+              <button key={l} onClick={() => onLangChange(l)}
+                className={'px-2 py-0.5 rounded font-mono font-bold uppercase transition-colors ' + (lang === l ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OmniaModal({ isOpen, onClose, lang }) {
+  if (!isOpen) return null;
+  const t = I18N[lang];
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+      <div className="bg-slate-900 border border-cyan-500/40 rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+          <div className="flex items-center gap-2.5">
+            <IcShieldCheck className="w-5 h-5 text-cyan-400" />
+            <div>
+              <h2 className="text-base font-bold text-white">{t.omniaTitle}</h2>
+              <p className="text-xs text-slate-400">Dr. Julio César Oporta Barrera · IPIRANGA FUEL-HARMONY™</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg"><IcX className="w-5 h-5" /></button>
+        </div>
+        <div className="p-4 overflow-y-auto space-y-2.5 flex-1 scrollbar-thin">
+          <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 leading-relaxed">
+            <span className="font-semibold text-cyan-300 block mb-1">{t.manualTitle}</span>
+            {t.omniaDesc}
+          </div>
+          <div className="space-y-2">
+            {t.omniaItems.map((q, i) => (
+              <div key={i} className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <span className="font-mono font-bold text-cyan-400 text-[11px] bg-cyan-950/80 px-1.5 py-0.5 rounded border border-cyan-500/20">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="text-slate-200">{q}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-emerald-400 font-mono text-[11px] whitespace-nowrap">
+                  <IcCheck className="w-4 h-4" /><span>{t.omniaStatus}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="p-3 border-t border-slate-800 bg-slate-950/70 flex items-center justify-between text-xs text-slate-400">
+          <span>OMNIA-5000 Protocol v2026.09</span>
+          <button onClick={onClose} className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium">{t.close}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PatentModal({ isOpen, onClose, lang }) {
+  if (!isOpen) return null;
+  const t = I18N[lang];
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-slate-950/85 backdrop-blur-md">
+      <div className="bg-slate-900 border border-cyan-500/50 rounded-2xl max-w-5xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
+          <div className="flex items-center gap-3">
+            <IcFlame className="w-5 h-5 text-cyan-400" />
+            <div>
+              <h2 className="text-base md:text-lg font-extrabold text-white">{t.patentTitle}</h2>
+              <p className="text-xs text-slate-400">{t.patentSubtitle}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg"><IcX className="w-5 h-5" /></button>
+        </div>
+        <div className="p-4 md:p-6 overflow-y-auto space-y-6 flex-1 bg-slate-950/40 scrollbar-thin">
+          <div className="bg-slate-950 rounded-xl p-5 border border-cyan-500/30">
+            <div className="text-center mb-6">
+              <span className="text-[10px] uppercase font-mono tracking-widest text-cyan-400 bg-cyan-950/80 px-2.5 py-1 rounded border border-cyan-500/30">{t.patentSchema}</span>
+              <h3 className="text-lg md:text-xl font-bold text-white mt-2">{t.patentPlatform}</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800">
+                <div className="flex items-center gap-2 text-cyan-300 font-bold mb-2"><IcDatabase className="w-4 h-4" /><span>{t.patent01}</span></div>
+                <p className="text-slate-400 text-[11px] leading-relaxed">{t.patent01Desc}</p>
+              </div>
+              <div className="bg-slate-900/80 p-4 rounded-xl border border-cyan-500/40">
+                <div className="flex items-center gap-2 text-cyan-300 font-bold mb-2"><IcZap className="w-4 h-4 text-amber-400" /><span>{t.patent02}</span></div>
+                <p className="text-slate-400 text-[11px] leading-relaxed">{t.patent02Desc}</p>
+              </div>
+              <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800">
+                <div className="flex items-center gap-2 text-cyan-300 font-bold mb-2"><IcLayers className="w-4 h-4" /><span>{t.patent03}</span></div>
+                <p className="text-slate-400 text-[11px] leading-relaxed">{t.patent03Desc}</p>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-slate-900/80 p-4 rounded-xl border border-blue-900/60">
+              <div className="flex items-center gap-2 text-blue-400 font-bold mb-2">
+                <span className="px-2 py-0.5 rounded bg-blue-950 text-yellow-400 font-extrabold text-xs">IPIRANGA</span>
+                <span className="text-white text-xs uppercase">{t.patentIpiranga}</span>
+              </div>
+              <p className="text-slate-300 text-xs leading-relaxed">{t.patentIpirangaDesc}</p>
+            </div>
+            <div className="bg-slate-900/80 p-4 rounded-xl border border-cyan-500/40">
+              <div className="flex items-center gap-2 text-cyan-400 font-bold mb-2">
+                <span className="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 font-extrabold text-xs">DR. OPORTO</span>
+                <span className="text-white text-xs uppercase">{t.patentOporto}</span>
+              </div>
+              <p className="text-slate-300 text-xs leading-relaxed">{t.patentOportoDesc}</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-3 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between text-xs text-slate-400">
+          <span>{t.manualTitle} · {t.patentPending}</span>
+          <button onClick={onClose} className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium">{t.close}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   App
+   ============================================================ */
+/* ============================================================
+   [AUDITORÍA v4.1] Guía del Manual — módulo aditivo (no altera módulos existentes)
+   Fuente: Manual Maestro FUEL-HARMONY™ (caps. 1, 11-19, 29, 34-35, 40-44, 71)
+   ============================================================ */
+const GD_STEPS = [
+  { k: 'BATCH PASSPORT™', c: 12, cam: 'truck', d: { pt: 'Identidade digital do lote: origem, qualidade, assinatura e bloqueio.', es: 'Identidad digital del lote: origen, calidad, firma y bloqueo.', en: 'Digital batch identity: origin, quality, signature and lock.' } },
+  { k: 'TANK STATE™', c: 13, cam: 'tanks', d: { pt: 'Estado do tanque destino: nível, mistura, temperatura e homogeneidade.', es: 'Estado del tanque destino: nivel, mezcla, temperatura y homogeneidad.', en: 'Destination tank state: level, blend, temperature and homogeneity.' } },
+  { k: 'OPERATION STATE™', c: 14, mode: 'shadow', d: { pt: 'Estado operacional (pronto, espera, em transferência), alarmes e escalonamento.', es: 'Estado operativo (listo, espera, en transferencia), alarmas y escalamiento.', en: 'Operating state (ready, standby, transferring), alarms and escalation.' } },
+  { k: 'TRANSFER STATE DECISION ENGINE™', c: 15, mode: 'active', d: { pt: 'Avalia regras sobre as evidências e recomenda; só atua sobre válvulas/bombas conforme o nível de autonomia autorizado.', es: 'Evalúa reglas sobre las evidencias y recomienda; solo actúa sobre válvulas/bombas según el nivel de autonomía autorizado.', en: 'Evaluates rules on the evidence and recommends; acts on valves/pumps only per the authorized autonomy level.' } },
+  { k: 'UNCERTAINTY-TO-ACTION™', c: 18, mode: 'quarantine', d: { pt: 'Converte incerteza em ação priorizada por custo/benefício (ex.: reter e re-amostrar).', es: 'Convierte incertidumbre en acción priorizada por costo/beneficio (ej.: retener y re-muestrear).', en: 'Turns uncertainty into cost/benefit-prioritized action (e.g., hold and re-sample).' } },
+  { k: 'QUALITY EXCEPTION CELL™', c: 34, mode: 'quarantine', cam: 'lab', d: { pt: 'Trata desvios: contenção, investigação e decisão documentada.', es: 'Trata desvíos: contención, investigación y decisión documentada.', en: 'Handles deviations: containment, investigation and documented decision.' } },
+  { k: 'TRANSFER EVENT CORE™', c: 11, cam: 'lab', d: { pt: 'Registra o evento de transferência e a cadeia de custódia (reconstrução completa).', es: 'Registra el evento de transferencia y la cadena de custodia (reconstrucción completa).', en: 'Records the transfer event and chain of custody (full reconstruction).' } },
+  { k: 'TRANSFER LEARNING MEMORY™', c: 35, d: { pt: 'Aprende com cada transferência, com governança de atualização.', es: 'Aprende de cada transferencia, con gobernanza de actualización.', en: 'Learns from each transfer, under update governance.' } }
+];
+const GD_TXT = {
+  btn: { pt: 'Guia do Manual', es: 'Guía del Manual', en: 'Manual Guide' },
+  badge: { pt: 'ILUSTRATIVO · valores simulados', es: 'ILUSTRATIVO · valores simulados', en: 'ILLUSTRATIVE · simulated values' },
+  tabs: { pt: ['O quê', 'Fluxo', 'Autonomia', 'Validação', 'Rigor'], es: ['Qué es', 'Flujo', 'Autonomía', 'Validación', 'Rigor'], en: ['What', 'Flow', 'Autonomy', 'Validation', 'Rigor'] },
+  what: {
+    pt: [['Problema', 'Uma transferência de combustível pode ser reconstruída a partir de um único contexto digital (lote, tanque, qualidade, operador, regras e ação)? Hoje essas evidências ficam dispersas.'], ['Solução', 'Camada de coordenação, evidência e decisão sobre ERP, SCADA e LIMS existentes. Não substitui laboratórios, sistemas de segurança nem autoridades reguladoras.'], ['Benefícios', 'Tempo, custo, qualidade e governança. As metas são hipóteses de projeto até existir linha de base e evidência de campo.']],
+    es: [['Problema', '¿Puede reconstruirse una transferencia de combustible desde un único contexto digital (lote, tanque, calidad, operador, reglas y acción)? Hoy esas evidencias están dispersas.'], ['Solución', 'Capa de coordinación, evidencia y decisión sobre ERP, SCADA y LIMS existentes. No sustituye laboratorios, sistemas de seguridad ni autoridades reguladoras.'], ['Beneficios', 'Tiempo, costo, calidad y gobernanza. Las metas son hipótesis de diseño hasta contar con línea base y evidencia de campo.']],
+    en: [['Problem', 'Can a fuel transfer be fully reconstructed from a single digital context (batch, tank, quality, operator, rules and action)? Today that evidence is scattered.'], ['Solution', 'A coordination, evidence and decision layer on top of existing ERP, SCADA and LIMS. It does not replace labs, safety systems or regulators.'], ['Benefits', 'Time, cost, quality and governance. Targets are design hypotheses until a baseline and field evidence exist.']]
+  },
+  lv: {
+    pt: ['Observar', 'Detectar', 'Recomendar', 'Executar sob autorização', 'Automação controlada'],
+    es: ['Observar', 'Detectar', 'Recomendar', 'Ejecutar bajo autorización', 'Automatización controlada'],
+    en: ['Observe', 'Detect', 'Recommend', 'Execute under authorization', 'Controlled automation']
+  },
+  lvNote: {
+    pt: ['Início recomendado: níveis 1-3.', 'Níveis 4-5 só após testes, segurança e governança demonstrarem que a operação suporta.'],
+    es: ['Inicio recomendado: niveles 1-3.', 'Niveles 4-5 solo tras demostrar, con pruebas, seguridad y gobernanza, que la operación lo soporta.'],
+    en: ['Recommended start: levels 1-3.', 'Levels 4-5 only after testing, safety and governance show operations can support them.']
+  },
+  ph: {
+    pt: [['Modo Sombra', 'cap. 41', 'Roda em paralelo, sem atuar; compara com a operação real.'], ['Campo controlado', 'cap. 42', 'Piloto com intervenção limitada.'], ['PILOT-24', 'cap. 44', 'Piloto de 24 semanas; resultados e plano de expansão.'], ['Escalonamento', 'cap. 71', 'Regional e global, após critérios de aprovação/reprovação.']],
+    es: [['Modo Sombra', 'cap. 41', 'Corre en paralelo, sin actuar; compara con la operación real.'], ['Campo controlado', 'cap. 42', 'Piloto con intervención limitada.'], ['PILOT-24', 'cap. 44', 'Piloto de 24 semanas; resultados y plan de expansión.'], ['Escalamiento', 'cap. 71', 'Regional y global, tras criterios de aprobación/reprobación.']],
+    en: [['Shadow Mode', 'ch. 41', 'Runs in parallel without acting; compared with real operation.'], ['Controlled field', 'ch. 42', 'Pilot with limited intervention.'], ['PILOT-24', 'ch. 44', '24-week pilot; results and expansion plan.'], ['Scale-up', 'ch. 71', 'Regional and global, after go/no-go criteria.']]
+  },
+  status: { pt: 'Projetado → Verificado → Validado. Sem dados de campo: "aguardando validação em campo".', es: 'Diseñado → Verificado → Validado. Sin datos de campo: "pendiente de validación en campo".', en: 'Designed → Verified → Validated. Without field data: "awaiting field validation".' },
+  rig: {
+    pt: [['Respaldado pelo manual', 'Passaporte do lote, estado do tanque, motor de decisão, quarentena/célula de exceção, interlock HAZOP, modo sombra, OMNIA-5000 (protocolo interno de auditoria de projeto).'], ['Ilustrativo (fora do manual)', 'VRU, injeção de aditivos, PIG, supressão de incêndio, matriz solar, enxame/drones, e valores como 1.450 L/min, 45.000 L, 184 kW, 99,4 %. São simulações visuais.'], ['Atenção', '"CONFORME", "12/12" e "Patente em Trâmite" não são evidência de campo, certificação nem patente concedida; requerem confirmação do autor/proprietário.']],
+    es: [['Respaldado por el manual', 'Pasaporte del lote, estado del tanque, motor de decisión, cuarentena/célula de excepción, interlock HAZOP, modo sombra, OMNIA-5000 (protocolo interno de auditoría de diseño).'], ['Ilustrativo (fuera del manual)', 'VRU, inyección de aditivos, PIG, supresión de incendio, matriz solar, enjambre/drones, y valores como 1.450 L/min, 45.000 L, 184 kW, 99,4 %. Son simulaciones visuales.'], ['Atención', '"CONFORME", "12/12" y "Patente en Trámite" no son evidencia de campo, certificación ni patente concedida; requieren confirmación del autor/propietario.']],
+    en: [['Backed by the manual', 'Batch passport, tank state, decision engine, quarantine/exception cell, HAZOP interlock, shadow mode, OMNIA-5000 (internal design-audit protocol).'], ['Illustrative (not in manual)', 'VRU, additive injection, PIG, fire suppression, solar array, swarm/drones, and values such as 1,450 L/min, 45,000 L, 184 kW, 99.4%. Visual simulations only.'], ['Caution', '"COMPLIANT", "12/12" and "Patent Pending" are not field evidence, certification or a granted patent; they need author/owner confirmation.']]
+  },
+  now: { pt: 'Agora no 3D', es: 'Ahora en 3D', en: 'Now in 3D' },
+  see: { pt: 'Ver no 3D', es: 'Ver en 3D', en: 'See in 3D' },
+  shadow: { pt: 'Ativar Modo Sombra', es: 'Activar Modo Sombra', en: 'Enable Shadow Mode' }
+};
+function ManualGuide({ open, onClose, lang, mode, decision, onMode, onCam }) {
+  useEffect(() => {
+    if (!open) return;
+    const k = ev => { if (ev.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [open]);
+  const [tab, setTab] = useState(0);
+  const [step, setStep] = useState(0);
+  const [auto, setAuto] = useState(false);
+  const [lvl, setLvl] = useState(2);
+  const t = o => o[lang] || o.pt;
+  useEffect(() => {
+    if (!auto || !open || tab !== 1) return;
+    const iv = setInterval(() => setStep(s => (s + 1) % GD_STEPS.length), 3000);
+    return () => clearInterval(iv);
+  }, [auto, open, tab]);
+  const go = i => { setStep(i); const s = GD_STEPS[i]; if (s.mode) onMode(s.mode); if (s.cam) onCam(s.cam); };
+  useEffect(() => { if (open && tab === 1 && auto) go(step); }, [step]);
+  const I = I18N[lang] || I18N.pt;
+  const cur = GD_STEPS[step];
+  return (
+    <>
+      {open && (
+        <aside className="shrink-0 w-full md:w-[380px] h-[46%] md:h-auto min-h-0 z-30 flex flex-col bg-slate-900 border-t-2 md:border-t-0 md:border-l-2 border-cyan-500/50 shadow-2xl">
+          <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-slate-700 select-none">
+            <div className="min-w-0">
+              <span className="text-[11px] font-bold text-cyan-300">▶ {t(GD_TXT.btn)}</span>
+              <span className="ml-2 text-[9px] font-mono text-amber-300">{t(GD_TXT.badge)}</span>
+            </div>
+            <button onClick={onClose} className="px-1.5 text-slate-400 hover:text-white" aria-label="close">✕</button>
+          </div>
+          <div className="flex text-[11px] font-semibold border-b border-slate-700">
+            {t(GD_TXT.tabs).map((n, i) => (
+              <button key={i} onClick={() => setTab(i)} className={'flex-1 py-2 ' + (tab === i ? 'text-cyan-300 border-b-2 border-cyan-400' : 'text-slate-400 hover:text-slate-200')}>{n}</button>
+            ))}
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin p-3 text-[12px] leading-relaxed text-slate-200">
+            {tab === 0 && t(GD_TXT.what).map(([h, b], i) => (
+              <div key={i} className="mb-3"><div className="text-cyan-300 font-bold text-[11px] uppercase">{h}</div><div>{b}</div></div>
+            ))}
+            {tab === 1 && (
+              <div>
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {GD_STEPS.map((s, i) => (
+                    <button key={i} onClick={() => go(i)} className={'w-7 h-7 rounded-full text-[11px] font-bold border ' + (i === step ? 'bg-cyan-500 border-cyan-200 text-slate-900 animate-pulse' : i < step ? 'bg-cyan-900 border-cyan-600 text-cyan-200' : 'border-slate-600 text-slate-400')}>{i + 1}</button>
+                  ))}
+                </div>
+                <div className="h-1 bg-slate-700 rounded mb-3"><div className="h-1 bg-cyan-400 rounded transition-all duration-700" style={{ width: ((step + 1) / GD_STEPS.length * 100) + '%' }} /></div>
+                <div className="p-2 rounded border border-cyan-500/40 bg-slate-800/70">
+                  <div className="font-bold text-cyan-300 text-[12px]">{cur.k} <span className="text-slate-400 font-mono text-[10px]">cap. {cur.c}</span></div>
+                  <div className="mt-1">{t(cur.d)}</div>
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <button onClick={() => go((step + GD_STEPS.length - 1) % GD_STEPS.length)} className="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600">◀</button>
+                  <button onClick={() => { setAuto(a => !a); go(step); }} className="flex-1 py-1 rounded bg-cyan-700 hover:bg-cyan-600 font-semibold">{auto ? '❚❚' : '▶'} {t(GD_TXT.see)}</button>
+                  <button onClick={() => go((step + 1) % GD_STEPS.length)} className="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600">▶</button>
+                </div>
+                <div className="mt-3 p-2 rounded bg-slate-800/60 border border-slate-700 text-[11px]">
+                  <div className="text-slate-400 uppercase text-[10px] font-bold">{t(GD_TXT.now)}</div>
+                  <div>{(I.modeLabels || {})[mode] || mode}</div>
+                  <div className="font-mono text-amber-300">{(I.recommendation || {})[decision.recommendation] || decision.recommendation} · HAZOP {(I.hazopStatus || {})[decision.hazopStatus] || decision.hazopStatus}</div>
+                </div>
+              </div>
+            )}
+            {tab === 2 && (
+              <div>
+                {t(GD_TXT.lv).map((n, i) => (
+                  <button key={i} onClick={() => setLvl(i)} className={'w-full text-left mb-1 px-2 py-1.5 rounded border ' + (i === lvl ? 'border-cyan-400 bg-cyan-900/40' : 'border-slate-700') + (i > 2 ? ' opacity-80' : '')}>
+                    <span className="font-mono text-cyan-300">{i + 1}.</span> {n} {i <= 2 ? '✔' : '⚠'}
+                  </button>
+                ))}
+                <div className="mt-2 text-[11px] text-slate-300">{lvl <= 2 ? t(GD_TXT.lvNote)[0] : t(GD_TXT.lvNote)[1]}</div>
+              </div>
+            )}
+            {tab === 3 && (
+              <div>
+                {t(GD_TXT.ph).map(([n, c, d], i) => (
+                  <div key={i} className="flex gap-2 mb-2"><div className="w-6 h-6 shrink-0 rounded-full bg-cyan-800 text-cyan-100 text-[11px] font-bold flex items-center justify-center">{i + 1}</div><div><b>{n}</b> <span className="text-slate-400 text-[10px] font-mono">{c}</span><div className="text-[11px]">{d}</div></div></div>
+                ))}
+                <button onClick={() => onMode('shadow')} className="w-full mt-1 py-1.5 rounded bg-slate-700 hover:bg-slate-600 font-semibold">{t(GD_TXT.shadow)}</button>
+                <div className="mt-3 text-[11px] text-amber-200">{t(GD_TXT.status)}</div>
+              </div>
+            )}
+            {tab === 4 && t(GD_TXT.rig).map(([h, b], i) => (
+              <div key={i} className="mb-3"><div className={'font-bold text-[11px] uppercase ' + (i === 0 ? 'text-emerald-300' : i === 1 ? 'text-amber-300' : 'text-rose-300')}>{h}</div><div>{b}</div></div>
+            ))}
+          </div>
+        </aside>
+      )}
+    </>
+  );
+}
+
+function App() {
+  const [lang, setLang] = useState('pt');
+  const [mode, setMode] = useState('shadow');
+  const [tanks, setTanks] = useState(initialTanks);
+  const [selectedTankId, setSelectedTankId] = useState(1);
+  const [batch, setBatch] = useState(initialBatch);
+  const [decision, setDecision] = useState(initialDecision);
+  const [showWireframe, setShowWireframe] = useState(true);
+  const [showParticles, setShowParticles] = useState(true);
+  const [showDrones, setShowDrones] = useState(true);
+  const [cameraPreset, setCameraPreset] = useState('global');
+  const [cinemaMode, setCinemaMode] = useState(false);
+  const [layout, setLayout] = useState('complete');
+  const [showPanels, setShowPanels] = useState(true);
+  const [showAuthor, setShowAuthor] = useState(true);
+  const [omniaOpen, setOmniaOpen] = useState(false);
+  const [patentOpen, setPatentOpen] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [pulseKey, setPulseKey] = useState(null);
+  const pulseCounter = useRef(0);
+  const [objTooltip, setObjTooltip] = useState(null);
+  const [ripples, setRipples] = useState([]);
+  const [cameraNonce, setCameraNonce] = useState(0);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [guideKey, setGuideKey] = useState(0);
+  const [hudKey, setHudKey] = useState(0);
+
+  const showToast = useCallback(msg => setToast({ msg, id: Date.now() }), []);
+
+  useEffect(() => {
+    document.documentElement.lang = lang === 'pt' ? 'pt-BR' : lang;
+    document.title = 'IPIRANGA FUEL-HARMONY™ 3D — ' + (lang === 'pt' ? 'Protótipo' : lang === 'en' ? 'Prototype' : 'Prototipo');
+  }, [lang]);
+
+  const handleModeChange = useCallback(newMode => {
+    setMode(newMode);
+    if (newMode === 'active') setDecision(d => ({ ...d, recommendation: 'AUTHORIZE', hazopStatus: 'NORMAL', flowRateLpm: 1450, confidenceScore: 99.4 }));
+    else if (newMode === 'quarantine') setDecision(d => ({ ...d, recommendation: 'HOLD_FOR_RESAMPLE', hazopStatus: 'ALERT', flowRateLpm: 0, confidenceScore: 98.7 }));
+    else if (newMode === 'lockout') setDecision(d => ({ ...d, recommendation: 'REJECT_INTERLOCK', hazopStatus: 'TRIPPED', flowRateLpm: 0, confidenceScore: 100 }));
+    else if (newMode === 'swarm_sync') setDecision(d => ({ ...d, recommendation: 'AUTHORIZE', hazopStatus: 'NORMAL', flowRateLpm: 400, confidenceScore: 99.9 }));
+    else if (newMode === 'vru_active') setDecision(d => ({ ...d, recommendation: 'AUTHORIZE', hazopStatus: 'NORMAL', flowRateLpm: 800, confidenceScore: 99.6 }));
+    else if (newMode === 'additive_injection') setDecision(d => ({ ...d, recommendation: 'AUTHORIZE', hazopStatus: 'NORMAL', flowRateLpm: 1200, confidenceScore: 99.5 }));
+    else if (newMode === 'emergency_fire') setDecision(d => ({ ...d, recommendation: 'FIRE_EMERGENCY', hazopStatus: 'TRIPPED', flowRateLpm: 0, confidenceScore: 100 }));
+    else setDecision(d => ({ ...d, recommendation: 'AUTHORIZE', hazopStatus: 'NORMAL', flowRateLpm: 0, confidenceScore: 99.4 }));
+  }, []);
+
+  const handleSimulateFault = useCallback(() => {
+    handleModeChange('quarantine');
+    setBatch(b => ({ ...b, ethanolPercent: 32.4, complianceANP: false }));
+    setTanks(prev => prev.map(t => t.id === 1 ? { ...t, stratificationIndex: 0.42, temperatureC: t.temperatureC + 1.2 } : t));
+    setSelectedTankId(1);
+    showToast(I18N[lang].toast.decisionEval);
+  }, [handleModeChange, lang, showToast]);
+
+  // [v4.3] Valores por defecto de TODA la parte visual/opciones (todo salvo el idioma, que es preferencia del usuario)
+  const applyViewDefaults = useCallback(() => {
+    setCameraPreset('global'); setCameraNonce(n => n + 1);
+    setCinemaMode(false); setLayout('complete'); setShowPanels(true); setShowAuthor(true);
+    setShowWireframe(true); setShowParticles(true); setShowDrones(true);
+    setObjTooltip(null); setRipples([]); setPulseKey(null); setToast(null);
+    setOmniaOpen(false); setPatentOpen(false); setGuideOpen(false);
+    setHudKey(k => k + 1);   // remonta el HUD: paneles colapsados/expandidos y pulsos vuelven al inicio
+  }, []);
+
+  const handleResetSystem = useCallback(() => {
+    setMode('shadow');
+    setTanks(initialTanks.map(t => ({ ...t })));
+    setBatch({ ...initialBatch }); setDecision({ ...initialDecision });
+    setSelectedTankId(1);
+    applyViewDefaults();
+    setGuideKey(k => k + 1);  // reinicia pestaña, paso, nivel y posición de la Guía
+    setTimeout(() => showToast(I18N[lang].toast.systemReset), 0);
+  }, [lang, showToast, applyViewDefaults]);
+
+  const handleResetView = useCallback(() => {
+    applyViewDefaults();
+    setGuideKey(k => k + 1);
+    setTimeout(() => showToast(I18N[lang].toast.viewReset), 0);
+  }, [lang, showToast, applyViewDefaults]);
+
+  const handleEmergency = useCallback(() => {
+    handleModeChange('lockout');
+    showToast(I18N[lang].toast.swarmScan);
+  }, [handleModeChange, lang, showToast]);
+
+  const handleSelectTank = useCallback(id => {
+    setSelectedTankId(id);
+    setCameraPreset('tanks');
+    showToast(I18N[lang].toast.tankSelect + ' T-0' + id);
+  }, [lang, showToast]);
+
+  // NEW: Toggle isolation on double-click
+  const handleToggleIsolation = useCallback(id => {
+    setTanks(prev => prev.map(tk => {
+      if (tk.id !== id) return tk;
+      const newIso = !tk.isolated;
+      showToast(newIso ? I18N[lang].toast.isolate + ' · T-0' + id : I18N[lang].toast.unisolate + ' · T-0' + id);
+      return { ...tk, isolated: newIso };
+    }));
+  }, [lang, showToast]);
+
+  const handlePanelPulse = useCallback(key => {
+    pulseCounter.current += 1;
+    setPulseKey({ key, n: pulseCounter.current });
+    const map = { twin: I18N[lang].toast.twinPulse, passport: I18N[lang].toast.passportScan, decision: I18N[lang].toast.decisionEval, tank: I18N[lang].toast.tankProbe, fire: I18N[lang].toast.fireActive, vru: I18N[lang].toast.vruActive, pig: I18N[lang].toast.qualityScan };
+    showToast(map[key] || I18N[lang].toast.twinPulse);
+    if (key === 'passport') setBatch(b => ({ ...b, sha256Hash: b.sha256Hash.split('').reverse().join('').slice(0, 64) }));
+    else if (key === 'tank') setTanks(prev => prev.map(tk => ({ ...tk, stratificationIndex: Math.min(0.5, tk.stratificationIndex + (Math.random() - 0.5) * 0.05) })));
+    else if (key === 'decision') setDecision(d => ({ ...d, confidenceScore: Math.min(100, +(d.confidenceScore + (Math.random() - 0.5) * 0.4).toFixed(1)) }));
+  }, [lang, showToast]);
+
+  const handlePickObject = useCallback((pickKey, pos) => {
+    const id = Date.now() + Math.random();
+    setObjTooltip({ key: pickKey, id });
+    const rip = { id, x: pos.px, y: pos.py };
+    setRipples(r => [...r, rip]);
+    setTimeout(() => setRipples(r => r.filter(x => x.id !== id)), 700);
+  }, []);
+
+  useEffect(() => {
+    if (mode !== 'active') return;
+    const iv = setInterval(() => {
+      setTanks(prev => prev.map(tk => {
+        if (tk.id !== selectedTankId) return tk;
+        const newL = Math.min(tk.capacity, tk.currentLitres + 500);
+        return { ...tk, currentLitres: newL, levelPct: Math.round((newL / tk.capacity) * 100) };
+      }));
+    }, 500);
+    return () => clearInterval(iv);
+  }, [mode, selectedTankId]);
+
+  return (
+    <div className="relative w-screen h-screen overflow-hidden bg-slate-950 text-slate-100 flex flex-col">
+      <div className="flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden">
+      <div className="relative flex-1 min-w-0 min-h-0 overflow-hidden">
+        <ThreeCanvas
+          mode={mode} tanks={tanks} selectedTankId={selectedTankId}
+          showWireframe={showWireframe} showParticles={showParticles} showDrones={showDrones}
+          cameraPreset={cameraPreset} cameraNonce={cameraNonce}
+          onSelectTank={handleSelectTank}
+          onPickObject={handlePickObject}
+          onToggleIsolation={handleToggleIsolation}
+        />
+        <TacticalHUD
+          key={hudKey}
+          guideOpen={guideOpen} onToggleGuide={() => setGuideOpen(o => !o)}
+          lang={lang} mode={mode} tanks={tanks} selectedTankId={selectedTankId}
+          batchPassport={batch} decisionState={decision}
+          showWireframe={showWireframe} showParticles={showParticles} showDrones={showDrones}
+          onToggleWireframe={() => { setShowWireframe(v => !v); showToast(I18N[lang].toast.twinPulse); }}
+          onToggleParticles={() => { setShowParticles(v => !v); showToast(I18N[lang].toast.qualityScan); }}
+          onToggleDrones={() => { setShowDrones(v => !v); showToast(I18N[lang].toast.swarmScan); }}
+          onSelectTank={handleSelectTank}
+          onPanelPulse={handlePanelPulse}
+          pulseKey={pulseKey}
+          cinemaMode={cinemaMode}
+          onToggleCinemaMode={() => setCinemaMode(v => !v)}
+          layout={layout}
+          showPanels={showPanels} onTogglePanels={() => setShowPanels(v => !v)}
+          showAuthor={showAuthor} onToggleAuthor={() => setShowAuthor(v => !v)}
+        />
+        {objTooltip && <ObjectTooltip key={objTooltip.id} objectKey={objTooltip.key} lang={lang} />}
+        {ripples.map(r => <ClickRipple key={r.id} id={r.id} x={r.x} y={r.y} />)}
+        {toast && <Toast key={toast.id} message={toast.msg} onDone={() => setToast(null)} />}
+      </div>
+      {!cinemaMode && <ManualGuide key={guideKey} open={guideOpen} onClose={() => setGuideOpen(false)} lang={lang} mode={mode} decision={decision} onMode={handleModeChange} onCam={k => setCameraPreset(k)} />}
+      </div>
+
+      <SimulationControls
+        lang={lang} onLangChange={setLang}
+        mode={mode} onModeChange={handleModeChange}
+        cameraPreset={cameraPreset}
+        onCameraChange={k => { setCameraPreset(k); }}
+        onResetView={handleResetView}
+        onSimulateFault={handleSimulateFault}
+        onResetSystem={handleResetSystem}
+        onEmergencyStop={handleEmergency}
+        onOpenOmniaModal={() => { setOmniaOpen(true); showToast(I18N[lang].toast.omnia); }}
+        onOpenPatentModal={() => { setPatentOpen(true); showToast(I18N[lang].toast.patent); }}
+        layout={layout} setLayout={setLayout}
+      />
+
+      <OmniaModal isOpen={omniaOpen} onClose={() => setOmniaOpen(false)} lang={lang} />
+      <PatentModal isOpen={patentOpen} onClose={() => setPatentOpen(false)} lang={lang} />
+    </div>
+  );
+}
+
+try {
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(<App />);
+} catch (err) {
+  console.error(err);
+  document.getElementById('boot-error').classList.add('show');
+}
+setTimeout(() => {
+  const root = document.getElementById('root');
+  if (root && root.children.length === 0) {
+    document.getElementById('boot-error').classList.add('show');
+  }
+}, 8000);
+</script>
+</body>
+</html>
