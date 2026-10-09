@@ -655,7 +655,10 @@ const CFG = {
   refPattern: /^[A-Za-z0-9\-]{4,30}$/,
   passUsd: 3,
   passDays: 30,
-  bcn: { 2026: 36.6243 }
+  bcn: { 2026: 36.6243 },
+  paymentUrl: "https://script.google.com/macros/s/AKfycbzv8U6u6e8IdAi5aDTVRw6Rex-96VP0Nz6IkifeRaLo5WO0Z1Rt1yxtEqjbMgk6plGtGA/exec",
+  adminSecret: "MercaNica-Jcob-2026-Clave",
+  appId: "mercanica"
 };
 
 /* ============ DIVISIÓN POLÍTICA ============ */
@@ -1813,32 +1816,70 @@ function bindOutEvents(){
   });
 }
 
-function activateByRef(rawRef){
+async function activateByRef(rawRef){
   const ref = String(rawRef||"").trim();
+  const statusEl = document.getElementById("payStatus");
+  const btnGo = document.getElementById("pf_go");
+
   if(!ref || !CFG.refPattern.test(ref)){
-    document.getElementById("payStatus").innerHTML = `<div class="note">${esc(t("pf_bad"))}</div>`;
+    statusEl.innerHTML = `<div class="note">${esc(t("pf_bad"))}</div>`;
     return;
   }
+  if(!CFG.paymentUrl || CFG.paymentUrl.indexOf("PEGA_AQUI") === 0){
+    statusEl.innerHTML = `<div class="note">⚠️ Sistema de pagos no configurado.</div>`;
+    return;
+  }
+
+  statusEl.innerHTML = `<div class="note">⏳ Verificando pago… espera un momento.</div>`;
+  if(btnGo) btnGo.disabled = true;
+
   try{
-    const refs = usedRefs();
-    const nrm = ref.toUpperCase();
-    if(!refs.includes(nrm)){ refs.push(nrm); localStorage_set("mn_refs", JSON.stringify(refs.slice(-200))); }
-  }catch(e){}
-  try{
-    localStorage_set("mn_pass", String(Date.now() + CFG.passDays*24*3600*1000));
-    localStorage_set("mn_ref", ref.toUpperCase());
-  }catch(e){}
-  trackEvent("activate");
-  showToast(`<div class="ok success-flash">${esc(t("pf_ok"))}</div>`, 4500);
-  document.getElementById("pf_ref").value = "";
-  document.getElementById("payStatus").innerHTML = "";
-  fill();
-  if(searched || q.trim()){
-    searched = true;
-    search(true);
-    setTimeout(()=>document.getElementById("out").scrollIntoView({behavior:"smooth",block:"start"}), 300);
-  } else {
-    document.getElementById("q").focus();
+    const ctrl = new AbortController();
+    const to = setTimeout(function(){ ctrl.abort(); }, 12000);
+    const url = CFG.paymentUrl
+      + "?action=verify&receipt=" + encodeURIComponent(ref)
+      + "&app=" + encodeURIComponent(CFG.appId);
+    const res = await fetch(url, { method:"GET", signal: ctrl.signal });
+    clearTimeout(to);
+    const data = await res.json();
+
+    if(data.ok){
+      localStorage_set("mn_pass", String(data.exp || (Date.now() + CFG.passDays*24*3600*1000)));
+      localStorage_set("mn_ref", ref.toUpperCase());
+      try{
+        const refs = usedRefs();
+        if(refs.indexOf(ref.toUpperCase()) === -1){
+          refs.push(ref.toUpperCase());
+          localStorage_set("mn_refs", JSON.stringify(refs.slice(-200)));
+        }
+      }catch(e){}
+      trackEvent("activate");
+      document.getElementById("pf_ref").value = "";
+      statusEl.innerHTML = "";
+      showToast(`<div class="ok success-flash">${esc(t("pf_ok"))}</div>`, 4500);
+      fill();
+      if(searched || q.trim()){
+        searched = true; search(true);
+        setTimeout(function(){
+          document.getElementById("out").scrollIntoView({behavior:"smooth",block:"start"});
+        }, 300);
+      } else {
+        document.getElementById("q").focus();
+      }
+    } else {
+      const map = {
+        not_found:      "❌ Ese número no está aprobado todavía. Envía tu comprobante y espera confirmación (5–30 min).",
+        not_approved:   "⏳ Tu pago aún NO ha sido verificado. Espera confirmación del administrador.",
+        missing_receipt:"Escribe el número de referencia del depósito.",
+        missing_app:    "Error de configuración del servidor.",
+        unauthorized:   "Error de configuración del servidor."
+      };
+      statusEl.innerHTML = `<div class="note">${esc(map[data.error] || "❌ No pudimos verificar el pago.")}</div>`;
+    }
+  }catch(err){
+    statusEl.innerHTML = `<div class="note">📡 Sin conexión al verificador. Revisa tu internet e intenta otra vez.</div>`;
+  }finally{
+    if(btnGo) btnGo.disabled = false;
   }
 }
 
@@ -2103,7 +2144,56 @@ function boot(){
   setInterval(syncRemoteData, CFG.autoUpdateMs);
   document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) syncRemoteData(); });
   window.addEventListener("online", ()=>syncRemoteData());
-}
+}/* ═══════════════════════════════════════════════════════
+   FUNCIONES DE ADMINISTRADOR (solo para ti)
+   ═══════════════════════════════════════════════════════ */
+
+window.aprobarRecibo = async function(receipt){
+  if(!receipt){ console.error("Uso: await aprobarRecibo('12345678')"); return; }
+  try{
+    const url = CFG.paymentUrl
+      + "?action=approve&secret=" + encodeURIComponent(CFG.adminSecret)
+      + "&receipt=" + encodeURIComponent(receipt)
+      + "&app=" + encodeURIComponent(CFG.appId);
+    const r = await fetch(url);
+    const data = await r.json();
+    if(data.ok) console.log("%c✅ Recibo " + receipt + " aprobado", "background:#16a34a;color:#fff;padding:6px 12px;border-radius:6px;font-weight:bold");
+    else console.error("❌ Error:", data);
+    return data;
+  }catch(e){ console.error("Error de red:", e); }
+};
+
+window.listarRecibos = async function(){
+  try{
+    const url = CFG.paymentUrl + "?action=list&secret=" + encodeURIComponent(CFG.adminSecret);
+    const r = await fetch(url);
+    const data = await r.json();
+    if(data.ok){
+      console.log("%c📋 Recibos registrados (" + data.recibos.length + "):", "color:#0891b2;font-weight:bold;font-size:14px");
+      data.recibos.forEach(function(x){
+        console.log("  " + (x.estado === "OK" ? "✅" : "⏳") + " [" + x.app + "] " + x.recibo + " — " + x.fecha);
+      });
+    }
+    return data;
+  }catch(e){ console.error(e); }
+};
+
+window.probarBackend = async function(){
+  console.log("🔍 Probando backend…");
+  try{
+    const url = CFG.paymentUrl + "?action=verify&receipt=DEMO-MN&app=mercanica";
+    const r = await fetch(url);
+    const data = await r.json();
+    if(data.ok){
+      console.log("%c✅ Backend funciona correctamente", "background:#16a34a;color:#fff;padding:6px 12px;border-radius:6px;font-weight:bold");
+    } else {
+      console.log("%c⚠️ Backend responde pero revisa DEMO-MN:", "background:#f59e0b;color:#fff;padding:6px 12px;border-radius:6px;font-weight:bold", data);
+    }
+    return data;
+  }catch(e){
+    console.error("❌ Sin conexión al backend:", e);
+  }
+};
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", boot);
 else boot();
 </script>
