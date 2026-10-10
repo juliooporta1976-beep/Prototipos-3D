@@ -233,11 +233,12 @@ details[open]>summary::before{transform:rotate(90deg)}
 "use strict";
 
 const CFG={
-  hashes:["662746b394554b3f1042d3d5deead3348d237736119499da6f536c8d0cb1b4e3","a85cd894d4f31b4b893dac69544c8608299871e866c168e9f5c6730c0591622c","806d04ad93de3c5f7d3922417e10e9da51436e15aac118e81bddb3d39ef9c5d4","95cfafcc3b608e1bec795d087cbd3c2b49f9b35281a9027114d121228809f95c","f714dbf28936c80139d18a376faddec7151666c5354664245898b51de999f1d6","0360bcab4f364a76a615d3f662b27390ff426778756286354ca934db243e13a4","865d2edd58511725c6eb140bfdd7c83d4300756020e294409d476073c96a6981","075e5f9baa900670fd5f1e35418954b29ce090f922e44354f8336719f080e944","22d5a790a5cc41eb6bc32476b452fe406f264b60375ef6983dac5877422fb572","e79d2dda7515adc7143d6797f0ef45293cd3b531bc65d3d72472e117c460ef1b"],
   issues:"https://github.com/juliooporta1976-beep/juliooporta1976-beep.github.io/issues/new",
-  acct:"10020510230315",swift:"BAPRNIMA",instant:true,upd:"",
+  acct:"10020510230315",swift:"BAPRNIMA",upd:"",
   contact:"juliooporta1976@gmail.com",buy:"#pcv",
-  api:"https://TU-WORKER.TU-USUARIO.workers.dev"
+  paymentUrl:"https://script.google.com/macros/s/AKfycbzv8U6u6e8IdAi5aDTVRw6Rex-96VP0Nz6IkifeRaLo5WO0Z1Rt1yxtEqjbMgk6plGtGA/exec",
+  adminSecret:"MercaNica-Jcob-2026-Clave",
+  appId:"creditolisto"
 };
 
 const L={
@@ -302,7 +303,6 @@ function curName(c){
 
 let _nfc={};
 const clearNF=()=>{_nfc={}};
-const localMode=()=>CFG.api.indexOf("TU-WORKER")!==-1;
 
 let _toastT=0;
 function showToast(msg,dur=2000){
@@ -716,21 +716,20 @@ function render(q){
 
 const RP=/^[A-Za-z0-9\-]{4,30}$/;
 async function chk(k){
-  const v=String(k||"").trim();
-  if(!v)return false;
-  if(localMode()){
-    try{
-      const h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));
-      const hex=[...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,"0")).join("");
-      if(CFG.hashes.indexOf(hex)!==-1)return true;
-    }catch(e){}
-  }
-  if(CFG.instant){
-    return RP.test(v);
-  }
-  if(localMode())return false;
-  const r=await fetch(CFG.api,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:v})});
-  return (await r.json()).valid===true;
+  const v=String(k||"").trim().toUpperCase();
+  if(!v || v.length<4) return false;
+  if(!CFG.paymentUrl || CFG.paymentUrl.includes("PEGA_AQUI")) return false;
+  try{
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 12000);
+    const url = CFG.paymentUrl
+      + "?action=verify&receipt=" + encodeURIComponent(v)
+      + "&app=" + encodeURIComponent(CFG.appId);
+    const r = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(to);
+    const data = await r.json();
+    return data.ok === true;
+  }catch(e){ return false; }
 }
 
 function applyBig(){
@@ -1030,15 +1029,11 @@ function setupEvents(){
     try{$("fm").scrollIntoView({behavior:"smooth",block:"start"})}catch(e){}
   });
 
-  $("fbs").addEventListener("click",async()=>{
-    const m=$("fb").value.trim();if(!m)return;
-    if(localMode()){window.open(CFG.issues+"?title=Sugerencia&body="+encodeURIComponent(m),"_blank","noopener");return}
-    try{
-      const r=await fetch(CFG.api+"/feedback",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({m})});
-      if(!r.ok)throw 0;
-      $("fb").value="";$("fbm").textContent=t("fbok");
-    }catch(e){$("fbm").textContent=t("fail")}
-  });
+ $("fbs").addEventListener("click",()=>{
+  const m=$("fb").value.trim();if(!m)return;
+  window.open(CFG.issues+"?title=Sugerencia&body="+encodeURIComponent(m),"_blank","noopener");
+  $("fb").value="";$("fbm").textContent=t("fbok");
+});
 
   $("buy").href=CFG.buy;
   if(CFG.buy.charAt(0)==="#")$("buy").removeAttribute("target");
@@ -1109,7 +1104,49 @@ function init(){
   });
 }
 
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);
+/* ═══════════════════════════════════════════════════════
+   ADMIN — CréditoListo
+   ═══════════════════════════════════════════════════════ */
+
+window.aprobarReciboCreditoListo = async function(receipt){
+  if(!receipt){ console.error("Uso: await aprobarReciboCreditoListo('12345678')"); return; }
+  try{
+    const url = CFG.paymentUrl + "?action=approve&secret=" + encodeURIComponent(CFG.adminSecret) + "&receipt=" + encodeURIComponent(receipt) + "&app=" + encodeURIComponent(CFG.appId);
+    const r = await fetch(url);
+    const data = await r.json();
+    if(data.ok) console.log("%c✅ Recibo CréditoListo " + receipt + " aprobado", "background:#16a34a;color:#fff;padding:6px 12px;border-radius:6px;font-weight:bold");
+    else console.error("❌ Error:", data);
+    return data;
+  }catch(e){ console.error("Error de red:", e); }
+};
+
+window.listarRecibosCreditoListo = async function(){
+  try{
+    const url = CFG.paymentUrl + "?action=list&secret=" + encodeURIComponent(CFG.adminSecret);
+    const r = await fetch(url);
+    const data = await r.json();
+    if(data.ok){
+      console.log("%c📋 Recibos registrados (" + data.recibos.length + "):", "color:#0891b2;font-weight:bold");
+      data.recibos.forEach(function(x){
+        console.log("  " + (x.estado === "OK" ? "✅" : "⏳") + " [" + x.app + "] " + x.recibo + " — " + x.fecha);
+      });
+    }
+    return data;
+  }catch(e){ console.error(e); }
+};
+
+window.probarBackendCreditoListo = async function(){
+  console.log("🔍 Probando backend CréditoListo…");
+  try{
+    const url = CFG.paymentUrl + "?action=verify&receipt=DEMO-CL&app=creditolisto";
+    const r = await fetch(url);
+    const data = await r.json();
+    if(data.ok) console.log("%c✅ Backend CréditoListo funciona", "background:#16a34a;color:#fff;padding:6px 12px;border-radius:6px;font-weight:bold");
+    else console.log("%c⚠️ Backend responde pero revisa DEMO-CL:", "background:#f59e0b;color:#fff;padding:6px 12px;border-radius:6px;font-weight:bold", data);
+    return data;
+  }catch(e){ console.error("❌ Sin conexión al backend:", e); }
+};
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);
 else init();
 })();
 </script>
