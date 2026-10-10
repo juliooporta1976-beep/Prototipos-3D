@@ -617,11 +617,12 @@ const CFG={
   paywall:true,
   freeDemo:true,
   contact:"juliooporta1976@gmail.com",
-  api:"https://TU-WORKER.TU-USUARIO.workers.dev",
-  dataUrl:"https://TU-SERVIDOR/FARMABUSCA_data.json",
+  paymentUrl:"https://script.google.com/macros/s/AKfycbzv8U6u6e8IdAi5aDTVRw6Rex-96VP0Nz6IkifeRaLo5WO0Z1Rt1yxtEqjbMgk6plGtGA/exec",
+  adminSecret:"MercaNica-Jcob-2026-Clave",
+  appId:"farmabusca",
+  dataUrl:"",
   selfUrl:"",
-  autoUpdateMs:15*60*1000,
-  hashes:["f65004f800bd19f5d970151363db30859c6bbc9e1b2c5fb3c3674bc1221acd00","5a6e271b6a8fe92e886419313777ab2bcdc91a2583f24cf234934503a9160a52","00e98ab660a8f8695b7d6e0e00d3b20a6432e31a5673bf2f1abf269d636bef60","acb536f5e70a3502eb4cad578d23a18449804c8975ff3dee9f2f5f17887cf280","dfa32ab02611f46bc751422bad23041870a8cca278aa8a3ea26fbd4c6ceba24b","3f13213857c9b6596f509cd945fc886ebc0ece9a3ee4d955f50f3997b1d3b035","c486a269b41a13cce4c3519199c3252ed659bd298a846434c48fac8cf73b54dc","df38567e3b431d0c448a00a12990385ae92d07ed8598e3a5ae5d32051851a29f","f994ee3437deaacd845bce0979a7e0af2d9e860d3f0e49ab0e060c5ab026ca5d","02c7a0c9fa0af816426cc276b62e2dff4156cc962d924e2e4009897d7a95c68c","92c04f119d80a934a4b0ad001f8421a96965b4b8ef63cdc841bb06d200d9d30f","a0ae6e8762ddddf5fda93f2f9a96913560563596ba49e6dc473e3b459f0f6bdd","86b4d7d802c66f74ffdf39f9f8bc5fdcddc7033fdfc2dfd14321c955ba524ed9","b425fa138afebe75959b726431e7dd40da7dcb8f4025073cde4524c03e45823c","c3db152ae2b638011131c850caba7db53994a7b6ca9834a37405bb92f4564fec"]
+  autoUpdateMs:15*60*1000
 };
 let DATA_VERSION="2026-10-08";
 
@@ -1189,37 +1190,66 @@ $("rb").addEventListener("click",()=>{
    ============================================================ */
 const unlocked=()=>{try{return Number(localStorage.getItem("fb_pass"))>Date.now()}catch(e){return false}};
 function deviceFp(){try{const s=[navigator.userAgent||"",navigator.language||"",(screen.width||0)+"x"+(screen.height||0),(Intl.DateTimeFormat().resolvedOptions().timeZone)||""].join("|");let h=0;for(let i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))>>>0}return h.toString(16)}catch(e){return"0"}}
-const localMode=()=>CFG.api.includes("TU-WORKER");
 async function chk(k){
-  if(!k)return false;
-  if(localMode()){
-    if(!(window.crypto&&crypto.subtle))return false;
-    try{
-      const h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(k));
-      return CFG.hashes.includes([...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,"0")).join(""));
-    }catch(e){return false}
-  }
-  const r=await fetch(CFG.api,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:k})});return(await r.json()).valid===true
+  if(!k) return false;
+  if(!CFG.paymentUrl || CFG.paymentUrl.includes("PEGA_AQUI")) return false;
+  try{
+    const url = CFG.paymentUrl + "?action=verify&receipt=" + encodeURIComponent(k) + "&app=" + encodeURIComponent(CFG.appId);
+    const r = await fetch(url);
+    const data = await r.json();
+    return data.ok === true;
+  }catch(e){ return false; }
 }
 function weakRef(r){const t=r.replace(/-/g,"");if(t.length<5)return true;if(/^(.)\1+$/.test(t))return true;if(/^\d+$/.test(t)&&("012345678901234567890".includes(t)||"98765432109876543210".includes(t)))return true;return false}
 function rateOk(){try{const n=Date.now();const a=JSON.parse(localStorage.getItem("fb_att")||"[]").filter(t=>n-t<36e5);if(a.length>=5)return false;a.push(n);localStorage.setItem("fb_att",JSON.stringify(a));return true}catch(e){return true}}
-function autoActivate(){
+async function autoActivate(){
   const p=P[L],ref=$("pf_ref").value.trim(),em=$("pf_email").value.trim(),msg=$("pf_msg"),res=$("pf_result");
   if(!ref||!REF_PATTERN.test(ref)){msg.textContent=p.pf_bad;return}
   if(!em||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){msg.textContent=p.pf_bad;return}
-  if(weakRef(ref)){msg.textContent=p.pf_bad;return}
   if(!rateOk()){msg.textContent=p.tooMany;return}
-  try{const used=JSON.parse(localStorage.getItem("fb_refs")||"[]");if(used.includes(ref)){msg.textContent=p.pf_dup;return}used.push(ref);localStorage.setItem("fb_refs",JSON.stringify(used.slice(-200)))}catch(e){}
-  const code="FB-"+ref.replace(/\s+/g,"").toUpperCase().slice(0,8)+"-"+Math.random().toString(36).slice(2,6).toUpperCase();
-  try{localStorage.setItem("fb_pass",String(Date.now()+2592e6));localStorage.setItem("fb_code",code);
-    try{localStorage.setItem("fb_device",deviceFp())}catch(e){}
-    const emList=JSON.parse(localStorage.getItem("fb_emails")||"[]");
-    if(!emList.find(x=>x.e===em)){emList.push({e:em,c:code,t:Date.now()});localStorage.setItem("fb_emails",JSON.stringify(emList.slice(-50)))}}
-  catch(e){}
-  msg.textContent="";res.style.display="block";res.style.background="var(--acc2)";res.style.color="var(--acc)";
-  res.style.border="1.5px solid var(--acc)";res.innerHTML=p.pf_ok.replace("{0}",esc(code));
-  $("pf_ref").value="";$("pf_email").value="";trackEvent("activate");search();
-  setTimeout(()=>{res.scrollIntoView({behavior:"smooth",block:"center"})},200);
+  if(!CFG.paymentUrl || CFG.paymentUrl.includes("PEGA_AQUI")){msg.textContent="Sistema de pagos no configurado.";return}
+
+  msg.textContent="⏳ Verificando pago…";
+  res.style.display="none";
+
+  try{
+    const url = CFG.paymentUrl + "?action=verify&receipt=" + encodeURIComponent(ref) + "&app=" + encodeURIComponent(CFG.appId);
+    const r = await fetch(url);
+    const data = await r.json();
+
+    if(data.ok){
+      const exp = data.exp || (Date.now() + 2592e6);
+      const code = "FB-" + ref.replace(/\s+/g,"").toUpperCase().slice(0,8) + "-" + Math.random().toString(36).slice(2,6).toUpperCase();
+      try{
+        localStorage.setItem("fb_pass",String(exp));
+        localStorage.setItem("fb_code",code);
+        localStorage.setItem("fb_device",deviceFp());
+        const emList=JSON.parse(localStorage.getItem("fb_emails")||"[]");
+        if(!emList.find(x=>x.e===em)){emList.push({e:em,c:code,t:Date.now()});localStorage.setItem("fb_emails",JSON.stringify(emList.slice(-50)))}
+      }catch(e){}
+      msg.textContent="";
+      res.style.display="block";
+      res.style.background="var(--acc2)";
+      res.style.color="var(--acc)";
+      res.style.border="1.5px solid var(--acc)";
+      res.innerHTML=p.pf_ok.replace("{0}",esc(code));
+      $("pf_ref").value="";$("pf_email").value="";
+      trackEvent("activate");
+      search();
+      setTimeout(()=>{res.scrollIntoView({behavior:"smooth",block:"center"})},200);
+    } else {
+      const map = {
+        not_found:"❌ Ese número no está aprobado todavía. Envía tu comprobante y espera confirmación.",
+        not_approved:"⏳ Tu pago aún NO ha sido verificado. Espera confirmación del administrador.",
+        missing_receipt:"Escribe el número de referencia del depósito.",
+        missing_app:"Error de configuración del servidor.",
+        unauthorized:"Error de configuración del servidor."
+      };
+      msg.textContent = map[data.error] || "❌ No pudimos verificar el pago.";
+    }
+  }catch(e){
+    msg.textContent="📡 Sin conexión al verificador. Revisa tu internet e intenta otra vez.";
+  }
 }
 function recoverCode(){
   const p=P[L],em=$("rec_em").value.trim(),msg=$("rec_msg"),res=$("rec_result");
@@ -1244,9 +1274,20 @@ function lockView(n){
     <p>${esc(p.found.replace("{0}",n))}</p><p>${esc(p.lockp2)}</p>
     <a class="btn" style="display:inline-block;text-decoration:none" href="#wu">${esc(p.pf_go)}</a>
     <p style="margin-top:12px">${esc(p.lockp)}</p>
-    <p style="margin-top:8px"><input id="cd" placeholder="${esc(p.code)}" aria-label="${esc(p.code)}" style="max-width:260px">
+    <p style="margin-top:8px"><input id="cd" placeholder="${esc(p.pf_ref)}" aria-label="${esc(p.pf_ref)}" style="max-width:260px">
     <button class="btn alt" id="ap" type="button">${esc(p.act)}</button></p></div>`;
-  $("ap").onclick=async()=>{try{if(await chk($("cd").value.trim())){try{localStorage.setItem("fb_pass",String(Date.now()+2592e6))}catch(e){}search()}else alert(p.bad)}catch(e){alert(p.fail)}};
+  $("ap").onclick=async()=>{
+    const k=$("cd").value.trim();
+    if(!k){alert(p.pf_bad);return}
+    try{
+      if(await chk(k)){
+        try{localStorage.setItem("fb_pass",String(Date.now()+2592e6))}catch(e){}
+        search();
+      }else{
+        alert(p.bad);
+      }
+    }catch(e){alert(p.fail)}
+  };
   const cdin=$("cd");
   if(cdin)cdin.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("ap").click()}});
 }
@@ -1656,7 +1697,44 @@ function boot(){
   // (el usuario puede añadir manualmente a pantalla de inicio si lo desea)
   window.addEventListener("beforeinstallprompt",e=>e.preventDefault());
 }
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot();
-</script>
-</body>
-</html>
+
+  /* ═══════════════════════════════════════════════════════
+   ADMIN — FarmaBusca
+   ═══════════════════════════════════════════════════════ */
+
+window.aprobarReciboFarmaBusca = async function(receipt){
+  if(!receipt){ console.error("Uso: await aprobarReciboFarmaBusca('12345678')"); return; }
+  try{
+    const url = CFG.paymentUrl + "?action=approve&secret=" + encodeURIComponent(CFG.adminSecret) + "&receipt=" + encodeURIComponent(receipt) + "&app=" + encodeURIComponent(CFG.appId);
+    const r = await fetch(url);
+    const data = await r.json();
+    if(data.ok) console.log("%c✅ Recibo FarmaBusca " + receipt + " aprobado", "background:#16a34a;color:#fff;padding:6px 12px;border-radius:6px;font-weight:bold");
+    else console.error("❌ Error:", data);
+    return data;
+  }catch(e){ console.error("Error de red:", e); }
+};
+
+window.listarRecibosFarmaBusca = async function(){
+  try{
+    const url = CFG.paymentUrl + "?action=list&secret=" + encodeURIComponent(CFG.adminSecret);
+    const r = await fetch(url);
+    const data = await r.json();
+    if(data.ok){
+      console.log("%c📋 Recibos registrados (" + data.recibos.length + "):", "color:#0891b2;font-weight:bold");
+      data.recibos.forEach(x => console.log("  " + (x.estado === "OK" ? "✅" : "⏳") + " [" + x.app + "] " + x.recibo + " — " + x.fecha));
+    }
+    return data;
+  }catch(e){ console.error(e); }
+};
+
+window.probarBackendFarmaBusca = async function(){
+  console.log("🔍 Probando backend FarmaBusca…");
+  try{
+    const url = CFG.paymentUrl + "?action=verify&receipt=DEMO-FB&app=farmabusca";
+    const r = await fetch(url);
+    const data = await r.json();
+    if(data.ok) console.log("%c✅ Backend FarmaBusca funciona", "background:#16a34a;color:#fff;padding:6px 12px;border-radius:6px;font-weight:bold");
+    else console.log("%c⚠️ Backend responde pero revisa DEMO-FB:", "background:#f59e0b;color:#fff;padding:6px 12px;border-radius:6px;font-weight:bold", data);
+    return data;
+  }catch(e){ console.error("❌ Sin conexión al backend:", e); }
+};
