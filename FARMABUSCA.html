@@ -1247,17 +1247,15 @@ $("rb").addEventListener("click",()=>{
    ============================================================ */
 const unlocked=()=>{try{return Number(localStorage.getItem("fb_pass"))>Date.now()}catch(e){return false}};
 function deviceFp(){try{const s=[navigator.userAgent||"",navigator.language||"",(screen.width||0)+"x"+(screen.height||0),(Intl.DateTimeFormat().resolvedOptions().timeZone)||""].join("|");let h=0;for(let i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))>>>0}return h.toString(16)}catch(e){return"0"}}
-const localMode=()=>CFG.api.includes("TU-WORKER");
 async function chk(k){
-  if(!k)return false;
-  if(localMode()){
-    if(!(window.crypto&&crypto.subtle))return false;
-    try{
-      const h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(k));
-      return CFG.hashes.includes([...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,"0")).join(""));
-    }catch(e){return false}
-  }
-  const r=await fetch(CFG.api,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:k})});return(await r.json()).valid===true
+  if(!k) return false;
+  if(!CFG.paymentUrl || CFG.paymentUrl.includes("PEGA_AQUI")) return false;
+  try{
+    const url = CFG.paymentUrl + "?action=verify&receipt=" + encodeURIComponent(k) + "&app=" + encodeURIComponent(CFG.appId);
+    const r = await fetch(url);
+    const data = await r.json();
+    return data.ok === true;
+  }catch(e){ return false; }
 }
 function weakRef(r){const t=r.replace(/-/g,"");if(t.length<5)return true;if(/^(.)\1+$/.test(t))return true;if(/^\d+$/.test(t)&&("012345678901234567890".includes(t)||"98765432109876543210".includes(t)))return true;return false}
 function rateOk(){try{const n=Date.now();const a=JSON.parse(localStorage.getItem("fb_att")||"[]").filter(t=>n-t<36e5);if(a.length>=5)return false;a.push(n);localStorage.setItem("fb_att",JSON.stringify(a));return true}catch(e){return true}}
