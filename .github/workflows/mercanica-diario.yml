@@ -1,0 +1,28 @@
+name: MercaNica diario
+on:
+  schedule:
+    - cron: "15 11 * * *"   # 5:15 a.m. Nicaragua, alineado con updTimer
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+
+      - name: Aplicar mejoras idempotentes al HTML
+        run: python scripts/patch_mercanica.py MercaNica.html
+
+      - name: Generar datos del día
+        run: python scripts/update_mercanica.py
+
+      - name: Guardar cambios
+        run: |
+          git config user.name "mercanica-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add mercanica-data.json MercaNica.html sw.js
+          git diff --cached --quiet || (git commit -m "MercaNica: actualización $(date -u +%F)" && git push)
