@@ -777,8 +777,8 @@ function ui(){
   updateBars();updatePreview();
 }
 
-const PRICE=3,BCN={2026:36.6243},PCUR={es:"NIO",en:"USD",pt:"BRL",fr:"EUR"},FX={};
-function bcnRate(){const y=new Date().getFullYear(),ks=Object.keys(BCN).map(Number).sort((a,b)=>a-b);return BCN[y]||BCN[ks[ks.length-1]]}
+let PRICE=3,BCN={2026:36.6243},PCUR={es:"NIO",en:"USD",pt:"BRL",fr:"EUR"},FX={};
+  function bcnRate(){const y=new Date().getFullYear(),ks=Object.keys(BCN).map(Number).sort((a,b)=>a-b);return BCN[y]||BCN[ks[ks.length-1]]}
 async function loadFx(){
   let c=null;try{c=JSON.parse(localStorage.getItem("cl_fx")||"null")}catch(e){}
   if(c&&c.r)Object.assign(FX,c.r);
@@ -1083,7 +1083,19 @@ function setupEvents(){
     }
   });
 }
-
+async function syncCreditolistoData() {
+  try {
+    const res = await fetch('creditolisto-data.json?_=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.bcnRate && !isNaN(data.bcnRate)) {
+      BCN[new Date().getFullYear()] = data.bcnRate;
+      if (typeof prc === 'function') prc(); // Actualiza el precio en pantalla
+    }
+  } catch (e) {
+    console.warn('No se pudo actualizar la tasa BCN:', e);
+  }
+}
 function init(){
   preloadVoices();
   loadProf();
@@ -1095,6 +1107,7 @@ function init(){
   setupNetStatus();
   setupEvents();
   loadFx().then(prc);
+    syncCreditolistoData();
   setTimeout(preloadVoices,800);
   const idle=window.requestIdleCallback||(cb=>setTimeout(()=>cb({timeRemaining:()=>50}),250));
   idle(()=>{exr();idle(()=>selfUpdate())});
